@@ -99,15 +99,21 @@ def test_energy_is_billed_for_the_bite_actually_taken(tmp_path) -> None:
 
 
 def test_drum_never_exceeds_its_sourced_capacity_and_stops_when_full(tmp_path) -> None:
-    """[REQ:PX-09] The drum holds only DRUM_CAPACITY_KG. Digging repeatedly must never book more than that,
-    and once full a further dig must move NOTHING -- that refusal is the fill -> stop -> haul quantum."""
-    rt = _runtime(tmp_path, drum="small", dig_depth_m=0.02)
-    cap_kg = float(DRUM_CAPACITY_KG["small"])
+    """[REQ:PX-09/PX-13] The VEHICLE holds 2 x DRUM_CAPACITY_KG. Digging repeatedly must never book more than
+    that, and once full a further dig must move NOTHING -- that refusal is the fill -> stop -> haul quantum.
 
-    for _ in range(60):                       # far more passes than the small drum can possibly hold
+    UPDATED BY PX-13. [BDSCALE] DRUM_CAPACITY_KG is the hold of ONE drum ("Avg total regolith collected PER
+    DRUM", Schuler 2022 Table 3), and the vehicle carries TWO. So the cap is 2x. Note what does NOT change:
+    two drums cut two footprints, so mass-in doubles AND the tank doubles -- PASSES-TO-FULL IS UNCHANGED.
+    What doubles is THROUGHPUT (every haul carries twice the regolith), which is the actual reason the
+    machine has two drums. Raising this bound is not a loosening: the refusal below still binds, exactly."""
+    rt = _runtime(tmp_path, drum="small", dig_depth_m=0.02)
+    cap_kg = 2.0 * float(DRUM_CAPACITY_KG["small"])          # the VEHICLE hold: two drums
+
+    for _ in range(60):                       # far more passes than the vehicle can possibly hold
         rt._apply_dig()
         assert _drum_kg(rt) <= cap_kg + 1e-6, (
-            f"drum holds {_drum_kg(rt):.2f} kg > its sourced {cap_kg:.2f} kg capacity")
+            f"vehicle holds {_drum_kg(rt):.2f} kg > its sourced {cap_kg:.2f} kg (2 x per-drum) capacity")
 
     assert _drum_kg(rt) > 0.0, "the test never actually dug"
     # Full -> the next pass is refused (no mass leaves the grid): the haul quantum exists.

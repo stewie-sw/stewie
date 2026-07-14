@@ -1326,6 +1326,15 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - files: stewie/runtime/viz2_runtime.py, stewie/specs/arm_state.py
 - test_target: NEW [REQ:PX-13] in stewie/runtime/test_viz2_dig_reaction.py (real Haworth SfS bundle, through the real Viz2Runtime)
 
+### PX-14 (P1) — atomic
+- goal: An AutoDig-equivalent CLOSED-LOOP trench controller. NASA's AutoDig (the semi-autonomous excavation routine for RASSOR -> IPEx) maintains ground contact and regulates DIGGING DEPTH from the drum motors' CURRENT DRAW (torque) -- i.e. from how much soil the drums are actually ingesting. STEWIE has the SENSOR and not the LOOP.
+- acceptance: the bite is driven by the (optionally noisy) drum-current observable, not a fixed commanded depth; it holds a target ingestion rate under VARYING terrain resistance (a harder/denser cell reduces the bite, a softer one increases it) instead of blindly cutting a constant depth; it RESPECTS the already-sourced bounds (PX-09 capacity refusal + <=50% anti-bridging bite, PX-10 the arm gate, PX-12 metered discharge, PX-13 the two-drum reaction) rather than replacing them; it terminates a trench on the drum-full condition via the EXISTING `should_offload` autonomy trigger; and it degrades honestly under the paper's real sensor uncertainty (planning against IMPERFECT fill knowledge, which is the entire point of the FDC model).
+- current_state: THE SENSOR EXISTS, THE LOOP DOES NOT. `stewie/physics/rassor_mass_model.py` grounds the exact telemetry AutoDig closes on -- Free-spinning Drum Current, mass proportional to steady avg drum current, FDC_LINEAR_R2 = (0.989, 0.985), FDC_MPE_ALL = 7.40%, FDC_MPE_HALF_FULL = 2.56%, sourced from NTRS 20210022781 (ICE-RASSOR, AIAA ASCEND 2021). It can synthesize the current reading FROM conserved drum mass and infer mass BACK from it with published error bars. But the live dig is a COMMANDED VERB (`elif cmd == "dig"` -> `_apply_dig()`): no controller, no feedback, no contact maintenance.
+- HONEST SCOPE: the PID/gain structure is [CALIB] -- AutoDig's gains are NOT published. Acceptance is on closed-loop BEHAVIOUR (bite responds to ingestion feedback, bounds hold, terminates on full), NEVER on reproducing NASA's specific gains, which would be fabrication.
+- PRIOR ART (do not overclaim): NTRS 20210022218 (ICE-RASSOR *learning excavation*) is NASA replacing the AutoDig PID trencher with deep RL. STEWIE has NOT read that paper -- it cites 20210022781 (the MASS paper).
+- files: stewie/runtime/viz2_runtime.py, stewie/physics/rassor_mass_model.py
+- test_target: NEW [REQ:PX-14] in stewie/runtime/test_viz2_autodig.py (real Haworth SfS bundle, through the real Viz2Runtime)
+
 ## §7.B GIS Mission Workbench briefs (PRD2 fold, 2026-07-04)
 
 ### GW-00

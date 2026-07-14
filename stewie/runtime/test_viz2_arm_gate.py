@@ -56,17 +56,43 @@ def test_engagement_is_full_at_the_dig_posture_and_zero_when_stowed() -> None:
 
 # ── the gate, on the real runtime + real terrain ──────────────────────────────────────────────────
 def test_arm_raised_for_transport_cuts_nothing(tmp_path) -> None:
-    """[REQ:PX-10] THE REQUIREMENT: drum up for transport => the dig removes NO mass from the world."""
+    """[REQ:PX-10/PX-13] THE REQUIREMENT: drums up for transport => the dig removes NO mass from the world.
+
+    UPDATED BY PX-13, and the change is the point. This test used to raise only the FRONT arm and expect a
+    zero cut -- which was right for a sim that modelled ONE drum, and wrong for the vehicle. The real
+    RASSOR/IPEx has TWO bucket drums on independent arms, and PX-13 made each arm gate its own drum. So a
+    hauling rover stows BOTH: raising the front alone leaves the BACK drum in the ground, still carving.
+    That is not a regression, it is the machine. Loosening the assertion would have hidden a real drum."""
     rt = _runtime(tmp_path)
-    rt._ingest_arm({"front": -ARM_DIG_DOWN_RAD})                  # raise the front arm to stowed-horizontal
-    assert rt._arm_engagement() == 0.0
+    rt._ingest_arm({"front": -ARM_DIG_DOWN_RAD, "back": -ARM_DIG_DOWN_RAD})   # BOTH arms -> stowed-horizontal
+    assert rt._arm_engagement("front") == 0.0
+    assert rt._arm_engagement("back") == 0.0
 
     before = _grid_kg(rt)
     dirty = rt._apply_dig()
     after = _grid_kg(rt)
     assert dirty == [], "a transport-posture rover still carved the terrain"
-    assert after == pytest.approx(before, abs=1e-9), "mass left the grid with the drum out of the ground"
-    assert float(rt.ws.inventory_kg) == 0.0, "the drum booked regolith while raised for transport"
+    assert after == pytest.approx(before, abs=1e-9), "mass left the grid with the drums out of the ground"
+    assert float(rt.ws.inventory_kg) == 0.0, "the drums booked regolith while raised for transport"
+
+
+def test_stowing_only_ONE_arm_still_digs_with_the_other(tmp_path) -> None:
+    """[REQ:PX-13] The corollary, asserted so nobody 'fixes' the test above by re-collapsing the two drums
+    into one: with the FRONT arm stowed the BACK drum is still in the ground and MUST still cut. Two arms,
+    two drums, two independent gates."""
+    rt = _runtime(tmp_path)
+    rt._ingest_arm({"front": -ARM_DIG_DOWN_RAD, "back": 0.0})      # front stowed, back at the dig posture
+    assert rt._arm_engagement("front") == 0.0
+    assert rt._arm_engagement("back") > 0.0
+
+    before = _grid_kg(rt)
+    dirty = rt._apply_dig()
+    after = _grid_kg(rt)
+    assert dirty, "the back drum is in the ground and cut nothing -- its arm gate is not wired"
+    assert after < before - 1e-9, "the back drum reported a dirty region but removed no mass"
+    assert float(rt.ws.inventory_kg) > 0.0, "the back drum cut terrain but booked no regolith"
+    # exactly ONE drum cut -> exactly one dirty box (the front is stowed and must contribute nothing)
+    assert len(dirty) == 1, f"one arm is stowed, so only one drum may cut; got {len(dirty)} boxes"
 
 
 def test_default_posture_digs_exactly_as_before(tmp_path) -> None:
@@ -98,17 +124,22 @@ def test_partly_raised_arm_takes_a_proportionally_shallower_bite(tmp_path) -> No
 
 
 def test_arm_command_is_bounded_and_poison_resistant(tmp_path) -> None:
-    """[REQ:PX-10] The arm command comes off a PUBLIC console (RT-06). A non-finite or wildly out-of-range
-    angle must never license a deeper cut -- it clamps to the rig's travel, and NaN refuses to dig."""
+    """[REQ:PX-10/PX-13] The arm command comes off a PUBLIC console (RT-06). A non-finite or wildly
+    out-of-range angle must never license a deeper cut -- it clamps to the rig's travel, and NaN refuses to
+    dig. Both arms are commandable, so both must be bounded (PX-13 made the back arm PHYSICAL; an unbounded
+    back arm would be exactly the hole the front one no longer has)."""
     rt = _runtime(tmp_path)
-    rt._ingest_arm({"front": 1e9})                                # absurd raise -> clamps, no cut
-    assert rt._arm_engagement() == 0.0
+    rt._ingest_arm({"front": 1e9, "back": 1e9})                   # absurd raise on BOTH -> clamps, no cut
+    assert rt._arm_engagement("front") == 0.0
+    assert rt._arm_engagement("back") == 0.0
     assert rt._apply_dig() == []
 
     rt2 = _runtime(tmp_path / "nan")
-    rt2._ingest_arm({"front": float("nan")})                      # poisoned -> refused, arm unchanged (0.0)
+    rt2._ingest_arm({"front": float("nan"), "back": float("nan")})   # poisoned -> refused, arms unchanged
     assert np.isfinite(rt2._arm_front_offset_rad)
-    assert rt2._arm_engagement() == pytest.approx(1.0)            # the bad command was ignored, not applied
+    assert np.isfinite(rt2._arm_back_offset_rad)
+    assert rt2._arm_engagement("front") == pytest.approx(1.0)     # the bad command was ignored, not applied
+    assert rt2._arm_engagement("back") == pytest.approx(1.0)
 
 
 # ── the render rig and the physics authority must agree on the arm ────────────────────────────────

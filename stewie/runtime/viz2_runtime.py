@@ -68,6 +68,14 @@ from stewie.specs.arm_state import (
     ARM_OFFSET_MAX_RAD, ARM_OFFSET_MIN_RAD, dig_engagement, net_dig_reaction_n)
 from stewie.twin.io_fields import atomic_write_bytes
 
+#: [REQ:PX-13] Along-heading offset of each bucket drum's contact patch from the pose: the FRONT drum sits
+#: +DRUM_OFFSET_M ahead, the BACK drum -DRUM_OFFSET_M behind. Two patches straddling the chassis is what the
+#: real RASSOR/IPEx has, and it is WHY the counter-rotating drums' horizontal reactions can cancel
+#: (KSC-TOPS-7). [ASSUMPTION]: 0.40 m is the value the single-drum model already used; no sourced drum-pivot
+#: standoff is published, so the magnitude is inherited rather than invented, and the SYMMETRY (front and
+#: back equidistant) is the part the physics actually leans on.
+DRUM_OFFSET_M = 0.40
+
 # Reused DISCIPLINE (not the class): the RuntimeProcess bounded request-line ceiling (M-03). A real
 # viz2 command line is < 64 bytes; this cap is ~1000x real traffic, fatal to the unbounded-readline OOM.
 MAX_LINE_BYTES = 65536
@@ -185,6 +193,20 @@ class Viz2Runtime:
         # drum refuses the bite outright -- that refusal IS the fill -> stop -> haul quantum. (Every hold
         # is <= the 30 kg/cycle RDS envelope, so the envelope now holds by construction, not after the fact.)
         self._drum_capacity_kg = float(DRUM_CAPACITY_KG[self.drum])
+        # [REQ:PX-13] The vehicle carries TWO bucket drums, and [BDSCALE] DRUM_CAPACITY_KG is the hold of ONE
+        # ("Avg total regolith collected PER DRUM", Schuler 2022 Table 3). So the VEHICLE hold is 2x. Note
+        # what does and does not follow: two drums cut two footprints, so mass-in doubles -- but the tank
+        # doubles too, so PASSES-TO-FULL IS UNCHANGED. What actually doubles is THROUGHPUT: every haul
+        # carries twice the regolith. That is the real reason the machine has two drums.
+        #
+        # A SOURCED TENSION, SURFACED RATHER THAN CLAMPED: at two drums the vehicle hold is
+        #   small 7.60 / medium 14.60 / large 49.96 kg
+        # and PX-09 asserted every hold sits inside the 30 kg/cycle RDS envelope "by construction" -- which
+        # is now FALSE for the large drum. It is also a category error that predates this row: ipex_specs
+        # says plainly "IPEx uses the small..medium range; the large drum is the RASSOR 2.0 drum", so the
+        # IPEx RDS envelope never applied to it. test_viz2_dig_reaction.py ASSERTS the breach so it stays
+        # visible; a spec mismatch you can see is worth more than one you cannot.
+        self._vehicle_capacity_kg = 2.0 * self._drum_capacity_kg
         # [REQ:PX-11] The excavation FOOTPRINT is a PHYSICAL dimension -- the drum's width -- not a cell
         # count. It used to be a fixed `dig_half_cells=6`, so the operator's "cell size" toggle (a RENDER
         # resolution choice on the setup page) silently resized the excavator: a 13x13 box is 0.650 m at
@@ -696,9 +718,14 @@ class Viz2Runtime:
                 continue                                   # poisoned angle: keep the last good pose
             setattr(self, attr, max(ARM_OFFSET_MIN_RAD, min(ARM_OFFSET_MAX_RAD, float(raw))))
 
-    def _arm_engagement(self) -> float:
-        """[REQ:PX-10] 0.0 (drum out of the ground -> no cut) .. 1.0 (dig posture -> the full bite)."""
-        return dig_engagement(self._arm_front_offset_rad)
+    def _arm_engagement(self, which: str = "front") -> float:
+        """[REQ:PX-10/PX-13] 0.0 (drum out of the ground -> no cut) .. 1.0 (dig posture -> the full bite).
+
+        PX-10 made the FRONT arm authoritative; the BACK arm stayed a DEAD DOF -- set, ingested from the
+        operator, published as telemetry, and never read by physics. Each arm now gates ITS OWN drum, so
+        stowing one removes that drum's mass AND breaks the counter-rotating cancellation (the reaction must
+        go to ~0 for the RIGHT reason -- two drums actually cutting -- never because a term was zeroed)."""
+        return dig_engagement(self._arm_front_offset_rad if which == "front" else self._arm_back_offset_rad)
 
     def _ingest_twist(self, msg: dict) -> None:
         v, omega = msg.get("v", 0.0), msg.get("omega", 0.0)
@@ -764,56 +791,118 @@ class Viz2Runtime:
         self._imu_accel_lat = omega * va
         self._prev_v_achieved = va
 
-    def _drum_rc(self) -> tuple[int, int] | None:
-        """Fine-window (row,col) of the FRONT DRUM (~0.4 m ahead of the pose along the travel heading) --
-        the real dig/dump contact point (front-drum-down geometry), which also keeps the worked patch
-        out from under the rover body so the trench/berm reads. yaw: 0=+x, +pi/2=+y (worksite convention)."""
+    def _drum_rc(self, which: str = "front") -> tuple[int, int] | None:
+        """[REQ:PX-13] Fine-window (row,col) of a bucket drum's contact patch. The FRONT drum sits ~0.4 m
+        AHEAD of the pose along the travel heading and the BACK drum ~0.4 m BEHIND it -- two separate patches
+        straddling the chassis, which is what the real vehicle has and why its reactions can cancel. Either
+        way the worked patch stays out from under the rover body, so the trench/berm reads.
+        yaw: 0=+x, +pi/2=+y (worksite convention)."""
         if self.ws.pose_xy is None:
             return None
-        ahead = 0.40
+        ahead = DRUM_OFFSET_M if which == "front" else -DRUM_OFFSET_M
         dx = ahead * math.cos(self.ws.yaw)
         dy = ahead * math.sin(self.ws.yaw)
         rc = self.ws.active_rc_for_xy((self.ws.pose_xy[0] + dx, self.ws.pose_xy[1] + dy))
         return int(round(rc[0])), int(round(rc[1]))
 
     def _apply_dig(self) -> list[list[int]]:
-        """Conserved excavation at the current pose (actor thread only): flatten a footprint-sized
-        box down to ``dig_depth_m`` below its lowest cell, so every masked cell is a pure CUT into the
-        drum ledger (mass exact). Returns the dig's dirty bbox (fine-cell ``[r0,c0,r1,c1]``) or ``[]``
-        when the pose is unseated. The height drop is what the window mesh's vertex shader displaces —
-        the visibly carved rut."""
+        """[REQ:PX-13] Conserved excavation with BOTH counter-rotating bucket drums (actor thread only).
+
+        The sim used to model HALF THE MACHINE: it cut with the FRONT drum alone and billed the chassis the
+        full draft `F = tau/r`. That is the CORRECT answer for a single-drum dig -- and the WRONG VEHICLE.
+        The real RASSOR/IPEx digs with both drums counter-rotating; per KSC-TOPS-7 their horizontal reactions
+        are equal and OPPOSITE, so the pair nets ~0. In 1/6 g that cancellation is not an optimisation, it is
+        the only way a 30 kg-class rover can react the digging force at all -- it simply lacks the weight to
+        shove back. So the old model pushed the rover backward with a force the real machine is BUILT to
+        cancel, and that false force flowed into traction, slip and energy on EVERY dig tick. It is a
+        prerequisite for the training rows (PX-14, TR-02), not a polish item: a policy trained against it
+        learns to compensate for a reaction that does not exist on the real vehicle.
+
+        Each arm gates ITS OWN drum (PX-10 generalised: the back arm was a DEAD DOF -- set, ingested,
+        telemetered, never read by physics). So the cancellation happens for the RIGHT REASON -- two drums
+        actually cutting -- and stowing one restores the full draft rather than a zeroed term. The per-drum
+        bounds (PX-09 anti-bridging + capacity, PX-11 footprint) are untouched; they now apply to each drum.
+
+        Returns the dirty bboxes (one per engaged drum) or ``[]`` when nothing cut.
+        """
         if self.ws.pose_xy is None:
             return []
-        H, W = self._window_shape
-        drc = self._drum_rc()
-        if drc is None:
+        # Which drums are actually in the ground? Each arm gates its own.
+        engaged: list[tuple[str, float, tuple[int, int]]] = []
+        for which in ("front", "back"):
+            e = self._arm_engagement(which)
+            if e <= 0.0:
+                continue                                     # drum out of the ground: nothing to cut
+            drc = self._drum_rc(which)
+            if drc is not None:
+                engaged.append((which, e, drc))
+        if not engaged:
             return []
-        r, c = drc
+
+        # [REQ:PX-09/PX-13] DRUM HOLD -- now the VEHICLE hold (two drums, [BDSCALE] capacity is PER DRUM).
+        # A full vehicle refuses the bite (-> dump/haul); the room left is SHARED, and each drum's bite is
+        # trimmed against what remains, so the ledger can never exceed capacity no matter how many drums cut.
+        room_kg = self._vehicle_capacity_kg - float(self.ws.inventory_kg)
+        self._drum_full = room_kg <= 0.0
+        if self._drum_full:
+            return []                                        # fill -> STOP -> haul: no mass leaves the grid
+
+        dirty: list[list[int]] = []
+        total_moved = 0.0
+        total_energy_j = 0.0
+        net_reaction_n = 0.0
+        for which, engagement, (r, c) in engaged:
+            cut = self._cut_one_drum(which, engagement, r, c, room_kg)
+            if cut is None:
+                continue
+            dirty.append(cut["bbox"])
+            total_moved += cut["moved_kg"]
+            total_energy_j += cut["moved_kg"] * cut["j_per_kg"]
+            # KSC-TOPS-7: the drums counter-rotate, so their horizontal reactions carry OPPOSITE signs and
+            # the pair nets ~0. Summing the SIGNED per-drum drafts (rather than assuming they are equal) also
+            # models PARTIAL cancellation honestly -- two drums cutting into different material do not cancel
+            # exactly, and that residual is a real force the chassis feels.
+            net_reaction_n += net_dig_reaction_n(
+                cut["draft_n"] * self._drum_radius_m, self._drum_radius_m, drums=(which,))
+            room_kg = self._vehicle_capacity_kg - float(self.ws.inventory_kg)   # the next drum sees the rest
+            if room_kg <= 0.0:
+                break
+
+        if not dirty:
+            return []
+        self._drum_full = float(self.ws.inventory_kg) >= self._vehicle_capacity_kg - 1e-9
+        self._last_dig_moved_kg = float(total_moved)
+        self._last_dig_j_per_kg = float(total_energy_j / total_moved) if total_moved > 0.0 else 0.0
+        self._dig_energy_j += float(total_energy_j)                    # E1: FEE-modulated dig energy debit
+        reaction = abs(float(net_reaction_n))                          # magnitude the chassis must react
+        self._last_dig_reaction_n = reaction
+        self._active_dig_reaction_n = reaction                         # #2: the NEXT drive tick resists it
+        self._dig_count += 1
+        return dirty
+
+    def _cut_one_drum(self, which: str, engagement: float, r: int, c: int,
+                      room_kg: float) -> dict | None:
+        """[REQ:PX-13] ONE bucket drum's conserved pass: flatten its footprint-sized box, bounded by the
+        SAME sourced limits as before (PX-09 anti-bridging + the shared hold, PX-10 the arm gate, PX-11 the
+        drum-width footprint). Returns ``{bbox, moved_kg, j_per_kg, draft_n}`` or ``None`` if it cut nothing.
+
+        This is the old single-drum `_apply_dig` body, extracted verbatim so the two drums cannot drift apart
+        -- one implementation, driven twice."""
+        H, W = self._window_shape
         hc = self.dig_half_cells
         r0, r1 = max(0, r - hc), min(H, r + hc + 1)
         c0, c1 = max(0, c - hc), min(W, c + hc + 1)
         if r1 <= r0 or c1 <= c0:
-            return []
+            return None
         f = self.ws._require_fine()
         # [REQ:PX-09] BOUND THE BITE by the drum's own sourced limits [BDSCALE] before touching the terrain.
         # (1) ANTI-BRIDGING: one pass may not cut deeper than 50% of the scoop opening. `_dig_fee` already
         #     clamped ITS characteristic depth to this, so leaving the CUT uncapped meant the terrain gave up
         #     a deeper bite than the one being billed -- and the McKyes/Reece FEE rises with depth^2, so dig
         #     energy was UNDERSTATED exactly when the cut was worst. Cap the cut, and the two agree.
-        # (2) DRUM HOLD: the drum carries a finite mass. A full drum refuses the bite (-> dump/haul), and a
-        #     bite that would overfill is trimmed to the room left, so the ledger can never exceed capacity.
-        # [REQ:PX-10] ARM GATE (before anything touches the terrain): the drum can only cut what its POSTURE
-        # lets it reach. Raised for transport -> engagement 0 -> no cut at all, so a hauling rover stops
-        # carving a trench under itself; between the postures the arm MODULATES the bite. The arm was a
-        # cosmetic render offset before this, so the pictured vehicle and the world disagreed.
-        engagement = self._arm_engagement()
-        if engagement <= 0.0:
-            return []                                        # drum out of the ground: nothing to cut
-        drum_kg = float(self.ws.inventory_kg)
-        room_kg = self._drum_capacity_kg - drum_kg
-        self._drum_full = room_kg <= 0.0
-        if self._drum_full:
-            return []                                        # fill -> STOP -> haul: no mass leaves the grid
+        # (2) DRUM HOLD: the vehicle carries a finite mass. A bite that would overfill is trimmed to the room
+        #     left, so the ledger can never exceed capacity.
+        # [REQ:PX-10] ARM GATE: this drum can only cut what ITS arm's posture lets it reach (`engagement`).
         d_eff = min(float(self.dig_depth_m), self._max_cut_per_pass_m) * engagement
 
         mask = np.zeros((H, W), dtype=bool)
@@ -850,18 +939,15 @@ class Viz2Runtime:
                 else:
                     hi = mid
             target = hi
-        moved = self.ws.flatten(mask, target)                # cells above target -> cut (conserved)
-        self._drum_full = float(self.ws.inventory_kg) >= self._drum_capacity_kg - 1e-9
-        self._last_dig_moved_kg = float(moved)
-        # ONE FEE solve -> the depth^2/density-dependent per-kg energy (council #1) AND the unbalanced draft
-        # reaction on the chassis (council #2), not the old flat constant / zero reaction.
-        fee = self._dig_fee(r0, r1, c0, c1, float(moved), f)
-        self._last_dig_j_per_kg = float(fee["j_per_kg"])
-        self._dig_energy_j += float(moved) * float(fee["j_per_kg"])    # E1: FEE-modulated dig energy debit
-        self._last_dig_reaction_n = float(fee["reaction_n"])
-        self._active_dig_reaction_n = float(fee["reaction_n"])         # #2: the NEXT drive tick resists it
-        self._dig_count += 1
-        return [[r0, c0, r1, c1]]
+        moved = float(self.ws.flatten(mask, target))         # cells above target -> cut (conserved)
+        if moved <= 0.0:
+            return None
+        # ONE FEE solve per drum -> the depth^2/density-dependent per-kg energy (council #1) AND this drum's
+        # RAW horizontal draft (council #2). The SIGN is applied by the caller via `net_dig_reaction_n`, so a
+        # counter-rotating pair cancels and a lone drum does not.
+        fee = self._dig_fee(r0, r1, c0, c1, moved, f)
+        return {"bbox": [r0, c0, r1, c1], "moved_kg": moved,
+                "j_per_kg": float(fee["j_per_kg"]), "draft_n": float(fee["draft_n"])}
 
     def _dig_fee(self, r0: int, r1: int, c0: int, c1: int, moved_kg: float, f) -> dict:
         """ONE McKyes/Reece FEE solve for ONE excavation pass -> ``{j_per_kg, reaction_n}`` (councils #1 + #2).
@@ -901,10 +987,14 @@ class Viz2Runtime:
         # single front drum digging => no counter-rotation cancellation => the full FEE draft reacts on the
         # chassis. Route through net_dig_reaction_n (torque=draft*r) so the counter-rotation semantics are
         # explicit + future-proof: switching drums=("front","back") for a balanced both-drum dig nets ~0.
+        # [REQ:PX-13] Return the RAW draft. The SIGN belongs to the caller: `_apply_dig` sums
+        # `net_dig_reaction_n(draft*r, r, drums=(which,))` over the ENGAGED drums, so a counter-rotating pair
+        # cancels to ~0 (KSC-TOPS-7) while a lone drum still nets the full F = tau/r. Baking `abs(...front)`
+        # in here was what made the sim model half the machine.
         draft_n = float(rep["draft_n"])
         reaction_n = abs(net_dig_reaction_n(draft_n * self._drum_radius_m, self._drum_radius_m,
-                                            drums=("front",)))
-        return {"j_per_kg": j_per_kg, "reaction_n": reaction_n}
+                                            drums=("front",)))     # single-drum magnitude (legacy callers)
+        return {"j_per_kg": j_per_kg, "reaction_n": reaction_n, "draft_n": draft_n}
 
     def _dig_specific_energy(self, r0: int, r1: int, c0: int, c1: int,
                              moved_kg: float, f) -> float:
