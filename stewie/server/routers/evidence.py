@@ -114,7 +114,7 @@ def _selected_layers(site: str) -> dict:
 
 
 def _runtime_profile() -> dict:
-    """[REQ:EV-01] the RUNTIME PROFILE (RT-01): the 7-profile escalation registry + the profile the persisted
+    """[REQ:EV-01] the RUNTIME PROFILE (RT-01): the 8-profile escalation registry + the profile the persisted
     SIM runs execute on -- ``desktop_sil`` (the conserved numpy authority; evidence_class forecast, no live
     command). The live-command profiles (hil/field_test/live_rover) are declared but NOT exercised here (the
     SIM path holds no command authority). The active id is honest, not asserted-as-live."""

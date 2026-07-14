@@ -46,12 +46,15 @@ def test_ev01_bundle_reproduces_all_persisted_axes(monkeypatch, tmp_path):  # [R
     assert sl["freshness"]["provenance_class"] in ("observed", "prior")
     assert sl["freshness"]["dem_source"]                         # a real dart.dem_sources bundle id
 
-    # 3. runtime profile (RT-01) -- the SIM authority profile + the 7-profile escalation registry.
+    # 3. runtime profile (RT-01) -- the SIM authority profile + the 8-profile escalation registry.
+    # [REQ:RT-07] 7 -> 8: `godot_sim` joined the registry. viz2 -- the sim that is actually built,
+    # driveable and PUBLICLY reachable -- previously declared NO profile, so it sat outside this very
+    # authority model. The evidence bundle must reproduce the registry it was actually run against.
     rp = j["runtime_profile"]
     assert rp["active_profile_id"] == "desktop_sil"
     assert rp["active_profile"]["evidence_class"] == "forecast"
     assert rp["active_profile"]["can_execute"] is False          # the SIM path holds no live command authority
-    assert len(rp["registry"]) == 7 and rp["count"] == 7
+    assert len(rp["registry"]) == 8 and rp["count"] == 8
 
     # 4. world transactions (DT-03) -- the linked timeline that proves what ran, chain intact.
     wt = j["world_transactions"]

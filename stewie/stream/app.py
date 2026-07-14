@@ -35,6 +35,18 @@ from fastapi.staticfiles import StaticFiles
 from stewie.stream import previews, protocol, security
 from stewie.stream.framing import pack_frame, read_frame
 
+#: [REQ:RT-07] The RT-01 runtime profile this server RUNS UNDER. viz2 is the sim that is actually built,
+#: driveable and PUBLICLY REACHABLE (RT-06) -- and until now it declared no profile at all, so the one
+#: simulator an anonymous browser can reach sat outside the very authority model that exists to guarantee a
+#: simulation can never command real hardware. `godot_sim` carries bounded command over the SIM rover and
+#: sim_truth evidence, and can_release/can_execute are BOTH False.
+#:
+#: That pair of Falses is a dict value, and NOTHING in this codebase reads it to refuse anything -- so on its
+#: own it would be a comment, not a control. What makes it TRUE is structural: this module is provably
+#: incapable of even NAMING a real-rover egress (the RT-06 AST guard). test_rt07_godot_profile.py welds the
+#: two together, so the claim and the proof cannot drift apart.
+RUNTIME_PROFILE = "godot_sim"
+
 # repo root: stewie/stream/app.py -> stewie/stream -> stewie -> <repo>
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GODOT_PROJECT = Path(os.environ.get("STEWIE_GODOT_PROJECT", REPO_ROOT / "stewie" / "godot"))
