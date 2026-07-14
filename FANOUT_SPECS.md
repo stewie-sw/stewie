@@ -1319,6 +1319,13 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - files: stewie/physics/terramechanics.py, stewie/specs/constants.py, stewie/physics/body_params.py, scripts/test_import_boundaries.py
 - test_target: NEW/extended [REQ:PX-06] in scripts/test_import_boundaries.py + stewie/physics/test_terramechanics.py
 
+### PX-13 (P1) — atomic
+- goal: Make the live dig engage BOTH drums counter-rotating so the net horizontal chassis reaction is ~0, as KSC-TOPS-7 specifies and as `arm_state.net_dig_reaction_n` ALREADY models. Today the dig cuts with a SINGLE front drum, leaving the FULL draft (F = tau/r) on the chassis and feeding it into the next drive tick's traction demand.
+- acceptance: a symmetric both-drum dig nets ~0 horizontal chassis reaction (NOT F = tau/r); an asymmetric/single-drum dig STILL nets the full draft (the term must be zeroed for the RIGHT REASON, not merely zeroed); the traction demand on the tick after a dig reflects the corrected reaction; the PX-09 capacity refusal, the <=50% anti-bridging bite, the PX-10 arm gate and the PX-12 metered discharge all still hold PER DRUM. Guard must be NON-VACUOUS: demonstrate it FAILS when the counter-rotation is removed.
+- current_state: FIDELITY BUG, self-disclosed in-code. `stewie/specs/arm_state.py:126 net_dig_reaction_n(torque_nm, drum_radius_m, drums=("front","back"))` implements the KSC-TOPS-7 cancellation and is correct. `stewie/runtime/viz2_runtime.py` `_dig_fee` states: "the live model cuts with a SINGLE (front) drum, so net_dig_reaction_n leaves the FULL draft on the chassis (a future counter-rotating both-drum dig would net ~0) -> fed to the next drive tick's traction demand." So the sim pushes the rover backward with a force the real vehicle is BUILT to cancel, and that wrong force contaminates traction, slip and energy on every dig tick. This is a PREREQUISITE for the training rows (PX-14, TR-02): a policy trained on today's sim learns to compensate for a reaction that does not exist on the real machine.
+- files: stewie/runtime/viz2_runtime.py, stewie/specs/arm_state.py
+- test_target: NEW [REQ:PX-13] in stewie/runtime/test_viz2_dig_reaction.py (real Haworth SfS bundle, through the real Viz2Runtime)
+
 ## §7.B GIS Mission Workbench briefs (PRD2 fold, 2026-07-04)
 
 ### GW-00

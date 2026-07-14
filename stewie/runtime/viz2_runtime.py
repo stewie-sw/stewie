@@ -59,6 +59,7 @@ from stewie.bridge.stream import PROTOCOL_VERSION, StreamSession
 from stewie.contracts import RegolithVolumeEstimate
 from stewie.contracts.physics_model_control import LIVE_DEFAULT_MODEL_ID, resolve_live_backend
 from stewie.physics.worksite import WorkSite
+from stewie.specs import constants as K
 from stewie.specs.ipex_specs import (
     DRUM_CAPACITY_KG, DRUM_DIMENSIONS_M, LUNAR_G_MS2, dig_energy_per_kg, max_cut_per_pass_m)
 from stewie.physics.excavation import earthmoving_report, representative_dig
@@ -77,6 +78,33 @@ _R8 = "u1"
 # The render/patch field set (plan §2b.4): height, density, state_label, disturbance every drive step;
 # mass_areal rides keyframes (the full-resync set) and dig deltas (E1, not exercised in B2).
 _DRIVE_FIELDS = ("height", "density", "state_label", "disturbance")
+
+
+_ROCKFIELD_MOD = None
+
+
+def _rockfield_module():
+    """The Golombek rock-field generator, loaded ONCE per process.
+
+    This used to be re-executed on EVERY Viz2Runtime construction: `spec_from_file_location` +
+    `module_from_spec` + `exec_module`, producing a brand-new module object each time and never caching it
+    in sys.modules. A process that builds many runtimes (a scenario fingerprint loop, a dataset build, the
+    test suite) therefore re-imported and re-initialised it -- and its numeric dependencies -- once per
+    world. That is pure waste, and repeated re-execution of modules that pull in native extensions is a
+    known source of native instability, which matters here: a full-suite run took a SIGSEGV inside an
+    unrelated native reader (see the flaky-crash task). Caching it is correct regardless of whether it was
+    the cause; it makes construction cheaper and the process quieter.
+    """
+    global _ROCKFIELD_MOD
+    if _ROCKFIELD_MOD is None:
+        import importlib.util
+        repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        spec = importlib.util.spec_from_file_location(
+            "viz2_rockfield_clasts", os.path.join(repo, "scripts", "viz2_rockfield_clasts.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _ROCKFIELD_MOD = mod
+    return _ROCKFIELD_MOD
 
 
 def apply_manifest(dst: dict[str, np.ndarray], manifest_path: str) -> dict:
@@ -110,7 +138,7 @@ class Viz2Runtime:
                  ack_deadline_s: float = 2.0, window: int = 64,
                  keyframe_interval: int = 90, retain_generations: int = 256,
                  dig_depth_m: float = 0.02, dig_half_cells: int | None = None,
-                 drum: str = "large",
+                 drum: str = "large", rock_seed: int = 0,
                  host: str = "127.0.0.1"):
         # --- backend governance FIRST (R-M3): resolve mutation authority ONLY through the strict LIVE
         # resolver; a refused model raises PhysicsModelRefused before any world/socket is built. The
@@ -170,12 +198,35 @@ class Viz2Runtime:
             self.dig_half_cells = max(1, int(round((self._drum_width_m / cell - 1.0) / 2.0)))
         else:
             self.dig_half_cells = int(dig_half_cells)
+        # [REQ:PX-12] The DUMP is metered by the drum's own scoops -- the mirror of the bounded dig. It used
+        # to call `ws.dump(mask)` with NO kg, which discharges the ENTIRE ledger in a single frame: up to
+        # 24.98 kg teleporting onto a 0.35 m box in one tick, after which the sandpile relax spread the
+        # resulting mound. A bucket drum cannot do that; it EMPTIES the way it FILLS -- through its scoops,
+        # a bite at a time. One pass of scoops carries what one dig pass cuts: the drum-width footprint
+        # (PX-11) x the <=50% anti-bridging bite (PX-09, [BDSCALE]) x the in-situ density. The scoops carry
+        # what they CUT, so RHO_SURFACE is the right density (RHO_SPOIL equals it here anyway -- bulking
+        # arises from the RHO_DEEP->spoil gap, not from a lighter spoil). ASSUMPTION, stated: a discharge
+        # pass carries what a dig pass carries, because it is the same scoops turning the other way; the
+        # GEOMETRY it rests on is sourced. Measured (5 cm cell): small 0.39 / medium 1.40 / large 3.81 kg
+        # -> 9.8 / 5.2 / 6.6 metered passes to empty. (Passes-to-empty is not monotonic in drum size: the
+        # footprint quantises to whole cells (PX-11), so the small drum's box is proportionally smaller
+        # relative to its hold. The quantum FALLS OUT of the geometry; it is not tuned.) So a berm is now
+        # built by passes you can PLAN, COST and LEARN from, not by one instantaneous mound.
+        _side_m = (2 * self.dig_half_cells + 1) * float(self.ws.fine_cell_m)
+        self._max_discharge_per_pass_kg = (
+            _side_m * _side_m * self._max_cut_per_pass_m * float(K.RHO_SURFACE))
         self._drum_full = False                  # telemetry: the operator must dump/haul before digging on
         # [REQ:PX-10] the front arm is a PHYSICAL DOF, not a render pose: this is the operator's manual
         # offset on the dig posture (0 == ARM_DIG_DOWN == drum in the ground), and it GATES the cut, so a
         # rover with its drum raised for transport carves nothing. Clamped to the render rig's travel.
         self._arm_front_offset_rad = 0.0
         self._arm_back_offset_rad = 0.0
+        # [REQ:TR-01] the Golombek rock draw. This used to be HARDCODED to 0 in _seed_rockfield while
+        # the stream's `world_seed` config only reached the PROCEDURAL bundle path -- so on a real
+        # site the seed was a dead knob. A frozen scenario must DECLARE its rock field (and be able to
+        # vary it for domain randomisation), so the seed is now live. Default 0 => byte-identical to
+        # every world produced before this change.
+        self.rock_seed = int(rock_seed)
         self.host = str(host)
 
         # --- session directory + generation store ---
@@ -671,18 +722,14 @@ class Viz2Runtime:
         drive_step(clasts=None) is the byte-identical clast-free seam). To bound the per-tick ride-over
         scan, only the largest boulders are handed to the physics; the display shows the full field."""
         try:
-            import importlib.util
-            repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            spec = importlib.util.spec_from_file_location(
-                "viz2_rockfield_clasts", os.path.join(repo, "scripts", "viz2_rockfield_clasts.py"))
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
+            mod = _rockfield_module()
             cell = self.ws.base_cell_m
             bw, bh = self.ws.base.width, self.ws.base.height
             n = max(8, min(int(round(140.0 / cell)), bw, bh))
             c0 = int(min(max(0, round((self.start_xy[0] - self.ws.world_x0) / cell - n / 2)), bw - n))
             r0 = int(min(max(0, round((self.start_xy[1] - self.ws.world_y0) / cell - n / 2)), bh - n))
-            result = mod.build_clasts(bundle_dir, r0, c0, n, d_min_m=0.15, d_max_m=0.8, world_seed=0)
+            result = mod.build_clasts(bundle_dir, r0, c0, n, d_min_m=0.15, d_max_m=0.8,
+                                      world_seed=self.rock_seed)   # [REQ:TR-01] was hardcoded 0
             clasts = result.get("clasts") or []
             # ALL boulders go to the physics now (small ride-over with a bump, >wheel-radius block/pitch);
             # the window-local filter is vectorized + O(nearby), so the full field is cheap per tick.
@@ -883,7 +930,11 @@ class Viz2Runtime:
             return []
         mask = np.zeros((H, W), dtype=bool)
         mask[r0:r1, c0:c1] = True
-        placed = self.ws.dump(mask)                          # whole ledger -> bulked spoil (conserved)
+        # [REQ:PX-12] METERED: one dump command is ONE PASS OF SCOOPS, not the whole ledger. The conserved
+        # authority already took a `kg` -- the runtime simply never passed one, so the drum teleported its
+        # entire load in a single frame. `WorkSite.dump` clamps to what the ledger actually holds, so the
+        # last pass discharges the remainder and the drum drains monotonically to empty.
+        placed = self.ws.dump(mask, kg=self._max_discharge_per_pass_kg)
         if placed <= 0.0:
             return []
         # sandpile-relax the fresh spoil to the ~35 deg lunar angle of repose so a real BERM forms

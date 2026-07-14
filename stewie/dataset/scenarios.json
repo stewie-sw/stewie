@@ -1,0 +1,10 @@
+{
+  "haworth_pad_a": {
+    "site": "haworth_sfs_2km_1m",
+    "start_xy": [-34746.0, 89673.0],
+    "start_yaw": 0.0,
+    "fine_cell_m": 0.05,
+    "drum": "large",
+    "rock_seed": 0
+  }
+}
