@@ -51,6 +51,54 @@ def _finite_float(value: Any, default: float) -> float:
     return f if math.isfinite(f) else default
 
 
+def _parse_start_xy(value: Any) -> tuple[float, float] | None:
+    """[REQ:TR-03] The OPERATOR's chosen worksite section, in IAU_2015:30135 metres -- the frame the /ide
+    map already uses, so a click on it IS this coordinate with no reprojection anywhere.
+
+    ``None`` (the operator did not choose) is the SAFE default: the runtime then falls back to
+    ``_flattest_interior_spawn`` ([REQ:AS-15]), which exists because the tile's blind geometric centre can
+    land on a crater wall and entrap the rover on arrival. Selecting a section makes that fallback
+    OVERRIDABLE, never absent.
+
+    PUBLIC SURFACE (RT-06/RT-07): an anonymous browser sends this, so it is UNTRUSTED. Shape and finiteness
+    are REFUSED outright here -- never coerced, never defaulted -- exactly like the twist (M-04) and the arm
+    angle (PX-10). A NaN spawn would place the rover nowhere and poison every downstream index.
+
+    BOUNDS are deliberately NOT checked here: this module is validation-only and does NO I/O (see the module
+    docstring), and the tile's extent lives in the bundle's metadata. ``app.py`` -- which already resolves
+    the bundle -- calls ``start_xy_in_bounds`` with the real extent.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (str, bytes, dict)) or not isinstance(value, (list, tuple)):
+        raise ConfigError(f"start_xy must be a [x, y] pair in IAU_2015:30135 metres, got {value!r}")
+    if len(value) != 2:
+        raise ConfigError(f"start_xy must have exactly 2 coordinates, got {len(value)}")
+    try:
+        x, y = float(value[0]), float(value[1])
+    except (TypeError, ValueError) as exc:
+        raise ConfigError(f"start_xy coordinates must be numbers, got {value!r}") from exc
+    if not (math.isfinite(x) and math.isfinite(y)):
+        raise ConfigError(f"start_xy must be finite (no NaN/inf), got {value!r}")
+    return (x, y)
+
+
+def start_xy_in_bounds(start_xy: tuple[float, float] | None, world_bounds: dict) -> bool:
+    """[REQ:TR-03] Is the operator's chosen section inside the DEM that will be loaded?
+
+    PURE (no I/O) so this module keeps its validation-only contract; ``app.py`` supplies the real
+    ``world_bounds_m`` it read from the bundle. An out-of-tile coordinate is REFUSED by the caller, never
+    silently clamped to an edge -- a clamp would drop the rover somewhere the operator never chose, which is
+    worse than an error because it looks like it worked.
+    """
+    if start_xy is None:
+        return True                      # unchosen -> the safe flattest-interior fallback runs
+    x, y = float(start_xy[0]), float(start_xy[1])
+    x0, x1 = sorted((float(world_bounds["x0"]), float(world_bounds["x1"])))
+    y0, y1 = sorted((float(world_bounds["y0"]), float(world_bounds["y1"])))
+    return x0 <= x <= x1 and y0 <= y <= y1
+
+
 def parse_config(raw: str | bytes | dict) -> dict[str, Any]:
     """Parse + normalize the first WS config message. Raises ``ConfigError`` on a bad shape."""
     if isinstance(raw, dict):
@@ -90,6 +138,8 @@ def parse_config(raw: str | bytes | dict) -> dict[str, Any]:
         if not site or "/" in site or "\\" in site or site.startswith("."):
             raise ConfigError(f"real-mode site must be a bare bundle name, got {site!r}")
         out["site"] = site
+        # [REQ:TR-03] the operator's chosen worksite section (30135 m). None -> the safe flattest fallback.
+        out["start_xy"] = _parse_start_xy(cfg.get("start_xy"))
     else:  # procedural
         out["world_seed"] = int(cfg.get("world_seed", 0))
         params = cfg.get("params") or {}

@@ -45,9 +45,21 @@ function _viz2Token() {
     }
     return '';
 }
-function _viz2StreamUrl() {
+// [REQ:TR-03] `spawn` is the OPERATOR's chosen worksite section, in IAU_2015:30135 METRES — the frame this
+// map already uses, so a click on it IS the coordinate viz2 wants, with NO reprojection anywhere.
+// Without it, viz2 falls back to `_flattest_interior_spawn`, which hunts for the flattest ground in the WHOLE
+// tile — so every session opened on the most boring 12 m in Haworth (measured relief 0.06 m, slope 0.28°).
+// The terrain looked flat because it WAS flat; the DEM, the float32 height texture and the vertex shader
+// were all correct. A spawn defines the WORLD, so it rides the iframe URL (a session-creation parameter),
+// unlike a route, which is postMessaged live into a running session.
+function _viz2StreamUrl(spawn) {
     const tok = _viz2Token();
-    return _viz2Origin() + '/stream' + (tok ? '?token=' + encodeURIComponent(tok) : '');
+    const q = [];
+    if (tok) { q.push('token=' + encodeURIComponent(tok)); }
+    if (Array.isArray(spawn) && Number.isFinite(spawn[0]) && Number.isFinite(spawn[1])) {
+        q.push('start=' + encodeURIComponent(spawn[0].toFixed(1) + ',' + spawn[1].toFixed(1)));
+    }
+    return _viz2Origin() + '/stream' + (q.length ? '?' + q.join('&') : '');
 }
 
 // The workspace route channel carries selenographic lon/lat points; normalize each to a plain [lon,lat] pair
@@ -64,6 +76,7 @@ function _toLonLat(points) {
 class MissionDrive3D extends React.Component {
     static propTypes = {
         active: PropTypes.bool,   // state.task.id === 'MissionDrive3D'
+        mapClick: PropTypes.object,   // [REQ:TR-03] state.map.click — coordinate is in the map CRS (30135 m)
         setCurrentTask: PropTypes.func,
         side: PropTypes.string
     };
@@ -71,7 +84,9 @@ class MissionDrive3D extends React.Component {
     state = {
         site: WS.site(),
         lastRouteN: 0,      // waypoints in the last forwarded route
-        floating: false
+        floating: false,
+        spawn: null,        // [REQ:TR-03] operator-chosen worksite section, IAU_2015:30135 metres
+        driven: null        // the spawn the CURRENTLY MOUNTED iframe was opened with
     };
     constructor(props) {
         super(props);
@@ -84,14 +99,43 @@ class MissionDrive3D extends React.Component {
         this._unsubRoute = WS.onRoute((points) => this._forwardRoute(points));
         if (typeof window !== 'undefined') {
             window.__stewieDrive3D = {
-                streamUrl: () => _viz2StreamUrl(),
+                streamUrl: () => _viz2StreamUrl(this.state.driven),
                 lastRouteN: () => this.state.lastRouteN,
                 resend: () => this._resend(),
                 forward: (points) => this._forwardRoute(points),   // harness: drive a lon/lat route through the panel
-                open: () => this.props.setCurrentTask('MissionDrive3D')   // open the panel (also the TopBar Validate menu path)
+                open: () => this.props.setCurrentTask('MissionDrive3D'),   // open the panel (also the TopBar Validate menu path)
+                // [REQ:TR-03] harness: pick a section without a real map click, and read back what is armed/driven.
+                setSpawn: (x, y) => this._setSpawn([Number(x), Number(y)]),
+                spawn: () => this.state.spawn,
+                driven: () => this.state.driven,
+                driveHere: () => this._driveHere()
             };
         }
     }
+    // [REQ:TR-03] A click on the /ide map, while this panel is open, ARMS a worksite section. The map CRS is
+    // IAU_2015:30135 metres, so `coordinate` IS start_xy — no reprojection. Arming is deliberately separate
+    // from driving: a spawn defines the WORLD, so applying it restarts the sim session, and that must be an
+    // explicit act, not a side effect of clicking the map.
+    componentDidUpdate(prevProps) {
+        if (!this.props.active) { return; }
+        const c = this.props.mapClick;
+        if (!c || c === prevProps.mapClick) { return; }
+        const xy = c.coordinate;
+        if (Array.isArray(xy) && Number.isFinite(Number(xy[0])) && Number.isFinite(Number(xy[1]))) {
+            this._setSpawn([Number(xy[0]), Number(xy[1])]);
+        }
+    }
+    _setSpawn = (xy) => {
+        if (!Array.isArray(xy) || !Number.isFinite(xy[0]) || !Number.isFinite(xy[1])) { return; }
+        this.setState({spawn: xy});
+    };
+    // Remount the iframe on the chosen section. The URL is the seam (see _viz2StreamUrl): a new `start=`
+    // means a NEW viz2 session over a new window of the DEM, which is exactly right — you cannot teleport a
+    // conserved world, you open a different one.
+    _driveHere = () => {
+        if (!this.state.spawn) { return; }
+        this.setState({driven: this.state.spawn});
+    };
     componentWillUnmount() {
         if (this._unsubWS) { this._unsubWS(); }
         if (this._unsubRoute) { this._unsubRoute(); }
@@ -128,10 +172,32 @@ class MissionDrive3D extends React.Component {
                     Drive-validate the authored mission on the real Haworth surface — site <b style={{color: '#4db6d4'}}>{s.site}</b>.
                     A route sent from the map drives the rover here; use the sim's WASD / touch pad + ▶ traverse.
                 </div>
+                {/* [REQ:TR-03] Choose the WORKSITE SECTION. Without this the sim always spawned on the flattest
+                    interior spot of the whole tile (relief 0.06 m) — real terrain existed, the spawn avoided it. */}
+                <div data-stewie-drive-spawnbar style={{display: 'flex', alignItems: 'center', gap: '8px',
+                    margin: '0 0 6px', padding: '5px 6px', borderRadius: '4px',
+                    border: '1px solid ' + (s.spawn ? '#ffc86644' : '#14141c'), background: s.spawn ? '#ffc86610' : '#0d0d12'}}>
+                    <button data-stewie-drive-here="1" disabled={!s.spawn} onClick={this._driveHere} type="button"
+                        title="open a new sim session on the selected section of the DEM"
+                        style={{cursor: s.spawn ? 'pointer' : 'not-allowed', font: '600 10px system-ui, sans-serif',
+                            padding: '3px 8px', borderRadius: '4px', whiteSpace: 'nowrap',
+                            border: '1px solid ' + (s.spawn ? '#ffc866aa' : '#2a2a35'),
+                            color: s.spawn ? '#ffc866' : '#4a4a57', background: s.spawn ? '#ffc86618' : 'transparent'}}
+                    >⌖ Drive here</button>
+                    <span data-stewie-drive-spawn style={{color: s.spawn ? '#c7d2e3' : '#8a93a3', fontSize: '10px'}}>
+                        {s.spawn
+                            ? ('section ' + s.spawn[0].toFixed(0) + ', ' + s.spawn[1].toFixed(0) + ' m'
+                               + (s.driven && s.driven[0] === s.spawn[0] && s.driven[1] === s.spawn[1] ? ' — driving' : ' — press Drive here'))
+                            : 'click the map to select a worksite section (else: flattest spot in the tile)'}
+                    </span>
+                </div>
                 <div style={{position: 'relative', width: '100%', height: '340px', background: '#05060c',
                     border: '1px solid #14141c', borderRadius: '4px', overflow: 'hidden'}}>
-                    <iframe data-stewie-drive-iframe title="viz2 drive-validate stream" ref={this._setIframe}
-                        src={_viz2StreamUrl()} style={{width: '100%', height: '100%', border: 0}}
+                    {/* keyed on the driven section: changing it REMOUNTS the iframe, i.e. opens a new viz2
+                        session over a new window of the conserved world (you cannot teleport a conserved world). */}
+                    <iframe data-stewie-drive-iframe key={s.driven ? s.driven.join(',') : 'auto'}
+                        title="viz2 drive-validate stream" ref={this._setIframe}
+                        src={_viz2StreamUrl(s.driven)} style={{width: '100%', height: '100%', border: 0}}
                         allow="fullscreen" />
                 </div>
                 <div style={{display: 'flex', alignItems: 'center', gap: '8px', margin: '6px 0 0'}}>
@@ -165,5 +231,7 @@ class MissionDrive3D extends React.Component {
 }
 
 export default connect((state) => ({
-    active: state.task.id === 'MissionDrive3D'
+    active: state.task.id === 'MissionDrive3D',
+    // [REQ:TR-03] the map click, in the map CRS (IAU_2015:30135 metres) — already start_xy, no reprojection.
+    mapClick: state.map ? state.map.click : null
 }), {setCurrentTask})(MissionDrive3D);

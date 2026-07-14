@@ -109,6 +109,39 @@ def _subproc_env() -> dict[str, str]:
     return env
 
 
+def build_runtime_argv(*, bundle: str, session_dir: str, fine_cell_m: float,
+                       start_xy: tuple[float, float] | None = None,
+                       seconds: float | None = None) -> list[str]:
+    """[REQ:TR-03] The argv that spawns the conserved runtime.
+
+    THIS FUNCTION EXISTS BECAUSE OF THE BUG IT FIXES. `viz2_serve.py` has ALWAYS had `--start-xy`, and
+    `Viz2Runtime` has ALWAYS had `start_xy=` (it only falls back to `_flattest_interior_spawn` when the
+    argument is None). The stream server simply never PASSED it -- so the operator's chosen section died
+    here, at the last hop, and every session opened on the flattest 12 m in the tile. A real knob with
+    nothing connected to it, exactly like the cosmetic arm (PX-10) and the dead rock seed (TR-01).
+
+    Extracted as a pure function so the plumbing is ASSERTABLE (test_operator_spawn.py inspects this argv).
+    An unchosen spawn must emit NO `--start-xy` at all, so the runtime's safe fallback still runs.
+    """
+    argv = [
+        STREAM_PY, str(REPO_ROOT / "stewie" / "runtime" / "viz2_serve.py"),
+        "--bundle", str(bundle), "--session-dir", str(session_dir),
+        "--seconds", str(RUNTIME_SECONDS if seconds is None else seconds),
+        "--fine-cell-m", str(fine_cell_m),
+    ]
+    if start_xy is not None:
+        # `--start-xy=<x>,<y>` as ONE argv element, NOT ["--start-xy", "<x>,<y>"]. Haworth's x is NEGATIVE
+        # (~-33450 in IAU_2015:30135), so the value begins with '-' and argparse reads it as an OPTION:
+        # its negative-number matcher only accepts a BARE number and "-33450.0,88788.0" has a comma, so a
+        # separated pair dies with `error: argument --start-xy: expected one argument`. The `=` form binds
+        # the value to the flag and argparse never re-lexes it.
+        # LEARNED THE HARD WAY: this shipped, because the first test asserted the argv LIST and never ran
+        # the real parser over it. The gate now parses through viz2_serve's own argparse (see
+        # test_operator_spawn.py) -- a list of strings is not proof that a program can read them.
+        argv += [f"--start-xy={float(start_xy[0])},{float(start_xy[1])}"]
+    return argv
+
+
 class StreamSession:
     """Owns one live browser session: the runtime + Godot subprocesses, the frame seam, teardown."""
 
@@ -153,6 +186,25 @@ class StreamSession:
         bundle_dir = str(REPO_ROOT / "out" / "procedural_sandbox" / name)
         self._proc_bundle_dir = bundle_dir
         return bundle_dir
+
+    def _resolve_start_xy(self, bundle: str) -> tuple[float, float] | None:
+        """[REQ:TR-03] The operator's chosen worksite section, checked against the DEM that will actually
+        load. `protocol.parse_config` already refused a malformed/non-finite coordinate (shape + finiteness
+        only -- that module does no I/O). BOUNDS live here, because this is where the bundle is resolved.
+
+        An out-of-tile coordinate is REFUSED, never clamped to an edge: a clamp would drop the rover
+        somewhere the operator never chose while LOOKING like it worked, which is the worse failure.
+        """
+        start_xy = self.cfg.get("start_xy")
+        if start_xy is None:
+            return None                       # unchosen -> the runtime's safe flattest-interior fallback
+        with open(os.path.join(bundle, "metadata.json"), encoding="utf-8") as fh:
+            wb = json.load(fh)["world_bounds_m"]
+        if not protocol.start_xy_in_bounds(start_xy, wb):
+            raise protocol.ConfigError(
+                f"start_xy {tuple(start_xy)} is outside the {self.cfg.get('site')!r} DEM "
+                f"(x {wb['x0']}..{wb['x1']}, y {wb['y0']}..{wb['y1']})")
+        return (float(start_xy[0]), float(start_xy[1]))
 
     # -- rock field ---------------------------------------------------------------------------
     def _generate_rockfield(self, bundle: str) -> str | None:
@@ -204,6 +256,7 @@ class StreamSession:
 
     async def start(self, *, connect_timeout: float = 90.0) -> None:
         bundle = self._resolve_bundle()
+        start_xy = self._resolve_start_xy(bundle)
 
         # 1) the localhost frame seam (server accepts, Godot connects)
         self._srv = await asyncio.start_server(self._on_godot, "127.0.0.1", 0)
@@ -211,9 +264,8 @@ class StreamSession:
 
         # 2) the conserved runtime (writes the 0600 token file into session_dir)
         self._serve = await asyncio.create_subprocess_exec(
-            STREAM_PY, str(REPO_ROOT / "stewie" / "runtime" / "viz2_serve.py"),
-            "--bundle", bundle, "--session-dir", self.session_dir,
-            "--seconds", str(RUNTIME_SECONDS), "--fine-cell-m", str(self.cfg["fine_cell_m"]),
+            *build_runtime_argv(bundle=bundle, session_dir=self.session_dir,
+                                fine_cell_m=self.cfg["fine_cell_m"], start_xy=start_xy),
             env=_subproc_env(), start_new_session=True)
         await self._await_token(timeout=20.0)
 

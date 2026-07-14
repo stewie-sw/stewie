@@ -132,9 +132,29 @@ function readConfig() {
       if (cfg && typeof cfg === "object") return cfg;
     }
   } catch (e) { /* malformed hash -> default */ }
-  return DEFAULT_CONFIG;
+  return Object.assign({}, DEFAULT_CONFIG);
 }
 const CONFIG = readConfig();
+
+// [REQ:TR-03] ?start=<x>,<y> — the OPERATOR's chosen worksite section, in IAU_2015:30135 metres. The /ide
+// map is ALREADY in that frame (a click on it IS this coordinate), so nothing is reprojected anywhere.
+// Absent -> the runtime falls back to its flattest-interior spawn, which is why every session used to open
+// on the flattest 12 m in the tile (relief 0.06 m — the terrain looked flat because it WAS flat).
+// A spawn defines the WORLD, so it is a session-creation parameter (a URL param on the iframe), not a live
+// command like a route: changing it means a new session. Malformed input is dropped here and refused again
+// server-side (protocol.parse_config + the app.py bounds check) — this is a PUBLIC surface, so the browser
+// is never the only gate.
+(function applyStartParam() {
+  try {
+    const s = new URLSearchParams(location.search).get("start");
+    if (!s) { return; }
+    const p = s.split(",");
+    if (p.length !== 2) { return; }
+    const x = Number(p[0]), y = Number(p[1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) { return; }
+    CONFIG.start_xy = [x, y];
+  } catch (e) { /* malformed ?start -> the safe flattest-interior fallback */ }
+})();
 
 const canvas = document.getElementById("view");
 const ctx = canvas.getContext("2d");

@@ -15,14 +15,27 @@ import time
 from stewie.runtime.viz2_runtime import Viz2Runtime
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """[REQ:TR-03] Exposed so the STREAM SERVER'S OWN ARGV CAN BE PARSED BY THIS PARSER IN A TEST.
+
+    It was private, and the cost was a live outage: `app.py` emitted `["--start-xy", "-33450.0,88788.0"]`,
+    argparse read a value beginning with '-' as an OPTION (its negative-number matcher accepts only a BARE
+    number, and that string has a comma), and every session over a chosen section died with
+    `error: argument --start-xy: expected one argument`. The unit test had asserted the argv LIST and never
+    run a parser over it -- a list of strings is not proof that a program can read them.
+    """
     ap = argparse.ArgumentParser(description="Serve a Viz2Runtime for the live Godot client.")
     ap.add_argument("--bundle", required=True, help="DEM bundle dir (e.g. samples/lunar_dem/haworth_sfs_2km_1m)")
     ap.add_argument("--session-dir", required=True, help="session dir for the token file + generation manifests")
     ap.add_argument("--seconds", type=float, default=60.0, help="max wall-time to hold the runtime alive")
     ap.add_argument("--fine-cell-m", type=float, default=0.05, help="fine window cell size (0.05 default / 0.02 gated)")
+    # NOTE the callers MUST use the `--start-xy=<x>,<y>` form: Haworth's x is negative in IAU_2015:30135.
     ap.add_argument("--start-xy", default="", help='"x,y" global-metre start pose; empty -> base-grid centre')
-    args = ap.parse_args()
+    return ap
+
+
+def main() -> None:
+    args = build_parser().parse_args()
 
     start_xy = None
     if args.start_xy:
