@@ -63,4 +63,10 @@ def test_tracer_reports_coverage_and_bucketing_is_complete():  # [REQ:FS-01]
     p = F.plan()
     buildable = sum(len(v) for v in p["lanes"].values())
     gated = sum(len(v) for v in p["gated"].values())
-    assert p["done"] + buildable + gated + len(p["concurrent"]) == p["total"]
+    # [REQ:PO-19] BLOCKED is a fifth bucket: a not-done, not-gated row whose declared prerequisites are
+    # unfinished. It is NOT buildable (the ATG readiness rule), so it must not be dispatched -- but it is
+    # still a §7 row, so the complete-inventory partition has to account for it or this gate goes red.
+    blocked = len(p["blocked"])
+    assert p["done"] + buildable + gated + blocked + len(p["concurrent"]) == p["total"], (
+        f"partition leak: done={p['done']} buildable={buildable} gated={gated} blocked={blocked} "
+        f"concurrent={len(p['concurrent'])} != total={p['total']}")

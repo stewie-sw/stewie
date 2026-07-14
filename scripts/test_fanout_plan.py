@@ -10,10 +10,18 @@ def test_every_not_done_row_lands_in_exactly_one_bucket():
     buildable = {r["id"] for lane in p["lanes"].values() for r in lane}
     gated = {i for ids in p["gated"].values() for i in ids}
     concurrent = set(p["concurrent"])
+    # [REQ:PO-19] BLOCKED is a fifth bucket: a not-done, not-gated row whose DECLARED prerequisites are
+    # unfinished. Under the ATG readiness rule it is not dispatchable (RS-05/RT-03 `needs RT-00`, which is
+    # unbuilt), so it must not sit in `buildable` -- but it is still a §7 row, so the partition must count
+    # it or this gate goes red. It stays VISIBLE (naming its blocker) rather than being silently dropped.
+    blocked = set(p["blocked"])
     # no row appears in two buckets
     assert buildable.isdisjoint(gated) and buildable.isdisjoint(concurrent) and gated.isdisjoint(concurrent)
-    # the four buckets account for every §7 row
-    assert p["done"] + len(buildable) + len(gated) + len(concurrent) == p["total"]
+    assert blocked.isdisjoint(buildable) and blocked.isdisjoint(gated) and blocked.isdisjoint(concurrent)
+    # the five buckets account for every §7 row
+    assert p["done"] + len(buildable) + len(gated) + len(blocked) + len(concurrent) == p["total"], (
+        f"partition leak: done={p['done']} buildable={len(buildable)} gated={len(gated)} "
+        f"blocked={len(blocked)} concurrent={len(concurrent)} != total={p['total']}")
 
 
 def test_ready_set_is_non_empty_and_excludes_the_concurrent_lane():

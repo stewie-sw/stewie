@@ -103,9 +103,27 @@ def classify(r: dict) -> tuple[str, str | None]:
 
 
 def plan(prd_path: str = _PRD) -> dict:
+    """[REQ:PO-19] The ready-set, now obeying the ATG READINESS RULE: a row is dispatchable only when ALL
+    of its declared prerequisites are DONE.
+
+    This used to bucket rows by GLYPH and FAMILY alone, so the "parallel lanes" were family prefixes, not
+    predecessors -- and the fan-out would happily dispatch a row whose foundation did not exist. It was
+    not hypothetical: RS-05 and RT-03 both declare `needs RT-00` ("the ROS image carries the stewie python
+    stack"), RT-00 is NOT done, and both sat in the buildable ready-set. An agent sent to build the Gazebo
+    rehearsal into a container that cannot import `stewie` fails, or fakes it. AD-02/AD-03 likewise sat
+    ready while AD-01 was unbuilt.
+
+    Rows with an unmet prerequisite now land in a `blocked` bucket, each naming its blocker, instead of
+    being offered as work. The prerequisite edges are the PRD's OWN (`needs` / `Blocks` / `prerequisite
+    for`); `extends` is lineage and is deliberately NOT an edge (see scripts/atg.py).
+    """
+    import atg as _atg                                    # sibling module; same scripts/ dir on sys.path
+
     rows = parse_rows(prd_path)
+    graph = _atg.build(prd_path)
     lanes: dict[str, list] = defaultdict(list)
     gated: dict[str, list] = defaultdict(list)
+    blocked: dict[str, list[str]] = {}
     concurrent: list[str] = []
     done = 0
     for r in rows:
@@ -117,9 +135,14 @@ def plan(prd_path: str = _PRD) -> dict:
         elif bucket == "gated" and reason is not None:   # classify() always gives a reason for gated
             gated[reason].append(r["id"])
         else:
-            lanes[r["fam"]].append(r)
-    return {"total": len(rows), "done": done, "lanes": dict(lanes),
-            "gated": dict(gated), "concurrent": sorted(concurrent)}
+            unmet = _atg.blocked_by(graph, r["id"]) if r["id"] in graph else []
+            if unmet:
+                blocked[r["id"]] = unmet             # ATG: NOT ready -- its predecessors are unfinished
+            else:
+                lanes[r["fam"]].append(r)
+    return {"total": len(rows), "done": done, "lanes": dict(lanes), "gated": dict(gated),
+            "blocked": blocked, "concurrent": sorted(concurrent),
+            "levels": _atg.levels(graph)}
 
 
 def assessment_inventory(specs_path: str = os.path.join(_ROOT, "FANOUT_SPECS.md")) -> dict[str, dict]:
