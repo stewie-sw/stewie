@@ -66,6 +66,7 @@ from stewie.physics.excavation import earthmoving_report, representative_dig
 from stewie.physics.material import cell_strength
 from stewie.specs.arm_state import (
     ARM_OFFSET_MAX_RAD, ARM_OFFSET_MIN_RAD, dig_engagement, net_dig_reaction_n)
+from stewie.physics.rassor_mass_model import DrumSensor
 from stewie.twin.io_fields import atomic_write_bytes
 
 #: [REQ:PX-13] Along-heading offset of each bucket drum's contact patch from the pose: the FRONT drum sits
@@ -625,6 +626,7 @@ class Viz2Runtime:
             if self._drum_capacity_kg > 0.0 else 0.0
         telem["drum_full"] = bool(self._drum_full)                      # -> dump/haul before digging on
         telem["max_cut_per_pass_m"] = float(self._max_cut_per_pass_m)   # the <=50%-scoop anti-bridging bite cap
+        telem.update(self._sensor_telem())                             # [REQ:PX-14] drum current + inferred + offload
         # [REQ:PX-10] the arm is authoritative state now, so publish it: the operator must be able to see
         # that the drum is raised (engagement 0) and that is WHY a dig command carved nothing.
         telem["arm_front_offset_rad"] = float(self._arm_front_offset_rad)
@@ -805,8 +807,103 @@ class Viz2Runtime:
         rc = self.ws.active_rc_for_xy((self.ws.pose_xy[0] + dx, self.ws.pose_xy[1] + dy))
         return int(round(rc[0])), int(round(rc[1]))
 
-    def _apply_dig(self) -> list[list[int]]:
+    @property
+    def _drum_sensor(self) -> DrumSensor:
+        """[REQ:PX-14] The drum-current SENSOR, wired into the runtime at last -- it lived in
+        `rassor_mass_model` (the sourced FDC model, NTRS 20210022781) and the runtime never exposed it. It
+        turns the conserved true drum mass into the motor-current reading a real rover would draw (no load
+        cell), and infers the mass back with the published band. Lazily built (once) and cached; the inverse
+        is calibrated across the vehicle's own hold, noise OFF (deterministic)."""
+        s = getattr(self, "_drum_sensor_cache", None)
+        if s is None:
+            s = DrumSensor.calibrated(
+                [f * self._vehicle_capacity_kg for f in (0.0, 0.25, 0.5, 0.75, 1.0)],
+                capacity_kg=self._vehicle_capacity_kg)
+            self._drum_sensor_cache = s
+        return s
+
+    def _sensor_telem(self) -> dict:
+        """[REQ:PX-14] The drum-current OBSERVABLE, as the runtime now exposes it: the current a real rover
+        would read (no load cell) from the conserved true drum mass, the mass inferred back from it, and the
+        offload decision on the UPPER confidence bound. These are the closed loop's inputs -- and were
+        missing entirely; the sourced FDC model sat in `rassor_mass_model` with nothing wired to it."""
+        true_kg = float(self.ws.inventory_kg)
+        current_a = float(self._drum_sensor.current(true_kg))
+        inferred_kg = float(self._drum_sensor.infer(current_a))
+        offload = bool(self._drum_sensor.offload(inferred_kg).offload)
+        return {"drum_current_a": current_a, "drum_mass_inferred_kg": inferred_kg,
+                "should_offload": offload}
+
+    def autodig_trench(self, target_kg_per_pass: float, *, max_passes: int = 200,
+                       noise_frac: float = 0.0, seed: int = 0) -> dict:
+        """[REQ:PX-14] AutoDig-equivalent CLOSED-LOOP trench: regulate the per-pass bite to a target
+        ingestion, read through the drum-current OBSERVABLE, and stop on drum-full via the sourced offload
+        trigger. Actor-thread only (it mutates the conserved world).
+
+        THE LOOP. The open-loop dig cuts the maximum allowed bite every pass. AutoDig instead holds a target
+        ingestion: each pass it reads the drum current (with the FDC noise band, if enabled), infers the
+        mass, and -- BEFORE biting -- asks `should_offload`; if the UPPER confidence bound has reached
+        capacity it stops, so it never overfills even when the sensor is uncertain. Otherwise it takes a
+        regulated bite, measures what it actually ingested THROUGH THE SENSOR (not the conserved truth, which
+        a real rover cannot see), and corrects the next depth.
+
+        THE CONTROL LAW, and its honest [CALIB]. `k = ingested / d_eff` is the terrain response learned each
+        pass (kg per metre of bite); the next depth moves toward the target by `damping * error / k`. The
+        DAMPING is the [CALIB] gain -- AutoDig's PID gains are not published, so the number is ours and the
+        acceptance is on the BEHAVIOUR (the ingestion tracks the setpoint, a different setpoint gives a
+        different bite, it stops on full), never on reproducing NASA's gains. The bite stays inside every
+        sourced bound: `_apply_dig` still enforces PX-09 (the <=50% anti-bridging cap + capacity), PX-10 (the
+        arm gate), PX-13 (the two-drum reaction). NOTE the sim's density is UNIFORM, so this does NOT model
+        `denser -> shallower`; the regulation is against the target and the drum's fill, which are real.
+        """
+        _DAMPING = 0.7                                     # [CALIB] proportional gain (see the docstring)
+        sensor = self._drum_sensor if noise_frac <= 0.0 else DrumSensor.calibrated(
+            [f * self._vehicle_capacity_kg for f in (0.0, 0.25, 0.5, 0.75, 1.0)],
+            capacity_kg=self._vehicle_capacity_kg, noise_frac=noise_frac, seed=seed)
+
+        ingested: list[float] = []
+        max_bite_kg = 0.0
+        depth = self._max_cut_per_pass_m                   # start at the anti-bridging max, regulate DOWN
+        terminated = False
+        for _ in range(int(max_passes)):
+            true_before = float(self.ws.inventory_kg)
+            inferred_before = float(sensor.infer(sensor.current(true_before)))
+            if sensor.offload(inferred_before).offload:    # UPPER-bound full -> stop before overfilling
+                terminated = True
+                break
+            measured, depth, moved = self._autodig_pass(sensor, depth, target_kg_per_pass,
+                                                        inferred_before, _DAMPING)
+            if moved <= 1e-9:
+                break                                      # nothing moved (arm stowed / no room): done
+            ingested.append(measured)
+            max_bite_kg = max(max_bite_kg, moved)
+
+        return {"ingested_per_pass_kg": ingested, "n_passes": len(ingested),
+                "terminated_on_offload": terminated,
+                "max_pass_kg": max(ingested) if ingested else 0.0, "max_bite_kg": max_bite_kg}
+
+    def _autodig_pass(self, sensor, depth: float, target: float, inferred_before: float,
+                      damping: float) -> tuple[float, float, float]:
+        """[REQ:PX-14] ONE regulated AutoDig pass: bite at ``depth`` (bounded per drum by PX-09/10/13),
+        measure the ingestion THROUGH THE SENSOR (not the conserved truth), and return
+        ``(measured_kg, next_depth_m, true_moved_kg)``. The next depth is a deadbeat-damped proportional
+        step on the terrain response ``k = ingested / d_eff`` learned this pass (kg per metre of bite)."""
+        true_before = float(self.ws.inventory_kg)
+        self._apply_dig(depth_m=depth)
+        true_after = float(self.ws.inventory_kg)
+        moved = true_after - true_before
+        measured = float(sensor.infer(sensor.current(true_after))) - inferred_before
+        d_eff = min(depth, self._max_cut_per_pass_m)
+        k = max(measured, 1e-6) / max(d_eff, 1e-6)
+        next_depth = min(self._max_cut_per_pass_m,
+                         max(0.0, depth + damping * (target - measured) / max(k, 1e-6)))
+        return measured, next_depth, moved
+
+    def _apply_dig(self, depth_m: float | None = None) -> list[list[int]]:
         """[REQ:PX-13] Conserved excavation with BOTH counter-rotating bucket drums (actor thread only).
+
+        [REQ:PX-14] ``depth_m`` overrides the operator's commanded ``dig_depth_m`` for ONE pass, so the
+        AutoDig controller can regulate the bite from feedback. ``None`` = the operator's depth (unchanged).
 
         The sim used to model HALF THE MACHINE: it cut with the FRONT drum alone and billed the chassis the
         full draft `F = tau/r`. That is the CORRECT answer for a single-drum dig -- and the WRONG VEHICLE.
@@ -852,7 +949,7 @@ class Viz2Runtime:
         total_energy_j = 0.0
         net_reaction_n = 0.0
         for which, engagement, (r, c) in engaged:
-            cut = self._cut_one_drum(which, engagement, r, c, room_kg)
+            cut = self._cut_one_drum(which, engagement, r, c, room_kg, depth_m=depth_m)
             if cut is None:
                 continue
             dirty.append(cut["bbox"])
@@ -881,7 +978,7 @@ class Viz2Runtime:
         return dirty
 
     def _cut_one_drum(self, which: str, engagement: float, r: int, c: int,
-                      room_kg: float) -> dict | None:
+                      room_kg: float, depth_m: float | None = None) -> dict | None:
         """[REQ:PX-13] ONE bucket drum's conserved pass: flatten its footprint-sized box, bounded by the
         SAME sourced limits as before (PX-09 anti-bridging + the shared hold, PX-10 the arm gate, PX-11 the
         drum-width footprint). Returns ``{bbox, moved_kg, j_per_kg, draft_n}`` or ``None`` if it cut nothing.
@@ -903,7 +1000,8 @@ class Viz2Runtime:
         # (2) DRUM HOLD: the vehicle carries a finite mass. A bite that would overfill is trimmed to the room
         #     left, so the ledger can never exceed capacity.
         # [REQ:PX-10] ARM GATE: this drum can only cut what ITS arm's posture lets it reach (`engagement`).
-        d_eff = min(float(self.dig_depth_m), self._max_cut_per_pass_m) * engagement
+        d_cmd = float(self.dig_depth_m if depth_m is None else depth_m)   # [REQ:PX-14] AutoDig may override
+        d_eff = min(d_cmd, self._max_cut_per_pass_m) * engagement
 
         mask = np.zeros((H, W), dtype=bool)
         mask[r0:r1, c0:c1] = True
