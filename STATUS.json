@@ -34,14 +34,14 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 315,
+  "cited": 320,
   "per_family": {
     "AC": {
       "cited": 1,
       "total": 2
     },
     "AD": {
-      "cited": 0,
+      "cited": 1,
       "total": 3
     },
     "AG": {
@@ -101,7 +101,7 @@
       "total": 7
     },
     "DA": {
-      "cited": 0,
+      "cited": 1,
       "total": 6
     },
     "DE": {
@@ -137,7 +137,7 @@
       "total": 21
     },
     "FS": {
-      "cited": 29,
+      "cited": 30,
       "total": 32
     },
     "GI": {
@@ -145,7 +145,7 @@
       "total": 3
     },
     "GL": {
-      "cited": 1,
+      "cited": 2,
       "total": 2
     },
     "GW": {
@@ -309,7 +309,7 @@
       "total": 1
     },
     "TW": {
-      "cited": 9,
+      "cited": 10,
       "total": 12
     },
     "VT": {
@@ -368,6 +368,10 @@
     {
       "id": "FS-24",
       "v": "P"
+    },
+    {
+      "id": "FS-25",
+      "v": "N"
     },
     {
       "id": "GI-03",

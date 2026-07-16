@@ -19,12 +19,14 @@ and used them correctly -- RT-03 uses BOTH in one row: "(extends BA-07/RS-05; ne
     needs X / Blocks X / prerequisite for X   ->  a TRUE prerequisite: an ATG edge.
     extends / complements / bounds / reuses   ->  LINEAGE or context: NOT an edge.
 
-Reading `extends` as a dependency would fabricate ~60 edges and falsely accuse seven delivered rows of
-standing on unbuilt foundations. The proof it is not an edge: GW-07 is V=D ("Selection + right inspector",
-fully tested) while GL-02, which it "extends", is V=N. It shipped without it.
+Reading `extends` as a dependency would fabricate ~60 edges and falsely accuse delivered rows of standing
+on unbuilt foundations. The proof it is not an edge: many rows are V=D while a row they "extend" is still
+V=N -- they shipped without it. (The test finds such a pair live rather than naming one, since any named
+example is promoted out of V=N eventually -- GW-07/GL-02 was the original, until GL-02 itself shipped.)
 """
 from __future__ import annotations
 
+import re
 import os
 import sys
 
@@ -103,15 +105,23 @@ def test_parallel_groups_are_derived_from_the_graph_not_hand_written() -> None:
 
 def test_extends_is_lineage_and_is_not_treated_as_a_dependency() -> None:
     """[REQ:PO-19] Pin the semantics, because getting this wrong silently corrupts the whole plan. `extends`
-    must NOT create an edge. The live proof: GW-07 is V=D while GL-02, which it "extends", is V=N -- if
-    `extends` were an edge, GW-07 would be a BUILT-ON-UNBUILT violation, and ~60 such phantom edges would
-    reorder the entire plan around dependencies that do not exist."""
+    must NOT create an edge: a V=D row that `extends` a still-V=N row would be a BUILT-ON-UNBUILT violation
+    IF `extends` were a prerequisite, and ~60 such phantom edges would reorder the entire plan around
+    dependencies that do not exist. The invariant is proven on ANY such pair currently in the PRD rather
+    than a hardcoded example -- a hardcoded row (formerly GW-07/GL-02) rots the moment either side is
+    promoted, which is a fixture defect, not a semantics change."""
     graph = atg.build(_PRD)
-    assert graph["GW-07"]["row"]["V"] == "D"
-    assert graph["GL-02"]["row"]["V"] != "D"
-    assert "GL-02" not in graph["GW-07"]["requires"], (
-        "`extends` is being read as a dependency edge. It is lineage, not a prerequisite: GW-07 shipped "
-        "fully tested while GL-02 is still unbuilt.")
+    pair = next(
+        ((rid, ext)
+         for rid, node in graph.items() if node["row"]["V"] == "D"
+         for ext in re.findall(r"extends ([A-Z]{2}-\d{2})", node["row"].get("text", ""))
+         if ext in graph and graph[ext]["row"]["V"] != "D"),
+        None)
+    assert pair is not None, "no V=D-extends-V=N pair in the PRD to exercise the `extends`-is-lineage rule"
+    built, extended = pair
+    assert extended not in graph[built]["requires"], (
+        f"`extends` is being read as a dependency edge: {built} (V=D) shipped fully tested while it "
+        f"`extends` {extended} (still V!=D). extends is lineage, not a prerequisite.")
     # ...while the PRD's real prerequisite vocabulary IS an edge, in both directions:
     assert "RT-00" in graph["RT-03"]["requires"], "'needs RT-00' must be an edge (RT-03 declares it)"
     assert "RT-00" in graph["RS-05"]["requires"], "'Blocks RS-05' must be an edge (RT-00 declares it)"

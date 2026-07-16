@@ -95,7 +95,8 @@ def _open(scn: Scenario) -> tuple[WorkSite, np.ndarray, np.ndarray, float, tuple
     target = max(lo, float(np.max(cs.datum[pad])) + 1e-4)     # never below any pad cell's firm datum
     above = pad & (h > target)
     region = ws.window_region_rc
-    assert region is not None
+    if region is None:
+        raise RuntimeError("window_region_rc is None after open_window()")
     r0, c0, r1, c1 = region
     rock_region = (int(r0), int(c0), int(min(r1 - r0, c1 - c0)))
     return ws, pad, above, target, rock_region
@@ -178,7 +179,8 @@ def run_policy(scn: Scenario, policy: str, *, seed_for_random: int = 0) -> Resul
     acc = 0.0
     pass_cells: list[int] = []
     origin = ws.window_world_origin
-    assert origin is not None
+    if origin is None:
+        raise RuntimeError("window_world_origin is None after open_window()")
     ox, oy = origin
 
     def _haul_leg(cell_idxs: list[int]) -> float:
