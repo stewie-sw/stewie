@@ -20,6 +20,7 @@ from stewie.specs import vehicles as V             # vehicle/tool capability reg
 from stewie.physics import validation as VAL        # RB-01: physical-domain validation at this input boundary
 from stewie.specs.bodies import get_body as _get_body, params_for_body  # soil model (soil override)
 from lode import lander_return as LR                # #161; pure module, no cycle
+from lode.mission_schema import migrate_mission     # PO-09: version-migrate a mission artifact before parse
 from lode.planner_constants import (
     BATTERY_J, CHARGE_W, DRIVE_SPEED_MS, LOCALIZATION_MARGIN_M, RESERVE_FRAC, _CONSTRAINT_CAPS,
 )
@@ -300,6 +301,10 @@ def mission_from_dict(payload):
     refused downstream in plan_and_simulate while the gate is off (see constants.SINTER_ENABLED)."""
     if not isinstance(payload, dict):
         raise ValueError("mission payload must be a JSON object")
+    # PO-09: upgrade a prior-version mission artifact to the current schema_version before validation
+    # (an unversioned payload -- the genuine legacy wire format -- is walked forward; an unknown version
+    # is a clear "no migration path" 400). Additive + byte-identical for today's unversioned payloads.
+    payload = migrate_mission(payload)
     body = payload.get("body")
     if body not in _bodies():
         raise ValueError(f"unknown body {body!r}; known: {sorted(_bodies())}")
