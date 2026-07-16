@@ -72,11 +72,16 @@ def test_models_endpoint_serves_the_real_registries(client):
     assert "moon" in {b["id"] for b in j["bodies"]}
     moon = next(b for b in j["bodies"] if b["id"] == "moon")
     assert moon["g_m_s2"] > 0 and moon["provenance"], "body row is a placeholder (no real constants/provenance)"
-    # REAL ML-01 governance: the deployment-ready gate + §25.3 no-command-path invariant.
-    g = j["model_governance"]
+    # REAL ML-01 / FS-12 governance: the deployment-ready gate + §25.3 no-command-path invariant. This is
+    # the FS-12 model-integration/fine-tuning-hardening acceptance ON THE COCKPIT-FACING SURFACE (the
+    # contract-object half -- deployment_ready False until every governed field is present, True when all
+    # are, command_path=True rejected -- is asserted under [REQ:FS-12] in contracts/test_contracts.py). Here
+    # the row's "before cockpit exposure" clause is verified: /models returns the governance criteria list
+    # AND reports an honest EMPTY deployed_models (no learned model reaches the cockpit without the gate).
+    g = j["model_governance"]  # [REQ:FS-12]
     assert g["command_path_enforced"] is True, "ModelArtifact command-path invariant not reported as enforced"
-    assert len(g["deployment_ready_criteria"]) >= 6, "ML-01 deployment-ready criteria not enumerated"
-    assert g["deployed_models"] == [], "no learned model should be deployed on the command path"
+    assert len(g["deployment_ready_criteria"]) >= 6, "ML-01/FS-12 deployment-ready criteria not enumerated"
+    assert g["deployed_models"] == [], "no learned model should be deployed/cockpit-exposed on the command path"
 
 
 def test_rl01_deployed_rl_policy_gate(client):
