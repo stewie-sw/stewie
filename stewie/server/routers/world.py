@@ -110,10 +110,13 @@ def layer_catalog():   # public read (map-data catalog); nginx proxies /api/ wit
     from a forecast/belief one. The annotation is derived at SERVE time from the real declared ``source_class``;
     the committed layer_catalog.json + the LY-01 sync test (which read the raw file) are untouched."""
     import json
+
+    from stewie.server.layer_tier import layer_tier   # [REQ:IN-02] the raw/derived/belief/world/mission tier
     with open(_LAYER_CATALOG_PATH, encoding="utf-8") as fh:
         cat = json.load(fh)
     for ly in cat.get("layers", []):
         ly["confidence"] = layer_confidence(ly.get("source_class", ""))   # [REQ:GW-03] per-layer uncertainty
+        ly["tier"] = layer_tier(ly)   # [REQ:IN-02] closed tier BESIDE source_class (what the layer may be used for)
     # [REQ:LY-04] the four PRD-named "missing layer kinds" (ice-probability / localization-confidence /
     # sensor-coverage / digital-twin-difference), each bound to a REAL producer registered here or declared
     # explicitly UNAVAILABLE (no fabricated drape) -- surfaced additively so the status is discoverable at the
