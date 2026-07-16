@@ -34,7 +34,7 @@
     "in_matrix": 16,
     "total": 16
   },
-  "cited": 306,
+  "cited": 311,
   "per_family": {
     "AC": {
       "cited": 1,
@@ -145,7 +145,7 @@
       "total": 3
     },
     "GL": {
-      "cited": 0,
+      "cited": 1,
       "total": 2
     },
     "GW": {
@@ -165,7 +165,7 @@
       "total": 7
     },
     "MG": {
-      "cited": 1,
+      "cited": 3,
       "total": 4
     },
     "MI": {
@@ -249,7 +249,7 @@
       "total": 8
     },
     "RT": {
-      "cited": 3,
+      "cited": 5,
       "total": 8
     },
     "SC": {

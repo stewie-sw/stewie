@@ -20,7 +20,7 @@ SHELL ["/bin/bash", "-lc"]
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3-colcon-common-extensions python3-rosdep build-essential \
+        python3-colcon-common-extensions python3-rosdep build-essential python3-pip \
         ros-jazzy-xacro ros-jazzy-robot-state-publisher ros-jazzy-joint-state-publisher \
         liburdfdom-tools \
     && rm -rf /var/lib/apt/lists/*
@@ -41,4 +41,31 @@ RUN source /opt/ros/jazzy/setup.bash && source install/setup.bash \
     && xacro src/stewie_description/urdf/ipex.urdf.xacro > /tmp/ipex.urdf \
     && check_urdf /tmp/ipex.urdf
 
-CMD ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && source install/setup.bash && ros2 pkg list | grep -E '^stewie_' | sort"]
+# [REQ:RT-00] The live-spine rclpy nodes import the STEWIE PYTHON STACK (run_replay et al) -- so the ROS
+# image must carry it, not just the colcon ROS packages. Install the runtime deps + the monorepo
+# (stewie/dart/lode/leap/forge) into the container's SYSTEM python, the SAME interpreter rclpy uses, so
+# `import stewie.runtime.replay_loop` resolves inside a live node. --break-system-packages: ros:jazzy's
+# python is externally-managed (PEP 668).
+#
+# NUMPY IS ROS'S, DELIBERATELY. ros:jazzy ships debian numpy (1.26.4) that rclpy is BUILT AGAINST; forcing
+# the host's numpy 2.4.6 (a) fails -- pip cannot uninstall a debian-managed numpy ("RECORD file not found")
+# -- and (b) would risk breaking rclpy under a numpy major bump. So we install the stewie-added deps PINNED
+# (scipy/pydantic/gymnasium) and let numpy come from ROS. --ignore-installed skips the debian numpy rather
+# than trying to remove it. The final import is a BUILD-TIME GATE: if run_replay cannot be imported under
+# ROS's numpy, the image build FAILS -- which is exactly the numpy-1.26 compatibility proof the row needs.
+WORKDIR /pystack
+COPY pyproject.toml README.md ./
+COPY stewie ./stewie
+COPY dart ./dart
+COPY lode ./lode
+COPY leap ./leap
+COPY forge ./forge
+COPY packages ./packages
+RUN python3 -m pip install --break-system-packages --no-cache-dir --ignore-installed \
+        scipy==1.17.1 pydantic==2.13.4 gymnasium==1.3.0 \
+    && python3 -m pip install --break-system-packages --no-cache-dir --no-deps \
+        -e packages/stewie-bodies -e packages/stewie-forge -e . \
+    && python3 -c "from stewie.runtime.replay_loop import run_replay; print('[RT-00] run_replay import OK')"
+WORKDIR /ws
+
+CMD ["bash", "-lc", "source /opt/ros/jazzy/setup.bash && source install/setup.bash && ros2 pkg list | grep -E '^stewie_' | sort && python3 -c 'from stewie.runtime.replay_loop import run_replay; print(\"[RT-00] run_replay importable in the ROS image\")'"]

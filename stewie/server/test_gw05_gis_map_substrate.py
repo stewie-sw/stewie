@@ -21,7 +21,7 @@ client = TestClient(app)
 _ROOT = Path(__file__).parents[2]
 
 
-def test_site_xy_lonlat_round_trip_within_tolerance_on_real_haworth():  # [REQ:GW-05]
+def test_site_xy_lonlat_round_trip_within_tolerance_on_real_haworth():  # [REQ:GW-05] [REQ:GL-01]
     """A control point round-trips: order-frame (x,y) -> /dem/site_lonlat -> (lat,lon) -> /dem/site_xy ->
     (x',y'). On the real Haworth DEM the round-trip error must be sub-metre (the transforms are exact
     inverses through the IAU_2015:30135 georef). Several interior points, not just the origin."""
@@ -35,7 +35,7 @@ def test_site_xy_lonlat_round_trip_within_tolerance_on_real_haworth():  # [REQ:G
         assert abs(xy["y_m"] - y) < 0.5, f"y round-trip off by {abs(xy['y_m'] - y)} m at ({x},{y})"
 
 
-def test_site_lonlat_is_selenographic_south_polar_not_earth():  # [REQ:GW-05]
+def test_site_lonlat_is_selenographic_south_polar_not_earth():  # [REQ:GW-05] [REQ:GL-01]
     """The coordinates are lunar selenographic (south-polar), never Earth WGS84. A Haworth interior point
     resolves to a south-polar lat; the site_meta CRS is the IAU_2015:30135 Moon frame."""
     ll = client.get("/dem/site_lonlat?x=5000&y=5000&site=haworth").json()
