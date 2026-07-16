@@ -54,6 +54,37 @@ def is_visible(dem, dem_origin, observer_xy, target_xy, *, observer_height_m: fl
     return True
 
 
+def viewshed(dem, dem_origin, anchors, *, observer_height_m: float = 1.5,
+             target_height_m: float = 0.0) -> np.ndarray:
+    """r.viewshed-class line-of-sight raster (terrain.los) from the site DEM + localization anchor(s).
+
+    For every ground cell, marks True where a mast-height observer standing at that cell has line-of-sight
+    to AT LEAST ONE anchor, False where every anchor is terrain-occluded. This is exactly the sightline a
+    fiducial pose-lock needs: a cell blind to all anchors cannot get an AprilTag fix. The result is the
+    ``terrain.los`` raster that SN-05's visibility route-cost term consumes (a named producer instead of the
+    inline per-route march). Reuses the audited per-cell ``is_visible`` LOS march, so the raster is the exact
+    cell-wise line-of-sight over the REAL DEM -- no fabricated drape, no fitted surrogate.
+
+    dem: (heightmap, cell_m). dem_origin: world (x0, y0) of cell (0, 0). anchors: [(x, y), ...] world
+    positions of localization anchors (lander / fiducials). Returns a (H, W) boolean array.
+    """
+    z = np.asarray(dem[0], dtype=float)
+    cell = float(dem[1])
+    demc = (z, cell)
+    ox0, oy0 = float(dem_origin[0]), float(dem_origin[1])
+    los = np.zeros(z.shape, dtype=bool)
+    anchor_xy = [(float(ax), float(ay)) for ax, ay in anchors]
+    for ri in range(z.shape[0]):
+        wy = oy0 + ri * cell
+        for ci in range(z.shape[1]):
+            wx = ox0 + ci * cell
+            los[ri, ci] = any(
+                is_visible(demc, dem_origin, (wx, wy), a,
+                           observer_height_m=observer_height_m, target_height_m=target_height_m)
+                for a in anchor_xy)
+    return los
+
+
 def predict_visibility(dem, dem_origin, observer_xy, landmarks, **kw) -> list:
     """Per-landmark predicted visibility from observer_xy. Returns [(landmark, visible:bool)]."""
     return [(lm, is_visible(dem, dem_origin, observer_xy, (lm.x, lm.y), **kw)) for lm in landmarks]
