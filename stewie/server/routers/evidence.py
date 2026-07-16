@@ -113,6 +113,45 @@ def _selected_layers(site: str) -> dict:
             "n_planning_layers": len(planning), "freshness": freshness}
 
 
+def _assumptions() -> dict:
+    """[REQ:EV-01] the ASSUMPTIONS a plan runs under, reproduced from COMMITTED sources (never fabricated): the
+    conserved regolith density profile + body gravity (stewie.specs.constants -- mass = volume x density, the
+    energy/mass basis every report rests on), the terramechanics spine's honest per-term calibration status
+    (measured | calibrated | unknown, read LIVE from stewie.specs.terramechanics_spine so it cannot drift from
+    the solver), and the physics-backend AUTHORITY the SIM runs on (tier2_numpy: mass-conserving,
+    release-eligible, from the PH-01 registry). All deterministic -> folds into the bundle_sha."""
+    from stewie.specs import constants as K
+    from stewie.specs.physics_authority import BACKENDS
+    from stewie.specs.terramechanics_spine import list_terra_spine
+    calib_terms = {t["id"]: t["calibration"] for t in list_terra_spine()}
+    calib_counts: dict[str, int] = {}
+    for cls in calib_terms.values():
+        calib_counts[cls] = calib_counts.get(cls, 0) + 1
+    authority = BACKENDS["tier2_numpy"]                                  # the desktop_sil SIM authority backend
+    return {
+        "material": {
+            "cut_density_kg_m3": float(K.RHO_DEEP),
+            "fill_density_kg_m3": float(K.RHO_SPOIL),
+            "swell_factor": round(float(K.RHO_DEEP) / float(K.RHO_SPOIL), 4),
+            "assumption": "conserved Apollo-profile bank(cut)/loose(fill) regolith density; mass = volume x density",
+            "provenance": "stewie.specs.constants RHO_DEEP / RHO_SPOIL",
+        },
+        "gravity": {"g_m_s2": float(K.g), "body": "moon", "provenance": "stewie.specs.constants.g"},
+        "terramechanics_calibration": {
+            "terms": calib_terms, "counts": calib_counts,
+            "note": ("each spine term's honest calibration class (measured | calibrated | unknown), read live "
+                     "from stewie.specs.terramechanics_spine so it cannot drift from the solver."),
+        },
+        "physics_authority": {
+            "backend_id": authority["id"], "conserves_mass": authority["conserves_mass"],
+            "valid_for_release": authority["valid_for_release"], "refusal_reason": authority["refusal_reason"],
+            "provenance": "stewie.specs.physics_authority (PH-01)",
+        },
+        "note": ("the assumptions a plan runs under, reproduced from the committed regolith constants + the "
+                 "terramechanics spine + the physics-authority registry; no fabricated value."),
+    }
+
+
 def _runtime_profile() -> dict:
     """[REQ:EV-01] the RUNTIME PROFILE (RT-01): the 8-profile escalation registry + the profile the persisted
     SIM runs execute on -- ``desktop_sil`` (the conserved numpy authority; evidence_class forecast, no live
@@ -192,7 +231,9 @@ def evidence_bundle(site: str = "haworth", mission: str | None = None,
     """[REQ:EV-01] The EVIDENCE/REPORT BUNDLE: one read-only assembly that reproduces what a mission ran on,
     from the EXISTING persisted sources -- plan inputs (world-log record_plan transactions + report
     artifacts), the selected layers (LY-01 catalog + GW-03 confidence + DT-05 per-site freshness), the
-    runtime profile (RT-01 registry + the SIM authority profile), the world transactions (DT-03 log), and the
+    assumptions the plan runs under (committed regolith constants + terramechanics-spine calibration +
+    physics authority), the runtime profile (RT-01 registry + the SIM authority profile), the world
+    transactions (DT-03 log), and the
     audit trail (EG-07 executive chain + the optional GW-08 edit-session audit). The ROS/Gazebo/RViz/Godot
     run CAPTURES are HOST-GATED and shown honestly as 'not captured' (never fabricated). A ``bundle_sha`` over
     the assembly gives the single evidence artifact the acceptance asks for -- 'one bundle proves what ran'.
@@ -205,12 +246,14 @@ def evidence_bundle(site: str = "haworth", mission: str | None = None,
         "site": site, "mission": mission, "session": session,
         "plan_inputs": _plan_inputs(mission),
         "selected_layers": _selected_layers(site),
+        "assumptions": _assumptions(),
         "runtime_profile": _runtime_profile(),
         "world_transactions": _world_transactions(mission, limit),
         "audit": _audit(mission, session),
         "artifacts": _artifacts(),
-        # the axes reproduced from PERSISTED sources vs the axes that are HOST-GATED (shown, not fabricated).
-        "reproduced": ["plan_inputs", "selected_layers", "runtime_profile", "world_transactions", "audit"],
+        # the axes reproduced from PERSISTED/COMMITTED sources vs the axes that are HOST-GATED (shown, not fabricated).
+        "reproduced": ["plan_inputs", "selected_layers", "assumptions", "runtime_profile",
+                       "world_transactions", "audit"],
         "host_gated": [k for k, _w, _r in _CAPTURE_KINDS],
     }
     # the single evidence artifact: a content hash over the whole assembly (excluding the hash field) so the

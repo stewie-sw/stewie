@@ -69,8 +69,39 @@ def test_ev01_bundle_reproduces_all_persisted_axes(monkeypatch, tmp_path):  # [R
     # single evidence artifact: a deterministic content hash over the whole assembly.
     assert isinstance(j["bundle_sha"], str) and len(j["bundle_sha"]) == 64
     assert c.get("/evidence/bundle?site=haworth").json()["bundle_sha"] == j["bundle_sha"]  # same state -> same sha
-    assert j["reproduced"] == ["plan_inputs", "selected_layers", "runtime_profile",
+    assert j["reproduced"] == ["plan_inputs", "selected_layers", "assumptions", "runtime_profile",
                                "world_transactions", "audit"]
+
+
+def test_ev01_assumptions_axis_reproduced(monkeypatch, tmp_path):  # [REQ:EV-01]
+    """The acceptance names ASSUMPTIONS as an axis the report reproduces: the material/energy assumptions a
+    plan runs under, reproduced from COMMITTED sources (constants + the terramechanics spine + the physics
+    authority) so they cannot drift and are never fabricated -- and folded into the deterministic bundle_sha."""
+    from stewie.specs import constants as K
+    from stewie.specs.terramechanics_spine import list_terra_spine
+    c = _client(monkeypatch, tmp_path)
+    _seed_sim_run(c)
+    j = c.get("/evidence/bundle?site=haworth").json()
+
+    asum = j["assumptions"]
+    # material density profile (mass = volume x density) -- the conserved regolith constants, with provenance.
+    assert asum["material"]["cut_density_kg_m3"] == float(K.RHO_DEEP)
+    assert asum["material"]["fill_density_kg_m3"] == float(K.RHO_SPOIL)
+    assert "RHO_DEEP" in asum["material"]["provenance"]
+    # body gravity -- the SIM runs on the Moon authority (not fabricated / not Earth).
+    assert asum["gravity"]["g_m_s2"] == float(K.g) and asum["gravity"]["body"] == "moon"
+    # the terramechanics spine's honest per-term calibration status (measured | calibrated | unknown), read
+    # LIVE from the spine so the uncertainty characterization cannot drift from the solver.
+    tc = asum["terramechanics_calibration"]
+    assert tc["terms"] == {t["id"]: t["calibration"] for t in list_terra_spine()}
+    assert set(tc["terms"].values()) <= {"measured", "calibrated", "unknown"}
+    # the physics-backend AUTHORITY the SIM runs on -- mass-conserving, release-eligible tier2_numpy (PH-01).
+    pa = asum["physics_authority"]
+    assert pa["backend_id"] == "tier2_numpy" and pa["conserves_mass"] is True
+
+    # assumptions is a reproduced-from-committed axis and folds into the deterministic bundle_sha.
+    assert "assumptions" in j["reproduced"]
+    assert c.get("/evidence/bundle?site=haworth").json()["assumptions"] == asum   # same state -> same assumptions
 
 
 def test_ev01_host_gated_captures_shown_not_fabricated(monkeypatch, tmp_path):  # [REQ:EV-01]
