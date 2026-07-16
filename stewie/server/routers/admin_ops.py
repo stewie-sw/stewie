@@ -43,6 +43,17 @@ def admin_replicate(_auth: str = Depends(require_director)):
     return {"ok": True, **out}
 
 
+@router.get("/admin/ops/governance")
+def ops_governance(n: int = 20, _auth: str = Depends(require_director)):
+    """[REQ:PO-15] Operations governance beyond account admin: the ops-side review surface. Bundles the
+    DECLARED retention/RPO policy, the MONITORED per-job last-success/age signal (read from the real
+    backup artifacts on disk -- is the scheduled backup keeping us inside the RPO?), and the newest-first
+    OPS maintenance audit trail (twin/backup/gates; account-admin actions live in /events). Director-only
+    -- it carries the maintenance mutation history, an audit surface, not public. A read, not audited."""
+    from stewie.server import ops_governance as OG
+    return {"ok": True, **OG.backup_status(), "recent_ops": OG.recent_ops_events(n)}
+
+
 @router.post("/admin/gates/validate")
 def admin_gates(_auth: str = Depends(require_director)):
     """The standing invariant as a BUTTON: re-run the dated G1/G2 validation and compare against
