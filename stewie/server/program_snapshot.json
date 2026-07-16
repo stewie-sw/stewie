@@ -1,10 +1,10 @@
 {
  "provenance": {
-  "citations_sha256": "dbbee0394a6531904903c9bf936f6c4d60795fedefdc967ba1f9aaa2f7ddfd84",
+  "citations_sha256": "ff640fb67db2faab0cc651c81e4e2501c9f35906ee260f2066e0111bddc71048",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "708ca7571e853b7295da86a76789d94b36d55393",
-  "prd_sha256": "77c5be32d4f3ff49805f525347b156d58f6cc25f4aa62e9cc574785eeac40b95",
-  "specs_sha256": "3d1ecb7041c7b7a1bc600a8fe0a2932c59fec4a195bc236bfb3f44531925819a"
+  "prd_commit": "f8963a53025348b9729bb3e43e63e52db32e7fe5",
+  "prd_sha256": "7ef862112875e39c16f4056105244c760217129281fe36adf4aa820315148693",
+  "specs_sha256": "f3b5784d72066eeaa199c09451bb718604c5030aeaa6564f70fb8f3d20e440eb"
  },
  "rows": [
   {
@@ -26,7 +26,7 @@
   },
   {
    "I": "N",
-   "Q": "NA",
+   "Q": "G",
    "V": "N",
    "X": "N",
    "brief": {
@@ -34,8 +34,9 @@
     "kind": "atomic",
     "test_target": "NEW frontend/api/test_route_coverage.test.ts citing [REQ:AC-02]"
    },
-   "bucket": "buildable",
+   "bucket": "gated",
    "cited": false,
+   "gated_reason": "quality/hardware gated",
    "id": "AC-02",
    "lane": "AC",
    "pri": "P0",
@@ -723,6 +724,30 @@
    "Q": "NA",
    "V": "D",
    "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "BA-12",
+   "lane": "BA",
+   "pri": "P0",
+   "text": "**The Gazebo terrain is RESOLVABLE AT ROVER SCALE and reads the conserved authority's own DEM.** BA-04 put a real lunar DEM under the Gazebo rover instead of a flat plane \u2014 real progress \u2014 but it shipped an **8-bit greyscale PNG**, and **its gate asserted the wrong thing**: `assert arr.min() == 0 and arr.max() == 255, \"heightmap is flat / not full-range\"`. That \"proves\" the terrain is not flat by asserting **the 8-bit range is fully used** \u2014 i.e. it asserts the very quantisation that made the world unusable. BA-04 was glyphed done, its test was green, and **the terrain could not resolve the machine standing on it.** It tested the ARTEFACT, not the REQUIREMENT. **MEASURED, what the old world actually was:** 513\u00d7513 px over 2565 m \u2192 **5.00 m/pixel**; 8-bit over 933.761 m of relief \u2192 **3.662 m per vertical STEP**. Against the machine that must drive on it: IPEx drum footprint 0.3526 m = **1/14 of ONE pixel**; anti-bridging dig pass 0.0132 m = **1/277 of ONE vertical step**; IPEx obstacle spec 0.075 m = **1/49 of a step**; the rover's own wheel radius 0.1524 m = **1/24 of a step**. At rover scale it was a smooth blob \u2014 no rocks, no obstacles, no ruts, no berms. That does not merely block excavation, **it breaks the perception and navigation the Gazebo world exists to serve**: an Autoware stack driving a featureless 5 m/px surface has nothing to perceive. **AND THE PREMISE WAS FALSE.** The generator's docstring asserted the 8-bit encoding was forced \u2014 *\"gz-sim reads an 8-bit grayscale heightmap\"*. **Verified wrong in our own container** (`stewie-gazebo:jazzy`): `libgz-common5-geospatial.so.5.8.0` \u2192 `ldd` shows **`libgdal.so.34`**, and `gz/common/geospatial/Dem.hh` declares `class Dem : public HeightmapData` with `double Elevation(...)`. **gz-sim reads a GeoTIFF DEM directly, with float elevation.** The quantisation was self-inflicted. **AND A SECOND TRUTH, WORSE THAN THE QUANTISATION:** the generator sourced `haworth_10km_5m` (5 m cell) while viz2 and the conserved authority drive on `haworth_sfs_2km_1m` (1 m cell) \u2014 **Gazebo's terrain was not even the same DEM.** Under the architecture decision (the conserved authority is the SINGLE physics authority; Gazebo is a ROS sensor shell that CONSUMES its raster \u2014 one truth, two engines), two truths mean evidence gathered in one engine does not transfer to the other. Result \u2014 **horizontal 5.00 m \u2192 1.00 m; vertical 3662 mm \u2192 1.91 \u00b5m; source \u2192 the authority's own bundle.** A dig pass went from **1/277 of a step to 6,921\u00d7 the step**; the 7.5 cm obstacle from 1/49 to **39,322\u00d7**; the rover's wheel from 1/24 to **79,954\u00d7**. **TWO DEFECTS FOUND ONLY BY LOADING THE WORLD IN THE CONTAINER \u2014 the file was perfectly correct and the world was broken.** (1) For a DEM heightmap **gz uses the raster's RAW values on the z axis** (taking only x/y from `<size>`), so raw lunar elevations floated the terrain **1.7 km above the world origin** (`ODE Heightfield AABB \u2026 max = {256, 256, 1764.56}`) and the rover would have spawned underneath it \u2192 the DEM is now **ZERO-BASED** (a LOCAL worksite frame, the same discipline as GW-12's local render origin) with the absolute datum **recorded, not lost** (`z + datum_m` recovers true elevation). Verified: `AABB min = {-256,-256,-0.05} max = {256,256,16.646}`. (2) **gz can NEVER auto-size a lunar DEM:** `Dem` computes extent by transforming corners to **EPSG:4326 (Earth)**, and PROJ correctly refuses \u2014 *\"Source and target ellipsoid do not belong to the same celestial body (Moon vs Earth)\"* \u2014 so **`<size>` is LOAD-BEARING, not decorative**, and nothing in the code said so. PROJ offers `PROJ_IGNORE_CELESTIAL_BODY=YES`; **we deliberately DO NOT set it** \u2014 it would make PROJ treat the Moon as Earth and compute the extent against Earth's radius, a wrong number that looks right, which is worse than a loud fallback to a value we control. **WHAT THIS DOES NOT CLAIM:** horizontal resolution is bounded by the DEM itself. You cannot resolve a 7.5 cm obstacle from a 1 m raster, and inventing sub-metre terrain would be fabrication. **Rocks and boulders belong as CLAST COLLISION MODELS** (the sourced Golombek draw the authority already carries), never baked into a heightmap \u2014 no 1 m raster can represent a 0.3 m boulder, and pretending otherwise is how you get a world that looks detailed and teaches a perception stack nothing. That is the next row, not this one. [REQ:BA-12] `scripts/test_gazebo_dem_fidelity.py` (7 gates) + the corrected [REQ:BA-04] gate (its 0..255 assertion is gone; the fidelity requirement now lives where it belongs). Real TDD (RED first). VERIFIED IN-CONTAINER on `stewie-gazebo:jazzy`, not merely on disk. I=D, X=D, V=D. (fixes the gate of BA-04; unblocks the Autoware / EZ-RASSOR perception + mapping path)"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "BA-13",
+   "lane": "BA",
+   "pri": "P0",
+   "text": "**The Gazebo world carries the authority's own ROCKS as real collision geometry \u2014 so there is finally something to perceive.** BA-12 made the terrain resolvable at rover scale, but terrain alone is a **bare graded surface**: nothing to see, nothing to hit. An Autoware stack driving a rock-free plain learns nothing about lunar navigation, and perception is the entire reason a Gazebo world exists here. **ROCKS ARE OBJECTS, NOT HEIGHTMAP DETAIL.** At the DEM's 1 m cell a 0.29 m boulder is **a third of one pixel** \u2014 a raster physically cannot represent it, and smearing it into the terrain would produce a world that LOOKS detailed and teaches a perception stack nothing. So they enter as objects: collision + visual geometry, at real positions, with real radii, from the **sourced Golombek size-frequency draw the conserved authority already carries** (same `world_seed` \u2192 **the same rocks Gazebo and viz2 both see**: one truth, two engines; TR-01 made that seed live). **MEASURED population** over BA-12's 513 m terrain window (seed 0): **67,721 clasts**, radius **min 12.8 cm, median 15.8 cm, max 29.2 cm** \u2014 **every one larger than IPEx's 7.5 cm obstacle spec**, so no size threshold can honestly thin them; they all matter. 67,721 SDF *models* would be 67,721 entities and would kill the sim, so: they go into **ONE STATIC model with N `<collision>`/`<visual>` spheres in ONE link** (cheap for ODE \u2014 static geometry, no dynamics, no per-entity bookkeeping), and the field is scoped to the **rover's operating area** (128 m) rather than the full terrain extent. **NO SILENT CAP:** the provenance and the SDF header both state **4,184 emitted vs 67,721 in the terrain window** \u2014 the remainder are *out of scope, not missing*. Silent truncation reads as \"we modelled everything\" when we did not. **THE FRAME BUG THIS ROW EXISTS TO NOT SHIP.** The authority emits `center_m = [x, ELEVATION, y]` \u2014 **Godot's Y-UP** \u2014 while Gazebo is **Z-UP**, and BA-12 additionally **zero-based** the terrain against a ~1748 m datum. Get the axis swap or the datum wrong and every rock floats in the sky or sinks out of sight \u2014 **and from a distance it would still look like a rock field.** So the gate does not count rocks; it asserts **each rock sits on the ground the world actually loads**: sample the exported raster under the rock's (x,y) and require `centre_z == terrain_z + r\u00b7(1 \u2212 2\u00b7buried_frac)` (the authority's own placement law; `buried_frac 0.5` = exactly half-buried). **NON-VACUOUS, proven three ways** \u2014 dropping the datum, swapping the Y-up axes, and mirroring the row axis each turn it RED. [REQ:BA-13] `scripts/test_gazebo_rockfield.py` (5 gates). Real TDD. **VERIFIED IN-CONTAINER, from gz's OWN ENTITY TREE** (`stewie-gazebo:jazzy`), not from the file on disk: `gz sim` loads and steps the world (`GZ_EXIT=0`), `gz model --list` reports `rockfield`, and gz's server-side world regeneration echoes **8,368 `<sphere>` = 4,184 `<collision>` + 4,184 `<visual>`** \u2014 every rock is in the physics engine. **HONEST GAP:** a *rendered camera frame* of the rock field was NOT captured (the container is llvmpipe-only \u2014 GPU render in Docker is blocked), so the geometry is verified numerically against gz's entity tree and the raster, but not yet by eye. I=D, X=D, V=D. (needs BA-12; unblocks the Autoware / EZ-RASSOR perception path \u2014 the rover can now SEE and HIT real lunar boulders)"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row BD-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
@@ -1025,12 +1050,12 @@
    "text": "Named world branches generalize the conserved/observed split into actual/observed/predicted/sim/design/what-if with diff/merge/promotion; mass-conservation precondition gates terrain-mutating promotion."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "BR-02",
    "lane": "BR",
    "pri": "P1",
@@ -1812,9 +1837,9 @@
   {
    "I": "D",
    "Q": "NA",
-   "V": "P",
+   "V": "D",
    "X": "D",
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "EV-01",
    "lane": "EV",
@@ -2845,17 +2870,17 @@
    "text": "GIS interoperability scope: define and implement the mission-required subset only -- GeoJSON/COG import, selected OGC/ArcGIS service consumption, feature attributes/query, measurement/profile tools, provenance, and offline mission package export. Do not claim ArcGIS parity."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row GL-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW frontend/src/map/test_map.test.tsx citing [REQ:GL-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "GL-01",
    "lane": "GL",
    "pri": "P0",
@@ -3037,6 +3062,18 @@
   {
    "I": "N",
    "Q": "NA",
+   "V": "P",
+   "X": "N",
+   "bucket": "buildable",
+   "cited": false,
+   "id": "GW-13",
+   "lane": "GW",
+   "pri": "P1",
+   "text": "**viz2's Godot render surface must honour the GW-12 local-render-origin rule (it does not).** GW-12 requires every render surface to declare a local origin near the work area and render float32-relative to it, with the largest coordinate handed to a float32 path under a documented budget (**ULP < 1 cm**). The /ide and cockpit surfaces comply (0.98 mm, 8.69x margin). **viz2 does not:** `state_fields.world_min` is the bundle's real IAU_2015:30135 corner and `_pose_x = world_min.x + col*cell_m` flows straight into float32 Node3D transforms, so the render step is SITE-DEPENDENT. Two bundles viz2 actually SERVES from `/bundles` BREACH the bound: **malapert_massif_10km_5m ("
+  },
+  {
+   "I": "N",
+   "Q": "NA",
    "V": "N",
    "X": "N",
    "bucket": "gated",
@@ -3060,12 +3097,12 @@
    "text": "**Live ROS2 Sensor Ingest Node.** Sensor topics (stereo/IMU/odom/joints/drum-current/battery/thermal) flow into the existing validated packets through the existing gate (PM-01 time-sync, frames.py single TF site, calibration check, uncertainty required, truth-denial) -> the state/terrain/excavation estimators; a replayed bag feeds the mapper + AD-03, and malformed messages are rejected legibly (never silently accepted as truth). (extends ros2_bridge + sensor_io + proprioception_io)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "IN-02",
    "lane": "IN",
    "pri": "P1",
@@ -3156,34 +3193,34 @@
    "text": "**Terrain-change / dig-fill-depth drape (before-vs-after DEM difference).** A signed elevation-difference drape (base DEM vs the as-built/observed compose from stewie/twin/terrain_view.compose_terrain_view) renders cut (below base) vs fill (above base) with a diverging legend and per-cell depth readout via `/world/point`; zero-change is transparent; the drape carries the as_built/twin versions it was computed from. This is the visual producer for the catalog rows map.changed_terrain + evidence.before_after_dem. Acceptance: after a conserved cut+fill transaction on a real site, the drape shows the cut region negative and the berm positive with depths matching the transaction volumes; [REQ:LY-07] test. [REQ:LY-07] `stewie/server/test_ly07_changed_terrain_drape.py` proves the drape on the REAL LOLA Haworth 5 m DEM (no synthetic terrain): a conserved cut+fill SIM run (`POST /executive/run` folds the mass-conserving cut/fill into the site TerrainMemory, the SD-01 path) makes the signed as-built-minus-base difference show the cut region NEGATIVE (red) and the berm POSITIVE (blue) with the deepest cut equal to the authority's max_cut_m and the imprinted net volume equal to the conserved net_volume_m3, an unworked cell fully transparent, and /world/point reporting the SAME per-cell depth (runtime_evidence.as_built_delta_m). I=D (the producer lives in stewie/server/gis_layers.py: `_changed_terrain_rgba` + `_render_globe_changed_terrain`, a diverging red\u2194blue ramp about zero, zero-change transparent), X=D (registered as the `changed_terrain` globe kind in `_GLOBE_KINDS` with a `/layers/legend` entry, bound to the LY-01 catalog rows map.changed_terrain + evidence.before_after_dem, the render carrying the as_built/twin versions it was computed from), V=D (the [REQ:LY-07] test asserts cut-negative/berm-positive with depths matching the transaction + the per-cell /world/point readout, not just array shapes). (extends LY-01/DT-04/SD-01; data path already exists at /world/terrain_view + /dem/asbuilt)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row MG-01 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_mg_migration.py citing [REQ:MG-01]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MG-01",
    "lane": "MG",
    "pri": "P0",
    "text": "The vanilla cockpit at /app stays served + deployable and its smoke tests keep passing. FRAMING/RETIRED: the /app->/app2 React migration this row governs was never adopted -- there is no /app2. Real topology: / (OpenLayers viewer) + /ide (QWC2 workbench = the product front door) + frontend/ (React cockpit, a separate surface)."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "platform-restructure backlog row MG-02 (see PRD \u00a77.A/\u00a77.B + docs/prd_reorg_spec_2026-07-03.md).",
     "kind": "atomic",
     "test_target": "NEW stewie/server/test_mg_migration.py citing [REQ:MG-02]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "MG-02",
    "lane": "MG",
    "pri": "P0",
@@ -4252,16 +4289,16 @@
    "text": "Metrics are bounded and exportable in a standard operations format."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "P",
-   "X": "P",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "add a real schema-migration mechanism for mission/profile schemas (versioning exists; the loader only REJECTS an unknown version).",
     "kind": "atomic",
     "test_target": "NEW stewie/specs/test_profile_migration.py (`[REQ:PO-09]`)"
    },
-   "bucket": "buildable",
+   "bucket": "done",
    "cited": true,
    "id": "PO-09",
    "lane": "PO",
@@ -4349,17 +4386,17 @@
    "text": "Provide deployment documentation and a supported server image; optional Godot/ROS capabilities are explicit profiles."
   },
   {
-   "I": "P",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
+   "V": "D",
+   "X": "D",
    "brief": {
     "goal": "scheduled+monitored backup/restore with an RPO/retention policy + mission/runtime/profile admin surfaces.",
     "kind": "atomic",
     "test_target": "NEW scripts/test_backup_retention_policy.py citing [REQ:PO-15]"
    },
-   "bucket": "buildable",
-   "cited": false,
+   "bucket": "done",
+   "cited": true,
    "id": "PO-15",
    "lane": "PO",
    "pri": "P1",
@@ -4415,6 +4452,18 @@
    "lane": "PO",
    "pri": "P0",
    "text": "Extract/publish-prep `stewie-forge` from pure geotech/terramechanics + `PhysicsBackend`: depends only on `stewie-bodies` + numeric stack; concept-first API (`estimate_sinkage`/`estimate_bearing_capacity`); Chrono optional, not release authority while `conserves_mass=false`."
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PO-19",
+   "lane": "PO",
+   "pri": "P1",
+   "text": "**The \u00a77 plan is a validated ATOMIC TASK GRAPH, and the dispatcher obeys its readiness rule.** The matrix IS the plan, but it was not a graph. (1) **The fan-out was dependency-blind:** `fanout_plan.classify()` bucketed rows by GLYPH and FAMILY only, so its \"parallel lanes\" were family prefixes, not predecessors -- the opposite of the ATG readiness rule (a node is executable exactly when ALL its predecessors have finished). This was not hypothetical: **RS-05 and RT-03 both declare `needs RT-00`** (\"the ROS image carries the stewie python stack\"), **RT-00 is NOT done, and both sat in the buildable ready-set** -- the fan-out would have dispatched agents to build the Gazebo rehearsal and the live-sensor loop into a container that cannot import `stewie`, where they fail or fake it. AD-02/AD-03 likewise sat ready while AD-01 was unbuilt. (2) **The order was hand-written prose and it rotted:** the \u00a77.B \"Loop pick order\" listed 25 rows of which 18 were already done, and every row added since (RT-06, PX-08..PX-11, GW-13) appeared in NO order at all. ATG says the order is DERIVED from the graph. **EDGE SEMANTICS, established from the data rather than assumed** (the PRD already had two words and used them correctly -- RT-03 uses BOTH in one row, `(extends BA-07/RS-05; needs RT-00)`): `needs X` / `Blocks X` / `prerequisite for X` are TRUE prerequisites and therefore ATG EDGES; `extends` / `complements` / `bounds` / `reuses` are LINEAGE and are deliberately NOT edges. Reading `extends` as a dependency would fabricate ~60 phantom edges and falsely accuse seven delivered rows of standing on unbuilt foundations -- the proof it is not an edge is that **GW-07 is V=D (fully tested) while GL-02, which it \"extends\", is V=N**. New rows may use the canonical `(requires: X, Y)`. An ABSENT edge means \"no declared prerequisite\" -- the absence of a claim, not a claim of independence -- so coverage is reported (today: 7 edges over 5 of 127 open rows) to keep the gap visible instead of assumed away. Acceptance: the graph is a valid DAG (no dangling edges, no cycles, and no row marked V=D while a row it REQUIRES is unbuilt); the ready-set contains ONLY rows whose prerequisites are all done; a held-back row is reported as BLOCKED and NAMES its blocker (never silently dropped, never silently offered); every \u00a77 row lands in exactly one bucket (done/buildable/gated/blocked/concurrent); and the parallel groups are topological levels DERIVED from the graph. [REQ:PO-19] `scripts/atg.py` + `scripts/test_atg_graph.py` assert all six on the REAL PRD, and the readiness gate is NON-VACUOUS (verified to FAIL when the dispatcher is made dependency-blind again). The ready-set drops 97 -> 93 rows: RS-05, RT-03, AD-02 and AD-03 are now correctly BLOCKED with their blockers named. I=D (atg.py: typed edges, DAG validation, readiness, derived levels; fanout_plan now honours them), X=D (the fan-out dispatcher + the FS-01 assessment gate both consume it), V=D (the six [REQ:PO-19] gates, non-vacuity demonstrated). (governs the fan-out; extends PO-13/FS-01)"
   },
   {
    "I": "D",
@@ -4507,9 +4556,9 @@
    "V": "D",
    "X": "D",
    "brief": {
-    "goal": "Phase-3 live world model -- ROS2 writes mission updates through the gated ingest; terrain folds after each mission; QGIS near-real-time.",
+    "goal": "break terramechanics->stewie.specs.constants (prereq for PO-18); forge-local geotech defaults + preserve config-overlay via injection at stewie-side call sites; behavior byte-identical.",
     "kind": "atomic",
-    "test_target": "stewie/twin/test_world_model_live_update.py"
+    "test_target": "NEW/extended [REQ:PX-06] in scripts/test_import_boundaries.py + stewie/physics/test_terramechanics.py"
    },
    "bucket": "done",
    "cited": true,
@@ -4530,6 +4579,100 @@
    "lane": "PX",
    "pri": "P2",
    "text": "**Learned terramechanics surrogate.** A learned surrogate implements the PhysicsBackend protocol (sinkage/slip/traversability/energy faster than the analytical Bekker solve), calibrated to the analytical/Chrono oracle with bounded uncertainty + a deterministic analytical fallback; advisory/planning-only until validated (RL-01/TM-01), never sole release authority. (extends PX-04/TM-01)"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PX-08",
+   "lane": "PX",
+   "pri": "P0",
+   "text": "**Low-gravity Bekker-modulus provenance is single-sourced and never double-corrected.** The shipped Bekker set (`stewie.specs.constants`: k_phi=820000 Pa/m^n, k_c=1400, n=1.0, c=170 Pa) IS the NASA LTV terramechanics white paper's LUNAR reference (NTRS 20220010732) -- it already encodes the 1/6-g condition. Therefore the lunar parameter set is `TerramechanicsParams.from_constants()`, **unreduced**, and applying the Lyasko-2010 1g->1/6g correction on top double-counts gravity. Acceptance: one stated provenance (constants.py + the stewie_forge/terramechanics.py header + body_params.py PHYS-01 must agree, not contradict), NO constructor that hands back a pre-reduced 'lunar' set, and NO production caller of `lyasko_reduce` (the transform stays available, correctly, for an EARTH-fit modulus set). [REQ:PX-08] `stewie/physics/test_lowg_modulus_provenance.py` asserts all four on the real shipped constants: (a) they equal the sourced NTRS lunar set; (b) the drive path's default params are that set and are NOT pre-reduced (lyasko_reduce still strictly lowers k_phi/cohesion from them, so they cannot already be reduced); (c) `TerramechanicsParams.lunar()` does not exist; (d) an AST guard finds zero production callers of `lyasko_reduce` across stewie/, packages/stewie-forge/, lode/, dart/, leap/. NON-VACUOUS: the guard is verified to FAIL on a re-introduced production reduce, and the suite was RED on the footgun before it was removed. WHY P0: the deleted `.lunar()` returned k_phi 614624 (-25%) / cohesion 127.4 (-25%) while its docstring said \"Use for lunar runs\" -- it UNDERSTATES the frictional modulus and so OVERSTATES sinkage, slip and entrapment on EVERY absolute terramechanics number the product reports. It had zero production callers, so the shipped figures were always correct and NONE are renumbered by this fix; what changed is that the correct behaviour is now stated and enforced rather than accidental. I=D (footgun removed; provenance corrected in constants.py, the forge header, rover.py's docstring; the three tests that exercised the transform through `.lunar()` now call `lyasko_reduce()` directly and no longer misname its input \"earth\"), X=D (the drive path -- rover/drive/slip -> from_constants() -- and body_params.py PHYS-01 now agree with the documented source), V=D (the four [REQ:PX-08] gates above, non-vacuity demonstrated). (resolves DEFERRED_FIXES FIX-6; settles the constants.py-vs-body_params.py contradiction; extends PX-04/PX-06)"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PX-09",
+   "lane": "PX",
+   "pri": "P0",
+   "text": "**The live dig is bounded by the drum's own sourced limits (anti-bridging bite + drum hold).** `Viz2Runtime._apply_dig` cut a fixed `dig_depth_m` box and booked whatever mass came out, consulting neither [BDSCALE] limit, which broke the excavation model twice over. (1) **Energy and terrain described different bites:** `_dig_fee` already clamped its characteristic depth to `max_cut_per_pass_m(drum)` (= MAX_CUT_DEPTH_FRAC 0.50 x the drum's scoop-opening height, the anti-bridging rule), but the CUT ignored that cap -- so an over-deep pass removed more mass than a legal one while being billed at the shallower legal depth, and the McKyes/Reece FEE rises with depth^2, so dig energy was UNDERSTATED exactly when the cut was worst. (2) **The drum had no capacity:** `DRUM_CAPACITY_KG` (small 3.80 / medium 7.30 / large 24.98 kg) was never consulted, so the drum filled without bound -- measured on the real Haworth SfS bundle, 20 passes with the small drum booked **73.2 kg into a 3.80 kg drum (19x over) on a 30 kg-class vehicle**, and there was no fill->stop->haul quantum at all. Now that the Drive 3D console is publicly reachable (RT-06), an anonymous operator could do exactly that. Acceptance: the cut depth per pass is capped at the anti-bridging limit so the terrain and the FEE describe the SAME bite; the drum ledger never exceeds its sourced hold (a bite that would overfill is trimmed to the room left, using the height identity dz*rho*area as an UPPER bound on what moves -- `cut_to_inventory` also clamps at the firm DEM datum -- so trimming can only under-fill, never overfill); a FULL drum REFUSES the bite (no mass leaves the grid) -- that refusal IS the haul quantum; mass stays conserved across a capped cut; and the drum's fill/capacity/full state + the bite cap are published as telemetry so the operator can see WHY digging stopped. [REQ:PX-09] `stewie/runtime/test_viz2_dig_limits.py` asserts all of it against the REAL Haworth SfS 1 m bundle through the real `Viz2Runtime` (constructed, actor loop not started -- no synthetic terrain, no faked timing): an over-deep request (50 mm on the small drum, ~4x its 13.2 mm limit) cuts no deeper than the cap; the mean bite the terrain gives up is <= the depth the FEE bills; 60 passes never exceed the 3.80 kg hold and a further pass then moves NOTHING; grid mass lost == drum mass gained across a capacity-limited cut; and every drum's hold is <= the 30 kg/cycle RDS envelope, so that envelope now holds BY CONSTRUCTION instead of being flagged after the fact. Real TDD: the suite was RED on all of these before the fix. NOTE the default drum is `large` (23.9 mm cap) and the shipped `dig_depth_m` is 20 mm, so the DEFAULT bite was already legal -- the bite cap binds for the small/medium drums and any deeper `dig_depth_m`, while the capacity cap binds for every drum. (The WorkSite `flatten` PRIMITIVE stays unbounded on purpose: a planner cut order is not a single drum pass.) I=D (both caps enforced in `_apply_dig` + drum telemetry), X=D (bounds the live dig on the deployed public Drive 3D console; the FEE's own clamp is now a consequence of a legal cut rather than a mask over an illegal one), V=D (the five [REQ:PX-09] gates above on real terrain). (sourced: Schuler et al., \"ISRU Pilot Excavator: Bucket Drum Scaling\" [BDSCALE]; bounds RT-06; extends PX-04)"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PX-10",
+   "lane": "PX",
+   "pri": "P1",
+   "text": "**The front-arm DOF is physical: the arm posture gates the cut.** The arm was a COSMETIC render offset -- `viz2_root.gd` kept `_arm_front_offset` only to pose the render joint, never told the runtime about it, and `_apply_dig` cut its full `dig_depth_m` regardless. So a rover driving with its drum RAISED FOR TRANSPORT still carved a trench under itself, and the operator's arm control was a lie: it moved the picture and nothing else. On a HITL command surface -- now publicly reachable (RT-06) -- the pictured vehicle state and the world state must not disagree. Acceptance: the arm is AUTHORITATIVE state that the physics reads (the rig forwards the pose over the existing runtime command channel as `{cmd:\"arm\"}`); the cut is gated by a dig ENGAGEMENT computed from the posture the rig itself poses (effective pitch = `ARM_DIG_DOWN_RAD` + the operator's offset) -- 1.0 at the dig posture, 0.0 at/above stowed; drum up for transport removes NO mass; between the postures the arm MODULATES the bite (still bounded by the PX-09 caps); offset 0 IS the dig posture, so the DEFAULT dig is unchanged and arming the gate cannot silently break every existing dig; arm commands off the public console are bounds-checked at ingest like the twist (M-04) -- non-finite is REFUSED outright, wild angles clamp to the rig's travel, so a poisoned angle can never license a deeper cut; and the arm pose + engagement are published as telemetry so the operator can see WHY a dig carved nothing. [REQ:PX-10] `stewie/runtime/test_viz2_arm_gate.py` asserts all of it on the REAL Haworth SfS 1 m bundle through the real `Viz2Runtime`: engagement is 1.0 at the dig posture / 0.0 stowed / 0.0 on NaN; a transport-posture dig moves ZERO mass and books ZERO regolith; the default dig still cuts; a half-raised arm takes a strictly shallower bite than a fully-lowered one (measured: 15.83 kg down / 9.68 kg half / 0.00 kg up); and a 1e9-rad command clamps instead of digging deeper. It ALSO pins the seam that made this bug possible: a DRIFT GUARD asserts `viz2_root.gd`'s ARM_DIG_DOWN/ARM_OFFSET_MIN/MAX still mirror `stewie/specs/arm_state.py` (the ONE authority the gate reads), and a WIRING guard asserts the rig actually calls `send_arm` and the client still speaks `{cmd:\"arm\"}` -- because a gate the rig never feeds is worthless, which is exactly what the old code was. Both non-vacuous (verified to FAIL on a drifted constant). Real TDD; Godot `--check-only` parse gate clean on both scripts. HONEST MODELLING NOTE: the physically right engagement is geometric (drum-edge penetration = pivot height - L*sin(pitch) - drum radius), but there is NO sourced arm-pivot height above ground (assuming the pivot sits at the wheel axle puts the large drum's edge BELOW the wheels at stow, which is plainly wrong), so inventing that geometry would fabricate every absolute number falling out of it. The engagement is instead a LINEAR ramp between the two postures the sim itself defines; the ramp SHAPE is [ASSUMPTION], while the GATE it implements (arm up => no cut) is exact and IS the requirement. A geometric model is deferred to a sourced pivot height. I=D (authoritative arm state + ingest + gate + telemetry in the runtime; `send_arm` in the drive client; the rig forwards the pose), X=D (bounds the live dig on the deployed public Drive 3D console; the render rig and the physics authority now agree on where the arm is), V=D (the [REQ:PX-10] gates above on real terrain + the drift/wiring guards). (bounds RT-06; composes with PX-09; extends the arm_state T2.1/T2.2 model)"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PX-11",
+   "lane": "PX",
+   "pri": "P1",
+   "text": "**The excavation footprint is a PHYSICAL dimension (the drum), so a render setting cannot resize the vehicle.** The viz2 setup page offers a \"cell size\" choice (5 cm / 2 cm) that every operator reads as a RENDER-RESOLUTION knob. It was not one: `_apply_dig` built its box from `dig_half_cells = 6` -- a CELL COUNT -- so a finer grid silently shrank the excavator. Measured on the REAL Haworth SfS bundle: the same 13x13 box is **0.650 m at 5 cm but 0.260 m at 2 cm**, so ONE dig command on IDENTICAL terrain moved **15.832 kg vs 2.231 kg -- 7.1x more mass from a display setting alone** -- and NEITHER box was the drum's real width (0.3526 m; 1.84x too wide / 0.74x too narrow), while `_dig_fee` billed the pass with `width_m = the REAL drum width`. Cut geometry and energy model described different machines: the PX-09 class of self-contradiction, one level further out. Acceptance: the dig box side is DERIVED from `DRUM_DIMENSIONS_M[drum][\"width\"]` (closest odd cell count), so the footprint matches the sourced drum within one cell at every offered resolution, the toggle no longer changes the machine, one dig moves comparable mass at either resolution (grid quantisation only), and the tool that CUTS is the tool the FEE BILLS. Now: 0.350 m at 5 cm / 0.340 m at 2 cm (0.99x / 0.96x of the drum), mass ratio across the toggle **1.05x, was 7.10x**. [REQ:PX-11] `stewie/runtime/test_viz2_dig_footprint.py` asserts all four on the real bundle. Real TDD (RED on all four first). **It also exposed a flaw in PX-09's own implementation, now fixed:** the anti-bridging cap anchored the cut level to the box MINIMUM (`target = box_min - d_eff`), but `flatten` cuts every masked cell down to that level -- so a cell standing PROUD of the box gave up `(its relief) + d_eff`, exceeding the cap on any uneven ground. The PX-09 test only passed because the oversized cell-count box cut enough mass that the drum-capacity trim raised the target and accidentally masked it; shrinking the footprint to the real drum removed the mask. ONE `{dig}` is ONE PASS and the rule bounds the DEEPEST bite entering the scoop, so the level now anchors to the box MAXIMUM: the deepest per-cell bite is exactly `d_eff`, the cap binds per-cell (verified: a 50 mm request on the small drum now cuts exactly 13.2 mm, its limit), and a pass SHAVES the high spots while repeat passes progressively deepen the rut -- what a bucket drum at a fixed cutting level physically does. A green suite was necessary, not sufficient. I=D (footprint derived from the drum; per-cell cap corrected), X=D (the live public Drive 3D console's \"cell size\" control is now a pure display choice), V=D (the [REQ:PX-11] gates + the corrected [REQ:PX-09] gates, all on real terrain). (fixes a flaw in PX-09; composes with PX-10; sourced [BDSCALE])"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "PX-12",
+   "lane": "PX",
+   "pri": "P1",
+   "text": "**The dump is METERED by the drum's own scoops \u2014 a berm is built by passes, not by one instantaneous mound.** Digging became genuinely physical (PX-09 capacity + the \u226450%-scoop anti-bridging bite, PX-10 the arm gates the cut, PX-11 the footprint IS the drum). Dumping stayed crude: `_apply_dump` called `ws.dump(mask)` with **no kg**, discharging the **ENTIRE drum ledger in a single frame** \u2014 up to 24.98 kg teleporting onto a 0.35 m box in one tick, after which the sandpile relax spread the resulting mound. A bucket drum cannot do that; it EMPTIES the way it FILLS, through its scoops, a bite at a time. Acceptance: one dump command is ONE PASS OF SCOOPS, bounded by `drum-width footprint (PX-11) \u00d7 the \u226450% anti-bridging bite (PX-09, [BDSCALE]) \u00d7 in-situ density`; emptying a full drum takes a COUNTABLE number of passes and drains monotonically; the metered dump still conserves mass exactly; an empty drum dumps nothing; and a metered dump still BUILDS (the surface under the drum rises). Measured (5 cm cell): quantum **small 0.39 / medium 1.40 / large 3.81 kg** \u2192 **9.8 / 5.2 / 6.6 passes to empty**. Passes-to-empty is deliberately NOT monotonic in drum size \u2014 the footprint quantises to whole cells (PX-11), so the small drum's box is proportionally smaller relative to its hold; the quantum FALLS OUT of the sourced geometry and is not tuned. [REQ:PX-12] `stewie/runtime/test_viz2_dump_limits.py` asserts all six on the REAL Haworth SfS bundle, including a SYMMETRY gate that pins the model to the dig: a discharge pass carries what a dig pass carries across all three drums, so if the sourced bite or the drum footprint ever changes, the dump MUST move with it and cannot silently drift apart. Real TDD (RED first on the three metering assertions). HONEST: the symmetry itself (a discharge pass carries what a dig pass carries, because it is the same scoops turning the other way) is the **[ASSUMPTION]**; the GEOMETRY it rests on is sourced. IMPLEMENTATION NOTE: the conserved authority ALREADY accepted a `kg` (`WorkSite.dump(mask, kg=\u2026)`) \u2014 the runtime simply never passed one, so this is a bounding of an existing conserved primitive, not a new physics model. What it buys is the thing that was missing for training: a dump is a FINITE, REPEATABLE quantum you can plan, cost, and learn from. I=D (quantum derived in the runtime from drum geometry; the dump meters against it), X=D (bounds the live public Drive 3D console \u2014 a berm now takes real passes), V=D (the six [REQ:PX-12] gates on real terrain). (needs PX-11; mirror of PX-09; prerequisite for PX-13)"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "brief": {
+    "goal": "Make the live dig engage BOTH drums counter-rotating so the net horizontal chassis reaction is ~0, as KSC-TOPS-7 specifies and as `arm_state.net_dig_reaction_n` ALREADY models. Today the dig cuts with a SINGLE front drum, leaving the FULL draft (F = tau/r) on the chassis and feeding it into the next drive tick's traction demand.",
+    "kind": "atomic",
+    "test_target": "NEW [REQ:PX-13] in stewie/runtime/test_viz2_dig_reaction.py (real Haworth SfS bundle, through the real Viz2Runtime)"
+   },
+   "bucket": "done",
+   "cited": true,
+   "id": "PX-13",
+   "lane": "PX",
+   "pri": "P1",
+   "text": "**Both counter-rotating drums dig \u2014 the chassis reaction nets ~0 (KSC-TOPS-7), and the back drum stops being a dead DOF.** The sim modelled HALF THE MACHINE. `_drum_rc()` resolved only the FRONT drum, so `_apply_dig` cut at one footprint and billed the chassis the FULL draft `F = tau/r` \u2014 the CORRECT answer for a single-drum dig, and the WRONG VEHICLE. The real RASSOR/IPEx digs with BOTH bucket drums counter-rotating; per **KSC-TOPS-7** their horizontal reactions are equal and OPPOSITE, so the pair nets ~0. In \u2159 g that cancellation is not an optimisation \u2014 it is the only way a 30 kg-class rover can react the digging force at all, because it lacks the weight to shove back. So the sim was pushing the rover backward with a force the real machine is **built to cancel**, and that false force flowed into traction, slip and energy on EVERY dig tick \u2014 which is why this is a **prerequisite for the training rows** (PX-14, TR-02), not a polish item: a policy trained against it learns to compensate for a reaction that does not exist. **The back drum was a DEAD DOF** \u2014 `_arm_back_offset_rad` was set, ingested from the operator, and published as telemetry, and never reached physics (PX-10's cosmetic-arm bug, on the other arm). Each arm now gates ITS OWN drum, so the cancellation happens for the RIGHT REASON (two drums actually cutting) and stowing one restores the full draft rather than zeroing a term. **HONEST CORRECTION, screened before TDD:** the first framing claimed the live dig \"does not use `net_dig_reaction_n`\". FALSE \u2014 it did, correctly, with `drums=(\"front\",)`. The defect was never a miscalled model; it was that the sim only ever modelled one drum. Acceptance, with the strongest gate the physics allows: on REAL uneven terrain the pair does NOT cancel to exactly zero \u2014 the two drums bite different material, and pretending otherwise would be the lie \u2014 so the residual has an EXACT prediction, **reaction(both) =="
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "brief": {
+    "goal": "An AutoDig-equivalent CLOSED-LOOP trench controller. NASA's AutoDig (the semi-autonomous excavation routine for RASSOR -> IPEx) maintains ground contact and regulates DIGGING DEPTH from the drum motors' CURRENT DRAW (torque) -- i.e. from how much soil the drums are actually ingesting. STEWIE has the SENSOR and not the LOOP.",
+    "kind": "atomic",
+    "test_target": "NEW [REQ:PX-14] in stewie/runtime/test_viz2_autodig.py (real Haworth SfS bundle, through the real Viz2Runtime)"
+   },
+   "bucket": "done",
+   "cited": true,
+   "id": "PX-14",
+   "lane": "PX",
+   "pri": "P1",
+   "text": "**AutoDig-equivalent CLOSED-LOOP trench control \u2014 the bite is regulated from the drum-current observable, and the runtime finally EXPOSES that observable.** NASA's **AutoDig** (the semi-autonomous excavation routine for RASSOR \u2192 IPEx) maintains ground contact and **regulates digging depth from the drum motors' current draw** \u2014 from how much soil the drums are actually ingesting. STEWIE had the SENSOR and not the LOOP, and the runtime did not even expose the reading: `rassor_mass_model` grounds the Free-spinning Drum Current (mass \u221d steady current; `FDC_LINEAR_R2 = (0.989, 0.985)`, sourced from **NTRS 20210022781**) and can both synthesise the current from conserved drum mass and infer mass back with the published band \u2014 but the live dig was a COMMANDED VERB (`cmd == \"dig\"` \u2192 `_apply_dig()`, a fixed depth): no controller, no feedback, no termination, and no `drum_current_a` in telemetry. Another sourced model with nothing wired to it. **HONEST SCOPE, measured not assumed:** the conserved sim's density field is **UNIFORM** (std 0.000 kg/m\u00b3 over the fine window), so there is NO real gradient to regulate a *\"denser \u2192 shallower bite\"* against \u2014 inventing one would be fabricated data, so this row does **NOT** claim density adaptation. It claims the loop the physics genuinely supports: the bite is regulated to a **target per-pass ingestion**, read through the drum-current OBSERVABLE (with the FDC noise band) rather than the conserved truth a real rover cannot see; the trench **terminates on drum-full via the sourced `should_offload` trigger**, on the UPPER confidence bound, so it never overfills even when the sensor is noisy; and the regulated bite stays inside every sourced bound (**PX-09** capacity + the \u226450% anti-bridging cap, **PX-10** the arm gate, **PX-13** the two-drum reaction). The proportional gain (damping 0.7) is **[CALIB]** \u2014 AutoDig's PID gains are not published \u2014 so acceptance is on the closed-loop BEHAVIOUR, never on reproducing NASA's gains. **PRIOR ART, stated so it does not overclaim:** NTRS 20210022218 (ICE-RASSOR *learning excavation*) is NASA replacing the AutoDig PID trencher with deep RL; STEWIE cites the MASS paper (\u2026781), not that one. [REQ:PX-14] `stewie/runtime/test_viz2_autodig.py` (7 gates) on the REAL Haworth SfS bundle: the runtime exposes `drum_current_a`/`drum_mass_inferred_kg`/`should_offload` and the current RISES with fill; the inferred mass tracks the true mass within the FDC band; the closed loop regulates the achieved ingestion to the setpoint (open-loop cuts the max bite regardless); a higher setpoint takes bigger bites and fills in fewer passes; it terminates on full without overfilling **under FDC-half-full sensor noise**; the regulated bite respects the PX bounds and a stowed arm still cuts nothing. Real TDD (RED first). **NON-VACUOUS, proven two ways:** neutering the feedback (always max depth) turns the three regulation/setpoint gates RED; neutering the offload guard turns the no-overfill gate RED. I=D (the sensor wired into telemetry + `autodig_trench` closed loop + per-pass depth override), X=D (the drum-current observable is now live telemetry on the public console), V=D. (needs PX-13; unblocks TR-02 \u2014 the last physics row before the interpretable policy)"
   },
   {
    "I": "N",
@@ -4818,12 +4961,12 @@
    "text": "**Plan-vs-actual divergence surface (the operator payload).** The value of the two-fold viz (RS-07) is the DELTA, not either column alone: PLAN and ACTUAL are co-registered in the site frame and their divergence is a first-class surface \u2014 executed-vs-planned trajectory error, observed-vs-forecast hazard/DEM deltas, and pose-vs-truth covariance growth (the pose-vs-truth discipline STEWIE already runs \u2014 the 12.7 mm/7.15\u00b0 AprilTag eval \u2014 promoted to a live operator surface). A time model exposes PLAN's lead/lag vs ACTUAL (a `follow-live` mode vs a `scrub-plan` mode with a visible offset), since planning runs ahead of execution. When divergence crosses a declared threshold it drives the replan indicator (PM-19) and the operator's attention; it INFORMS only \u2014 never commands (\u00a726.4). Acceptance: a fixture where ACTUAL departs from PLAN produces a measured trajectory/DEM/covariance divergence surface + a threshold-crossing replan indicator, co-registered and read-only. Buildable on archimedes."
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "RT-00",
    "lane": "RT",
    "pri": "P0",
@@ -4842,12 +4985,12 @@
    "text": "**Runtime profile registry.** A GET endpoint defines desktop_sil/digital_twin/ros2_replay/gazebo_sim/hil/field_test/live_rover and each profile's allowed command + evidence capabilities; the cockpit binds it. (extends PX-02/FR-01; names gazebo_sim)"
   },
   {
-   "I": "N",
+   "I": "D",
    "Q": "NA",
-   "V": "N",
-   "X": "N",
-   "bucket": "buildable",
-   "cited": false,
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
    "id": "RT-02",
    "lane": "RT",
    "pri": "P0",
@@ -4901,6 +5044,18 @@
    "lane": "RT",
    "pri": "P1",
    "text": "**Drive-validate mission view embedded in the /ide (viz2) \u2014 SIM-scoped command authority.** The QWC2 IDE exposes `Validate \u25b8 Drive 3D`: a SideBar panel embedding the viz2 Godot pixel-stream (host-GPU, xvfb+Vulkan, the REAL Haworth SfS 1 m DEM in IAU_2015:30135) as an iframe, and FORWARDING the mission route authored on the 2D map into it (`postMessage {type:'stewie:plan',waypoints,lonlat}` -> viz2 `_plan_goals` -> `lode.route_leg` slope-costmap A*) so the operator DRIVES the exact authored plan on the real surface rather than a look-alike. This is the drive-validate surface; it is NOT RT-05 (which remains the read-only capture/evidence sidecar and stays unbuilt). **Command scope is the load-bearing constraint:** unlike an evidence panel, this surface HAS command verbs ({cmd_vel}/{safe}/{rearm} + the excavation actuators), and it ships on the PUBLIC front door -- so \u00a77.B's \"never an independent command surface\" is honored in its safety intent by making the scope SIM-ONLY and TESTING it: actuation targets the in-process conserved plant + Godot, and the stream server holds ZERO real-rover egress (no rclpy/live node, no executive/release path), preserving RT-02 sole-egress and the AG-08 real-instruction gate. `{cmd_vel}` still LOWERS through the real `ros2_bridge.twist_to_command` + `rc_contract.Pose` (a genuine shape/conformance proof, not a mock), and a contract `{safe}` is an ALL-STOP (refuses motion AND dig/dump/drum/arm until `{rearm}`), not a wheels-only stop. [REQ:RT-06] `stewie/stream/test_viz2_ide_embed.py` asserts all three against the REAL `pump_input` handler (GPU isolated: no Godot spawned, the Godot TCP seam replaced by a capturing writer, so the latch/gate logic under test stays real): (a) an AST guard proves the publicly reachable stream server imports/constructs NO real-rover egress; (b) `{cmd_vel}` is acked with the real lowered contract kind and the twist reaches only the sim seam; (c) a `{safe}` latch pushes an immediate all-stop frame then refuses cmd_vel AND every excavation actuator, restoring on `{rearm}`; (d) MissionDrive3D is registered in BOTH QWC2 places + carries the Validate menu entry (the python-visible gate for a JS plugin, since req_trace scans python only). All four are NON-VACUOUS -- verified to FAIL on an injected `make_live_node` import, on dropping `dig` from the SF-01 refuse-set, and on removing the menu entry. I=D (plugin `gis/qwc2/js/plugins/MissionDrive3D.jsx` + the viz2 plan-ingest/postMessage seam + the ROS console + the SF-01 latch, all live), X=D (registered in appConfig.js + config.json, DEPLOYED to the public front door: artemis.stewie.space/ide/ embeds the cross-origin viz2.stewie.space stream; viz2 runs as a durable systemd --user unit behind the cloudflared ingress), V=D (the [REQ:RT-06] gates above + a real Playwright run THROUGH Cloudflare: Validate\u25b8Drive 3D opens the panel, the cross-origin stream renders the real Haworth surface, and a forwarded lon/lat route drove it -- 121.1 m / 3 wp -- with zero console errors). (complements RT-05; scoped by RT-02/AG-08/SF-02; deploy runbook in `deploy/DEPLOY.md`)"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "RT-07",
+   "lane": "RT",
+   "pri": "P0",
+   "text": "**viz2/Godot DECLARES a runtime profile (`godot_sim`), and the declaration is PROVEN rather than promised.** The RT-01 registry enumerates the execution environments a mission may run in and each one's command + evidence authority, and its whole purpose is the fail-closed guarantee that *a simulation can never command real hardware*. It listed `gazebo_sim` \u2014 \"drives the SIM rover under truth-isolated sim_truth, never the real rover\" \u2014 a sentence that describes **viz2 exactly**. But **viz2 was not in the registry at all**: neither `viz2_runtime` nor the stream server declared any profile. So the ONE simulator that is actually built, driveable, and **reachable from the public internet** (RT-06) sat entirely **outside** the authority model meant to govern it. That is a governance hole on a live public surface, and it is what this row closes: `godot_sim` is the profile viz2 has always *been*; it simply had no name. **AND THE PART THAT MAKES IT REAL:** the registry is **DECLARATIVE \u2014 nothing enforces it.** Outside `runtime_profiles.py` and its own test, EVERY mention of `can_release`/`can_execute` in the codebase is inside a **docstring** (`routers/models.py:226/233/234`, `routers/evidence.py:126`). A profile entry on its own is a comment with a type annotation, and shipping one as \"safety\" would be precisely the bug class this project keeps finding: the cosmetic arm (PX-10), the dead rock seed (TR-01), the modelled-but-unused dig reaction (PX-13). **A flag nothing reads is not a control.** So the declaration is WELDED to the structural proof that already exists: viz2's real safety is not a boolean but RT-06's AST egress guard, which proves the public stream server cannot even *name* a real-rover command path. Acceptance: the registry gains `godot_sim` (kind simulation, command `bounded`, evidence `sim_truth`, `can_release`/`can_execute` BOTH False); the stream server DECLARES it (`RUNTIME_PROFILE = \"godot_sim\"`, on the runtime, not in a doc); the declared profile's no-command-authority claim is **asserted together with the AST proof** that the module is structurally incapable of exercising any \u2014 so if an egress is ever added, the gate fails *even though the dict still says False*, which is the entire difference between a claim and a control; the escalation ladder (none\u2192bounded\u2192full) still holds; and **the Godot/Gazebo split is recorded as a test** so nobody collapses one into the other. [REQ:RT-07] `stewie/stream/test_rt07_godot_profile.py` (6 gates) + the extended [REQ:RT-01] registry gate. Real TDD (all 6 RED first). NON-VACUOUS: falsely declaring `live_rover` makes the weld FAIL (verified \u2014 2 gates go red). **ARCHITECTURAL DECISION OF RECORD (the question that prompted this row: \"isn't Gazebo what we're doing in Godot?\"): they are NOT redundant \u2014 same authority, different jobs.** `gazebo_sim` is the **ROS2-native robot/sensor** surface (URDF\u2192SDF via `stewie.interop.xacro_to_sdf`, `ros2_control`, sensor plugins on real ROS topics) \u2014 the integration path for Nav2/SLAM/**Autoware** perception, which viz2 CANNOT serve because it speaks a private loopback-TCP JSON protocol, not ROS topics. `godot_sim` owns the **conserved terrain + excavation authority** (mass-exact cut/fill \u2014 **Gazebo has no mass-conserving deformable terrain, which is exactly why the numpy authority exists**) plus the lunar photometry. Delete either and a capability the other does not have goes with it. **OPEN RISK, NAMED NOT CLOSED:** if perception later runs in Gazebo while excavation runs in Godot, the two could diverge into **two terrains and two rover dynamics**, and evidence from one would not transfer to the other. The rule that prevents it \u2014 *Gazebo must NOT own terrain; it consumes the conserved authority's heightmap (the Seam-1 state-field contract), one truth two engines* \u2014 is **stated here but NOT yet verified in the container**; that verification is its own row. I=D (profile + declaration), X=D (the publicly-reachable sim is now inside the authority model), V=D (the 6 [REQ:RT-07] gates + the weld + non-vacuity). (extends RT-01; enforced by RT-06's egress guard; prerequisite for nothing \u2014 it is a governance fix on a live surface)"
   },
   {
    "I": "N",
@@ -5363,6 +5518,47 @@
    "text": "An object palette writes an expanded place-object vocabulary (Beacon/Instrument/Sample/Antenna/Habitat/PowerStation/Relay/Charger/StorageBin/ProcessingPlant/NavMarker) as durable first-class world objects in the versioned twin (survive reload, carry provenance); a test asserts a placed object round-trips through the twin store."
   },
   {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "TR-01",
+   "lane": "TR",
+   "pri": "P1",
+   "text": "**Frozen scenarios: a NAMED, pinned, content-hashed section of a real site \u2014 the precondition for training on recorded runs.** A demonstration is only training data if the world it was recorded in IS the world you later train and evaluate in. viz2's world was already deterministic (real DEM + deterministic flattest-interior spawn + seeded Golombek rock draw), but two things were missing and both are quietly fatal to a dataset: (1) **you could not NAME or CHOOSE a section** -- the spawn was implicit, so pinning a slice meant remembering raw IAU_2015:30135 metres; (2) **nothing PROVED the world was unchanged** -- with no fingerprint, a change to the terrain window, the spawn search, or the rock draw would SILENTLY invalidate every run ever recorded (still replayable, still plausible, and wrong). Silent invalidation is the worst failure a dataset can have, because nothing tells you. Also repairs a DEAD KNOB: the rock field was seeded `world_seed=0` HARDCODED in the runtime while the stream's `world_seed` config only ever reached the PROCEDURAL/synthetic bundle path -- so on a real site the seed did nothing, and rock-layout domain randomisation was impossible. Acceptance: a scenario is an immutable declaration (site + pinned section + resolution + drum + rock seed); the same name yields a BYTE-IDENTICAL world (terrain, spawn, grid AND every rock); the pinned section is actually honoured (no silent fallback to the auto-spawn); the rock seed is LIVE (changing it changes the world) while its default reproduces the pre-change world exactly (so nothing already recorded is moved out from under); and a PINNED FINGERPRINT of the world FAILS LOUDLY on any drift. [REQ:TR-01] `stewie/dataset/scenario.py` + `stewie/dataset/test_scenario.py` assert all six on the REAL Haworth SfS bundle. The fingerprint hashes what the scenario PRODUCES (real terrain heights in the active window + resolved spawn + grid + every clast's position/size), never its own declaration -- hashing the declaration would be circular and would agree with itself no matter what the code did. NON-VACUOUS: a 1-metre shift of the section changes the hash and is caught. First frozen scenario: `haworth_pad_a` (haworth_sfs_2km_1m @ -34746, 89673, 5 cm, large drum, rock_seed 0), fingerprint `8e48b858ae9ccaa1...`. When this guard fires after a DELIBERATE world change, the correct response is to re-record or re-label the dataset -- not to quietly update the constant. I=D (Scenario + registry + fingerprint; rock_seed wired through the runtime), X=D (the runtime honours a pinned section and a declared seed; default preserves the existing world), V=D (the six [REQ:TR-01] gates on real terrain, non-vacuity demonstrated). (the precondition for the record->train pipeline; composes with PX-09/PX-10/PX-11)"
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "Phase-3 live world model -- ROS2 writes mission updates through the gated ingest; terrain folds after each mission; QGIS near-real-time.",
+    "kind": "atomic",
+    "test_target": "stewie/twin/test_world_model_live_update.py"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "TR-02",
+   "lane": "TR",
+   "pri": "P1",
+   "text": "**Interpretable search-distilled excavation/construction policy \u2014 a decision tree over PHYSICS, auto-researched against the exact conserved sim.** The oracle is MODEL-BASED SEARCH (beam/CEM) run in the exact, mass-conserving, sub-millisecond authority on a frozen scenario (TR-01), which yields optimal maneuver labels WITHOUT needing human demonstrations. Those labels are distilled into a **depth-limited decision tree / rule list** over features that are already real, named telemetry \u2014 `avg_slope_deg`, `drum_fill_frac`, `dig_j_per_kg` (FEE, \u221d depth\u00b2), `dig_reaction_n`, `dig_engagement`, `max_cut_per_pass_m`, `inventory_kg`, `odometry_error_m` \u2014 plus per-cell state from the conserved authority (`derive_height`, `diff_field` = as-built vs virgin, `cell_strength`, `bearing`, `wheel_static_sinkage`, slip). Because the features ARE the physics, a split MEANS something (`slope > 12\u00b0 AND drum_fill > 0.8 \u2192 haul before digging`), and the resulting policy is a **readable operating procedure you can defend to a review board** \u2014 which for a NASA-facing artifact is the deliverable, not a nicety. WHY A TREE AND NOT A NET: this project's own evidence says model-based search + distillation is the lever, not the network class \u2014 **beam search 24 legs > PPO 27 > greedy 28, and the search-distilled MLP hit the optimum (24)**. A tree is simply a different, INTERPRETABLE distillation target for the same proven oracle. **ACCEPTANCE, with the null result pre-committed:** the tree must BEAT GREEDY on passes-to-spec / energy-to-spec / as-built RMSE (\u00b12 cm), and be scored against the beam optimum. **A tie with greedy is a NULL RESULT and MUST be reported as one** \u2014 the prior finding that greedy AND RANDOM both hit 100% on the unconstrained flatten is exactly the trap this row exists to avoid; RL/search only earns its keep under real constraints. Generalization is tested on **HELD-OUT rock seeds** (train seeds 0..N, evaluate unseen draws \u2014 same terrain, different clast field), which is possible ONLY because TR-01 made `rock_seed` live. Trees are axis-aligned, so ENGINEER THE PHYSICS INTO THE FEATURE (hand it `predicted_fee_j_per_kg(candidate_bite)` rather than making it rediscover energy \u221d depth\u00b2) \u2014 using the exact model we already own is the point, not a shortcut. PRIOR ART, stated so this row does not overclaim: **NTRS 20210022218** (ICE-RASSOR *learning excavation*) is NASA replacing the AutoDig PID trencher with deep RL \u2014 so the contribution here is NOT \"apply learning to digging\"; it is (a) an INTERPRETABLE policy instead of a black box and (b) model-based distillation, which this repo's own numbers say beats model-free. NOTE: this path does NOT need human demonstrations \u2014 the oracle is the search \u2014 so it is NOT gated on the observation-paired recorder (that remains necessary only for distilling OPERATOR intuition, where the cost function is wrong: slumping, rock avoidance, approach angle). (needs PX-14, TR-01 \u2014 the tree cannot be trained on physics that still pushes the rover backward (PX-13) or dumps its whole drum in one frame (PX-12))"
+  },
+  {
+   "I": "D",
+   "Q": "NA",
+   "V": "D",
+   "X": "D",
+   "bucket": "done",
+   "cited": true,
+   "id": "TR-03",
+   "lane": "TR",
+   "pri": "P0",
+   "text": "**The OPERATOR selects the worksite section from the /ide map \u2014 the rover spawns where you point, not where the terrain is flattest.** REPORTED AS A RENDER BUG (\"why doesn't the actual dem load in Godot? the terrain is flat\"), and **nothing was broken in the render**: the DEM loads, the height texture is `Image.FORMAT_RF` (32-bit float, not 8-bit), `viz2_window.gdshader` displaces (`VERTEX.y += h`), and the far-field mesh renders. **The picture was honest \u2014 the terrain really IS flat where the rover spawns.** Measured on the real bundle: the fine window (240\u00d7240 @ 5 cm = **12 m \u00d7 12 m**) has **0.083 m of relief and a 0.28\u00b0 mean slope**, and the raw DEM over that same 12 m footprint agrees (**0.060 m**) \u2014 the render is faithful to the centimetre. TWO DESIGN CHOICES CAUSED IT: (1) `viz2_runtime._flattest_interior_spawn` ([REQ:AS-15]) \u2014 a legitimate fix (the tile's blind geometric centre can land on a crater wall and entrap/tip the rover on arrival) that hardened into **the only behaviour**, and it does not merely find flat ground, it finds **the flattest ground in the ENTIRE TILE**, so every session opened on the most boring 12 m in Haworth; (2) the render window is only 12 m across \u2014 there is no landscape inside a 12 m box on a crater floor. Real relief exists and the spawn avoids it: \u00b125 m \u2192 1.36 m, \u00b1100 m \u2192 11.91 m, \u00b1500 m \u2192 34.82 m. **AND THE CAPABILITY WAS ALREADY THERE.** `Viz2Runtime(start_xy=\u2026)` is a real constructor parameter (it only calls the flattest search when `start_xy is None`), and `viz2_serve.py` has always exposed `--start-xy`. The chain broke in exactly **two** places \u2014 `protocol.parse_config` had no `start_xy` field and `app.py` never passed `--start-xy` \u2014 so **the browser could not even ASK**. Same defect shape as the cosmetic arm (PX-10), the dead rock seed (TR-01) and the modelled-but-unused dig reaction (PX-13): a real knob with nothing connected to it. **NO REPROJECTION ANYWHERE:** `gis_layers.py:1208` confirms the public /ide map is already in **IAU_2015:30135 metres** (\"a 30135 click reprojected to 30100\u2026\"), so a click on it **IS** `start_xy` in the frame the runtime wants. Acceptance: the wire protocol carries the chosen section; an unchosen spawn stays `None` so the **safe flattest fallback still runs** (no regression \u2014 you cannot drop into an entrapment); the stream server actually forwards it (`build_runtime_argv`, extracted as a pure function precisely so the plumbing is ASSERTABLE and cannot rot silently again); a click on the /ide map ARMS a section and an explicit **\u2316 Drive here** applies it (arming is separate from driving because a spawn defines the WORLD \u2014 applying it opens a new session; you cannot teleport a conserved world); and the chosen section is the section you actually drive. **PUBLIC-SURFACE DISCIPLINE (RT-06/RT-07):** an anonymous browser sends this coordinate, so it is UNTRUSTED \u2014 shape and finiteness are REFUSED at ingest (never coerced, never defaulted, exactly like the twist M-04 and the arm angle PX-10; a NaN spawn would place the rover nowhere and poison every downstream index), and an out-of-tile coordinate is **REFUSED, never clamped** to an edge \u2014 a clamp would drop the rover somewhere the operator never chose *while looking like it worked*, which is the worse failure. The bounds check deliberately lives in `app.py`, not `protocol.py`, because that module is **validation-only and does NO I/O** by contract and the tile extent lives in the bundle metadata; `protocol` owns shape+finiteness (pure `start_xy_in_bounds` predicate), `app.py` owns bounds. [REQ:TR-03] `stewie/stream/test_operator_spawn.py` (15 gates incl. the parametrized malformed-input set). Real TDD (RED first). **ANTI-DECORATION GATE \u2014 the lesson of this whole cluster, applied pre-emptively:** a `start_xy` that plumbs correctly but lands you on the same flat pad would be worthless, so a gate asserts the chosen section carries **>10\u00d7 the relief** of the flattest-search default. Measured, same tile, same DEM, no code change: `haworth_pad_a` **0.06 m / 0.28\u00b0** vs `(-33450, 88788)` **3.99 m / 13.87\u00b0** \u2014 **66\u00d7 the relief**, and **544,377** such windows exist (6\u201314\u00b0, inside IPEx's 15\u00b0 nominal envelope). I=D, X=D (live on the public /ide), V=D. (needs RT-06; composes with TR-01 \u2014 a NAMED frozen scenario and a MAP-CHOSEN section are the same capability from two ends; unblocks TR-02)"
+  },
+  {
    "I": "N",
    "Q": "NA",
    "V": "N",
@@ -5750,12 +5946,12 @@
   }
  ],
  "summary": {
-  "briefs": 187,
+  "briefs": 190,
   "buckets": {
-   "buildable": 96,
+   "buildable": 87,
    "concurrent": 0,
-   "done": 272,
-   "gated": 30
+   "done": 295,
+   "gated": 31
   },
   "by_lane": {
    "AC": {
@@ -5787,8 +5983,8 @@
     "total": 1
    },
    "BA": {
-    "done": 8,
-    "total": 11
+    "done": 10,
+    "total": 13
    },
    "BD": {
     "done": 4,
@@ -5799,7 +5995,7 @@
     "total": 13
    },
    "BR": {
-    "done": 0,
+    "done": 1,
     "total": 2
    },
    "CF": {
@@ -5847,7 +6043,7 @@
     "total": 8
    },
    "EV": {
-    "done": 0,
+    "done": 1,
     "total": 1
    },
    "FL": {
@@ -5867,19 +6063,19 @@
     "total": 3
    },
    "GL": {
-    "done": 0,
+    "done": 1,
     "total": 2
    },
    "GW": {
     "done": 12,
-    "total": 13
+    "total": 14
    },
    "HF": {
     "done": 0,
     "total": 1
    },
    "IN": {
-    "done": 0,
+    "done": 1,
     "total": 2
    },
    "LY": {
@@ -5887,7 +6083,7 @@
     "total": 7
    },
    "MG": {
-    "done": 1,
+    "done": 3,
     "total": 4
    },
    "MI": {
@@ -5935,12 +6131,12 @@
     "total": 19
    },
    "PO": {
-    "done": 16,
-    "total": 18
+    "done": 19,
+    "total": 19
    },
    "PX": {
-    "done": 5,
-    "total": 7
+    "done": 12,
+    "total": 14
    },
    "QB": {
     "done": 0,
@@ -5971,8 +6167,8 @@
     "total": 8
    },
    "RT": {
-    "done": 2,
-    "total": 7
+    "done": 5,
+    "total": 8
    },
    "SC": {
     "done": 0,
@@ -6014,6 +6210,10 @@
     "done": 0,
     "total": 4
    },
+   "TR": {
+    "done": 2,
+    "total": 3
+   },
    "TS": {
     "done": 0,
     "total": 1
@@ -6041,12 +6241,12 @@
   },
   "by_priority": {
    "P0": {
-    "done": 111,
-    "total": 118
+    "done": 122,
+    "total": 124
    },
    "P1": {
-    "done": 154,
-    "total": 221
+    "done": 166,
+    "total": 230
    },
    "P2": {
     "done": 7,
@@ -6057,11 +6257,11 @@
     "total": 2
    }
   },
-  "cited": 293,
-  "done_pct": 68.3,
-  "in_scope": 368,
-  "in_scope_done_pct": 73.9,
-  "total": 398
+  "cited": 314,
+  "done_pct": 71.4,
+  "in_scope": 382,
+  "in_scope_done_pct": 77.2,
+  "total": 413
  },
  "workflow_spine": [
   "Plan",
