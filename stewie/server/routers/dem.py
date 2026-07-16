@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from stewie.server.deps import require_auth
 from stewie.server.ratelimit import RateLimiter, client_ip
-from stewie.server.services import log_event
+from stewie.server.services import log_event, record_resource
 from stewie.specs.config import data_dir
 
 router = APIRouter()
@@ -351,6 +351,7 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
     ckey = (site, kind, round(win), sun_part, org)
     cached = _WORKAREA_CACHE.get(ckey)
     if cached is not None:
+        record_resource("tile_cache", len(cached) / 1024.0)   # FS-10: real map-render tile byte-size sample
         return Response(content=cached, media_type="image/png")
     try:
         bundle_for_site(site)                           # validate the site (404 on unknown / unimported)
@@ -388,6 +389,7 @@ def dem_workarea_png(site: str = "haworth", window_m: float = 640.0, kind: str =
     rgba = np.flipud(rgba)                               # image row 0 = top = max y (North) = the plan canvas's top
     png = _to_png(rgba)
     _fifo_put(_WORKAREA_CACHE, _WORKAREA_CACHE_LOCK, ckey, png, _WORKAREA_CACHE_MAX)   # F22: thread-safe FIFO
+    record_resource("tile_cache", len(png) / 1024.0)          # FS-10: real map-render tile byte-size sample
     return Response(content=png, media_type="image/png")
 
 

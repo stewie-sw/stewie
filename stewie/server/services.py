@@ -277,9 +277,10 @@ def latency_snapshot() -> dict:
 # budget + unit + the subsystem it governs; a bounded ring buffer records REAL observed measurements
 # (the same recorded-sample accounting as latency, not a synthetic distribution); resource_budget_snapshot()
 # reports p95/max per class and flags a class whose p95 is over budget. Some sources are live on this host
-# (process RSS, CPU time, response bytes -- recorded from the OS/middleware); GPU frame-time and
-# model-inference latency have no live source here (no GPU traffic, no deployed model), so their budget is
-# DECLARED and the accounting is exercised by recorded samples -- the class is defined, its live producer named.
+# (process RSS, CPU time, response bytes, rendered work-area tile bytes -- recorded from the OS/middleware/
+# map-render route); GPU frame-time and model-inference latency have no live source here (no GPU traffic,
+# no deployed model), so their budget is DECLARED and the accounting is exercised by recorded samples --
+# the class is defined, its live producer named.
 _RES_WINDOW = 256
 
 
@@ -300,7 +301,7 @@ _RESOURCE_BUDGETS: dict[str, _ResBudget] = {
     "cpu":             _ResBudget("cpu", "fleet_solve", 60.0, "cpu_seconds", "process CPU time (resource.getrusage)"),
     "gpu":             _ResBudget("gpu", "map_render", 33.0, "ms_per_frame", "gated: needs a GPU render host (no live source here)"),
     "bandwidth":       _ResBudget("bandwidth", "cockpit_mobile", 512.0, "KB_per_response", "HTTP response bytes (server middleware)"),
-    "tile_cache":      _ResBudget("tile_cache", "map_render", 4096.0, "KB_per_tile", "globe/tile cache byte size (map_layers)"),
+    "tile_cache":      _ResBudget("tile_cache", "map_render", 4096.0, "KB_per_tile", "rendered work-area tile PNG byte size (/dem/workarea.png)"),
     "model_inference": _ResBudget("model_inference", "plan", 50.0, "ms", "gated: no learned model deployed (ML-01/FS-12)"),
 }
 _RES_SAMPLES: dict[str, "deque[float]"] = {}

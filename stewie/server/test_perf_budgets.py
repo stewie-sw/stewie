@@ -135,3 +135,25 @@ def test_metrics_route_surfaces_the_budgets_block(monkeypatch, tmp_path):  # [RE
     assert _EXPECTED_CLASSES <= set(m["budgets"]), "budgets block missing FS-10 classes"
     # the /metrics read triggered a real process-resource sample -> memory is populated from live RSS
     assert m["budgets"]["memory"]["count"] >= 1 and m["budgets"]["memory"]["max"] > 0
+
+
+def test_tile_cache_class_has_a_real_live_producer_not_a_declared_but_unfed_source(monkeypatch, tmp_path):  # [REQ:FS-10]
+    # tile_cache is the map_render budget class, and its live_source names map_layers -- so, unlike the
+    # honestly-GATED gpu/model_inference classes, that claim must be BACKED by a real producer. The
+    # /dem/workarea.png tile route renders a REAL PNG of the bundled Haworth LOLA DEM at native resolution;
+    # serving it records the tile's byte size (KB) into the tile_cache budget. Read back through /metrics so
+    # this exercises the same services singleton the router feeds (no module-identity split, no injection).
+    monkeypatch.setenv("STEWIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("STEWIE_DEV_OPEN", "1")
+    from fastapi.testclient import TestClient
+    import stewie.server.server as SRV
+    importlib.reload(SRV)
+    c = TestClient(SRV.app)
+    # the class must NOT masquerade as gated -- it claims a live source, so it must have one
+    assert "gated" not in c.get("/metrics").json()["budgets"]["tile_cache"]["live_source"].lower()
+    r = c.get("/dem/workarea.png?site=haworth&window_m=320&kind=dem")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png", r.status_code
+    tc = c.get("/metrics").json()["budgets"]["tile_cache"]
+    assert tc["count"] >= 1 and tc["max"] is not None and tc["max"] > 0, \
+        "tile_cache budget did not record a real rendered-tile byte sample from /dem/workarea.png"
+    assert tc["subsystem"] == "map_render" and tc["unit"] == "KB_per_tile"
