@@ -13,6 +13,7 @@ export type ApiPath =
   | '/admin/operators/revoke'
   | '/admin/operators/role'
   | '/admin/operators/{email}'
+  | '/admin/ops/governance'
   | '/admin/trash/missions'
   | '/admin/trash/missions/{filename}'
   | '/admin/twin/retention'
@@ -196,6 +197,7 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/admin/operators/revoke', operationId: 'operators_revoke_admin_operators_revoke_post', mutatesAuthority: true },
   { method: 'POST', path: '/admin/operators/role', operationId: 'operators_set_role_admin_operators_role_post', mutatesAuthority: true },
   { method: 'DELETE', path: '/admin/operators/{email}', operationId: 'operators_delete_admin_operators__email__delete', mutatesAuthority: true },
+  { method: 'GET', path: '/admin/ops/governance', operationId: 'ops_governance_admin_ops_governance_get', mutatesAuthority: false },
   { method: 'GET', path: '/admin/trash/missions', operationId: 'mission_trash_admin_trash_missions_get', mutatesAuthority: false },
   { method: 'DELETE', path: '/admin/trash/missions/{filename}', operationId: 'mission_purge_admin_trash_missions__filename__delete', mutatesAuthority: true },
   { method: 'POST', path: '/admin/twin/retention', operationId: 'admin_retention_admin_twin_retention_post', mutatesAuthority: true },
