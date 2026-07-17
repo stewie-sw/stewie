@@ -74,12 +74,19 @@ class ReleasePlanRequest(BaseModel):
     revision: int = Field(default=0, ge=0)
 
 
-def _command_authority(rel: object) -> dict | None:
+def _command_authority(rel: object, persisted: bool) -> dict | None:
     """[REQ:FS-28] Freeze the Release-pane command-authority card at sign time: the immutable plan hash +
     director sign-off (from the signed revision), the runtime + sensor profile (from the active system
     profile -- real values, no fabrication), the live deployment namespace released missions bind to (the
     rc.py convention), the AG-08 director authorization a released revision carries, and the SF-01 watchdog
-    deadline that governs execution. None when nothing was released."""
+    deadline that governs execution. None when nothing was released.
+
+    [REQ:AR-003] Command authority is WITHHELD unless the signed revision is DURABLY persisted. A release
+    whose best-effort durable write failed (``revision_persisted: false``) cannot be bound or recovered by a
+    later run / RC, so it must NOT claim live command authority: the card is returned with
+    ``authorized: False``, a NON-live namespace, and a reason -- never ``authorized: True`` / ``namespace:
+    live`` on an unpersisted release. (The full governed-path revision-only binding is AR-003 Phase 1; this
+    is the Phase-0 containment: an unrecoverable release never grants authority.)"""
     if rel is None:
         return None
     import inspect
@@ -88,15 +95,22 @@ def _command_authority(rel: object) -> dict | None:
     from stewie.specs import profiles
     prof = profiles.load_profile()
     sf01_deadline_s = inspect.signature(SafingWatchdog.__init__).parameters["deadline_s"].default
-    return {
+    card = {
         "plan_hash": getattr(rel, "content_hash"),
         "signed_by": getattr(rel, "signed_by"),
         "runtime_profile": prof.profile_id,
         "sensor_profile": str(prof.sensors.get("selected_depth_source")),
-        "namespace": "live",                    # released missions bind to the live namespace (rc.py)
-        "authorized": True,                     # AG-08: a released revision is director-signed
         "watchdog_deadline_s": float(sf01_deadline_s),   # SF-01 watchdog governs execution
     }
+    if persisted:
+        card["namespace"] = "live"              # released missions bind to the live namespace (rc.py)
+        card["authorized"] = True               # AG-08: a durably-persisted, director-signed revision
+    else:
+        card["namespace"] = "sandbox"           # [AR-003] not durably bindable -> not live
+        card["authorized"] = False
+        card["reason"] = ("revision not durably persisted (revision_persisted:false); command authority "
+                          "withheld until the release is durably stored")
+    return card
 
 
 def _persist_released_revision(rel: object, res: object) -> bool:
@@ -163,7 +177,7 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
         "label": "sim",
         "state": res.executive.state.value,
         "signed_revision": rel.model_dump(mode="json") if rel is not None else None,
-        "command_authority": _command_authority(rel),   # [REQ:FS-28] frozen Release-pane authority card
+        "command_authority": _command_authority(rel, persisted),   # [REQ:FS-28][AR-003] withheld if not persisted
         "revision_persisted": persisted,                 # [dispatch-audit R1] durably frozen by content_hash
         "evidence": res.evidence,
         "transitions": res.transitions,
