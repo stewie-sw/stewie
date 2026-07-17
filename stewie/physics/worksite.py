@@ -621,8 +621,11 @@ class WorkSite:
         idx = np.nonzero(inwin)[0]
         if idx.size == 0:
             return None
+        if clasts is None:             # unreachable per the line-593 guard; re-narrows for the comprehension scope
+            return None
+        cl = clasts                    # inferred list[dict] (non-optional) -> indexable inside the comprehension
         out: list[dict] = [
-            {**clasts[i], "center_m": [float(lx[i]), float(self._clast_cy[i]), float(lz[i])]}
+            {**cl[i], "center_m": [float(lx[i]), float(self._clast_cy[i]), float(lz[i])]}
             for i in idx
         ]
         return out or None

@@ -27,6 +27,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -34,6 +35,9 @@ from fastapi.staticfiles import StaticFiles
 
 from stewie.stream import previews, protocol, security
 from stewie.stream.framing import pack_frame, read_frame
+
+if TYPE_CHECKING:
+    from stewie.bridge.rc_contract import Safe
 
 #: [REQ:RT-07] The RT-01 runtime profile this server RUNS UNDER. viz2 is the sim that is actually built,
 #: driveable and PUBLICLY REACHABLE (RT-06) -- and until now it declared no profile at all, so the one
@@ -162,7 +166,7 @@ class StreamSession:
         self._last_route: list | None = None       # last computed route [[x,z]] 30135 m (for save_route; was discarded)
         self._last_goals: list | None = None        # the authored goals [[x,y]] 30135 m (the re-plannable intent)
         self._safed = False                          # SF-01 latch: an operator RC.Safe halts + refuses motion
-        self._safe_cmd = None                        # the last frozen rc_contract.Safe (contract artifact)
+        self._safe_cmd: Safe | None = None           # the last frozen rc_contract.Safe (contract artifact)
         # frame egress: a single-slot LATEST buffer + event, so a slow browser drops stale frames rather
         # than backpressuring the seam TCP into Godot's render/ack loop (the terminal-deadman chain).
         self._latest_frame: bytes | None = None
@@ -230,6 +234,8 @@ class StreamSession:
             r0 = int(min(max(0, round((sy - y0) / cell - n / 2)), bh - n))
             spec = importlib.util.spec_from_file_location(
                 "viz2_rockfield_clasts", str(REPO_ROOT / "scripts" / "viz2_rockfield_clasts.py"))
+            if spec is None or spec.loader is None:
+                raise RuntimeError("cannot load the viz2_rockfield_clasts module spec/loader")
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
             result = mod.build_clasts(bundle, r0, c0, n, d_min_m=0.15, d_max_m=0.8, world_seed=0)
