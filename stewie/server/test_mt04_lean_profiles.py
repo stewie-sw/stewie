@@ -2,7 +2,6 @@
 `core` profile boots stewie-serve + /healthz WITHOUT the heavy CV/GIS/benchmark extras; each profile is
 declared and `server` composes them (so the Dockerfile/wheel-smoke [server] extra is unchanged). Proven
 against the REAL pyproject + a clean-subprocess import of the minimal server."""
-import os
 import subprocess
 import sys
 import tomllib
@@ -37,6 +36,7 @@ def test_mt04_minimal_server_boots_lean_without_heavy_extras():  # [REQ:MT-04]
         "if m in sys.modules or any(k.startswith(m+'.') for k in sys.modules)];"
         "print('HEAVY:'+','.join(heavy)); sys.exit(1 if heavy else 0)"
     )
+    from scripts.child_env import child_env
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                       env={**os.environ, "PYTHONNOUSERSITE": "1"})
+                       env=child_env())   # [AR-016] minimal, secret-free (PYTHONNOUSERSITE=1 by default)
     assert r.returncode == 0, f"minimal server + /healthz imported heavy libs: {r.stdout.strip()} {r.stderr[-400:]}"

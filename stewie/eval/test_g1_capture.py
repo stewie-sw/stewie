@@ -24,9 +24,10 @@ def test_g1a3_capture_portable_and_reproducible(tmp_path):
     import sys
 
     def run(out):
+        from scripts.child_env import child_env
         subprocess.run([sys.executable, G1CAP, "--stewie-root", _DUST, "--dem", _DEM,
                         "--output", str(out), "--seed", "0"], cwd=ROOT, check=True,
-                       env={**os.environ, "PYTHONPATH": os.path.dirname(os.path.dirname(ROOT))})   # monorepo root
+                       env=child_env())   # [AR-016] minimal, secret-free; venv resolves the workspace, no PYTHONPATH
     a, b = tmp_path / "a", tmp_path / "b"
     run(a); run(b)
 

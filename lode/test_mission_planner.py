@@ -369,7 +369,6 @@ def _isolated_peak_bytes(call_src: str) -> int:
     TestClient's threads allocate tens of MB DURING the traced window (observed ~64 MB), tripping the
     ceiling even though read_dem_window itself allocates ~window bytes. A clean subprocess has no such
     threads, so the peak reflects ONLY this call -> robust regardless of what else the test process loaded."""
-    import os
     import subprocess
     import sys
     prog = ("import tracemalloc\n"
@@ -378,8 +377,9 @@ def _isolated_peak_bytes(call_src: str) -> int:
             "_r = " + call_src + "\n"
             "_cur, _peak = tracemalloc.get_traced_memory()\n"
             "print(_peak)\n")
+    from scripts.child_env import child_env
     p = subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True,
-                       env={**os.environ, "PYTHONNOUSERSITE": "1"})
+                       env=child_env())   # [AR-016] minimal, secret-free (PYTHONNOUSERSITE=1 by default)
     assert p.returncode == 0, f"isolated measurement subprocess failed:\n{p.stderr[-500:]}"
     return int(p.stdout.strip().splitlines()[-1])
 
