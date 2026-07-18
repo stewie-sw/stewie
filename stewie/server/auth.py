@@ -73,6 +73,16 @@ def automation_key() -> bytes:
     return os.environ.get("STEWIE_API_KEY", "").encode()
 
 
+def gis_anon_key() -> bytes:
+    """[AR-005] The SCOPED public-GIS anonymous-planner credential (STEWIE_GIS_ANON_KEY). nginx injects it on
+    the anonymous read/plan routes via the distinct ``X-Stewie-Anon-Key`` header INSTEAD of the
+    director-equivalent ``X-API-Key`` -- so a public /ide user resolves to the GUEST planner principal
+    (``role_of('gis-anon') == 'guest'``: plan/read only, its own audit actor + quota), never director. It is
+    DISTINCT from ``automation_key()``; empty means no anonymous principal is configured (the public routes
+    then require real auth, fail-closed)."""
+    return os.environ.get("STEWIE_GIS_ANON_KEY", "").encode()
+
+
 def _signing_secret() -> bytes:
     """S-12: the SESSION-signing secret, separated from the automation key. Prefer
     STEWIE_SESSION_SECRET so rotating the automation API key does not invalidate live sessions (and
@@ -234,6 +244,8 @@ def role_of(identity: str) -> str:
     single-user desktop app, STEWIE_DESKTOP=1 on loopback) = director."""
     if identity in ("api-key", "dev-open", "desktop-local"):
         return "director"
+    if identity == "gis-anon":               # [AR-005] the scoped public-GIS planner: guest (plan/read), never director
+        return "guest"
     from stewie.server import operators as OPS
     sr = OPS.store_role(identity)        # #117: a registered active account governs its own role
     if sr is not None:

@@ -57,7 +57,8 @@ def require_auth(request: Request,
                  x_api_key: str | None = Header(default=None, alias="X-API-Key"),
                  authorization: str | None = Header(default=None),
                  tailscale_user_login: str | None = Header(default=None,
-                                                           alias="Tailscale-User-Login")) -> str:
+                                                           alias="Tailscale-User-Login"),
+                 x_gis_anon_key: str | None = Header(default=None, alias="X-Stewie-Anon-Key")) -> str:
     """N8 + #52 + audit C-01: identity-bearing auth on mutating routes, FAIL CLOSED.
     Accepted, in order: a WHITELISTED Tailscale identity (opt-in via STEWIE_TRUST_TAILSCALE=1
     behind `tailscale serve`), an HMAC session token from /auth/login (Bearer), or the raw API
@@ -71,6 +72,15 @@ def require_auth(request: Request,
     # loopback is an additional barrier, mirroring the STEWIE_DEV_OPEN flag+loopback gate above.
     if _truthy(_env("DESKTOP")) and _is_loopback(request):
         return "desktop-local"
+    # [AR-005] the scoped public-GIS anonymous-planner principal. nginx injects a DISTINCT scoped key on the
+    # anonymous read/plan routes via the X-Stewie-Anon-Key header (never the director X-API-Key), so a public
+    # /ide user resolves to identity "gis-anon" -> role_of == "guest": plan/read only, its own audit actor +
+    # quota, NEVER director/command authority. Unspoofable (a secret, not a plaintext claim) and independent
+    # of proxy-trust config, so it works across the docker-network nginx -> backend hop. A matching key is
+    # REQUIRED (empty STEWIE_GIS_ANON_KEY -> no anonymous principal; the routes stay auth-required).
+    anon_key = AUTH.gis_anon_key()
+    if x_gis_anon_key and anon_key and hmac.compare_digest(x_gis_anon_key.encode(), anon_key):
+        return "gis-anon"
     key = _env("API_KEY")
     if not key:
         if _truthy(_env("DEV_OPEN")) and _is_loopback(request):

@@ -101,6 +101,34 @@ to boot without it (fail-loud, like the API key). Without it the session-signing
 - **Rotate `STEWIE_SESSION_SECRET`**: intentionally invalidates all live sessions (operators must sign in
   again). Use to force a global session reset.
 
+## Scoped anonymous GIS principal (AR-005)
+
+The public GIS routes (`/api/plan`, `/api/export/geojson`, `/api/structure`, `/dem/site_lonlat`,
+`/dem/site_meta`, `/dem/sources`) are reached by anonymous `/ide` users. nginx used to inject the
+**director-equivalent** `STEWIE_API_KEY` on them, so an anonymous browser was a full director. It now injects a
+**scoped guest key** via the distinct `X-Stewie-Anon-Key` header (`include /etc/nginx/gis-anon-key.conf`), which
+the backend resolves to identity `gis-anon` → role **guest** (plan/read only, its own audit actor + quota,
+never director or command authority).
+
+**Provisioning (required before deploying the nginx change — else these routes 401 / nginx fails to start):**
+
+1. Generate a scoped key distinct from `STEWIE_API_KEY`: `openssl rand -hex 32`.
+2. Set it in `deploy/.env`: `STEWIE_GIS_ANON_KEY=<that value>` (the backend reads it; empty ⇒ no anonymous
+   principal ⇒ the public routes stay auth-required, fail-closed).
+3. Create the mounted include `gis-anon-key.conf` (same pattern as the existing `api-key.conf`, but the scoped
+   value): `proxy_set_header X-Stewie-Anon-Key <that value>;` — LOCAL-ONLY, never committed.
+4. `docker compose -f deploy/compose.yml up -d` and verify through Cloudflare.
+
+**Rollback:** revert `deploy/artemis-nginx.conf` (restores the `api-key.conf` includes) and redeploy. The
+backend change is backward-compatible — it still accepts `STEWIE_API_KEY`, so a mismatched rollout degrades to
+the old behaviour rather than an outage.
+
+**UX note — `/api/construction` (operator) + `/api/resync/compare` (director):** these two are gated ABOVE
+guest at the route, so the scoped principal gets **403** on them (correct least-privilege: an anonymous user
+should not reach operator/director functions). If the `/ide` needs either for anonymous planning, that is a
+deliberate follow-up: lower the route gate to `guest` after confirming the handler is non-destructive — do NOT
+re-inject the director key.
+
 ## Secrets management (SOPS + age)
 
 Deploy secrets are **age-encrypted with SOPS** so the encrypted file is safe to commit; the plaintext
