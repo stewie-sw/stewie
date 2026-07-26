@@ -56,6 +56,13 @@ class TerrainMemory:
     _delta: np.ndarray = field(default=_UNSET, repr=False)  # (rows, cols) accumulated height delta [m]
     version: int = 0
     chain: list = field(default_factory=list)             # provenance records (see module docstring)
+    # [GATE3-P1] Per-mission delta RETENTION. Before this, ``apply`` folded each mission's grid into
+    # ``_delta`` and kept only scalar metadata, so no past terrain state could be reconstructed and
+    # "what did we believe before mission N" was unanswerable from persisted state. Each entry is the
+    # SPARSE (flat_index, value) pair of one mission's non-zero cells -- a dig touches a small fraction
+    # of the grid, so sparse costs a few kB where a dense grid would cost rows*cols*8 B per mission.
+    # Retained per version, in apply order; index i holds the delta that produced version i+1.
+    _history: list = field(default_factory=list, repr=False)
 
     def __post_init__(self) -> None:
         if self.rows <= 0 or self.cols <= 0:
@@ -84,6 +91,7 @@ class TerrainMemory:
         if not np.all(np.isfinite(d)):
             raise ValueError("delta must be finite (got NaN/Inf)")
         self._delta = self._delta + d
+        self._record_history(d)      # [GATE3-P1] retain this mission's grid before it is folded away
         self.version += 1
         meta = {
             "version": self.version,
@@ -124,6 +132,56 @@ class TerrainMemory:
                        or row_off + d.shape[0] > self.rows or col_off + d.shape[1] > self.cols)
         version = self.apply(full, mission=mission, mass_moved_kg=mass_moved_kg)
         return {"version": version, "placed_cells": placed, "clipped": clipped}
+
+    def _record_history(self, d: np.ndarray) -> None:
+        """[GATE3-P1] Store one mission's delta sparsely (flat indices + values of its non-zero cells)."""
+        idx = np.flatnonzero(d)
+        self._history.append({"idx": idx.astype(np.int64), "val": d.ravel()[idx].astype(np.float64)})
+
+    def _dense(self, rec: dict) -> np.ndarray:
+        out = np.zeros(self.rows * self.cols, dtype=np.float64)
+        out[rec["idx"]] = rec["val"]
+        return out.reshape(self.rows, self.cols)
+
+    @property
+    def history_len(self) -> int:
+        """[GATE3-P1] Number of retained per-mission deltas. Equals ``version`` for a memory built
+        entirely after retention landed; less for one loaded from a pre-retention .npz."""
+        return len(self._history)
+
+    def delta_at(self, version: int) -> np.ndarray:
+        """[GATE3-P1] The delta APPLIED AT ``version`` (1-based, matching the provenance chain)."""
+        if not (1 <= version <= len(self._history)):
+            raise ValueError(f"version {version} outside retained history 1..{len(self._history)}")
+        return self._dense(self._history[version - 1])
+
+    def cumulative_delta_at(self, version: int) -> np.ndarray:
+        """[GATE3-P1] Cumulative delta AS OF ``version``; version 0 is the pristine base (all zeros).
+        This is the point-in-time query the design doc asks for: the state BEFORE mission N is
+        ``cumulative_delta_at(N - 1)``."""
+        if not (0 <= version <= len(self._history)):
+            raise ValueError(f"version {version} outside retained history 0..{len(self._history)}")
+        out = np.zeros((self.rows, self.cols), dtype=np.float64)
+        for rec in self._history[:version]:
+            out += self._dense(rec)
+        return out
+
+    def height_at(self, base_height: np.ndarray, version: int) -> np.ndarray:
+        """[GATE3-P1] The surface as of ``version``: ``base + cumulative_delta_at(version)``."""
+        b = np.asarray(base_height, dtype=np.float64)
+        if b.shape != (self.rows, self.cols):
+            raise ValueError(f"base shape {b.shape} != grid {(self.rows, self.cols)}")
+        return b + self.cumulative_delta_at(version)
+
+    def revert_to(self, version: int) -> None:
+        """[GATE3-P1] Roll the accumulated state back to ``version``, discarding later missions and
+        their chain records. The retained history is what makes this possible at all."""
+        if not (0 <= version <= len(self._history)):
+            raise ValueError(f"version {version} outside retained history 0..{len(self._history)}")
+        self._delta = self.cumulative_delta_at(version)
+        self._history = self._history[:version]
+        self.chain = self.chain[:version]
+        self.version = version
 
     def cumulative_delta(self) -> np.ndarray:
         """The accumulated per-cell height change [m] vs the base DEM (a fresh copy)."""
@@ -235,9 +293,21 @@ class TerrainMemory:
             "site": self.site, "rows": self.rows, "cols": self.cols, "cell_m": self.cell_m,
             "origin": list(self.origin), "version": self.version, "chain": self.chain,
         }
+        # [GATE3-P1] Flatten the retained per-mission history into three plain arrays so it round-trips
+        # under allow_pickle=False: all sparse indices concatenated, all values concatenated, and the
+        # per-mission offsets that split them back apart.
+        if self._history:
+            hist_idx = np.concatenate([r["idx"] for r in self._history]) if self._history else np.empty(0, np.int64)
+            hist_val = np.concatenate([r["val"] for r in self._history]) if self._history else np.empty(0, np.float64)
+            hist_off = np.cumsum([0] + [len(r["idx"]) for r in self._history]).astype(np.int64)
+        else:
+            hist_idx = np.empty(0, dtype=np.int64)
+            hist_val = np.empty(0, dtype=np.float64)
+            hist_off = np.zeros(1, dtype=np.int64)
         tmp = path + ".part"
         with open(tmp, "wb") as f:
-            np.savez(f, delta=self._delta, meta=json.dumps(meta))
+            np.savez(f, delta=self._delta, meta=json.dumps(meta),
+                     hist_idx=hist_idx, hist_val=hist_val, hist_off=hist_off)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, path)
@@ -247,8 +317,17 @@ class TerrainMemory:
         """Restore a TerrainMemory persisted by :meth:`save` (verify_chain() should hold on the result)."""
         z = np.load(path, allow_pickle=False)
         m = json.loads(str(z["meta"]))
-        return cls(site=m["site"], rows=int(m["rows"]), cols=int(m["cols"]), cell_m=float(m["cell_m"]),
-                   origin=tuple(m["origin"]), _delta=z["delta"], version=int(m["version"]), chain=list(m["chain"]))
+        tm = cls(site=m["site"], rows=int(m["rows"]), cols=int(m["cols"]), cell_m=float(m["cell_m"]),
+                 origin=tuple(m["origin"]), _delta=z["delta"], version=int(m["version"]), chain=list(m["chain"]))
+        # [GATE3-P1] Rebuild the retained per-mission history. A .npz written BEFORE retention landed
+        # carries none of these keys; it loads with an empty history, so the point-in-time API refuses
+        # rather than inventing past states it cannot know. Backward compatible by construction.
+        if all(k in z.files for k in ("hist_idx", "hist_val", "hist_off")):
+            off = z["hist_off"].astype(np.int64)
+            idx, val = z["hist_idx"], z["hist_val"]
+            tm._history = [{"idx": idx[off[i]:off[i + 1]], "val": val[off[i]:off[i + 1]]}
+                           for i in range(len(off) - 1)]
+        return tm
 
 
 # -- per-site persistence store (W3): the authoritative Terrain Memory for each site lives under the data
