@@ -1,0 +1,188 @@
+"""[GATE6] Provenance- and physics-gated promotion of a candidate terrain state.
+
+The baseline this must beat is ``stewie.twin.terrain_view`` layer 2, which is one line:
+
+    z[m] = oh[m]
+
+An observation overwrites as-built, which overwrites the pristine base. Fixed lexicographic
+precedence, no uncertainty in the decision, no provenance weighting, no physical check, and no way
+to decline. That is the single-authoritative-map control condition.
+
+This module replaces the precedence rule with a DECISION. A candidate update carries its evidence,
+and the gate returns one of:
+
+    PROMOTE   accept the candidate as the operationally authoritative state
+    REJECT    refuse it; the prior state stands
+    ABSTAIN   the evidence cannot settle it; defer and gather more (NOT the same as reject --
+              rejecting says "this is wrong", abstaining says "I cannot tell", and conflating them
+              is what makes a binary gate fail under model misspecification)
+
+Three inputs decide it, and the third is the one no charted work in the scoping review uses:
+
+1. **Declared uncertainty.** Each evidence item carries a sigma. A disagreement inside the combined
+   band is not a disagreement.
+2. **Source reliability.** Per-source, and discounted over the action-induced correlation set from
+   ``stewie.twin.shared_terrain``: two vehicles that both dug a cell do not supply independent
+   evidence about it, so their agreement there is worth less than their agreement elsewhere.
+3. **Terramechanics residual as contestable evidence (gap G-B).** The conserved authority predicts a
+   deformation; the sensor observes one. The residual between them is evidence about BOTH. Crucially
+   the physics is fallible: a large residual may mean a bad observation OR a misspecified model, and
+   the gate must not resolve that ambiguity by trusting physics. When the residual is large and the
+   physics cannot be corroborated, the gate ABSTAINS rather than rejecting a possibly-good
+   observation. Treating the model as truth is exactly the failure this is built to avoid.
+
+Scope: this is the decision procedure only. It does not merge fields, prune branches, or prove
+anything. It exists to test one claim: that a gated promotion measurably beats fixed precedence on
+harmful acceptance, without paying for it in false rejections.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+
+import numpy as np
+
+
+class Decision(str, Enum):
+    PROMOTE = "promote"
+    REJECT = "reject"
+    ABSTAIN = "abstain"
+
+
+@dataclass(frozen=True)
+class Evidence:
+    """One typed, uncertain, source-tagged claim about a set of cells.
+
+    ``kind`` is the evidence class: "observation" (a sensor reading), "physics" (the conserved
+    authority's predicted deformation), or "action" (a reported executed action). ``sigma_m`` is the
+    declared 1-sigma height uncertainty [m]; it is what makes a disagreement meaningful or not.
+    ``reliability`` in (0, 1] is the prior trust in this source.
+    """
+
+    source: str
+    kind: str
+    values: np.ndarray            # per-cell height [m] over the candidate region
+    sigma_m: float
+    reliability: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.kind not in ("observation", "physics", "action"):
+            raise ValueError(f"unknown evidence kind {self.kind!r}")
+        if not (self.sigma_m > 0.0):
+            raise ValueError(f"{self.source}: sigma_m must be > 0 (got {self.sigma_m})")
+        if not (0.0 < self.reliability <= 1.0):
+            raise ValueError(f"{self.source}: reliability must be in (0, 1] (got {self.reliability})")
+        if not np.all(np.isfinite(np.asarray(self.values, dtype=float))):
+            raise ValueError(f"{self.source}: values must be finite")
+
+
+@dataclass
+class PromotionResult:
+    decision: Decision
+    reason: str
+    residual_rms_m: float = 0.0
+    tolerance_m: float = 0.0
+    n_correlated: int = 0
+    effective_n: float = 0.0
+    detail: dict = field(default_factory=dict)
+
+
+def _combined_tolerance(a: Evidence, b: Evidence, k: float) -> float:
+    """Disagreement is only real beyond the two declared uncertainties added in quadrature."""
+    return k * float(np.hypot(a.sigma_m, b.sigma_m))
+
+
+def evaluate(candidate: np.ndarray,
+             evidence: list[Evidence],
+             *,
+             prior: np.ndarray | None = None,
+             correlation_mask: np.ndarray | None = None,
+             k_sigma: float = 3.0,
+             min_effective_support: float = 1.0) -> PromotionResult:
+    """Decide whether ``candidate`` may become the authoritative state.
+
+    ``prior`` is the state that stands if the candidate is refused. ``correlation_mask`` marks cells
+    where evidence is action-correlated (from ``shared_terrain.correlation_mask``); support over
+    those cells is discounted rather than counted independently.
+    """
+    cand = np.asarray(candidate, dtype=float)
+    if not np.all(np.isfinite(cand)):
+        return PromotionResult(Decision.REJECT, "candidate contains non-finite heights")
+    if not evidence:
+        return PromotionResult(Decision.ABSTAIN, "no evidence offered")
+
+    obs = [e for e in evidence if e.kind == "observation"]
+    phys = [e for e in evidence if e.kind == "physics"]
+    if not obs:
+        return PromotionResult(Decision.ABSTAIN, "no observation among the evidence")
+
+    # --- effective support: correlated cells do not count as independent corroboration ----------
+    mask = (np.asarray(correlation_mask, dtype=bool) if correlation_mask is not None
+            else np.zeros(cand.shape, dtype=bool))
+    n_corr = int(mask.sum())
+    frac_independent = 1.0 - (n_corr / cand.size if cand.size else 0.0)
+    effective_n = sum(e.reliability for e in obs) * max(frac_independent, 0.0)
+
+    # --- physics as CONTESTABLE evidence (G-B) --------------------------------------------------
+    residual_rms = 0.0
+    tol = 0.0
+    physics_disagrees = False
+    if phys:
+        p, o = phys[0], obs[0]
+        resid = np.asarray(o.values, dtype=float) - np.asarray(p.values, dtype=float)
+        residual_rms = float(np.sqrt(np.mean(resid ** 2)))
+        tol = _combined_tolerance(o, p, k_sigma)
+        physics_disagrees = residual_rms > tol
+
+    # --- corroboration among observations --------------------------------------------------------
+    obs_disagrees = False
+    if len(obs) >= 2:
+        a, b = obs[0], obs[1]
+        d = float(np.sqrt(np.mean((np.asarray(a.values, float) - np.asarray(b.values, float)) ** 2)))
+        obs_disagrees = d > _combined_tolerance(a, b, k_sigma)
+
+    detail = {"n_obs": len(obs), "n_physics": len(phys), "frac_independent": frac_independent,
+              "physics_disagrees": physics_disagrees, "obs_disagrees": obs_disagrees}
+
+    # --- the decision ----------------------------------------------------------------------------
+    if obs_disagrees:
+        # two sensors contradict each other beyond their declared bands: nothing here settles it
+        return PromotionResult(Decision.ABSTAIN, "observations contradict each other beyond their declared uncertainty",
+                               residual_rms, tol, n_corr, effective_n, detail)
+
+    if physics_disagrees:
+        # The residual is real. It means EITHER the observation is wrong OR the model is misspecified,
+        # and this gate deliberately refuses to settle that by trusting the model. A second,
+        # independent observation agreeing with the first is what breaks the tie: then the
+        # observations corroborate and the model is the outlier, so promote. Otherwise abstain.
+        if len(obs) >= 2 and not obs_disagrees:
+            return PromotionResult(Decision.PROMOTE,
+                                   "physics residual exceeds tolerance, but independent observations "
+                                   "corroborate: the model is the outlier, not the observation",
+                                   residual_rms, tol, n_corr, effective_n, detail)
+        return PromotionResult(Decision.ABSTAIN,
+                               "physics residual exceeds the combined declared uncertainty and no "
+                               "independent observation corroborates: cannot distinguish a bad "
+                               "observation from a misspecified model",
+                               residual_rms, tol, n_corr, effective_n, detail)
+
+    if effective_n < min_effective_support:
+        return PromotionResult(Decision.ABSTAIN,
+                               f"effective independent support {effective_n:.2f} below required "
+                               f"{min_effective_support:.2f} (action-correlated cells discounted)",
+                               residual_rms, tol, n_corr, effective_n, detail)
+
+    return PromotionResult(Decision.PROMOTE, "evidence consistent within declared uncertainty",
+                           residual_rms, tol, n_corr, effective_n, detail)
+
+
+def baseline_fixed_precedence(prior: np.ndarray, observation: np.ndarray,
+                              mask: np.ndarray | None = None) -> np.ndarray:
+    """The control condition, reproducing ``terrain_view`` layer 2: the observation overwrites,
+    unconditionally. No uncertainty, no provenance, no physical check, no way to decline."""
+    z = np.array(prior, dtype=float, copy=True)
+    o = np.asarray(observation, dtype=float)
+    m = np.ones(z.shape, dtype=bool) if mask is None else np.asarray(mask, dtype=bool)
+    z[m] = o[m]
+    return z
