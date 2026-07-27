@@ -189,3 +189,72 @@ def detection_band_m(sigma_o: float, sigma_p: float, k_sigma: float) -> float:
     """
     import numpy as _np
     return float(k_sigma * _np.hypot(sigma_o, sigma_p))
+
+
+def run_miscalibration_sweep(truth: np.ndarray, kappas, *, n_trials: int = 20,
+                             sigma_declared: float = 0.05, sigma_p: float = 0.08,
+                             tau_m: float = 0.25, prior_offset_m: float = 0.15,
+                             k_sigma: float = 2.0, seed0: int = 9000) -> dict[str, list[SystemResult]]:
+    """[F3] Condition C. Sensors DECLARE ``sigma_declared`` but actually err at ``kappa`` times it.
+
+    This is the assumption doing the most work across the whole programme and the one every earlier
+    result assumed away: the sweeps to date set declared sigma equal to true sigma by construction.
+    Because the soundness claim is stated *over* calibrated sensors, an uncalibrated regime does not
+    degrade it gracefully -- it voids the hypothesis. So the question is not whether the bound still
+    holds (it is not claimed to) but what the rule actually *does* when a source lies about its own
+    precision, and whether it fails safe or fails silently.
+
+    ``kappa > 1`` is the dangerous direction: an over-confident sensor, reporting tighter error bars
+    than it earns. ``kappa < 1`` is a merely conservative one.
+
+    Every tolerance inside the rule is built from the DECLARED sigma, while the error that determines
+    harm is governed by the TRUE sigma. Two thresholds therefore separate, and the gap between them
+    is what this sweep measures.
+    """
+    out: dict[str, list[SystemResult]] = {s: [] for s in
+                                          ("fixed_precedence", "inverse_variance", "gate")}
+    for ki, kap in enumerate(kappas):
+        sigma_true = float(kap) * sigma_declared
+        acc = {s: SystemResult(s, float(kap), n_trials) for s in out}
+        for t in range(n_trials):
+            s_a = seed0 + 5449 * ki + 3 * t
+            # errors at the TRUE scale; the rule is only ever told sigma_declared
+            obs_a = _noisy(truth, sigma_true, s_a)
+            obs_b = _noisy(truth, sigma_true, s_a + 1)
+            phys = _noisy(truth, sigma_p, s_a + 2)
+            prior = truth + prior_offset_m
+
+            fp = baseline_fixed_precedence(prior, obs_a)
+            iv = inverse_variance_fusion(obs_a, sigma_declared, phys, sigma_p).values
+            r = evaluate(obs_a, [Evidence("stereo", "observation", obs_a, sigma_declared),
+                                 Evidence("lidar", "observation", obs_b, sigma_declared),
+                                 Evidence("terramech", "physics", phys, sigma_p)],
+                         prior=prior, k_sigma=k_sigma)
+            gate = obs_a if r.decision is Decision.PROMOTE else prior
+
+            for name, est in (("fixed_precedence", fp), ("inverse_variance", iv), ("gate", gate)):
+                e = _rms(est, truth)
+                acc[name].errors_m.append(e)
+                if e > tau_m:
+                    acc[name].n_harmful += 1
+            if r.decision is Decision.ABSTAIN:
+                acc["gate"].n_abstained += 1
+        for name, res in acc.items():
+            res.mean_error_m = float(np.mean(res.errors_m))
+            out[name].append(res)
+    return out
+
+
+def miscalibration_thresholds(sigma_declared: float, tau_m: float, k_sigma: float) -> dict[str, float]:
+    """The two kappa thresholds the sweep should exhibit, derived rather than fitted.
+
+    ``detect`` is where two readings at the true scale disagree beyond a tolerance built from the
+    declared scale, so the corroboration branch fires. ``harm`` is where the accepted reading's own
+    error exceeds the tolerance tau. The rule fails safe precisely when ``detect < harm``, which
+    reduces to ``k * sigma_declared < tau`` -- the same shape as the A5 resolvability condition with
+    the physics channel removed.
+    """
+    if sigma_declared <= 0 or tau_m <= 0 or k_sigma <= 0:
+        raise ValueError("sigma_declared, tau_m and k_sigma must all be > 0")
+    return {"detect": k_sigma, "harm": tau_m / sigma_declared,
+            "fails_safe": float(k_sigma * sigma_declared < tau_m)}
