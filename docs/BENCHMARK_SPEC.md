@@ -41,11 +41,31 @@ condition C4; the remainder are specified here and built in order.
 |---|---|---|---|---|
 | F1 | Physical-model bias | bias $b$, metres | **implemented** | The channel the veto-only argument is about |
 | F2 | Sensor fault | offset $d$, metres | **implemented** | The channel fixed precedence is blind to |
-| F3 | **Sensor mis-calibration** | $\kappa$ = true $\sigma$ / declared $\sigma$ | **implemented** | Result: mis-calibration converts into abstention, not harm, provided $k\,\sigma_{\text{declared}} < \tau$ --- the A5 inequality without its physics term. Necessary, not merely sufficient: violate it and the gate accepts harmful states |
+| F3 | **Sensor mis-calibration** | $\kappa$ = true $\sigma$ / declared $\sigma$ | **implemented** | Mis-calibration converts into abstention, not harm, provided $\sqrt{2k^2-1}\,\sigma_{\text{declared}} < \tau$. See the amendment below: the first version of this row gave the weaker symmetric condition and was wrong |
 | F4 | Shared-ground concurrency | overlap fraction $d=\lvert D\rvert/n$, agent count $m$ | **partial, next** | The condition the dissertation exists for. Currently exercised via the correlation mask; needs sweeping as a first-class axis, especially at $m\ge 3$ where the superseded placeholder was optimistic |
 | F5 | Delayed / out-of-order evidence | lag distribution | specified | Observation time, validity time and ingestion time must be distinguishable for acceptance to be well defined |
 | F6 | Partial or misreported action execution | executed / commanded ratio | specified | $S(a)$ is itself uncertain when a commanded action was only partly performed |
 | F7 | Duplicated evidence | duplication factor | specified | One reading counted twice is the degenerate case of dependency; a rule that cannot catch it cannot catch the general case |
+
+### Amendment 2026-07-27 — F3 condition corrected
+
+This document requires that a change made after results exist be recorded with its reason. One has
+been made.
+
+F3 was first reported with the fail-safe condition $k\,\sigma_{\text{declared}} < \tau$, noted as the
+A5 resolvability inequality with its physics term removed. That governs only the **symmetric** case,
+where every source is equally over-confident. Where a single source is over-confident and its
+corroborator is honest, disagreement grows as $\sqrt{\kappa^2+1}$ rather than as $\kappa$, so
+detection is deferred to $\kappa=\sqrt{2k^2-1}$ while the harm threshold is unmoved --- the reading
+that gets accepted is the bad one.
+
+The binding condition is therefore $\sqrt{2k^2-1}\,\sigma_{\text{declared}} < \tau$. At $k=4$,
+$\sigma_{\text{declared}}=0.05$, $\tau=0.25$ the superseded condition certifies safety ($0.20<0.25$)
+while the gate is measured harmed in **12 of 20** trials. The safety margin also narrows with gate
+width and inverts before $k=4$, so a wide gate is not merely conservative.
+
+Found by checking a doubt recorded in the previous iteration's journal rather than by a new result,
+which is the intended use of that journal.
 
 **Adversarial variants.** F1 and F3 have adversarial forms in which the parameter is chosen with
 knowledge of the rule rather than fixed in advance. For a rule whose branches are published this is

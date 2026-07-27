@@ -245,16 +245,81 @@ def run_miscalibration_sweep(truth: np.ndarray, kappas, *, n_trials: int = 20,
     return out
 
 
-def miscalibration_thresholds(sigma_declared: float, tau_m: float, k_sigma: float) -> dict[str, float]:
-    """The two kappa thresholds the sweep should exhibit, derived rather than fitted.
+def run_asymmetric_miscalibration_sweep(truth: np.ndarray, kappas, *, n_trials: int = 20,
+                                        sigma_declared: float = 0.05, sigma_p: float = 0.08,
+                                        tau_m: float = 0.25, prior_offset_m: float = 0.15,
+                                        k_sigma: float = 2.0, seed0: int = 11000
+                                        ) -> dict[str, list[SystemResult]]:
+    """[F3b] Only the ACCEPTED source is mis-calibrated; the corroborating one is honest.
 
-    ``detect`` is where two readings at the true scale disagree beyond a tolerance built from the
-    declared scale, so the corroboration branch fires. ``harm`` is where the accepted reading's own
-    error exceeds the tolerance tau. The rule fails safe precisely when ``detect < harm``, which
-    reduces to ``k * sigma_declared < tau`` -- the same shape as the A5 resolvability condition with
-    the physics channel removed.
+    This is the case the symmetric sweep missed, and it is the harder one. When both sources are
+    equally over-confident their disagreement grows as ``kappa`` and the corroboration branch notices
+    at ``kappa = k``. When only the candidate is bad, the disagreement grows as
+    ``sqrt(kappa^2 + 1)/sqrt(2)`` of the tolerance, so detection is deferred to
+    ``kappa = sqrt(2 k^2 - 1)`` while the harm threshold does not move -- the accepted reading is
+    precisely the bad one. The safety margin therefore narrows, and for large ``k`` it inverts.
+    """
+    out: dict[str, list[SystemResult]] = {s: [] for s in ("fixed_precedence", "gate")}
+    for ki, kap in enumerate(kappas):
+        acc = {s: SystemResult(s, float(kap), n_trials) for s in out}
+        for t in range(n_trials):
+            s_a = seed0 + 3931 * ki + 3 * t
+            obs_a = _noisy(truth, float(kap) * sigma_declared, s_a)   # candidate: mis-calibrated
+            obs_b = _noisy(truth, sigma_declared, s_a + 1)            # corroborator: honest
+            phys = _noisy(truth, sigma_p, s_a + 2)
+            prior = truth + prior_offset_m
+            fp = baseline_fixed_precedence(prior, obs_a)
+            r = evaluate(obs_a, [Evidence("stereo", "observation", obs_a, sigma_declared),
+                                 Evidence("lidar", "observation", obs_b, sigma_declared),
+                                 Evidence("terramech", "physics", phys, sigma_p)],
+                         prior=prior, k_sigma=k_sigma)
+            gate = obs_a if r.decision is Decision.PROMOTE else prior
+            for name, est in (("fixed_precedence", fp), ("gate", gate)):
+                e = _rms(est, truth)
+                acc[name].errors_m.append(e)
+                if e > tau_m:
+                    acc[name].n_harmful += 1
+            if r.decision is Decision.ABSTAIN:
+                acc["gate"].n_abstained += 1
+        for name, res in acc.items():
+            res.mean_error_m = float(np.mean(res.errors_m))
+            out[name].append(res)
+    return out
+
+
+def miscalibration_thresholds(sigma_declared: float, tau_m: float, k_sigma: float) -> dict[str, float]:
+    """Kappa thresholds for mis-calibration, for BOTH the symmetric and asymmetric cases.
+
+    **Corrected 2026-07-27.** An earlier version reported only the symmetric case and gave the
+    fail-safe condition as ``k * sigma_declared < tau``. That is incomplete, and certifying safety on
+    it is unsound.
+
+    *Symmetric* -- every source equally over-confident. Disagreement grows as ``kappa``, so the
+    corroboration branch fires at ``kappa = k``.
+
+    *Asymmetric* -- only the candidate is over-confident and its corroborator is honest. Disagreement
+    then grows as ``sqrt(kappa^2 + 1)`` against a tolerance of ``k * sqrt(2)``, so detection is
+    deferred to ``kappa = sqrt(2 k^2 - 1)``, which is strictly later. The harm threshold does not
+    move, because the reading that gets accepted is precisely the bad one.
+
+    The asymmetric case is therefore the binding one and the honest condition is
+
+        sqrt(2 k^2 - 1) * sigma_declared < tau
+
+    Measured: at ``k=4`` with ``sigma_declared=0.05`` and ``tau=0.25`` the old condition returns safe
+    (0.20 < 0.25) while the gate accepts a harmful state in 12 of 20 trials. See
+    ``test_miscalibration.py::test_symmetric_condition_alone_certifies_an_unsafe_configuration``.
     """
     if sigma_declared <= 0 or tau_m <= 0 or k_sigma <= 0:
         raise ValueError("sigma_declared, tau_m and k_sigma must all be > 0")
-    return {"detect": k_sigma, "harm": tau_m / sigma_declared,
-            "fails_safe": float(k_sigma * sigma_declared < tau_m)}
+    harm = tau_m / sigma_declared
+    detect_sym = k_sigma
+    detect_asym = float(np.sqrt(2.0 * k_sigma ** 2 - 1.0))
+    return {"detect": detect_sym,
+            "detect_symmetric": detect_sym,
+            "detect_asymmetric": detect_asym,
+            "harm": harm,
+            # the binding condition is the later detection, i.e. the asymmetric one
+            "fails_safe": float(detect_asym < harm),
+            "fails_safe_symmetric_only": float(detect_sym < harm),
+            "margin": harm / detect_asym}
