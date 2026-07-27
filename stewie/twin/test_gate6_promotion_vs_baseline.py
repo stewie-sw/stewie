@@ -184,33 +184,64 @@ def test_gate_does_not_win_by_refusing_everything():
 # G-A: action-correlated evidence is discounted rather than counted as independent support.
 # --------------------------------------------------------------------------------------------
 def test_action_correlated_cells_reduce_effective_support():
+    """G-A: two vehicles that both dug a cell do not supply independent evidence about it.
+
+    Uses TWO observations, because that is what the discount is about. Under the C3 bound the
+    correlation between observations is what shrinks, so a single reading is never discounted --
+    see ``test_a_single_observation_is_not_discounted_by_shared_ground`` below."""
     truth = _truth()
-    obs = _noisy(truth, SIGMA_OBS, seed=7)
-    ev = [Evidence("scout", "observation", obs, SIGMA_OBS, reliability=0.6)]
+    obs_a = _noisy(truth, SIGMA_OBS, seed=7)
+    obs_b = _noisy(truth, SIGMA_OBS, seed=8)
+    ev = [Evidence("scout", "observation", obs_a, SIGMA_OBS, reliability=0.6),
+          Evidence("hauler", "observation", obs_b, SIGMA_OBS, reliability=0.6)]
 
-    clean = evaluate(obs, ev, prior=truth, min_effective_support=0.5)
+    clean = evaluate(obs_a, ev, prior=truth, min_effective_support=0.9)
     assert clean.decision is Decision.PROMOTE
+    assert clean.effective_n == pytest.approx(2 * 0.6)      # nothing shared: full support
 
-    # A realistic co-dig: two vehicles working the same pad overlap over most of it.
+    # A realistic co-dig: both vehicles worked most of the pad.
     mask = np.zeros(truth.shape, dtype=bool)
-    mask[6:26, 6:26] = True                     # 400 of 1024 cells touched by BOTH vehicles
-    corr = evaluate(obs, ev, prior=truth, correlation_mask=mask, min_effective_support=0.5)
+    mask[6:26, 6:26] = True                     # 400 of 1024 cells touched by BOTH
+    corr = evaluate(obs_a, ev, prior=truth, correlation_mask=mask, min_effective_support=0.9)
     assert corr.n_correlated == 400
-    assert corr.effective_n < clean.effective_n
+    assert corr.effective_n < clean.effective_n, "shared ground must reduce independent support"
+    assert corr.effective_n > 0.6, "but two correlated readings are still worth more than one"
     assert corr.decision is Decision.ABSTAIN
     assert "action-correlated" in corr.reason
 
 
-def test_small_correlated_region_reduces_support_without_flipping_the_decision():
-    """The discount is proportional, not a cliff: a little shared ground lowers effective support
-    but does not by itself refuse. Recorded because the linear-in-area discount is the crudest part
-    of this spike and its weakness should be visible, not hidden."""
+def test_a_single_observation_is_not_discounted_by_shared_ground():
+    """Semantic correction that came with the C3 bound, and it changed behaviour.
+
+    The superseded linear discount shrank support even with ONE observation, which is meaningless:
+    another vehicle having dug the same cell does not make your own reading of it worse. It makes two
+    readings less independent OF EACH OTHER. With m=1 there is no corroboration to discount, so C3
+    returns full support at any overlap."""
     truth = _truth()
     obs = _noisy(truth, SIGMA_OBS, seed=7)
     ev = [Evidence("scout", "observation", obs, SIGMA_OBS, reliability=0.6)]
     mask = np.zeros(truth.shape, dtype=bool)
-    mask[8:20, 8:20] = True                     # 144 of 1024 -> support 0.6 * 0.859 = 0.516
+    mask[6:26, 6:26] = True
     r = evaluate(obs, ev, prior=truth, correlation_mask=mask, min_effective_support=0.5)
+    assert r.n_correlated == 400
+    assert r.effective_n == pytest.approx(0.6)   # reliability only; no independence discount
+    assert r.decision is Decision.PROMOTE
+
+
+
+def test_small_correlated_region_reduces_support_without_flipping_the_decision():
+    """The discount is proportional, not a cliff: a little shared ground lowers effective support
+    but does not by itself refuse."""
+    truth = _truth()
+    obs_a = _noisy(truth, SIGMA_OBS, seed=7)
+    obs_b = _noisy(truth, SIGMA_OBS, seed=9)
+    ev = [Evidence("scout", "observation", obs_a, SIGMA_OBS, reliability=0.6),
+          Evidence("hauler", "observation", obs_b, SIGMA_OBS, reliability=0.6)]
+    mask = np.zeros(truth.shape, dtype=bool)
+    mask[8:20, 8:20] = True                     # 144 of 1024 -> d = 0.140625
+    r = evaluate(obs_a, ev, prior=truth, correlation_mask=mask, min_effective_support=0.9)
     assert r.n_correlated == 144
-    assert 0.51 < r.effective_n < 0.52
+    # C3: m/(1 + d(m-1)) * mean_reliability = 2/(1 + 0.140625) * 0.6
+    assert r.effective_n == pytest.approx(2 / (1 + 0.140625) * 0.6, rel=1e-9)
     assert r.decision is Decision.PROMOTE       # still above threshold, correctly
+

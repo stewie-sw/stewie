@@ -43,6 +43,8 @@ from enum import Enum
 
 import numpy as np
 
+from stewie.twin.effective_support import conservative_effective_support
+
 
 class Decision(str, Enum):
     PROMOTE = "promote"
@@ -121,8 +123,13 @@ def evaluate(candidate: np.ndarray,
     mask = (np.asarray(correlation_mask, dtype=bool) if correlation_mask is not None
             else np.zeros(cand.shape, dtype=bool))
     n_corr = int(mask.sum())
-    frac_independent = 1.0 - (n_corr / cand.size if cand.size else 0.0)
-    effective_n = sum(e.reliability for e in obs) * max(frac_independent, 0.0)
+    d = (n_corr / cand.size) if cand.size else 0.0
+    # [C3] Conservative effective support: rho=1 on the shared cells, no correlation model assumed.
+    # Replaces a linear-in-area discount that was optimistic below d=(m-2)/(m-1) for m>=3, i.e. that
+    # overstated independent support in exactly the many-agent regime this gate exists for.
+    mean_reliability = sum(e.reliability for e in obs) / len(obs)
+    effective_n = conservative_effective_support(len(obs), d) * mean_reliability
+    frac_independent = 1.0 - d
 
     # --- physics as CONTESTABLE evidence (G-B) --------------------------------------------------
     residual_rms = 0.0
