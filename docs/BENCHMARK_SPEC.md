@@ -44,7 +44,7 @@ condition C4; the remainder are specified here and built in order.
 | F3 | **Sensor mis-calibration** | $\kappa$ = true $\sigma$ / declared $\sigma$ | **implemented** | Mis-calibration converts into abstention, not harm, provided $\sqrt{2k^2-1}\,\sigma_{\text{declared}} < \tau$. See the amendment below: the first version of this row gave the weaker symmetric condition and was wrong |
 | F4 | Shared-ground concurrency | overlap fraction $d=\lvert D\rvert/n$, agent count $m$ | **implemented** | Correlated error makes readings agree while all are wrong, defeating corroboration. Support models order none $>$ linear $>$ C3 in harm (57/40/31). See the amendment below: the free support threshold, not the bound, was the larger defect |
 | F5 | Delayed / out-of-order evidence | lag distribution | **implemented** | The gap was availability, not safety: the physics channel already caught a lone stale reading, but a stale reading present alongside a current one blocked it 100% of the time. Dating evidence against the action history restores availability at no cost in harm |
-| F6 | Partial or misreported action execution | executed / commanded ratio | specified | $S(a)$ is itself uncertain when a commanded action was only partly performed |
+| F6 | Partial or misreported action execution | log fidelity | **implemented** | Under-reporting is the dangerous direction and the failure is a cliff at the support threshold, not a decay. Tolerated to 50\% fidelity; broken by 25\% |
 | F7 | Duplicated evidence | duplication factor | specified | One reading counted twice is the degenerate case of dependency; a rule that cannot catch it cannot catch the general case |
 
 ### Amendment 2026-07-27 — F3 condition corrected
@@ -179,10 +179,34 @@ a control that degrades the rule in an unpredicted direction is a finding about 
 | Provenance scramble | Randomise source labels | Effective support becomes uninformative; harmful acceptance rises toward the no-correction ablation |
 | Prediction scramble | Replace the physical prediction with noise of the same scale | Physical-consistency branch fires at its false-positive rate; abstention rises, harmful acceptance does **not** |
 | Evidence duplication | Present one observation twice as two sources | A rule that cannot detect this reports inflated support; C3 with a correct correlation mask should not |
-| Action-log shuffle | Permute the action history while holding observations fixed | $D$ becomes wrong; if harmful acceptance is unchanged, the action history was not load-bearing and the central claim is in trouble |
+| Action-log shuffle | Permute the action history while holding observations fixed | **Run 2026-07-27. Outcome identical to an accurate log --- but see the amendment: the manipulation is one $m_{\text{eff}}$ is blind to by construction, so this control currently verifies the cardinality path only** |
 
-The last is the strongest control in the set: it tests the dissertation's premise directly rather
-than the rule's implementation.
+The last was intended as the strongest control in the set, testing the premise rather than the
+implementation. **It cannot currently do that**, and the reason is itself a finding --- see the
+amendment below.
+
+### Amendment 2026-07-27 (4) --- the shuffle control cannot falsify the premise yet
+
+Permuting the action log while preserving its size leaves the outcome bit-identical. That is not
+because the action history is inert: the fidelity sweep shows harmful acceptance rising sharply once
+the log under-reports past the support threshold, so the history is load-bearing.
+
+It is because $m_{\text{eff}}$ consumes only $\lvert D\rvert/n$. Three masks of identical size and
+completely different geometry --- contiguous, scattered, blocked --- give the same effective support
+to six decimal places. The region-aggregate bound is derived by mean squared error over cells treated
+symmetrically, so geometry cannot enter. The shuffle is a manipulation the quantity is blind to by
+construction.
+
+**Two consequences, and the second is the substantive one.**
+
+The pre-registration must not be read as satisfied. This control verifies the cardinality path and
+nothing more, and testing whether the history's *structure* matters needs a dependency
+representation that carries structure.
+
+And this is direct empirical support for the open question of whether a scalar is the right shape of
+object for $m_{\text{eff}}$ at all --- recorded in the proposal as the deepest unresolved item. The
+question was raised on statistical grounds; the shuffle control now answers it from the other
+direction, by showing exactly what the scalar form discards.
 
 ---
 

@@ -481,3 +481,65 @@ def run_stale_evidence_sweep(truth_old: np.ndarray, truth_new: np.ndarray, dug_m
         res.mean_error_m = float(np.mean(res.errors_m))
         out[s].append(res)
     return out
+
+
+def run_action_log_fidelity_sweep(truth: np.ndarray, fidelities, *, d_true: float = 0.40,
+                                  m_agents: int = 3, shared_error_m: float = 0.6,
+                                  n_trials: int = 20, sigma_o: float = 0.05, sigma_p: float = 0.08,
+                                  tau_m: float = 0.25, prior_offset_m: float = 0.15,
+                                  k_sigma: float = 2.0, min_support: float = 2.25,
+                                  shuffle: bool = False, seed0: int = 19000
+                                  ) -> dict[str, list[SystemResult]]:
+    """[F6] The action log is wrong, and everything downstream is built on it.
+
+    ``m_eff`` is derived from the record of what the machines did. If that record is inaccurate the
+    derivation inherits the inaccuracy, and the dangerous direction is **under-reporting**: a log
+    claiming less shared ground than there was makes the rule believe the readings are more
+    independent than they are, which is the optimistic error this whole design exists to prevent.
+
+    ``fidelity`` is the share of genuinely shared cells the log actually records. 1.0 is an accurate
+    log; 0.0 claims no shared ground at all, at which point the rule behaves like the no-correction
+    ablation. The common error is always applied to the TRUE shared region, so the terrain does not
+    care what the log says.
+
+    ``shuffle=True`` is the stronger control and tests the premise rather than the implementation.
+    The reported region keeps the correct SIZE but is moved to the wrong cells, so ``m_eff`` is
+    numerically right and attached to nothing real. If harmful acceptance is unchanged by that, the
+    action history was never load-bearing and the central claim is in trouble.
+    """
+    out: dict[str, list[SystemResult]] = {"gate": []}
+    n = truth.size
+    n_true = int(round(d_true * n))
+    true_mask = np.zeros(truth.shape, dtype=bool)
+    true_mask.ravel()[:n_true] = True
+    for fi, fid in enumerate(fidelities):
+        acc = {"gate": SystemResult("gate", float(fid), n_trials)}
+        n_rep = int(round(float(fid) * n_true))
+        for t in range(n_trials):
+            rng = np.random.default_rng(seed0 + 4093 * fi + t)
+            reported = np.zeros(truth.shape, dtype=bool)
+            if shuffle:
+                # correct size, wrong cells: drawn from outside the true region where possible
+                idx = rng.permutation(n)
+                reported.ravel()[idx[:n_rep]] = True
+            else:
+                reported.ravel()[:n_rep] = True          # a prefix of the true region: under-report
+            common = np.zeros(truth.shape, dtype=float)
+            common[true_mask] = rng.normal(0.0, shared_error_m)   # terrain ignores the log
+            obs = [truth + common + rng.normal(0.0, sigma_o, truth.shape) for _ in range(m_agents)]
+            phys = truth + rng.normal(0.0, sigma_p, truth.shape)  # model predicts the true surface
+            prior = truth + prior_offset_m
+            ev = [Evidence(f"agent{i}", "observation", o, sigma_o) for i, o in enumerate(obs)]
+            ev.append(Evidence("terramech", "physics", phys, sigma_p))
+            r = evaluate(obs[0], ev, prior=prior, correlation_mask=reported, k_sigma=k_sigma,
+                         min_effective_support=min_support)
+            est = obs[0] if r.decision is Decision.PROMOTE else prior
+            e = _rms(est, truth)
+            acc["gate"].errors_m.append(e)
+            if e > tau_m:
+                acc["gate"].n_harmful += 1
+            if r.decision is Decision.ABSTAIN:
+                acc["gate"].n_abstained += 1
+        acc["gate"].mean_error_m = float(np.mean(acc["gate"].errors_m))
+        out["gate"].append(acc["gate"])
+    return out
