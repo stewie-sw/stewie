@@ -153,3 +153,52 @@ def log_error_tolerance(m: int, min_effective_support: float) -> float:
         return 0.0
     return min(1.0, (m / min_effective_support - 1.0) / (m - 1.0))
 
+def observed_dependency_fraction(correlation_mask, observed_mask) -> float:
+    """The dependency fraction among the cells a sensor actually saw.
+
+    The rule divides the correlated-cell count by the size of the whole candidate array. That is
+    correct only when the observation covers the whole array. Real readings do not: the perception
+    path computes ``valid = np.isfinite(z).mean()`` precisely because parts of the field are
+    unobserved, and carries it forward as ``coverage_fraction``.
+
+    The denominator that matters is the number of cells actually observed, because those are the
+    only cells the corroboration was computed over:
+
+        d_observed = |D and observed| / |observed|
+
+    **Coverage and dependency are not independent in this setting, and that is what makes the
+    difference bite.** Both are driven by where the machines are: they churn the ground they stand
+    on and they see the ground they stand on. So a sensor preferentially observes exactly the cells
+    its own vehicle disturbed, the full-grid fraction understates the dependency among the cells
+    that were actually compared, and the rule believes the readings are more independent than they
+    are. That is the optimistic direction, the one this design exists to prevent.
+
+    Measured at 50% coverage with a true dependency of 15% of the grid: the full-grid denominator
+    gives ``m_eff = 2.31`` and accepts, while the observed-cell denominator gives 1.88 and would
+    refuse. Under coverage uncorrelated with dependency the two agree, so this is a statement about
+    the correlation, not about partial coverage as such.
+
+    Returns 0.0 when nothing was observed, which is the conservative reading only in the sense that
+    no support can be claimed from an empty set; callers must treat zero coverage as abstention
+    rather than as independence.
+    """
+    corr = np.asarray(correlation_mask, dtype=bool)
+    seen = np.asarray(observed_mask, dtype=bool)
+    if corr.shape != seen.shape:
+        raise ValueError(f"mask shapes differ: {corr.shape} vs {seen.shape}")
+    n_seen = int(seen.sum())
+    if n_seen == 0:
+        return 0.0
+    return float((corr & seen).sum()) / float(n_seen)
+
+
+def coverage_aware_support(m: int, correlation_mask, observed_mask, rho: float = 1.0) -> float:
+    """``conservative_effective_support`` over the observed cells rather than the whole array.
+
+    Not wired into the decision rule. Doing so requires admitting observations with unobserved
+    cells, which the ``Evidence`` guard currently refuses outright, and that is a change to what
+    inputs the rule accepts rather than to how it weighs them.
+    """
+    return conservative_effective_support(
+        m, observed_dependency_fraction(correlation_mask, observed_mask), rho)
+

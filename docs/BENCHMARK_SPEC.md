@@ -45,6 +45,7 @@ condition C4; the remainder are specified here and built in order.
 | F4 | Shared-ground concurrency | overlap fraction $d=\lvert D\rvert/n$, agent count $m$ | **implemented** | Correlated error makes readings agree while all are wrong, defeating corroboration. Support models order none $>$ linear $>$ C3 in harm (57/40/31). See the amendment below: the free support threshold, not the bound, was the larger defect |
 | F5 | Delayed / out-of-order evidence | lag distribution | **implemented** | The gap was availability, not safety: the physics channel already caught a lone stale reading, but a stale reading present alongside a current one blocked it 100% of the time. Dating evidence against the action history restores availability at no cost in harm |
 | F6 | Partial or misreported action execution | log fidelity (recall) | **implemented** | Under-reporting is the direction that causes *harm*, and the failure is a cliff at the support threshold, not a decay. Tolerated to 50\% fidelity; broken by 25\%. The row first called this "the dangerous direction"; see amendment 7 --- it is the *less* sensitive one |
+| F8 | **Partial sensor coverage** | coverage fraction $\times$ its correlation with $D$ | **specified, latent** | The real perception path emits fields with unobserved cells; the rule cannot represent them. Where coverage is co-located with disturbance --- the default, since both follow the machines --- the full-grid denominator understates dependency among the compared cells. Fails closed today, so latent until the perception path is connected |
 | F6b | **Action log fabricates overlap** | log precision (false-positive rate) | **implemented** | The direction F6 did not cover. Roughly four times more sensitive: availability is destroyed at 20\% fabrication against 50\% for omission. Fails to refusal, never to harm. Both cliffs sit at one closed-form constant, so precision and recall trade off exactly |
 | F7 | Duplicated evidence | duplication factor | **implemented** | **Defeats the rule completely**: 0/20 harmful presented once, 20/20 relabelled as two sources. Establishes the mechanism's scope --- it models *action-induced* dependency, and duplication leaves no trace in the action history |
 
@@ -240,6 +241,50 @@ claim the specification itself made, which the specification's own rule requires
 cliff about two percentage points high, consistently. A Bernoulli mask makes the realized fraction a
 random variable, so requiring all trials to abstain measures the upper tail rather than the
 boundary. Sweep the realized fraction when the quantity under test is a threshold.
+
+### Amendment 2026-07-28 (8) --- coverage is a fault axis and the taxonomy has no row for it
+
+Found by asking what the real ingest path would hand the rule, rather than by extending an existing
+family.
+
+**The perception path emits partial fields by design.** `runtime/replay_loop.py:88` computes
+`valid = np.isfinite(z).mean()` and carries it as `coverage_fraction`, because parts of the field
+are never observed. **The promotion rule cannot represent that**: the `Evidence` guard raises on any
+non-finite value, so a realistic reading cannot be constructed. The subsystems do not connect.
+
+That is the A7 shape again --- each component internally consistent, incompatible at the seam --- and
+it means every measurement in this benchmark uses fully covered observations, which no real sensor
+produces. **The coverage regime of every result so far is 100%, and it was never stated.**
+
+**The failure is not only availability.** The rule computes $d = n_{\text{corr}}/\lvert
+\text{candidate}\rvert$, over the whole array. The denominator that matters is the number of cells
+actually observed, since those are the only cells corroboration was computed over.
+
+| coverage | $m_{\text{eff}}$, full grid | $m_{\text{eff}}$, observed cells | verdict |
+|---|---|---|---|
+| 100% | 2.31 | 2.31 | agree |
+| 50% | 2.31 | **1.88** | **accepts what it should refuse** |
+| 35% | 2.31 | 1.62 | accepts what it should refuse |
+| 25% | 2.31 | 1.37 | accepts what it should refuse |
+
+*(three agents, threshold 2.0, true dependency 15% of the grid)*
+
+**The correlation that causes this is the default, not an adversarial choice.** Coverage and
+disturbance have the same cause: where the machines are. They churn the ground they stand on and
+they see the ground they stand on, so a sensor preferentially observes exactly the cells its own
+vehicle disturbed. Under coverage *uncorrelated* with dependency the two denominators agree, so the
+finding is about the correlation rather than about partial coverage as such.
+
+**Status: latent, not live.** The rule fails closed. It becomes live the moment the perception path
+is connected. The corrected denominator is implemented and measured as
+`effective_support.coverage_aware_support` and is deliberately **not wired in**: doing so requires
+admitting observations with unobserved cells, which changes what inputs the rule accepts rather than
+how it weighs them, and that is a design decision.
+
+**Open beyond the denominator.** With partial coverage the residual and corroboration comparisons
+must run over the *jointly* observed cells of each pair, and different pairs then have different
+support sets. Whether a scalar $m_{\text{eff}}$ can survive that is the same
+scalar-versus-structure question, arriving from a third direction.
 
 ### Amendment 2026-07-27 (5) --- F7 establishes where the mechanism stops
 
