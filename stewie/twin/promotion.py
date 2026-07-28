@@ -101,12 +101,18 @@ def evaluate(candidate: np.ndarray,
              prior: np.ndarray | None = None,
              correlation_mask: np.ndarray | None = None,
              k_sigma: float = 3.0,
-             min_effective_support: float = 1.0) -> PromotionResult:
+             min_effective_support: float = 1.0,
+             support_model: str = "c3") -> PromotionResult:
     """Decide whether ``candidate`` may become the authoritative state.
 
     ``prior`` is the state that stands if the candidate is refused. ``correlation_mask`` marks cells
     where evidence is action-correlated (from ``shared_terrain.correlation_mask``); support over
     those cells is discounted rather than counted independently.
+
+    ``support_model`` selects how that discount is computed: ``"c3"`` is the conservative bound and
+    the default; ``"linear"`` reinstates the superseded discount and ``"none"`` disables correction
+    entirely. The latter two exist so the ablation ladder can isolate what the bound actually buys,
+    and should not be used to decide anything.
     """
     cand = np.asarray(candidate, dtype=float)
     if not np.all(np.isfinite(cand)):
@@ -128,7 +134,15 @@ def evaluate(candidate: np.ndarray,
     # Replaces a linear-in-area discount that was optimistic below d=(m-2)/(m-1) for m>=3, i.e. that
     # overstated independent support in exactly the many-agent regime this gate exists for.
     mean_reliability = sum(e.reliability for e in obs) / len(obs)
-    effective_n = conservative_effective_support(len(obs), d) * mean_reliability
+    if support_model == "c3":
+        raw_support = conservative_effective_support(len(obs), d)
+    elif support_model == "linear":                 # the superseded discount, for ablation only
+        raw_support = len(obs) * (1.0 - d)
+    elif support_model == "none":                   # ablation 6: no dependency correction at all
+        raw_support = float(len(obs))
+    else:
+        raise ValueError(f"unknown support_model {support_model!r}")
+    effective_n = raw_support * mean_reliability
     frac_independent = 1.0 - d
 
     # --- physics as CONTESTABLE evidence (G-B) --------------------------------------------------

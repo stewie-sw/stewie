@@ -323,3 +323,96 @@ def miscalibration_thresholds(sigma_declared: float, tau_m: float, k_sigma: floa
             "fails_safe": float(detect_asym < harm),
             "fails_safe_symmetric_only": float(detect_sym < harm),
             "margin": harm / detect_asym}
+
+
+def run_shared_ground_sweep(truth: np.ndarray, overlaps, *, m_agents: int = 3,
+                            shared_error_m: float = 0.6, n_trials: int = 20,
+                            sigma_o: float = 0.05, sigma_p: float = 0.08,
+                            tau_m: float = 0.25, prior_offset_m: float = 0.15,
+                            k_sigma: float = 2.0, min_support: float = 2.0,
+                            seed0: int = 13000) -> dict[str, list[SystemResult]]:
+    """[F4] The experiment the whole thesis reduces to.
+
+    On cells that several agents have dug, every agent's reading carries the SAME error, because the
+    same physical modification produced it. The readings therefore **agree with each other while all
+    of them are wrong**. Corroboration cannot detect this -- agreement is exactly what it looks for --
+    and neither can a physical-consistency check, since the error is in the terrain rather than in the
+    model. The only thing that can catch it is knowing that agreement between action-correlated
+    sources is worth less than agreement between independent ones.
+
+    That is what ``m_eff`` is for, and this sweep is where it either earns its place or does not.
+
+    Three support models are compared on identical evidence:
+      ``none``    no dependency correction; agreement is taken at face value
+      ``linear``  the superseded discount
+      ``c3``      the conservative bound
+
+    ``shared_error_m`` is the magnitude of the common error on shared ground. It is injected under
+    control and labelled as such; the terrain beneath it is real.
+    """
+    models = ("none", "linear", "c3")
+    out: dict[str, list[SystemResult]] = {s: [] for s in models}
+    n = truth.size
+    for di, d in enumerate(overlaps):
+        acc = {s: SystemResult(s, float(d), n_trials) for s in models}
+        n_shared = int(round(float(d) * n))
+        mask = np.zeros(truth.shape, dtype=bool)
+        if n_shared:
+            mask.ravel()[:n_shared] = True
+        for t in range(n_trials):
+            rng = np.random.default_rng(seed0 + 7717 * di + t)
+            # the common error: one draw, applied to EVERY agent on the shared cells
+            common = np.zeros(truth.shape, dtype=float)
+            common[mask] = rng.normal(0.0, shared_error_m)
+            obs = [truth + common + rng.normal(0.0, sigma_o, truth.shape)
+                   for _ in range(m_agents)]
+            phys = truth + common + rng.normal(0.0, sigma_p, truth.shape)
+            prior = truth + prior_offset_m
+            ev = [Evidence(f"agent{i}", "observation", o, sigma_o) for i, o in enumerate(obs)]
+            ev.append(Evidence("terramech", "physics", phys, sigma_p))
+            for sm in models:
+                r = evaluate(obs[0], ev, prior=prior, correlation_mask=mask, k_sigma=k_sigma,
+                             min_effective_support=min_support, support_model=sm)
+                est = obs[0] if r.decision is Decision.PROMOTE else prior
+                e = _rms(est, truth)
+                acc[sm].errors_m.append(e)
+                if e > tau_m:
+                    acc[sm].n_harmful += 1
+                if r.decision is Decision.ABSTAIN:
+                    acc[sm].n_abstained += 1
+        for sm, res in acc.items():
+            res.mean_error_m = float(np.mean(res.errors_m))
+            out[sm].append(res)
+    return out
+
+
+def shared_ground_harm_onset(sigma_o: float, tau_m: float, shared_error_m: float) -> float:
+    """Overlap fraction at which the accepted state first exceeds ``tau``, derived not fitted.
+
+    RMS error over the region is ``sqrt(d * shared^2 + sigma_o^2)``, so harm begins at
+    ``d = (tau^2 - sigma_o^2) / shared^2``.
+    """
+    if shared_error_m <= 0:
+        raise ValueError("shared_error_m must be > 0")
+    return max(0.0, (tau_m ** 2 - sigma_o ** 2) / shared_error_m ** 2)
+
+
+def derived_support_threshold(m_agents: int, sigma_o: float, tau_m: float,
+                              shared_error_m: float) -> float:
+    """The support threshold implied by the harm threshold, rather than chosen.
+
+    A support threshold picked by hand is a free parameter, and picking it too low leaves a window in
+    which the accepted state is already harmful but the support test has not yet fired. Requiring the
+    test to fire exactly at the harm onset removes the freedom:
+
+        d_harm = (tau^2 - sigma_o^2) / shared^2          # where the accepted state first exceeds tau
+        threshold = m / (1 + d_harm * (m - 1))           # the C3 support at that overlap
+
+    Measured effect at m=3, sigma_o=0.05, tau=0.25, shared=0.6: the hand-picked 2.0 fires only at
+    d=0.25 and leaves 31 harmful acceptances across the sweep; the derived 2.25 fires at d=0.167 and
+    leaves 5. The bound was never the problem -- the free parameter was.
+    """
+    if m_agents < 1:
+        raise ValueError(f"m_agents must be >= 1 (got {m_agents})")
+    d_harm = shared_ground_harm_onset(sigma_o, tau_m, shared_error_m)
+    return m_agents / (1.0 + d_harm * (m_agents - 1))

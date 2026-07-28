@@ -42,7 +42,7 @@ condition C4; the remainder are specified here and built in order.
 | F1 | Physical-model bias | bias $b$, metres | **implemented** | The channel the veto-only argument is about |
 | F2 | Sensor fault | offset $d$, metres | **implemented** | The channel fixed precedence is blind to |
 | F3 | **Sensor mis-calibration** | $\kappa$ = true $\sigma$ / declared $\sigma$ | **implemented** | Mis-calibration converts into abstention, not harm, provided $\sqrt{2k^2-1}\,\sigma_{\text{declared}} < \tau$. See the amendment below: the first version of this row gave the weaker symmetric condition and was wrong |
-| F4 | Shared-ground concurrency | overlap fraction $d=\lvert D\rvert/n$, agent count $m$ | **partial, next** | The condition the dissertation exists for. Currently exercised via the correlation mask; needs sweeping as a first-class axis, especially at $m\ge 3$ where the superseded placeholder was optimistic |
+| F4 | Shared-ground concurrency | overlap fraction $d=\lvert D\rvert/n$, agent count $m$ | **implemented** | Correlated error makes readings agree while all are wrong, defeating corroboration. Support models order none $>$ linear $>$ C3 in harm (57/40/31). See the amendment below: the free support threshold, not the bound, was the larger defect |
 | F5 | Delayed / out-of-order evidence | lag distribution | specified | Observation time, validity time and ingestion time must be distinguishable for acceptance to be well defined |
 | F6 | Partial or misreported action execution | executed / commanded ratio | specified | $S(a)$ is itself uncertain when a commanded action was only partly performed |
 | F7 | Duplicated evidence | duplication factor | specified | One reading counted twice is the degenerate case of dependency; a rule that cannot catch it cannot catch the general case |
@@ -66,6 +66,22 @@ width and inverts before $k=4$, so a wide gate is not merely conservative.
 
 Found by checking a doubt recorded in the previous iteration's journal rather than by a new result,
 which is the intended use of that journal.
+
+### Amendment 2026-07-27 (2) --- F4 exposed a free parameter
+
+The support threshold was chosen by hand (2.0). That leaves a window in which the accepted state is
+already harmful but the support test has not yet fired, because the threshold was set independently
+of $\tau$. Requiring the test to fire at the harm onset removes the freedom:
+
+$$d_{\text{harm}} = \frac{\tau^2-\sigma_o^2}{\text{shared}^2}, \qquad
+  \text{threshold} = \frac{m}{1 + d_{\text{harm}}(m-1)}$$
+
+Measured at $m=3$, $\sigma_o=0.05$, $\tau=0.25$, shared error 0.6 m: the hand-picked 2.0 fires only
+at $d=0.25$ and leaves **31** harmful acceptances across the sweep; the derived 2.25 fires at
+$d=0.167$ and leaves **5**. The bound was never the problem.
+
+This is the third parameter in this work that needed deriving rather than choosing, after the A5
+gate width and the F3 fail-safe condition. Recorded as a pattern rather than three incidents.
 
 **Adversarial variants.** F1 and F3 have adversarial forms in which the parameter is chosen with
 knowledge of the rule rather than fixed in advance. For a rule whose branches are published this is
