@@ -1,49 +1,33 @@
-"""[GATE6] Provenance- and physics-gated promotion of a candidate terrain state.
+"""Observation-aggregate promotion with contestable, veto-only physics.
 
-The baseline this must beat is ``stewie.twin.terrain_view`` layer 2, which is one line:
+The deployed control in :mod:`stewie.twin.terrain_view` overwrites the current
+state with an observation. This module instead returns PROMOTE, REJECT, or
+ABSTAIN and may consult a physical prediction before accepting a patch.
 
-    z[m] = oh[m]
+The accepted value is constructed here as the plain mean of all
+metadata-admissible observations. Physics may suppress that value but cannot
+construct it, choose an observation subset, set its weights, or fill missing
+cells. This is the implementation invariant behind the model-bias theorem.
 
-An observation overwrites as-built, which overwrites the pristine base. Fixed lexicographic
-precedence, no uncertainty in the decision, no provenance weighting, no physical check, and no way
-to decline. That is the single-authoritative-map control condition.
-
-This module replaces the precedence rule with a DECISION. A candidate update carries its evidence,
-and the gate returns one of:
-
-    PROMOTE   accept the candidate as the operationally authoritative state
-    REJECT    refuse it; the prior state stands
-    ABSTAIN   the evidence cannot settle it; defer and gather more (NOT the same as reject --
-              rejecting says "this is wrong", abstaining says "I cannot tell", and conflating them
-              is what makes a binary gate fail under model misspecification)
-
-Three inputs decide it, and the third is the one no charted work in the scoping review uses:
-
-1. **Declared uncertainty.** Each evidence item carries a sigma. A disagreement inside the combined
-   band is not a disagreement.
-2. **Source reliability.** Per-source, and discounted over the action-induced correlation set from
-   ``stewie.twin.shared_terrain``: two vehicles that both dug a cell do not supply independent
-   evidence about it, so their agreement there is worth less than their agreement elsewhere.
-3. **Terramechanics residual as contestable evidence (gap G-B).** The conserved authority predicts a
-   deformation; the sensor observes one. The residual between them is evidence about BOTH. Crucially
-   the physics is fallible: a large residual may mean a bad observation OR a misspecified model, and
-   the gate must not resolve that ambiguity by trusting physics. When the residual is large and the
-   physics cannot be corroborated, the gate ABSTAINS rather than rejecting a possibly-good
-   observation. Treating the model as truth is exactly the failure this is built to avoid.
-
-Scope: this is the decision procedure only. It does not merge fields, prune branches, or prove
-anything. It exists to test one claim: that a gated promotion measurably beats fixed precedence on
-harmful acceptance, without paying for it in false rejections.
+Dependency is represented by pairwise source edges per cell. Component sizes
+``q_l`` give ``m_eff,j = m_j^2 / sum_l q_l^2`` for the observation mean. The
+legacy union mask remains only as a conservative compatibility input: it places
+every source in one component on every masked cell.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from itertools import combinations
+from typing import Mapping
 
 import numpy as np
 
-from stewie.twin.effective_support import conservative_effective_support
+from stewie.twin.effective_support import (
+    component_support_from_graph,
+    global_mask_dependency_edges,
+)
 
 
 class Decision(str, Enum):
@@ -54,35 +38,41 @@ class Decision(str, Enum):
 
 @dataclass(frozen=True)
 class Evidence:
-    """One typed, uncertain, source-tagged claim about a set of cells.
+    """One typed, uncertain, source-tagged claim over a terrain region.
 
-    ``kind`` is the evidence class: "observation" (a sensor reading), "physics" (the conserved
-    authority's predicted deformation), or "action" (a reported executed action). ``sigma_m`` is the
-    declared 1-sigma height uncertainty [m]; it is what makes a disagreement meaningful or not.
-    ``reliability`` in (0, 1] is the prior trust in this source.
-
-    ``observed_at`` is when the reading was TAKEN, which is neither when it arrived nor when it is
-    being judged. Without it, a reading describing a surface that has since been dug away is
-    indistinguishable from one describing the surface as it is now. Optional, because evidence
-    predating the temporal model still has to be judged; where it is absent no staleness check runs.
+    NaN denotes an unobserved cell. Infinity is never admissible. ``sigma_m`` is
+    the declared per-cell 1-sigma height uncertainty in metres. ``observed_at``
+    is validity time, not ingestion time.
     """
 
     source: str
     kind: str
-    values: np.ndarray            # per-cell height [m] over the candidate region
+    values: np.ndarray
     sigma_m: float
     reliability: float = 1.0
-    observed_at: float | None = None   # when the reading was taken, not when it arrived
+    observed_at: float | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in ("observation", "physics", "action"):
             raise ValueError(f"unknown evidence kind {self.kind!r}")
-        if not (self.sigma_m > 0.0):
-            raise ValueError(f"{self.source}: sigma_m must be > 0 (got {self.sigma_m})")
+        if not (self.sigma_m > 0.0 and np.isfinite(self.sigma_m)):
+            raise ValueError(f"{self.source}: sigma_m must be finite and > 0")
         if not (0.0 < self.reliability <= 1.0):
-            raise ValueError(f"{self.source}: reliability must be in (0, 1] (got {self.reliability})")
-        if not np.all(np.isfinite(np.asarray(self.values, dtype=float))):
-            raise ValueError(f"{self.source}: values must be finite")
+            raise ValueError(
+                f"{self.source}: reliability must be in (0, 1] "
+                f"(got {self.reliability})"
+            )
+        if self.observed_at is not None and not np.isfinite(self.observed_at):
+            raise ValueError(
+                f"{self.source}: observed_at must be finite when supplied"
+            )
+        values = np.asarray(self.values, dtype=float)
+        if values.ndim != 2 or values.size == 0:
+            raise ValueError(f"{self.source}: values must be a non-empty 2-D field")
+        if np.any(np.isinf(values)):
+            raise ValueError(f"{self.source}: values must not contain infinity")
+        if not np.any(np.isfinite(values)):
+            raise ValueError(f"{self.source}: values contain no observed cell")
 
 
 @dataclass
@@ -94,228 +84,447 @@ class PromotionResult:
     n_correlated: int = 0
     effective_n: float = 0.0
     detail: dict = field(default_factory=dict)
+    accepted_state: np.ndarray | None = None
+    accepted_mask: np.ndarray | None = None
+    variance_bound_m2: np.ndarray | None = None
 
 
-def _combined_tolerance(a: Evidence, b: Evidence, k: float) -> float:
-    """Disagreement is only real beyond the two declared uncertainties added in quadrature."""
-    return k * float(np.hypot(a.sigma_m, b.sigma_m))
+def chi_square_rms_multiplier(
+    n_cells: int,
+    false_alarm_probability: float,
+) -> float:
+    """Calibrate a standardised-RMS threshold from a chi-square tail.
 
-
-def stale_sources(evidence: list[Evidence], last_modified_at: float | None) -> list[str]:
-    """[F5] Sources whose reading predates the last action on the ground it describes.
-
-    Such a reading is not wrong. It is a correct description of a surface that no longer exists, and
-    the distinction matters: admitted as contradicting evidence it makes the rule decline while a
-    correct current reading sits unused, which is safe and useless. Recognised as stale, it is
-    dropped and the current reading gets through.
-
-    Returns the empty list when the modification time or the observation times are unknown, so that
-    absent temporal information changes nothing rather than being guessed at.
+    For ``n_cells`` independent standard-normal residuals, the standardised RMS
+    exceeds this multiplier with the requested probability. The multiplier is
+    not an ordinary univariate "number of sigmas".
     """
+    if n_cells < 1:
+        raise ValueError("n_cells must be >= 1")
+    alpha = float(false_alarm_probability)
+    if not (0.0 < alpha < 1.0):
+        raise ValueError("false_alarm_probability must be in (0, 1)")
+    from scipy.stats import chi2
+
+    return float(np.sqrt(chi2.ppf(1.0 - alpha, n_cells) / n_cells))
+
+
+def _comparison_multiplier(
+    n_cells: int,
+    *,
+    effect_size_multiplier: float | None,
+    family_false_alarm_probability: float,
+    n_comparisons: int,
+) -> float:
+    if effect_size_multiplier is not None:
+        value = float(effect_size_multiplier)
+        if not (value > 0.0 and np.isfinite(value)):
+            raise ValueError("effect_size_multiplier must be finite and > 0")
+        return value
+    per_comparison = family_false_alarm_probability / max(1, n_comparisons)
+    return chi_square_rms_multiplier(n_cells, per_comparison)
+
+
+def stale_sources(
+    evidence: list[Evidence],
+    last_modified_at: float | None,
+) -> list[str]:
+    """Sources whose observation predates the last action on this ground."""
     if last_modified_at is None:
         return []
-    return [e.source for e in evidence
-            if e.observed_at is not None and e.observed_at < last_modified_at]
+    return [
+        item.source
+        for item in evidence
+        if item.observed_at is not None and item.observed_at < last_modified_at
+    ]
 
 
-def evaluate(candidate: np.ndarray,
-             evidence: list[Evidence],
-             *,
-             prior: np.ndarray | None = None,
-             correlation_mask: np.ndarray | None = None,
-             last_modified_at: float | None = None,
-             k_sigma: float = 3.0,
-             min_effective_support: float = 1.0,
-             support_model: str = "c3") -> PromotionResult:
-    """Decide whether ``candidate`` may become the authoritative state.
+def _same_shape(evidence: list[Evidence], prior: np.ndarray | None) -> tuple[int, int]:
+    shape = np.asarray(evidence[0].values, dtype=float).shape
+    for item in evidence:
+        item_shape = np.asarray(item.values, dtype=float).shape
+        if item_shape != shape:
+            raise ValueError(
+                f"{item.source}: evidence shape {item_shape} != candidate region {shape}"
+            )
+    if prior is not None and np.asarray(prior, dtype=float).shape != shape:
+        raise ValueError(f"prior shape {np.asarray(prior).shape} != evidence shape {shape}")
+    return shape
 
-    ``prior`` is the state that stands if the candidate is refused. ``correlation_mask`` marks cells
-    where evidence is action-correlated (from ``shared_terrain.correlation_mask``); support over
-    those cells is discounted rather than counted independently.
 
-    ``support_model`` selects how that discount is computed: ``"c3"`` is the conservative bound and
-    the default; ``"linear"`` reinstates the superseded discount and ``"none"`` disables correction
-    entirely. The latter two exist so the ablation ladder can isolate what the bound actually buys,
-    and should not be used to decide anything.
+def _observation_aggregate(
+    observations: list[Evidence],
+) -> tuple[np.ndarray, np.ndarray, dict[str, np.ndarray]]:
+    stack = np.stack(
+        [np.asarray(item.values, dtype=float) for item in observations]
+    )
+    finite = np.isfinite(stack)
+    count = finite.sum(axis=0)
+    observed = count > 0
+    aggregate = np.full(stack.shape[1:], np.nan, dtype=float)
+    aggregate[observed] = (
+        np.where(finite, stack, 0.0).sum(axis=0)[observed] / count[observed]
+    )
+    masks = {
+        item.source: finite[index].copy()
+        for index, item in enumerate(observations)
+    }
+    return aggregate, observed, masks
+
+
+def evaluate(
+    evidence: list[Evidence],
+    *,
+    prior: np.ndarray | None = None,
+    dependency_edges: Mapping[tuple[str, str], np.ndarray] | None = None,
+    correlation_mask: np.ndarray | None = None,
+    last_modified_at: float | None = None,
+    effect_size_multiplier: float | None = None,
+    false_alarm_probability: float = 1e-3,
+    min_effective_support: float = 1.0,
+    min_override_components: int = 2,
+    support_model: str = "c3",
+) -> PromotionResult:
+    """Construct and gate a plain observation-only aggregate.
+
+    ``dependency_edges`` carries a boolean mask for each source pair. Its
+    connected components define per-cell support. ``correlation_mask`` is a
+    legacy compatibility path that treats all sources as one component on
+    masked cells. Supplying neither for multiple observations means dependency
+    is unknown, not absent, and produces ABSTAIN.
+
+    The default residual threshold uses a chi-square multiplier with a
+    Bonferroni family-wise correction. Its false-alarm interpretation requires
+    independent Gaussian standardised residual cells and, for observation to
+    physics comparisons, zero observation--model cross-covariance. Otherwise
+    it is only a scale comparison. ``effect_size_multiplier`` is available for
+    controlled fault sweeps; it has no false-alarm interpretation.
     """
-    cand = np.asarray(candidate, dtype=float)
-    if not np.all(np.isfinite(cand)):
-        return PromotionResult(Decision.REJECT, "candidate contains non-finite heights")
-
-    # [FIX 2026-07-28] The candidate was previously read for its SHAPE and finiteness and for
-    # nothing else. Every branch below reasons about the evidence -- observation against physics,
-    # observation against observation -- and none of them ever looked at the thing being promoted.
-    # A flat plane at zero, 1559 m from the surface, was accepted on three good readings of real
-    # terrain, because the readings agreed with each other and with the model and nobody asked what
-    # the candidate was.
-    #
-    # The theorem's whole structure is "every accepted state is an observation", which is what makes
-    # its error governed by sigma_o and independent of the model bias. That sentence was true of the
-    # experiments, which all pass obs[0].values, and false of the function they call. Enforced here
-    # rather than assumed: the candidate must BE one of the offered observations.
-    _observations = [e for e in evidence if e.kind == "observation"]
-    if _observations and not any(
-            np.asarray(e.values, dtype=float).shape == cand.shape
-            and np.array_equal(np.asarray(e.values, dtype=float), cand)
-            for e in _observations):
-        return PromotionResult(
-            Decision.REJECT,
-            "candidate is not any of the offered observations: the rule promotes an observation, "
-            "and a state assembled from something else is outside what it can vouch for")
     if not evidence:
         return PromotionResult(Decision.ABSTAIN, "no evidence offered")
+    if not (
+        min_effective_support > 0.0
+        and np.isfinite(min_effective_support)
+    ):
+        raise ValueError("min_effective_support must be finite and > 0")
+    if min_override_components < 2:
+        raise ValueError("min_override_components must be >= 2")
+    if not (0.0 < false_alarm_probability < 1.0):
+        raise ValueError("false_alarm_probability must be in (0, 1)")
+    if dependency_edges is not None and correlation_mask is not None:
+        raise ValueError("supply dependency_edges or correlation_mask, not both")
+    if last_modified_at is not None and not np.isfinite(last_modified_at):
+        raise ValueError("last_modified_at must be finite when supplied")
 
-    # [F5] Drop readings taken before the last action on this ground. They are correct about a
-    # surface that is gone, and admitting them as contradicting evidence makes the rule decline
-    # while a current reading sits unused.
-    stale = set(stale_sources(evidence, last_modified_at))
-    if stale:
-        evidence = [e for e in evidence if e.source not in stale]
-        if not evidence:
-            return PromotionResult(Decision.ABSTAIN,
-                                   "all evidence predates the last action on this ground")
+    offered_observation_sources = {
+        item.source
+        for item in evidence
+        if item.kind == "observation"
+    }
+    if dependency_edges is not None:
+        for pair in dependency_edges:
+            if len(pair) != 2:
+                raise ValueError(
+                    f"dependency edge must contain two sources (got {pair!r})"
+                )
+            if pair[0] == pair[1]:
+                raise ValueError(
+                    f"dependency self-edge is invalid ({pair[0]!r})"
+                )
+            if any(
+                source not in offered_observation_sources
+                for source in pair
+            ):
+                raise ValueError(
+                    "dependency edge references a source that was not offered "
+                    f"as an observation ({pair!r})"
+                )
 
-    obs = [e for e in evidence if e.kind == "observation"]
-    phys = [e for e in evidence if e.kind == "physics"]
-    if not obs:
+    # Filter before constructing the accepted value. The superseded ordering
+    # permitted a stale candidate after removing its supporting observation.
+    if last_modified_at is not None:
+        unknown_validity = [
+            item.source
+            for item in evidence
+            if item.kind in ("observation", "physics")
+            and item.observed_at is None
+        ]
+        if unknown_validity:
+            return PromotionResult(
+                Decision.ABSTAIN,
+                "evidence validity time is unknown after a terrain modification",
+                detail={"unknown_validity_sources": sorted(unknown_validity)},
+            )
+        evidence = [
+            item
+            for item in evidence
+            if not (
+                item.observed_at is not None
+                and item.observed_at < last_modified_at
+            )
+        ]
+    if not evidence:
+        return PromotionResult(
+            Decision.ABSTAIN,
+            "all evidence predates the last action on this ground",
+        )
+
+    observations = sorted(
+        (item for item in evidence if item.kind == "observation"),
+        key=lambda item: item.source,
+    )
+    physics = sorted(
+        (item for item in evidence if item.kind == "physics"),
+        key=lambda item: item.source,
+    )
+    if not observations:
         return PromotionResult(Decision.ABSTAIN, "no observation among the evidence")
+    if len({item.source for item in observations}) != len(observations):
+        return PromotionResult(
+            Decision.REJECT,
+            "duplicate observation source identity: deduplicate before promotion",
+        )
+    if len({item.source for item in physics}) != len(physics):
+        return PromotionResult(
+            Decision.REJECT,
+            "duplicate physics source identity: deduplicate before promotion",
+        )
 
-    # --- effective support: correlated cells do not count as independent corroboration ----------
-    mask = (np.asarray(correlation_mask, dtype=bool) if correlation_mask is not None
-            else np.zeros(cand.shape, dtype=bool))
-    n_corr = int(mask.sum())
-    d = (n_corr / cand.size) if cand.size else 0.0
-    # [C3] Conservative effective support: rho=1 on the shared cells, no correlation model assumed.
-    # Replaces a linear-in-area discount that was optimistic below d=(m-2)/(m-1) for m>=3, i.e. that
-    # overstated independent support in exactly the many-agent regime this gate exists for.
-    mean_reliability = sum(e.reliability for e in obs) / len(obs)
+    shape = _same_shape(evidence, prior)
+    candidate, candidate_mask, observed_masks = _observation_aggregate(observations)
+    source_ids = [item.source for item in observations]
+    sigmas = {item.source: item.sigma_m for item in observations}
+
+    dependency_known = (
+        dependency_edges is not None
+        or correlation_mask is not None
+        or len(observations) == 1
+    )
+    if correlation_mask is not None:
+        legacy_mask = np.asarray(correlation_mask, dtype=bool)
+        if legacy_mask.shape != shape:
+            raise ValueError(
+                f"correlation_mask shape {legacy_mask.shape} "
+                f"!= evidence shape {shape}"
+            )
+        edges = global_mask_dependency_edges(source_ids, legacy_mask)
+    else:
+        current_sources = set(source_ids)
+        edges = {
+            pair: mask
+            for pair, mask in (dependency_edges or {}).items()
+            if pair[0] in current_sources and pair[1] in current_sources
+        }
+
+    support = component_support_from_graph(
+        source_ids,
+        observed_masks,
+        sigmas,
+        edges,
+    )
+    edge_union = np.zeros(shape, dtype=bool)
+    for edge_mask in edges.values():
+        edge_union |= np.asarray(edge_mask, dtype=bool)
+    n_correlated = int((edge_union & candidate_mask).sum())
+    n_observed = int(candidate_mask.sum())
+    d = n_correlated / n_observed if n_observed else 0.0
+
     if support_model == "c3":
-        raw_support = conservative_effective_support(len(obs), d)
-    elif support_model == "linear":                 # the superseded discount, for ablation only
-        raw_support = len(obs) * (1.0 - d)
-    elif support_model == "none":                   # ablation 6: no dependency correction at all
-        raw_support = float(len(obs))
+        effective_n = support.region_effective_n
+    elif support_model == "linear":
+        effective_n = len(observations) * (1.0 - d)
+    elif support_model == "none":
+        effective_n = float(len(observations))
     else:
         raise ValueError(f"unknown support_model {support_model!r}")
-    effective_n = raw_support * mean_reliability
-    frac_independent = 1.0 - d
 
-    # --- physics as CONTESTABLE evidence (G-B) --------------------------------------------------
-    residual_rms = 0.0
-    tol = 0.0
-    physics_disagrees = False
-    # [FIX 2026-07-28] Only phys[0] was consulted, so a second physical model was silently ignored
-    # and which one that was depended on list order. Physics may only veto, so the conservative
-    # composition is that ANY model disagreeing is a veto: reading fewer models can only ever miss
-    # an objection, never manufacture one, which keeps the veto-only property intact.
-    if phys:
-        o = obs[0]
-        worst = None
-        for p in phys:
-            resid = np.asarray(o.values, dtype=float) - np.asarray(p.values, dtype=float)
-            rms = float(np.sqrt(np.mean(resid ** 2)))
-            this_tol = _combined_tolerance(o, p, k_sigma)
-            if rms > this_tol:
-                physics_disagrees = True
-            if worst is None or rms - this_tol > worst[0] - worst[1]:
-                worst = (rms, this_tol)
-        residual_rms, tol = worst
+    pair_overlaps = []
+    for a, b in combinations(observations, 2):
+        overlap = observed_masks[a.source] & observed_masks[b.source]
+        if np.any(overlap):
+            pair_overlaps.append((a, b, overlap))
+    physics_overlaps = []
+    for model in physics:
+        overlap = candidate_mask & np.isfinite(np.asarray(model.values, dtype=float))
+        if np.any(overlap):
+            physics_overlaps.append((model, overlap))
+    n_comparisons = len(pair_overlaps) + len(physics_overlaps)
 
-    # --- corroboration among observations --------------------------------------------------------
-    # [FIX 2026-07-28] This compared obs[0] against obs[1] only, so the verdict depended on the
-    # ORDER of a list with no defined order. Measured on [bad, bad, good]: two of six permutations
-    # promoted a 0.900 m error, because the two faulty readings happened to be adjacent and agreed
-    # with each other. Every pair is compared now, and a single dissenting source is enough to
-    # withhold corroboration -- which is what "the observations corroborate each other" has to mean
-    # if the sentence is to bear the weight the override branch puts on it.
     obs_disagrees = False
-    for i in range(len(obs)):
-        for j in range(i + 1, len(obs)):
-            a, b = obs[i], obs[j]
-            gap = float(np.sqrt(np.mean(
-                (np.asarray(a.values, float) - np.asarray(b.values, float)) ** 2)))
-            if gap > _combined_tolerance(a, b, k_sigma):
-                obs_disagrees = True
-                break
-        if obs_disagrees:
-            break
+    worst_obs_standardised_rms = 0.0
+    for a, b, overlap in pair_overlaps:
+        multiplier = _comparison_multiplier(
+            int(overlap.sum()),
+            effect_size_multiplier=effect_size_multiplier,
+            family_false_alarm_probability=false_alarm_probability,
+            n_comparisons=n_comparisons,
+        )
+        same_component = (
+            support.component_labels[a.source][overlap]
+            == support.component_labels[b.source][overlap]
+        )
+        variance = np.where(
+            same_component,
+            (a.sigma_m + b.sigma_m) ** 2,
+            a.sigma_m**2 + b.sigma_m**2,
+        )
+        delta = (
+            np.asarray(a.values, dtype=float)[overlap]
+            - np.asarray(b.values, dtype=float)[overlap]
+        )
+        standardised_rms = float(np.sqrt(np.mean(delta**2 / variance)))
+        worst_obs_standardised_rms = max(
+            worst_obs_standardised_rms,
+            standardised_rms,
+        )
+        if standardised_rms > multiplier:
+            obs_disagrees = True
 
-    # Which regime the call is in, and it matters for what any soundness claim covers. A veto that
-    # cannot fire is not a veto: with no physics prediction offered, the residual test below never
-    # runs and the rule degenerates to "accept what corroborated observations say", which is the
-    # fusing baseline this design exists to beat. Reported rather than silently folded into the
-    # agreeing case, because the branch-4 derivation assumes the residual test PASSED, not that it
-    # was skipped.
-    veto_available = bool(phys)
-    detail = {"n_obs": len(obs), "n_physics": len(phys), "frac_independent": frac_independent,
-              "physics_disagrees": physics_disagrees, "obs_disagrees": obs_disagrees,
-              "veto_available": veto_available}
+    residual_rms = 0.0
+    tolerance = 0.0
+    worst_physics_excess = -np.inf
+    physics_disagrees = False
+    for model, overlap in physics_overlaps:
+        multiplier = _comparison_multiplier(
+            int(overlap.sum()),
+            effect_size_multiplier=effect_size_multiplier,
+            family_false_alarm_probability=false_alarm_probability,
+            n_comparisons=n_comparisons,
+        )
+        residual = (
+            candidate[overlap]
+            - np.asarray(model.values, dtype=float)[overlap]
+        )
+        residual_variance = (
+            support.variance_bound_m2[overlap] + model.sigma_m**2
+        )
+        standardised_rms = float(
+            np.sqrt(np.mean(residual**2 / residual_variance))
+        )
+        raw_rms = float(np.sqrt(np.mean(residual**2)))
+        raw_tolerance = multiplier * float(
+            np.sqrt(np.mean(residual_variance))
+        )
+        excess = standardised_rms - multiplier
+        if excess > 0.0:
+            physics_disagrees = True
+        if excess > worst_physics_excess:
+            worst_physics_excess = excess
+            residual_rms = raw_rms
+            tolerance = raw_tolerance
 
-    # --- the decision ----------------------------------------------------------------------------
+    min_components = int(np.min(support.n_components[candidate_mask]))
+    veto_available = bool(physics_overlaps)
+    detail = {
+        "n_obs": len(observations),
+        "n_physics": len(physics),
+        "coverage_fraction": n_observed / candidate.size,
+        "dependency_known": dependency_known,
+        "physics_disagrees": physics_disagrees,
+        "obs_disagrees": obs_disagrees,
+        "veto_available": veto_available,
+        "min_components": min_components,
+        "mean_reliability": (
+            sum(item.reliability for item in observations) / len(observations)
+        ),
+        "worst_obs_standardised_rms": worst_obs_standardised_rms,
+        "worst_physics_standardised_excess": (
+            0.0 if not np.isfinite(worst_physics_excess)
+            else worst_physics_excess
+        ),
+        "threshold_mode": (
+            "effect_size"
+            if effect_size_multiplier is not None
+            else "chi_square"
+        ),
+        "family_false_alarm_probability": (
+            None
+            if effect_size_multiplier is not None
+            else false_alarm_probability
+        ),
+    }
+    common = {
+        "residual_rms_m": residual_rms,
+        "tolerance_m": tolerance,
+        "n_correlated": n_correlated,
+        "effective_n": effective_n,
+        "detail": detail,
+        "variance_bound_m2": support.variance_bound_m2.copy(),
+    }
+
     if obs_disagrees:
-        # two sensors contradict each other beyond their declared bands: nothing here settles it
-        return PromotionResult(Decision.ABSTAIN, "observations contradict each other beyond their declared uncertainty",
-                               residual_rms, tol, n_corr, effective_n, detail)
+        return PromotionResult(
+            Decision.ABSTAIN,
+            "observations contradict each other beyond the calibrated "
+            "residual threshold",
+            **common,
+        )
+    if not dependency_known:
+        return PromotionResult(
+            Decision.ABSTAIN,
+            "source-dependency relation was not supplied; absence is not "
+            "evidence of independence",
+            **common,
+        )
+    component_override_fails = (
+        support_model == "c3"
+        and min_components < min_override_components
+    )
+    if physics_disagrees and (
+        effective_n < min_effective_support or component_override_fails
+    ):
+        return PromotionResult(
+            Decision.ABSTAIN,
+            "physics disagrees and the observation aggregate lacks support "
+            "from distinct dependency components",
+            **common,
+        )
+    if effective_n < min_effective_support:
+        return PromotionResult(
+            Decision.ABSTAIN,
+            f"effective independent support {effective_n:.2f} below required "
+            f"{min_effective_support:.2f}",
+            **common,
+        )
 
     if physics_disagrees:
-        # The residual is real. It means EITHER the observation is wrong OR the model is misspecified,
-        # and this gate deliberately refuses to settle that by trusting the model. Corroboration is
-        # what breaks the tie -- but only INDEPENDENT corroboration.
-        #
-        # [FIX 2026-07-27] This branch previously tested ``len(obs) >= 2``, a raw count, while its own
-        # reason string claimed the observations were independent. Where several agents have modified
-        # the same ground, their readings carry a common error and therefore AGREE WHILE ALL BEING
-        # WRONG. The old test read that counterfeit agreement as grounds to overrule a correct model,
-        # promoting the bad reading and blaming the physics: measured 9-13 harmful acceptances in 20
-        # trials, with the model wrongly named the outlier in 11-17 of them.
-        #
-        # Requiring effective rather than raw support closes it. This is also what makes m_eff
-        # load-bearing for the veto-only argument itself, rather than an extra safety check bolted on
-        # afterwards: the authority to overrule the model comes from independence, and m_eff is the
-        # only thing that measures it.
-        # BOTH conditions, and the pair matters. The count alone was the original defect; effective
-        # support alone is not enough either, because a single observation has m_eff = 1 and would
-        # clear a threshold of 1.0, letting one unchallenged reading dismiss the model. Overruling
-        # the physics requires more than one source AND those sources being effectively independent.
-        if len(obs) >= 2 and effective_n >= min_effective_support and not obs_disagrees:
-            return PromotionResult(Decision.PROMOTE,
-                                   "physics residual exceeds tolerance, but independent observations "
-                                   "corroborate: the model is the outlier, not the observation",
-                                   residual_rms, tol, n_corr, effective_n, detail)
-        return PromotionResult(Decision.ABSTAIN,
-                               "physics residual exceeds the combined declared uncertainty and no "
-                               "independent observation corroborates: cannot distinguish a bad "
-                               "observation from a misspecified model, and effective support is "
-                               "insufficient to overrule it",
-                               residual_rms, tol, n_corr, effective_n, detail)
-
-    if effective_n < min_effective_support:
-        return PromotionResult(Decision.ABSTAIN,
-                               f"effective independent support {effective_n:.2f} below required "
-                               f"{min_effective_support:.2f} (action-correlated cells discounted)",
-                               residual_rms, tol, n_corr, effective_n, detail)
-
-    # [FIX 2026-07-28] This return is reachable in TWO regimes and previously reported both with the
-    # same sentence. Either the physical model was offered and agreed -- the case the safety argument
-    # covers -- or no model was offered at all, in which case nothing was checked against anything
-    # and ``residual_rms``/``tolerance`` are both a sentinel 0.0 indistinguishable from perfect
-    # agreement. Saying "consistent within declared uncertainty" of the second case asserted a check
-    # that never ran. The decision is unchanged; only the claim made about it is now accurate.
-    if veto_available:
-        return PromotionResult(Decision.PROMOTE, "evidence consistent within declared uncertainty",
-                               residual_rms, tol, n_corr, effective_n, detail)
-    return PromotionResult(Decision.PROMOTE,
-                           "observations corroborate and support is sufficient, but NO physical "
-                           "model was offered: nothing vetoed this and nothing could have",
-                           residual_rms, tol, n_corr, effective_n, detail)
+        reason = (
+            "physics disagrees, but the observation-only aggregate is "
+            "supported by distinct dependency components"
+        )
+    elif veto_available:
+        reason = (
+            "the observation-only aggregate passed every observation and "
+            "physics check"
+        )
+    else:
+        reason = (
+            "the observation-only aggregate has sufficient graph support; "
+            "no physical model was available to veto it"
+        )
+    return PromotionResult(
+        Decision.PROMOTE,
+        reason,
+        accepted_state=candidate.copy(),
+        accepted_mask=candidate_mask.copy(),
+        **common,
+    )
 
 
-def baseline_fixed_precedence(prior: np.ndarray, observation: np.ndarray,
-                              mask: np.ndarray | None = None) -> np.ndarray:
-    """The control condition, reproducing ``terrain_view`` layer 2: the observation overwrites,
-    unconditionally. No uncertainty, no provenance, no physical check, no way to decline."""
-    z = np.array(prior, dtype=float, copy=True)
-    o = np.asarray(observation, dtype=float)
-    m = np.ones(z.shape, dtype=bool) if mask is None else np.asarray(mask, dtype=bool)
-    z[m] = o[m]
-    return z
+def baseline_fixed_precedence(
+    prior: np.ndarray,
+    observation: np.ndarray,
+    mask: np.ndarray | None = None,
+) -> np.ndarray:
+    """The fixed-precedence control: an observation overwrites unconditionally."""
+    state = np.array(prior, dtype=float, copy=True)
+    observed = np.asarray(observation, dtype=float)
+    write_mask = (
+        np.ones(state.shape, dtype=bool)
+        if mask is None
+        else np.asarray(mask, dtype=bool)
+    )
+    if observed.shape != state.shape or write_mask.shape != state.shape:
+        raise ValueError("prior, observation, and mask shapes must match")
+    state[write_mask] = observed[write_mask]
+    return state

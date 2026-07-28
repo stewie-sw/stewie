@@ -1,35 +1,15 @@
-"""[GATE2] The third regime: what happens when the veto cannot fire.
+"""[GATE2] No-model operation after the accepted-state repair.
 
-The previous iteration derived that the agreeing branch is safe under A5 and flagged one claim as
-most likely wrong -- that the two branches are exhaustive. Checking it found this.
+Physics availability changes operational protection and availability, but it
+is not a separate branch of the repaired model-bias theorem: every promotion
+still returns the same observation mean.
 
-The rule has exactly two ``PROMOTE`` returns, so the decomposition is exhaustive over *control
-flow*. It is not exhaustive over *proof regimes*. The agreeing return is reachable two ways:
-
-  4a. a physical model was offered and agreed -- the residual test ran and passed, which is the
-      premise the derivation uses, and the branch is safe under A5 with no dependency correction;
-  4b. no physical model was offered at all -- the residual test never ran, ``residual_rms`` and
-      ``tolerance`` are both a sentinel 0.0 indistinguishable from perfect agreement, and the
-      derivation's premise is simply absent.
-
-**A veto that cannot fire is not a veto.** In regime 4b the design degenerates to "accept what
-corroborated observations say", which is the fusing baseline the whole construction exists to beat.
-
-What the measurements below establish, on real Haworth LOLA terrain with controlled fault
-injection:
-
-  * With no correlation mask, regime 4b offers **no protection whatsoever and no bound**. Two
-    agents sharing an error are accepted at 20/20 for any error above tau, out to 10 m. The
-    acceptance does not degrade with the size of the fault; it is indifferent to it.
-  * With a faithful mask, the support test alone stops all of it, at every fault size tested.
-
-So regime 4b rests entirely on ``m_eff``, and the override branch rests on ``m_eff``. **Both
-unproved branches reduce to the same object**, which is worth knowing: the remaining problem is
-smaller and more focused than three separate arguments would suggest.
-
-It also makes the dependence on the action log (F6) load-bearing in a way worth stating. In regime
-4a the log is a refinement; in regime 4b it is the only thing standing between a shared error and
-the authoritative state.
+These tests establish two narrower facts on real Haworth terrain with a
+labelled common-mode fault. Unknown dependency produces abstention. An
+explicit but false all-independent graph can admit an arbitrarily large common
+fault, while a faithful dependency mask refuses it. The latter experiment
+violates marginal calibration deliberately; it is an identifiability and graph
+fidelity limit, not a counterexample to the conditional theorem.
 """
 
 from __future__ import annotations
@@ -52,7 +32,7 @@ def truth() -> np.ndarray:
 
 
 def _shared_error_evidence(truth: np.ndarray, common_m: float, rng) -> list[Evidence]:
-    """Two agents worked the same ground, so both readings carry the same error. F4, injected."""
+    """Controlled common observation error applied to two graph-linked sources."""
     reading = truth + common_m
     return [Evidence("agent_a", "observation", reading + rng.normal(0, 0.005, truth.shape),
                      SIGMA_O, 1.0),
@@ -60,25 +40,39 @@ def _shared_error_evidence(truth: np.ndarray, common_m: float, rng) -> list[Evid
                      SIGMA_O, 1.0)]
 
 
-def test_the_acceptance_surface_is_exactly_three_regimes(truth):
-    """The regimes, reached by evaluation rather than by reading the source.
-
-    The previous iteration claimed two. Control flow had two ``PROMOTE`` returns and that much was
-    right, but one of them served two regimes with one sentence. Splitting it is what makes the
-    third visible; this test is the guard against a fourth appearing unnoticed.
-    """
+def test_operational_reasons_distinguish_three_physics_availability_cases(truth):
+    """Agreement, override, and no-model promotion report distinct reasons."""
     rng = np.random.default_rng(3)
     good = truth + rng.normal(0, SIGMA_O * 0.1, truth.shape)
     obs = [Evidence("a", "observation", good, SIGMA_O, 1.0),
            Evidence("b", "observation", truth + rng.normal(0, SIGMA_O * 0.1, truth.shape),
                     SIGMA_O, 1.0)]
 
-    agreed = evaluate(good, [*obs, Evidence("terramech", "physics",
-                                            truth + rng.normal(0, 0.08, truth.shape), 0.10, 1.0)],
-                      min_effective_support=2.0)
-    overruled = evaluate(good, [*obs, Evidence("terramech", "physics", truth + 5.0, 0.10, 1.0)],
-                         min_effective_support=2.0)
-    unvetoed = evaluate(good, obs, min_effective_support=2.0)
+    independent = np.zeros(truth.shape, dtype=bool)
+    agreed = evaluate(
+        [
+            *obs,
+            Evidence(
+                "terramech",
+                "physics",
+                truth + rng.normal(0, 0.08, truth.shape),
+                0.10,
+                1.0,
+            ),
+        ],
+        correlation_mask=independent,
+        min_effective_support=2.0,
+    )
+    overruled = evaluate(
+        [*obs, Evidence("terramech", "physics", truth + 5.0, 0.10, 1.0)],
+        correlation_mask=independent,
+        min_effective_support=2.0,
+    )
+    unvetoed = evaluate(
+        obs,
+        correlation_mask=independent,
+        min_effective_support=2.0,
+    )
 
     assert {r.decision for r in (agreed, overruled, unvetoed)} == {Decision.PROMOTE}
     assert agreed.detail["veto_available"] and not agreed.detail["physics_disagrees"]      # 4a
@@ -93,26 +87,31 @@ def test_regime_4b_is_reachable_and_reports_that_nothing_vetoed_it(truth):
     """The agreeing return fires with no physics at all, and now says so."""
     rng = np.random.default_rng(7)
     ev = _shared_error_evidence(truth, 0.9, rng)
-    result = evaluate(ev[0].values, ev, min_effective_support=2.0)
+    result = evaluate(ev, min_effective_support=2.0)
 
-    assert result.decision is Decision.PROMOTE
+    assert result.decision is Decision.ABSTAIN
     assert result.detail["n_physics"] == 0
     assert result.detail["veto_available"] is False
-    assert "NO physical model was offered" in result.reason
-    # The sentinel that made this indistinguishable from genuine agreement.
+    assert "dependency relation was not supplied" in result.reason
     assert result.residual_rms_m == 0.0 and result.tolerance_m == 0.0
 
 
-def test_regime_4b_without_a_mask_offers_no_protection_and_no_bound(truth):
-    """The finding. Harm is limited only by the size of the injected fault, not by the rule."""
+def test_a_log_that_falsely_claims_independence_offers_no_bound(truth):
+    """With unbounded common error, a false graph supplies no worst-case bound."""
     worst_accepted = 0.0
+    independent = np.zeros(truth.shape, dtype=bool)
     for common in (0.30, 0.90, 2.0, 10.0):
         rng = np.random.default_rng(11)
         harmful = 0
         for _ in range(20):
             ev = _shared_error_evidence(truth, common, rng)
-            result = evaluate(ev[0].values, ev, min_effective_support=2.0)
-            err = float(np.sqrt(np.mean((ev[0].values - truth) ** 2)))
+            result = evaluate(
+                ev,
+                correlation_mask=independent,
+                min_effective_support=2.0,
+            )
+            assert result.accepted_state is not None
+            err = float(np.sqrt(np.mean((result.accepted_state - truth) ** 2)))
             if result.decision is Decision.PROMOTE and err > TAU_M:
                 harmful += 1
                 worst_accepted = max(worst_accepted, err)
@@ -124,8 +123,8 @@ def test_regime_4b_without_a_mask_offers_no_protection_and_no_bound(truth):
     assert worst_accepted > 10.0, "a 10 m error was accepted; the regime has no bound at all"
 
 
-def test_a_faithful_mask_is_the_only_thing_that_saves_regime_4b(truth):
-    """Support alone stops all of it -- which is why 4b reduces entirely to m_eff."""
+def test_a_faithful_mask_stops_the_no_model_common_fault(truth):
+    """Graph support stops every sampled common fault without physics."""
     mask = np.zeros(truth.shape, dtype=bool)
     mask.flat[:mask.size // 4] = True          # a quarter of cells worked by both agents
 
@@ -133,7 +132,11 @@ def test_a_faithful_mask_is_the_only_thing_that_saves_regime_4b(truth):
         rng = np.random.default_rng(11)
         for _ in range(20):
             ev = _shared_error_evidence(truth, common, rng)
-            result = evaluate(ev[0].values, ev, correlation_mask=mask, min_effective_support=2.0)
+            result = evaluate(
+                ev,
+                correlation_mask=mask,
+                min_effective_support=2.0,
+            )
             assert result.decision is Decision.ABSTAIN, (
                 f"common error {common} m with d = 0.25 should fall below the support threshold"
             )
@@ -150,35 +153,36 @@ def test_the_protection_in_4b_is_knife_edge(truth):
     ev = _shared_error_evidence(truth, 0.9, rng)
 
     none_correlated = np.zeros(truth.shape, dtype=bool)
-    assert evaluate(ev[0].values, ev, correlation_mask=none_correlated,
-                    min_effective_support=2.0).decision is Decision.PROMOTE
+    assert evaluate(
+        ev,
+        correlation_mask=none_correlated,
+        min_effective_support=2.0,
+    ).decision is Decision.PROMOTE
 
     one_cell = np.zeros(truth.shape, dtype=bool)
     one_cell.flat[0] = True
-    result = evaluate(ev[0].values, ev, correlation_mask=one_cell, min_effective_support=2.0)
+    result = evaluate(
+        ev,
+        correlation_mask=one_cell,
+        min_effective_support=2.0,
+    )
     assert result.decision is Decision.ABSTAIN
     assert result.effective_n < 2.0
 
 
-def test_the_platform_can_refuse_to_supply_the_model_that_4b_assumes_is_there():
-    """The composition, and it is why A7 cannot be waved through.
-
-    The previous iteration flagged one claim as most likely wrong: that leaving A7 unenforced is
-    safe because a physical prediction is always available in deployment. It is not.
+def test_the_platform_can_refuse_physics_while_the_rule_supports_no_model_operation():
+    """Pin the model-availability seam without turning it into a theorem premise.
 
     The platform's own governance contract refuses to resolve a physics model for a LIVE mission
     when the model has no validated profile for the body in question -- deliberately, fail-closed,
     so an unvalidated model cannot drive real hardware. Outside the gravity-loaded Bekker regime
     that refusal is the designed behaviour, not an error.
 
-    So two components, each individually correct, compose into a system that is not:
-
-      * ``resolve_live_backend`` fails CLOSED and supplies no model;
-      * ``evaluate``, handed no model, fails OPEN and accepts whatever is corroborated.
-
-    The refusal meant to protect a mission is exactly what removes the veto, and it does so on the
-    least familiar terrain. This is evidence for enforcing A7 rather than assuming it; the decision
-    is not taken here, but it is no longer an open question with nothing on either side.
+    The repaired theorem does not assume model availability: no-model
+    promotions still return the same observation mean. This test retains the
+    operational fact that the veto may be unavailable, so availability and
+    graph-fidelity policy must be evaluated explicitly rather than smuggled
+    into a residual branch.
     """
     from stewie.contracts.physics_model_control import PhysicsModelRefused, resolve_live_backend
 

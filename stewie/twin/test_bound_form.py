@@ -1,116 +1,188 @@
-"""Does the soundness bound's stated FORM survive contact with the measurements?
+"""The repaired bound attaches effective support to the accepted aggregate.
 
-The conjecture is written
-
-    Pr[accept AND ||x_hat - x*|| > tau]  <=  alpha(k, m_eff, sigma_o)
-
-with alpha independent of the model bias b. This file tests something more basic than whether alpha
-exists: whether a function of those three arguments *could* bound harm at all.
-
-It cannot. Holding ``m_eff`` fixed and varying only the magnitude of the common error moves harmful
-acceptance from 0 to 18 in 20 trials. A function of ``(k, m_eff, sigma_o)`` takes the same value in
-every one of those runs, so no such function is an upper bound on all of them.
-
-**Why the derivation looked sound and was not.** ``m_eff`` is derived as an effective sample size:
-the number of independent observations whose MEAN would have the variance the correlated ensemble's
-mean has. The acceptance rule never computes that mean. It accepts a single reading, whose error is
-governed by its own noise plus whatever common component the shared digging introduced. The quantity
-was derived for an estimator the rule does not use.
-
-**What this does not overturn.** ``m_eff`` still does the job the licensing finding identified: it
-gates the branch on which corroborating observations are allowed to overrule a disagreeing physical
-model. That role is about *authority to override*, not about bounding an error, and nothing here
-touches it. What fails is the claim that harm is a function of it.
-
-**The missing quantity** is the magnitude of the common error, which is the same quantity the derived
-support threshold needs and which a deployed system cannot observe. Two gaps that were recorded
-separately are one gap.
+For a plain mean, graph-component support controls expected MSE. It does not by
+itself determine an RMS tail; the basic theorem uses a variance proxy and
+Markov, while a sharper tail needs spatial covariance.
 """
 
 from __future__ import annotations
 
-import os
-
 import numpy as np
 import pytest
 
-from stewie.twin.effective_support import conservative_effective_support
-from stewie.twin.veto_experiment import run_shared_ground_sweep
+from stewie.twin.effective_support import (
+    component_support_from_graph,
+    global_mask_dependency_edges,
+)
+from stewie.twin.promotion import (
+    Decision,
+    Evidence,
+    chi_square_rms_multiplier,
+    evaluate,
+)
 
-_HEIGHT = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), "..", "..", "samples", "lunar_dem", "haworth_10km_5m", "heightmap.rf32"))
-
-pytestmark = pytest.mark.skipif(not os.path.exists(_HEIGHT),
-                                reason="real Haworth DEM not present on this host")
-
-N = 32
-
-
-def _truth() -> np.ndarray:
-    z = np.fromfile(_HEIGHT, dtype=np.float32)
-    side = int(round(float(np.sqrt(z.size))))
-    base = z.reshape(side, side)[1000:1000 + N, 1000:1000 + N].astype(np.float64)
-    cut = np.zeros_like(base)
-    cut[8:20, 8:20] = -0.40
-    return base + cut
+SIGMA = 0.05
+M = 3
 
 
-def test_harm_varies_widely_at_constant_m_eff():
-    """The decisive measurement. Same m, same d, therefore the same m_eff to every decimal place;
-    only the common-error magnitude changes. Harmful acceptance spans nearly the whole range.
-
-    ``min_support=1.0`` keeps the support test from ever firing, so this isolates the question of
-    what harm depends on rather than measuring the rule's response to it."""
-    truth = _truth()
-    d, m = 0.30, 3
-    fixed = conservative_effective_support(m, d)
-    harms = []
-    for shared in (0.2, 0.6, 1.0):
-        r = run_shared_ground_sweep(truth, [d], n_trials=20, shared_error_m=shared,
-                                    min_support=1.0)["c3"][0]
-        harms.append(r.n_harmful)
-    assert fixed == pytest.approx(1.875, abs=1e-3)
-    assert harms[0] < harms[-1], "harm must move while m_eff does not"
-    assert harms[-1] - harms[0] >= 10, f"expected a wide spread at fixed m_eff, got {harms}"
+@pytest.fixture(scope="module")
+def truth() -> np.ndarray:
+    dem = np.fromfile(
+        "samples/lunar_dem/haworth_10km_5m/heightmap.rf32",
+        dtype=np.float32,
+    )
+    side = int(np.sqrt(dem.size))
+    return dem.reshape(side, side)[1000:1032, 1000:1032].astype(float)
 
 
-def test_no_function_of_m_eff_alone_can_bound_these():
-    """Stated as the implication rather than left to the reader. Two runs share every argument the
-    conjectured alpha takes, and differ in outcome, so alpha cannot be an upper bound on both."""
-    truth = _truth()
-    d, m = 0.30, 3
-    low = run_shared_ground_sweep(truth, [d], n_trials=20, shared_error_m=0.2,
-                                  min_support=1.0)["c3"][0]
-    high = run_shared_ground_sweep(truth, [d], n_trials=20, shared_error_m=1.0,
-                                   min_support=1.0)["c3"][0]
-    # identical (k, m_eff, sigma_o) in both runs
-    assert conservative_effective_support(m, d) == conservative_effective_support(m, d)
-    assert low.n_harmful < high.n_harmful
-    assert high.n_harmful >= 15, "the high-common-error case must be badly harmful"
+@pytest.mark.parametrize("d", [0.0, 0.5, 1.0])
+def test_variance_of_promoted_mean_matches_component_support(truth, d: float):
+    """400 controlled error trials on the real Haworth surface."""
+    mask = np.zeros(truth.shape, dtype=bool)
+    mask.ravel()[: int(d * truth.size)] = True
+    squared_errors = []
+    predicted = M / (1.0 + d * (M - 1))
+
+    for trial in range(400):
+        rng = np.random.default_rng(50000 + trial)
+        shared = rng.normal(0.0, SIGMA, truth.shape)
+        observations = []
+        for source in range(M):
+            independent = rng.normal(0.0, SIGMA, truth.shape)
+            error = np.where(mask, shared, independent)
+            observations.append(
+                Evidence(
+                    f"agent_{source}",
+                    "observation",
+                    truth + error,
+                    SIGMA,
+                )
+            )
+        result = evaluate(
+            observations,
+            correlation_mask=mask,
+            min_effective_support=1.0,
+        )
+        assert result.decision is Decision.PROMOTE
+        assert result.accepted_state is not None
+        squared_errors.append(
+            float(np.mean((result.accepted_state - truth) ** 2))
+        )
+        assert result.effective_n == pytest.approx(predicted)
+
+    measured_rms = float(np.sqrt(np.mean(squared_errors)))
+    predicted_rms = SIGMA / np.sqrt(predicted)
+    assert measured_rms == pytest.approx(predicted_rms, rel=0.025)
 
 
-def test_the_accepted_state_is_one_reading_not_a_mean():
-    """The root of the mismatch, as a property rather than a comment. The effective-sample-size
-    derivation is about the variance of a mean of m readings; the rule accepts a single reading."""
-    truth = _truth()
-    # with no common error the accepted state's error is its own noise, whatever m_eff says
-    quiet = run_shared_ground_sweep(truth, [0.0], n_trials=20, shared_error_m=0.6,
-                                    min_support=1.0)["c3"][0]
-    shared = run_shared_ground_sweep(truth, [1.0], n_trials=20, shared_error_m=0.6,
-                                     min_support=1.0)["c3"][0]
-    assert conservative_effective_support(3, 0.0) == pytest.approx(3.0)
-    assert conservative_effective_support(3, 1.0) == pytest.approx(1.0)
-    # a threefold change in m_eff, and the accepted error is driven by the common term instead
-    assert quiet.mean_error_m < shared.mean_error_m
+def test_component_sizes_two_one_give_nine_fifths(truth):
+    sources = ("a", "b", "c")
+    observed = {source: np.ones(truth.shape, dtype=bool) for source in sources}
+    sigmas = {source: SIGMA for source in sources}
+    edges = {("a", "b"): np.ones(truth.shape, dtype=bool)}
+    support = component_support_from_graph(sources, observed, sigmas, edges)
+
+    assert np.allclose(support.per_cell, 9.0 / 5.0)
+    assert support.region_effective_n == pytest.approx(9.0 / 5.0)
+    assert np.all(support.n_components == 2)
+    assert np.array_equal(
+        support.component_labels["a"],
+        support.component_labels["b"],
+    )
+    assert not np.array_equal(
+        support.component_labels["a"],
+        support.component_labels["c"],
+    )
 
 
-def test_the_licensing_role_of_m_eff_is_untouched_by_this():
-    """Scope of the correction, pinned so it is not over-read. m_eff still gates the branch where
-    corroboration overrules a disagreeing model, and that role is about authority rather than about
-    bounding an error. Disabling the correction still lets counterfeit corroboration through."""
-    truth = _truth()
-    thr = 2.25
-    with_corr = run_shared_ground_sweep(truth, [0.60], n_trials=20, min_support=thr,
-                                        physics_sees_truth=True)
-    assert with_corr["c3"][0].n_harmful == 0
-    assert with_corr["none"][0].n_harmful > 0
+def test_unequal_sigma_component_bound_is_the_sum_of_component_sums(truth):
+    sources = ("a", "b", "c")
+    observed = {source: np.ones(truth.shape, dtype=bool) for source in sources}
+    sigmas = {"a": 0.05, "b": 0.10, "c": 0.20}
+    edges = {("a", "b"): np.ones(truth.shape, dtype=bool)}
+    support = component_support_from_graph(sources, observed, sigmas, edges)
+    expected = ((0.05 + 0.10) ** 2 + 0.20**2) / 3.0**2
+
+    assert np.allclose(support.variance_bound_m2, expected)
+
+
+def test_partial_coverage_uses_the_sources_present_on_each_cell(truth):
+    sources = ("a", "b", "c")
+    left = np.zeros(truth.shape, dtype=bool)
+    left[:, : truth.shape[1] // 2] = True
+    observed = {
+        "a": np.ones(truth.shape, dtype=bool),
+        "b": np.ones(truth.shape, dtype=bool),
+        "c": left,
+    }
+    sigmas = {source: SIGMA for source in sources}
+    edges = {("a", "b"): np.ones(truth.shape, dtype=bool)}
+    support = component_support_from_graph(sources, observed, sigmas, edges)
+
+    assert np.allclose(support.per_cell[left], 9.0 / 5.0)
+    assert np.allclose(support.per_cell[~left], 1.0)
+    assert support.region_effective_n == pytest.approx(9.0 / 7.0)
+
+
+def test_component_graph_rejects_ambiguous_or_misaligned_metadata(truth):
+    full = np.ones(truth.shape, dtype=bool)
+    with pytest.raises(ValueError, match="unique"):
+        component_support_from_graph(
+            ("a", "a"),
+            {"a": full},
+            {"a": SIGMA},
+            {},
+        )
+    with pytest.raises(ValueError, match="shape"):
+        component_support_from_graph(
+            ("a", "b"),
+            {"a": full, "b": full},
+            {"a": SIGMA, "b": SIGMA},
+            {("a", "b"): np.ones((2, 2), dtype=bool)},
+        )
+    with pytest.raises(ValueError, match="unknown source"):
+        component_support_from_graph(
+            ("a", "b"),
+            {"a": full, "b": full},
+            {"a": SIGMA, "b": SIGMA},
+            {("a", "c"): full},
+        )
+
+
+def test_chi_square_rms_multiplier_is_calibrated_for_the_region_statistic():
+    multiplier = chi_square_rms_multiplier(1024, 1e-3)
+    assert multiplier == pytest.approx(1.0687, abs=1e-4)
+    assert multiplier < 2.0
+
+
+def test_old_global_mask_is_the_all_sources_one_component_special_case(truth):
+    sources = ("a", "b", "c")
+    observed = {source: np.ones(truth.shape, dtype=bool) for source in sources}
+    sigmas = {source: SIGMA for source in sources}
+    mask = np.zeros(truth.shape, dtype=bool)
+    mask[:, : truth.shape[1] // 2] = True
+    edges = global_mask_dependency_edges(sources, mask)
+    support = component_support_from_graph(sources, observed, sigmas, edges)
+
+    assert np.all(support.per_cell[mask] == 1.0)
+    assert np.all(support.per_cell[~mask] == 3.0)
+    assert support.region_effective_n == pytest.approx(1.5)
+
+
+def test_support_without_a_common_error_scale_is_not_a_tail_bound(truth):
+    """Same graph, different marginal scale: support is unchanged but MSE moves."""
+    rms = []
+    for scale in (0.05, 0.50):
+        errors = []
+        for trial in range(100):
+            rng = np.random.default_rng(71000 + trial)
+            common = rng.normal(0.0, scale, truth.shape)
+            aggregate = np.mean(
+                np.stack([truth + common for _ in range(M)]),
+                axis=0,
+            )
+            errors.append(float(np.mean((aggregate - truth) ** 2)))
+        rms.append(float(np.sqrt(np.mean(errors))))
+
+    assert M / (1 + (M - 1)) == 1.0
+    assert rms[1] > 8.0 * rms[0]

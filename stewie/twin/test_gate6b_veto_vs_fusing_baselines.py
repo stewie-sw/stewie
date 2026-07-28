@@ -216,13 +216,16 @@ def test_trials_within_a_sweep_level_are_actually_different():
 
 
 # --------------------------------------------------------------------------------------------
-# The side condition the proof sketch did not state. Found by sweeping, not by inspection.
+# Legacy effect-size behaviour. These tests are not theorem conditions.
 # --------------------------------------------------------------------------------------------
-def test_detection_band_above_harm_threshold_opens_a_blind_window():
-    """The gate is NOT unconditionally safe. When the combined declared uncertainty is wide enough
-    that k*sigma_comb exceeds tau, a fault can be harmful and still sit inside the band the gate uses
-    to detect it. At k=3 the band is 0.283 m against a 0.250 m threshold, and the gate accepts a
-    0.255 m fault every time. Recorded as a failing regime, not hidden."""
+def test_legacy_effect_size_band_above_harm_threshold_opens_a_blind_window():
+    """A controlled deterministic fault can be harmful while inside this legacy band.
+
+    This is an effect-size-sweep result, not a condition of the arbitrary-bias
+    theorem and not a probability calibration. At k=3 the band is 0.283 m
+    against a 0.250 m threshold, and the gate accepts a 0.255 m fault every
+    time.
+    """
     truth = _truth()
     band = detection_band_m(SIGMA_O, SIGMA_P, 3.0)
     assert band > TAU_M, "this test is only meaningful when the band exceeds the threshold"
@@ -232,9 +235,8 @@ def test_detection_band_above_harm_threshold_opens_a_blind_window():
     assert res["gate"][0].abstain_rate == 0.0, "the gate cannot see the fault, so it does not decline"
 
 
-def test_satisfying_the_band_condition_closes_the_window():
-    """k*sqrt(sigma_o^2 + sigma_p^2) <= tau is the side condition. Under it the gate is safe across
-    the whole fault sweep including the window that broke it at k=3."""
+def test_narrowing_the_legacy_effect_size_band_closes_this_controlled_window():
+    """A narrower effect-size setting catches this registered deterministic sweep."""
     truth = _truth()
     band = detection_band_m(SIGMA_O, SIGMA_P, 2.0)
     assert band <= TAU_M
@@ -245,13 +247,33 @@ def test_satisfying_the_band_condition_closes_the_window():
         f"window not closed: {[(g.level_m, g.n_harmful) for g in res['gate']]}"
 
 
-def test_tightening_k_to_satisfy_the_condition_costs_nothing_on_clean_evidence():
-    """The condition is not bought with false rejections in this regime: at k=2 the gate still
-    promotes clean evidence every time. That the fix is free here does not mean it is free in
-    general, and the proposal states it as a regime-dependent finding."""
+def test_narrowing_the_effect_size_band_costs_nothing_on_this_clean_sweep():
+    """Both registered effect-size settings promote every clean trial."""
     truth = _truth()
     for k in (3.0, 2.0):
         res = run_model_bias_sweep(truth, [0.0], n_trials=20, sigma_o=SIGMA_O, sigma_p=SIGMA_P,
                                    tau_m=TAU_M, k_sigma=k)
         assert res["gate"][0].abstain_rate == 0.0, f"k={k} refused clean evidence"
         assert res["gate"][0].n_harmful == 0
+
+
+def test_chi_square_recalibration_preserves_harm_result_but_changes_availability():
+    """Re-run the registered headline levels under both threshold semantics.
+
+    The model-bias and harmful-acceptance conclusions are unchanged. The
+    probability-calibrated gate is stricter at the 0.20 m sensor offset, so the
+    availability curve changes and must not be reported as bit-identical.
+    """
+    truth = _truth()
+    biases = [0.0, 0.5, 1.0, 2.0, 4.0]
+    faults = [0.0, 0.20, 0.30]
+    effect_bias = run_model_bias_sweep(truth, biases, k_sigma=3.0)["gate"]
+    chi_bias = run_model_bias_sweep(truth, biases, k_sigma=None)["gate"]
+    effect_fault = run_sensor_fault_sweep(truth, faults, k_sigma=3.0)["gate"]
+    chi_fault = run_sensor_fault_sweep(truth, faults, k_sigma=None)["gate"]
+
+    assert all(r.n_harmful == 0 for r in [*effect_bias, *chi_bias])
+    assert all(r.n_abstained == 0 for r in [*effect_bias, *chi_bias])
+    assert all(r.n_harmful == 0 for r in [*effect_fault, *chi_fault])
+    assert [r.n_abstained for r in effect_fault] == [0, 0, 20]
+    assert [r.n_abstained for r in chi_fault] == [0, 20, 20]

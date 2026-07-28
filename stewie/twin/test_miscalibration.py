@@ -1,25 +1,24 @@
-"""[F3] What does the rule do when a sensor lies about its own precision?
+"""[F3] What does the rule do when a sensor lies about its precision?
 
-Every result before this one set declared sigma equal to true sigma by construction. Since the
-soundness claim is stated *over* calibrated sensors, an uncalibrated regime does not weaken it, it
-voids the hypothesis. So the question under test is not whether the bound survives -- it is not
-claimed to -- but whether the rule fails **safe** or fails **silently**.
+The theorem assumes calibrated marginal error bounds. This controlled fault
+family deliberately violates that assumption and measures the resulting
+availability and harm.
 
-The answer, and it was derived before it was measured: two thresholds separate. Tolerances inside the
-rule are built from the DECLARED sigma, while the error that decides harm is governed by the TRUE
-sigma. Two readings at the true scale start disagreeing beyond a declared-scale tolerance at
-``kappa = k``; the accepted reading's own error exceeds tau at ``kappa = tau / sigma_declared``. When
-the first comes before the second the rule notices it is out of its depth before it can do damage.
+The accepted-state repair invalidates the earlier threshold derivation. The
+rule now accepts the mean of two observations, not one selected reading. For
+two equally mis-calibrated sources, the square root of expected MSE reaches
+``tau`` at ``kappa = sqrt(2) tau / sigma``. With one bad and one honest source it reaches
+``tau`` at ``sqrt((2 tau / sigma)^2 - 1)``. The disagreement effect-size
+crossovers remain ``k`` and ``sqrt(2 k^2 - 1)``. In both cases, detection
+precedes the root-expected-MSE crossing exactly when
+``k sigma < sqrt(2) tau``.
 
-That ordering reduces to ``k * sigma_declared < tau`` -- the A5 resolvability condition with the
-physics channel removed -- **in the symmetric case, where every source is equally over-confident.**
-
-**Corrected 2026-07-27.** That is not the binding case. When only the candidate is over-confident and
-its corroborator is honest, disagreement grows as ``sqrt(kappa^2+1)`` rather than as ``kappa``, so
-detection is deferred to ``kappa = sqrt(2k^2-1)`` while the harm threshold does not move. The honest
-condition is therefore ``sqrt(2k^2-1) * sigma_declared < tau``, and the symmetric form certifies
-configurations that are in fact unsafe -- at ``k=4`` it says safe while the gate is harmed 12/20.
-The A5 resemblance survives as an observation about the symmetric case, not as the condition.
+These are large-field root-expected-MSE crossovers for a controlled
+effect-size knob, not ``E[RMS]``, deterministic safety thresholds, or
+false-alarm probabilities. Their interpretation as overconfidence onsets uses
+``k >= 1`` and an honest operating point at ``kappa = 1``; if
+``tau <= sigma/sqrt(2)``, that honest two-source mean is already harmful in
+root expected MSE.
 
 Real Haworth terrain, controlled fault injection, twenty distinct trials per level.
 """
@@ -63,33 +62,46 @@ def _truth() -> np.ndarray:
 # --------------------------------------------------------------------------------------------
 def test_thresholds_are_where_the_algebra_says():
     th = miscalibration_thresholds(SIGMA_D, TAU, k_sigma=2.0)
-    assert th["detect"] == pytest.approx(2.0)          # kappa = k
-    assert th["harm"] == pytest.approx(5.0)            # kappa = tau / sigma_declared
-    assert th["fails_safe"] == 1.0                     # 2.0 * 0.05 < 0.25
+    assert th["detect_symmetric"] == pytest.approx(2.0)
+    assert th["detect_asymmetric"] == pytest.approx(np.sqrt(7.0))
+    assert th["harm_symmetric"] == pytest.approx(np.sqrt(2.0) * TAU / SIGMA_D)
+    assert th["harm_asymmetric"] == pytest.approx(
+        np.sqrt((2.0 * TAU / SIGMA_D) ** 2 - 1.0)
+    )
+    assert th["honest_expected_safe"] == 1.0
+    assert th["crossings_in_overconfidence_regime"] == 1.0
+    assert th["expected_order_both"] == 1.0
     with pytest.raises(ValueError):
         miscalibration_thresholds(0.0, TAU, 2.0)
+    with pytest.raises(ValueError, match="k_sigma"):
+        miscalibration_thresholds(SIGMA_D, TAU, 0.9)
 
 
-def test_the_symmetric_condition_is_a5_without_the_physics_term_but_is_not_binding():
-    """The A5 resemblance is real and was the first thing noticed; it is also not the whole story.
+def test_no_positive_margin_is_reported_when_honest_expected_mse_is_harmful():
+    th = miscalibration_thresholds(
+        sigma_declared=0.50,
+        tau_m=0.25,
+        k_sigma=1.1,
+    )
 
-    ``k * sigma_o < tau`` is exactly A5 with ``sigma_p = 0``, and it governs the SYMMETRIC case. It
-    does not govern the asymmetric one, where detection is deferred to ``sqrt(2k^2-1)``. Keeping the
-    resemblance as an observation while denying it the status of the condition is the correction this
-    file records."""
-    for k in (1.0, 2.0, 4.0):
+    assert th["honest_expected_safe"] == 0.0
+    assert th["crossings_in_overconfidence_regime"] == 0.0
+    assert th["expected_order_both"] == 0.0
+
+
+def test_averaging_makes_the_two_expected_order_conditions_equivalent():
+    """Squaring either crossover inequality gives ``k sigma < sqrt(2) tau``."""
+    for k in (1.0, 2.0, 4.0, 8.0):
         th = miscalibration_thresholds(SIGMA_D, TAU, k)
-        assert bool(th["fails_safe_symmetric_only"]) is bool(k * SIGMA_D < TAU)
-        assert th["detect_symmetric"] == pytest.approx(k)
-    # and the two verdicts diverge exactly where the correction bites
-    assert miscalibration_thresholds(SIGMA_D, TAU, 4.0)["fails_safe_symmetric_only"] == 1.0
-    assert miscalibration_thresholds(SIGMA_D, TAU, 4.0)["fails_safe"] == 0.0
+        expected = bool(k * SIGMA_D < np.sqrt(2.0) * TAU)
+        assert bool(th["expected_order_symmetric"]) is expected
+        assert bool(th["expected_order_asymmetric"]) is expected
 
 
 # --------------------------------------------------------------------------------------------
-# Under the condition: mis-calibration becomes abstention, never harm
+# Registered sweep when the detection-effect crossover comes first
 # --------------------------------------------------------------------------------------------
-def test_gate_never_accepts_a_harmful_state_while_the_condition_holds():
+def test_registered_sweep_has_no_harm_when_expected_order_is_detection_first():
     truth = _truth()
     res = run_miscalibration_sweep(truth, [1.0, 2.0, 3.0, 5.0, 8.0, 12.0], n_trials=20,
                                    sigma_declared=SIGMA_D, sigma_p=SIGMA_P, tau_m=TAU, k_sigma=2.0)
@@ -108,10 +120,8 @@ def test_detection_begins_at_the_derived_threshold():
     assert ab[3] == 1.0, "and be total shortly after"
 
 
-def test_safety_is_bought_with_total_unavailability():
-    """The cost is stark and belongs in the record: past the detection threshold the rule declines
-    every time. It is safe and completely unavailable, which is the availability concern raised
-    against the abstain channel, here measured rather than argued."""
+def test_registered_zero_harm_is_bought_with_total_unavailability():
+    """Past the measured threshold this sweep declines every trial."""
     truth = _truth()
     res = run_miscalibration_sweep(truth, [8.0], n_trials=20, sigma_declared=SIGMA_D,
                                    sigma_p=SIGMA_P, tau_m=TAU, k_sigma=2.0)
@@ -122,20 +132,23 @@ def test_safety_is_bought_with_total_unavailability():
 
 
 # --------------------------------------------------------------------------------------------
-# Necessity: violate the condition and the rule fails unsafe
+# Reversing the expected crossover order exposes harm in this sweep
 # --------------------------------------------------------------------------------------------
-def test_violating_the_condition_makes_the_rule_fail_unsafe():
-    """The decisive test. Widen the gate until k*sigma_declared exceeds tau and harm now precedes
-    detection, so the rule accepts states it cannot see are bad. This is what makes the condition
-    NECESSARY rather than a convenient sufficient one."""
+def test_reversing_the_expected_crossing_order_exposes_harmful_acceptance():
+    """A wide effect-size gate admits harmful trials before disagreement dominates."""
     truth = _truth()
-    th = miscalibration_thresholds(SIGMA_D, TAU, k_sigma=6.0)
-    assert th["fails_safe"] == 0.0, "this test is only meaningful with the condition violated"
-    assert th["harm"] < th["detect"], "harm must precede detection for the failure to exist"
-    res = run_miscalibration_sweep(truth, [5.0, 6.0], n_trials=20, sigma_declared=SIGMA_D,
-                                   sigma_p=SIGMA_P, tau_m=TAU, k_sigma=6.0)
-    assert sum(g.n_harmful for g in res["gate"]) > 0, \
-        "with the condition violated the gate must be able to accept a harmful state"
+    th = miscalibration_thresholds(SIGMA_D, TAU, k_sigma=8.0)
+    assert th["expected_order_both"] == 0.0
+    symmetric = run_miscalibration_sweep(
+        truth, [7.0], n_trials=20, sigma_declared=SIGMA_D,
+        sigma_p=SIGMA_P, tau_m=TAU, k_sigma=8.0,
+    )
+    asymmetric = run_asymmetric_miscalibration_sweep(
+        truth, [10.0], n_trials=20, sigma_declared=SIGMA_D,
+        sigma_p=SIGMA_P, tau_m=TAU, k_sigma=8.0,
+    )
+    assert symmetric["gate"][0].n_harmful > 0
+    assert asymmetric["gate"][0].n_harmful > 0
 
 
 def test_both_baselines_fail_under_mis_calibration():
@@ -170,12 +183,7 @@ def test_trials_within_a_level_actually_differ():
 
 
 # --------------------------------------------------------------------------------------------
-# CORRECTION 2026-07-27. The symmetric condition alone is unsound.
-#
-# The first version of this family reported only the symmetric case and gave the fail-safe condition
-# as k*sigma_declared < tau. Checking a doubt recorded in the previous iteration's journal -- that
-# the thresholds were derived under equal declared sigmas and might move under unequal ones -- showed
-# the condition is incomplete, and that certifying safety on it lets an unsafe configuration through.
+# CORRECTION 2026-07-28. The accepted-state mean moves both harm crossovers.
 # --------------------------------------------------------------------------------------------
 def test_asymmetric_detection_is_deferred_relative_to_symmetric():
     """One bad source among honest ones is HARDER to detect than all sources being equally bad,
@@ -195,33 +203,29 @@ def test_asymmetric_detection_is_deferred_relative_to_symmetric():
     assert asym["gate"][2].abstain_rate == 1.0
 
 
-def test_symmetric_condition_alone_certifies_an_unsafe_configuration():
-    """The reason the condition had to be corrected, pinned as a regression.
-
-    At k=4 the symmetric condition k*sigma_declared < tau holds (0.20 < 0.25) and would certify the
-    configuration safe. The asymmetric detection threshold sqrt(2k^2-1)*sigma_declared = 0.279
-    exceeds tau, so harm precedes detection, and the gate does accept harmful states."""
+def test_the_old_k4_asymmetric_counterexample_disappears_after_averaging():
+    """The earlier unsafe-window claim depended on accepting the bad source whole."""
     th = miscalibration_thresholds(SIGMA_D, TAU, k_sigma=4.0)
-    assert th["fails_safe_symmetric_only"] == 1.0, "the old condition must still say safe here"
-    assert th["fails_safe"] == 0.0, "the corrected condition must say unsafe"
+    assert th["expected_order_symmetric"] == 1.0
+    assert th["expected_order_asymmetric"] == 1.0
     truth = _truth()
     res = run_asymmetric_miscalibration_sweep(truth, [5.0], n_trials=20, sigma_declared=SIGMA_D,
                                               sigma_p=SIGMA_P, tau_m=TAU, k_sigma=4.0)
-    assert res["gate"][0].n_harmful > 0, \
-        "a configuration the old condition certified as safe must be shown to be unsafe"
+    assert res["gate"][0].n_harmful == 0
 
 
-def test_corrected_condition_is_the_asymmetric_one():
-    """fails_safe now tracks the LATER detection threshold, since that is the binding case."""
-    for k in (2.0, 3.0, 4.0, 5.0):
+def test_both_regimes_change_order_at_the_same_gate_width():
+    for k in (2.0, 4.0, 7.0, 8.0):
         th = miscalibration_thresholds(SIGMA_D, TAU, k)
         assert th["detect_asymmetric"] >= th["detect_symmetric"]
-        assert th["fails_safe"] == float(th["detect_asymmetric"] < th["harm"])
+        assert th["expected_order_symmetric"] == th["expected_order_asymmetric"]
 
 
 def test_the_margin_narrows_and_then_inverts_with_gate_width():
-    """Documents why a wide gate is not merely conservative: it defers detection faster than it
-    defers harm, so past a point the ordering the whole fail-safe argument rests on reverses."""
-    margins = [miscalibration_thresholds(SIGMA_D, TAU, k)["margin"] for k in (1.5, 2.0, 3.0, 4.0)]
+    """A wider effect-size gate eventually puts expected harm before detection."""
+    margins = [
+        miscalibration_thresholds(SIGMA_D, TAU, k)["margin"]
+        for k in (1.5, 2.0, 4.0, 8.0)
+    ]
     assert all(a > b for a, b in zip(margins, margins[1:])), "margin must shrink as k grows"
-    assert margins[-1] < 1.0, "and invert before k=4"
+    assert margins[-1] < 1.0

@@ -1,4 +1,4 @@
-"""[GATE6] Does a gated promotion beat fixed precedence? The test that can falsify the premise.
+"""[GATE6] Does a gated promotion beat fixed precedence? A test that can break the premise.
 
 The thesis premise is that provenance-, reliability-, and physics-gated promotion reduces HARMFUL
 STATE ACCEPTANCE relative to a single-authoritative-map baseline. If the gate cannot beat
@@ -68,10 +68,16 @@ def test_s1_good_observation_and_good_physics_are_accepted_by_both():
     obs = _noisy(truth, SIGMA_OBS, seed=1)
     phys = _noisy(truth, SIGMA_PHYS, seed=2)
 
-    r = evaluate(obs, [Evidence("stereo", "observation", obs, SIGMA_OBS),
-                       Evidence("terramech", "physics", phys, SIGMA_PHYS)], prior=prior)
+    r = evaluate(
+        [
+            Evidence("stereo", "observation", obs, SIGMA_OBS),
+            Evidence("terramech", "physics", phys, SIGMA_PHYS),
+        ],
+        prior=prior,
+    )
     assert r.decision is Decision.PROMOTE, r.reason
-    assert not _harmful(obs, truth)
+    assert r.accepted_state is not None
+    assert not _harmful(r.accepted_state, truth)
     assert not _harmful(baseline_fixed_precedence(prior, obs), truth)
 
 
@@ -87,8 +93,13 @@ def test_s2_baseline_accepts_a_bad_observation_and_the_gate_does_not():
     accepted_baseline = baseline_fixed_precedence(prior, bad_obs)
     assert _harmful(accepted_baseline, truth), "baseline should be harmed by the glitch"
 
-    r = evaluate(bad_obs, [Evidence("stereo", "observation", bad_obs, SIGMA_OBS),
-                           Evidence("terramech", "physics", phys, SIGMA_PHYS)], prior=prior)
+    r = evaluate(
+        [
+            Evidence("stereo", "observation", bad_obs, SIGMA_OBS),
+            Evidence("terramech", "physics", phys, SIGMA_PHYS),
+        ],
+        prior=prior,
+    )
     assert r.decision is not Decision.PROMOTE, r.reason
     assert r.residual_rms_m > r.tolerance_m
     accepted_gate = prior if r.decision is not Decision.PROMOTE else bad_obs
@@ -106,14 +117,21 @@ def test_s3_misspecified_physics_does_not_cause_a_good_observation_to_be_rejecte
     obs_b = _noisy(truth, SIGMA_OBS, seed=5)          # independent corroborating sensor
     bad_phys = truth - 0.7                            # misspecified soil model: predicts 0.7 m too deep
 
-    r = evaluate(obs_a, [Evidence("stereo", "observation", obs_a, SIGMA_OBS),
-                         Evidence("lidar", "observation", obs_b, SIGMA_OBS),
-                         Evidence("terramech", "physics", bad_phys, SIGMA_PHYS)], prior=prior)
+    r = evaluate(
+        [
+            Evidence("stereo", "observation", obs_a, SIGMA_OBS),
+            Evidence("lidar", "observation", obs_b, SIGMA_OBS),
+            Evidence("terramech", "physics", bad_phys, SIGMA_PHYS),
+        ],
+        prior=prior,
+        correlation_mask=np.zeros(truth.shape, dtype=bool),
+    )
     # the residual IS large -- the gate must notice, and still not reject the observation
     assert r.residual_rms_m > r.tolerance_m
     assert r.decision is Decision.PROMOTE, r.reason
-    assert "model is the outlier" in r.reason
-    assert not _harmful(obs_a, truth)
+    assert "distinct dependency components" in r.reason
+    assert r.accepted_state is not None
+    assert not _harmful(r.accepted_state, truth)
 
 
 def test_s3b_misspecified_physics_without_corroboration_abstains_rather_than_rejecting():
@@ -123,10 +141,15 @@ def test_s3b_misspecified_physics_without_corroboration_abstains_rather_than_rej
     obs = _noisy(truth, SIGMA_OBS, seed=6)
     bad_phys = truth - 0.7
 
-    r = evaluate(obs, [Evidence("stereo", "observation", obs, SIGMA_OBS),
-                       Evidence("terramech", "physics", bad_phys, SIGMA_PHYS)], prior=truth)
+    r = evaluate(
+        [
+            Evidence("stereo", "observation", obs, SIGMA_OBS),
+            Evidence("terramech", "physics", bad_phys, SIGMA_PHYS),
+        ],
+        prior=truth,
+    )
     assert r.decision is Decision.ABSTAIN, r.reason
-    assert "cannot distinguish" in r.reason
+    assert "distinct dependency components" in r.reason
 
 
 # --------------------------------------------------------------------------------------------
@@ -136,8 +159,14 @@ def test_s4_two_contradicting_observations_abstain():
     truth = _truth()
     obs_a = truth + 0.9
     obs_b = truth - 0.9
-    r = evaluate(obs_a, [Evidence("stereo", "observation", obs_a, SIGMA_OBS),
-                         Evidence("lidar", "observation", obs_b, SIGMA_OBS)], prior=truth)
+    r = evaluate(
+        [
+            Evidence("stereo", "observation", obs_a, SIGMA_OBS),
+            Evidence("lidar", "observation", obs_b, SIGMA_OBS),
+        ],
+        prior=truth,
+        correlation_mask=np.zeros(truth.shape, dtype=bool),
+    )
     assert r.decision is Decision.ABSTAIN
     assert "contradict each other" in r.reason
 
@@ -156,9 +185,14 @@ def test_harmful_promotion_rate_gate_beats_fixed_precedence():
         phys = _noisy(truth, SIGMA_PHYS, seed=s)
         if _harmful(baseline_fixed_precedence(prior, bad_obs), truth):
             baseline_harm += 1
-        r = evaluate(bad_obs, [Evidence("stereo", "observation", bad_obs, SIGMA_OBS),
-                               Evidence("terramech", "physics", phys, SIGMA_PHYS)], prior=prior)
-        accepted = bad_obs if r.decision is Decision.PROMOTE else prior
+        r = evaluate(
+            [
+                Evidence("stereo", "observation", bad_obs, SIGMA_OBS),
+                Evidence("terramech", "physics", phys, SIGMA_PHYS),
+            ],
+            prior=prior,
+        )
+        accepted = r.accepted_state if r.decision is Decision.PROMOTE else prior
         if _harmful(accepted, truth):
             gate_harm += 1
 
@@ -174,8 +208,13 @@ def test_gate_does_not_win_by_refusing_everything():
     for s in range(40, 60):
         obs = _noisy(truth, SIGMA_OBS, seed=s)
         phys = _noisy(truth, SIGMA_PHYS, seed=s + 100)
-        r = evaluate(obs, [Evidence("stereo", "observation", obs, SIGMA_OBS),
-                           Evidence("terramech", "physics", phys, SIGMA_PHYS)], prior=truth + 0.5)
+        r = evaluate(
+            [
+                Evidence("stereo", "observation", obs, SIGMA_OBS),
+                Evidence("terramech", "physics", phys, SIGMA_PHYS),
+            ],
+            prior=truth + 0.5,
+        )
         promoted += (r.decision is Decision.PROMOTE)
     assert promoted == 20, f"gate refused clean evidence {20 - promoted} times"
 
@@ -195,19 +234,29 @@ def test_action_correlated_cells_reduce_effective_support():
     ev = [Evidence("scout", "observation", obs_a, SIGMA_OBS, reliability=0.6),
           Evidence("hauler", "observation", obs_b, SIGMA_OBS, reliability=0.6)]
 
-    clean = evaluate(obs_a, ev, prior=truth, min_effective_support=0.9)
+    clean = evaluate(
+        ev,
+        prior=truth,
+        correlation_mask=np.zeros(truth.shape, dtype=bool),
+        min_effective_support=1.5,
+    )
     assert clean.decision is Decision.PROMOTE
-    assert clean.effective_n == pytest.approx(2 * 0.6)      # nothing shared: full support
+    assert clean.effective_n == pytest.approx(2.0)
 
     # A realistic co-dig: both vehicles worked most of the pad.
     mask = np.zeros(truth.shape, dtype=bool)
     mask[6:26, 6:26] = True                     # 400 of 1024 cells touched by BOTH
-    corr = evaluate(obs_a, ev, prior=truth, correlation_mask=mask, min_effective_support=0.9)
+    corr = evaluate(
+        ev,
+        prior=truth,
+        correlation_mask=mask,
+        min_effective_support=1.5,
+    )
     assert corr.n_correlated == 400
     assert corr.effective_n < clean.effective_n, "shared ground must reduce independent support"
-    assert corr.effective_n > 0.6, "but two correlated readings are still worth more than one"
+    assert corr.effective_n > 1.0, "two partly correlated readings remain worth more than one"
     assert corr.decision is Decision.ABSTAIN
-    assert "action-correlated" in corr.reason
+    assert "below required" in corr.reason
 
 
 def test_a_single_observation_is_not_discounted_by_shared_ground():
@@ -222,9 +271,9 @@ def test_a_single_observation_is_not_discounted_by_shared_ground():
     ev = [Evidence("scout", "observation", obs, SIGMA_OBS, reliability=0.6)]
     mask = np.zeros(truth.shape, dtype=bool)
     mask[6:26, 6:26] = True
-    r = evaluate(obs, ev, prior=truth, correlation_mask=mask, min_effective_support=0.5)
-    assert r.n_correlated == 400
-    assert r.effective_n == pytest.approx(0.6)   # reliability only; no independence discount
+    r = evaluate(ev, prior=truth, correlation_mask=mask, min_effective_support=0.5)
+    assert r.n_correlated == 0
+    assert r.effective_n == pytest.approx(1.0)
     assert r.decision is Decision.PROMOTE
 
 
@@ -239,9 +288,7 @@ def test_small_correlated_region_reduces_support_without_flipping_the_decision()
           Evidence("hauler", "observation", obs_b, SIGMA_OBS, reliability=0.6)]
     mask = np.zeros(truth.shape, dtype=bool)
     mask[8:20, 8:20] = True                     # 144 of 1024 -> d = 0.140625
-    r = evaluate(obs_a, ev, prior=truth, correlation_mask=mask, min_effective_support=0.9)
+    r = evaluate(ev, prior=truth, correlation_mask=mask, min_effective_support=0.9)
     assert r.n_correlated == 144
-    # C3: m/(1 + d(m-1)) * mean_reliability = 2/(1 + 0.140625) * 0.6
-    assert r.effective_n == pytest.approx(2 / (1 + 0.140625) * 0.6, rel=1e-9)
+    assert r.effective_n == pytest.approx(2 / (1 + 0.140625), rel=1e-9)
     assert r.decision is Decision.PROMOTE       # still above threshold, correctly
-

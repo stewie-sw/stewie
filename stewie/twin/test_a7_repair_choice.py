@@ -99,16 +99,23 @@ def _campaign(base: np.ndarray, policy: str, *, dig_prob: float = 1.0, log_miss:
         if policy == "enforce_a7":
             result = None
         elif policy == "current":
-            result = evaluate(evidence[0].values, evidence,
-                              min_effective_support=SUPPORT_THRESHOLD)
+            result = evaluate(
+                evidence,
+                correlation_mask=np.zeros(truth.shape, dtype=bool),
+                min_effective_support=SUPPORT_THRESHOLD,
+            )
         elif policy == "require_mask":
-            result = evaluate(evidence[0].values, evidence, correlation_mask=mask,
-                              min_effective_support=SUPPORT_THRESHOLD)
+            result = evaluate(
+                evidence,
+                correlation_mask=mask,
+                min_effective_support=SUPPORT_THRESHOLD,
+            )
         else:
             raise ValueError(policy)
 
         if result is not None and result.decision is Decision.PROMOTE:
-            held = evidence[0].values.copy()
+            assert result.accepted_state is not None
+            held = result.accepted_state.copy()
             if float(np.sqrt(np.mean((held - truth) ** 2))) > TAU_M:
                 harmful += 1
         else:
@@ -222,9 +229,12 @@ def _bursty_campaign(base: np.ndarray, policy: str, *, steps: int = 40, p_depend
         ]
         mask = np.ones(truth.shape, dtype=bool) if dependent else np.zeros(truth.shape, dtype=bool)
         result = None if policy == "enforce_a7" else evaluate(
-            evidence[0].values, evidence, correlation_mask=mask,
-            min_effective_support=SUPPORT_THRESHOLD)
+            evidence,
+            correlation_mask=mask,
+            min_effective_support=SUPPORT_THRESHOLD,
+        )
         if result is not None and result.decision is Decision.PROMOTE:
-            held = evidence[0].values.copy()
+            assert result.accepted_state is not None
+            held = result.accepted_state.copy()
         errors.append(float(np.sqrt(np.mean((held - truth) ** 2))))
     return float(np.mean(errors))

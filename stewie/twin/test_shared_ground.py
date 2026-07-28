@@ -1,15 +1,13 @@
-"""[F4] The experiment the thesis reduces to, and the free parameter it exposed.
+"""[F4] Shared provenance plus a controlled common observation error.
 
-On ground several agents have dug, every agent's reading carries the SAME error, because the same
-digging produced it. The readings therefore **agree with each other while all of them are wrong**.
+The action log identifies source pairs for which independence must not be
+claimed. It does not, by itself, cause sensor error. This experiment separately
+injects a fixed common-mode observation fault on those cells, so the readings
+agree while all are wrong.
 
-That is the case corroboration cannot catch -- agreement is precisely what it looks for -- and that a
-physical-consistency check cannot catch either, since the error is in the terrain rather than in the
-model. The only thing that can catch it is knowing that agreement between action-correlated sources
-is worth less than agreement between independent ones. This file is where ``m_eff`` either earns its
-place or does not.
-
-Real Haworth terrain. The common error is injected under control and labelled as such.
+For a deterministic common shift, harmful RMS has an exact noncentral
+chi-square law. There is no deterministic "harm onset." Real Haworth terrain is
+used throughout; only the labelled observation fault is injected.
 """
 
 from __future__ import annotations
@@ -20,9 +18,10 @@ import numpy as np
 import pytest
 
 from stewie.twin.veto_experiment import (
-    derived_support_threshold,
     run_shared_ground_sweep,
-    shared_ground_harm_onset,
+    shared_ground_expected_mse_crossover,
+    shared_ground_harm_probability,
+    support_threshold_sensitivity,
 )
 
 _HEIGHT = os.path.abspath(os.path.join(
@@ -47,12 +46,21 @@ def _truth() -> np.ndarray:
     return base + cut
 
 
-def test_harm_onset_is_derived_not_fitted():
-    d = shared_ground_harm_onset(SIGMA_O, TAU, SHARED)
-    assert d == pytest.approx((TAU ** 2 - SIGMA_O ** 2) / SHARED ** 2)
-    assert d == pytest.approx(0.1667, abs=1e-3)
+def test_expected_mse_crossover_accounts_for_averaging():
+    d = shared_ground_expected_mse_crossover(3, SIGMA_O, TAU, SHARED)
+    assert d == pytest.approx((TAU**2 - SIGMA_O**2 / 3.0) / SHARED**2)
+    assert d == pytest.approx(0.1713, abs=1e-3)
     with pytest.raises(ValueError):
-        shared_ground_harm_onset(SIGMA_O, TAU, 0.0)
+        shared_ground_expected_mse_crossover(3, SIGMA_O, TAU, 0.0)
+
+
+def test_harm_is_a_noncentral_chi_square_tail_not_a_sharp_onset():
+    d = shared_ground_expected_mse_crossover(3, SIGMA_O, TAU, SHARED)
+    below = shared_ground_harm_probability(1024, 3, SIGMA_O, TAU, SHARED, 0.167)
+    at_expected = shared_ground_harm_probability(1024, 3, SIGMA_O, TAU, SHARED, d)
+    above = shared_ground_harm_probability(1024, 3, SIGMA_O, TAU, SHARED, 0.18)
+    assert 0.0 < below < at_expected < above < 1.0
+    assert at_expected == pytest.approx(0.3743, abs=1e-3)
 
 
 def test_correlated_error_defeats_corroboration():
@@ -76,30 +84,26 @@ def test_support_models_order_as_predicted():
     assert all(x.abstain_rate == 0.0 for x in res["none"]), "no-correction must never decline"
 
 
-def test_deriving_the_threshold_closes_most_of_the_harmful_window():
-    """The free parameter, not the bound, was doing the damage.
-
-    A hand-picked support threshold leaves a window where the accepted state is already harmful but
-    the support test has not fired. Requiring the test to fire at the harm onset removes the freedom
-    and cuts harmful acceptance by roughly five-sixths."""
+def test_bounded_error_sensitivity_threshold_closes_the_sampled_window():
+    """An offline threshold can be computed only after assuming a common-error bound."""
     truth = _truth()
-    thr = derived_support_threshold(3, SIGMA_O, TAU, SHARED)
-    assert thr == pytest.approx(2.25, abs=0.01)
+    thr = support_threshold_sensitivity(3, SIGMA_O, TAU, SHARED)
+    assert thr == pytest.approx(2.2345, abs=1e-3)
     chosen = run_shared_ground_sweep(truth, OVERLAPS, n_trials=20, min_support=2.0)
-    derived = run_shared_ground_sweep(truth, OVERLAPS, n_trials=20, min_support=thr)
+    bounded = run_shared_ground_sweep(truth, OVERLAPS, n_trials=20, min_support=thr)
     c_tot = sum(x.n_harmful for x in chosen["c3"])
-    d_tot = sum(x.n_harmful for x in derived["c3"])
-    assert d_tot < c_tot / 3, f"derived threshold should cut harm sharply: {c_tot} -> {d_tot}"
-    assert d_tot > 0, "it does not eliminate harm, and the residual is reported rather than hidden"
+    b_tot = sum(x.n_harmful for x in bounded["c3"])
+    assert c_tot > 0
+    assert b_tot == 0
 
 
-def test_derived_threshold_fires_at_the_harm_onset():
+def test_sensitivity_threshold_fires_after_the_expected_mse_crossover():
     truth = _truth()
-    thr = derived_support_threshold(3, SIGMA_O, TAU, SHARED)
+    thr = support_threshold_sensitivity(3, SIGMA_O, TAU, SHARED)
     res = run_shared_ground_sweep(truth, [0.10, 0.167, 0.20], n_trials=20, min_support=thr)
     ab = [x.abstain_rate for x in res["c3"]]
-    assert ab[0] == 0.0, "must not decline below the harm onset"
-    assert ab[1] == 1.0, "must decline at the harm onset"
+    assert ab[0] == 0.0
+    assert ab[1] == 0.0
     assert ab[2] == 1.0
 
 
@@ -109,7 +113,9 @@ def test_no_correction_is_insensitive_to_the_threshold():
     truth = _truth()
     a = run_shared_ground_sweep(truth, OVERLAPS, n_trials=20, min_support=2.0)
     b = run_shared_ground_sweep(truth, OVERLAPS, n_trials=20,
-                                min_support=derived_support_threshold(3, SIGMA_O, TAU, SHARED))
+                                min_support=support_threshold_sensitivity(
+                                    3, SIGMA_O, TAU, SHARED
+                                ))
     assert sum(x.n_harmful for x in a["none"]) == sum(x.n_harmful for x in b["none"])
 
 
@@ -136,7 +142,7 @@ def test_counterfeit_corroboration_no_longer_overrules_a_correct_model():
     m_eff is the only thing that measures it. This makes the dependency correction load-bearing for
     the veto-only argument itself rather than a safety check bolted on afterwards."""
     truth = _truth()
-    thr = derived_support_threshold(3, SIGMA_O, TAU, SHARED)
+    thr = support_threshold_sensitivity(3, SIGMA_O, TAU, SHARED)
     res = run_shared_ground_sweep(truth, [0.167, 0.20, 0.30, 0.60], n_trials=20,
                                   min_support=thr, physics_sees_truth=True)
     assert all(x.n_harmful == 0 for x in res["c3"]), \
@@ -149,7 +155,7 @@ def test_without_the_dependency_correction_the_model_is_wrongly_overruled():
     """The same scenario with the correction disabled. Raw count is high, effective support is not
     consulted, and the rule promotes the counterfeit-corroborated reading."""
     truth = _truth()
-    thr = derived_support_threshold(3, SIGMA_O, TAU, SHARED)
+    thr = support_threshold_sensitivity(3, SIGMA_O, TAU, SHARED)
     res = run_shared_ground_sweep(truth, [0.30, 0.60], n_trials=20,
                                   min_support=thr, physics_sees_truth=True)
     assert sum(x.n_harmful for x in res["none"]) > 0, \
@@ -163,7 +169,7 @@ def test_the_two_physics_models_are_not_equivalent():
     defence; where the model predicts truth it actively disagrees, and the rule must not read
     correlated agreement as licence to dismiss it."""
     truth = _truth()
-    thr = derived_support_threshold(3, SIGMA_O, TAU, SHARED)
+    thr = support_threshold_sensitivity(3, SIGMA_O, TAU, SHARED)
     shared_err = run_shared_ground_sweep(truth, [0.30], n_trials=20, min_support=thr,
                                          physics_sees_truth=False)
     sees_truth = run_shared_ground_sweep(truth, [0.30], n_trials=20, min_support=thr,

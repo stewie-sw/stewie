@@ -1,79 +1,231 @@
-"""[C3] Effective independent support from an action history, by the conservative route.
+"""Effective support and variance bounds for an observation-only mean.
 
-The acceptance rule's third branch asks how much *independent* evidence a candidate really has. Where
-two agents have modified the same cells in overlapping windows, their later observations are not
-independent, and counting them as if they were overstates confidence. The quantity that expresses
-this is
+The current representation is a per-cell graph over observation sources.
+Connected component sizes ``q_l`` give the equal-sigma worst-case support
 
-    m_eff = Phi(action history)  <=  m
+    m_eff,j = m_j^2 / sum_l q_l^2.
 
-and deriving Phi is the dissertation's core technical problem. Three routes were proposed. This
-module implements the third, **C3**, which is the only one that cannot fail: it assumes the worst
-admissible correlation rather than modelling the true one, so it is valid by construction and needs
-no correlation model at all.
+The corresponding unequal-sigma variance bound is computed directly. It
+requires calibrated marginal variances and zero cross-component covariance;
+dependence inside a component is unrestricted. Negative covariance cannot
+break the upper bound and can only reduce the variance of the mean.
 
-**The derivation.** For m observations whose errors are equicorrelated at rho on a given cell, the
-variance of their mean is ``sigma^2 (1 + (m-1) rho) / m``. The number of independent observations
-that would produce that same variance is
+An action log may justify placing sources in the same possible-dependency
+component, but shared action does not mathematically cause sensor noise to be
+correlated conditional on the true post-action surface. That causal link needs
+a separate observation-error model. Missing graph edges therefore mean an
+explicit independence assertion, not merely "no overlap was noticed."
 
-    m_eff(cell) = m / (1 + (m-1) rho)
-
-Aggregating over a region by mean squared error (cells with less support contribute more error, so
-the aggregate is harmonic rather than arithmetic), with a fraction ``d = |D|/n`` of cells correlated:
-
-    m_eff = m / (1 + d (m-1) rho)
-
-Setting ``rho = 1`` -- perfect correlation on every shared cell, the worst case admissible -- gives
-the assumption-free bound. Nothing about the true correlation structure need be known.
-
-**Why this is not throwaway work.** C1, the variance-inflation route, is *the same formula* with rho
-derived from the overlap structure instead of pinned at 1. C3 is the rho=1 instance of a
-one-parameter family, so building it also builds the frame C1 slots into, and the gap between them
-is exactly the cost of refusing to model the correlation -- a reportable quantity rather than an
-apology.
-
-**What this replaces, and why it is worse than crude.** The implemented placeholder discounted
-linearly in overlap area, ``m_eff = m (1 - d)``. Two defects, and the second is the serious one.
-
-At ``d = 1`` it returns **zero** independent support. Two perfectly correlated observations are still
-one observation, not none.
-
-More importantly, the two forms cross at ``d = (m-2)/(m-1)``, and **below that crossover, for
-m >= 3, the placeholder reports MORE support than is soundly available**. At m=10 with half the
-region shared it claims 5.0 against a sound bound of 1.82. An optimistic support estimate is what
-makes a rule accept on inflated confidence, which is the exact failure this work exists to prevent.
-So in the many-agent, partial-overlap regime that motivates the problem, the placeholder commits the
-error under study.
-
-This went unnoticed because the crossover sits at ``d = 0`` when ``m = 2``, and every existing test
-uses one or two observations. See ``test_effective_support.py`` for both pinned comparisons.
+Legacy scalar helpers remain for reproducing the older global-mask ablations.
+For equal source sigma and a fraction ``d`` of cells in one complete component,
+their harmonic region shorthand is ``m / (1 + d(m-1))``. It is not a
+geometry-aware substitute for the per-cell graph.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from itertools import combinations
+from typing import Mapping
+
 import numpy as np
+
+
+@dataclass(frozen=True)
+class ComponentSupport:
+    """Per-cell support and variance bound for an observation-only mean.
+
+    ``per_cell`` is ``m_j^2 / sum(q_l^2)`` over dependency-component sizes on
+    each observed cell. ``variance_bound_m2`` is the unequal-sigma bound
+
+        sum_l (sum_{i in C_l} sigma_i)^2 / m_j^2.
+
+    Cross-component errors must be uncorrelated; dependence inside a component
+    is unrestricted. Cells with no observation carry NaN support/variance and
+    are false in ``observed_mask``.
+    """
+
+    per_cell: np.ndarray
+    variance_bound_m2: np.ndarray
+    n_components: np.ndarray
+    n_sources: np.ndarray
+    observed_mask: np.ndarray
+    region_effective_n: float
+    component_labels: dict[str, np.ndarray]
+
+
+def global_mask_dependency_edges(
+    source_ids: list[str] | tuple[str, ...],
+    correlation_mask: np.ndarray,
+) -> dict[tuple[str, str], np.ndarray]:
+    """Translate the old global mask into a complete source graph.
+
+    On every masked cell all sources are placed in one component. This is the
+    conservative compatibility path for old experiments; it deliberately loses
+    pair structure and should not be used when pairwise provenance is available.
+    """
+    sources = tuple(source_ids)
+    if len(set(sources)) != len(sources):
+        raise ValueError("source_ids must be unique")
+    mask = np.asarray(correlation_mask, dtype=bool)
+    if mask.size == 0:
+        raise ValueError("correlation_mask is empty")
+    return {(a, b): mask.copy() for a, b in combinations(sorted(sources), 2)}
+
+
+def component_support_from_graph(
+    source_ids: list[str] | tuple[str, ...],
+    observed_masks: Mapping[str, np.ndarray],
+    sigma_m: Mapping[str, float],
+    dependency_edges: Mapping[tuple[str, str], np.ndarray],
+) -> ComponentSupport:
+    """Compute graph-component support for the mean, cell by cell.
+
+    ``dependency_edges[(a, b)]`` is true on cells where source errors ``a`` and
+    ``b`` must be treated as belonging to one dependency component. Connected
+    components are computed independently per cell. The edge relation is
+    undirected; keys are canonicalised, and self-edges are rejected.
+    """
+    sources = tuple(sorted(source_ids))
+    if not sources:
+        raise ValueError("at least one source is required")
+    if len(set(sources)) != len(sources):
+        raise ValueError("source_ids must be unique")
+    if set(observed_masks) != set(sources):
+        raise ValueError("observed_masks must contain exactly the source_ids")
+    if set(sigma_m) != set(sources):
+        raise ValueError("sigma_m must contain exactly the source_ids")
+
+    masks = {s: np.asarray(observed_masks[s], dtype=bool) for s in sources}
+    shape = masks[sources[0]].shape
+    if not shape or any(mask.shape != shape for mask in masks.values()):
+        raise ValueError("all observed masks must have the same non-empty shape")
+    sigmas = {s: float(sigma_m[s]) for s in sources}
+    if any(not (value > 0.0 and np.isfinite(value)) for value in sigmas.values()):
+        raise ValueError("all source sigmas must be finite and > 0")
+
+    edges: dict[tuple[str, str], np.ndarray] = {}
+    for raw_pair, raw_mask in dependency_edges.items():
+        if len(raw_pair) != 2:
+            raise ValueError(f"dependency edge must contain two sources (got {raw_pair!r})")
+        a, b = raw_pair
+        if a == b:
+            raise ValueError(f"dependency self-edge is invalid ({a!r})")
+        if a not in masks or b not in masks:
+            raise ValueError(f"dependency edge references unknown source {(a, b)!r}")
+        pair: tuple[str, str] = (a, b) if a < b else (b, a)
+        edge_mask = np.asarray(raw_mask, dtype=bool)
+        if edge_mask.shape != shape:
+            raise ValueError(
+                f"dependency edge {pair!r} shape {edge_mask.shape} != evidence shape {shape}"
+            )
+        edges[pair] = edges.get(pair, np.zeros(shape, dtype=bool)) | edge_mask
+
+    n_cells = int(np.prod(shape))
+    per_cell = np.full(n_cells, np.nan, dtype=float)
+    variance = np.full(n_cells, np.nan, dtype=float)
+    n_components = np.zeros(n_cells, dtype=np.int32)
+    n_sources = np.zeros(n_cells, dtype=np.int32)
+    labels = {
+        source: np.full(n_cells, -1, dtype=np.int32)
+        for source in sources
+    }
+    mask_flat = {s: masks[s].reshape(-1) for s in sources}
+    edge_flat = {pair: mask.reshape(-1) for pair, mask in edges.items()}
+
+    for cell in range(n_cells):
+        active = [s for s in sources if mask_flat[s][cell]]
+        m = len(active)
+        if not m:
+            continue
+        parent = {s: s for s in active}
+
+        def find(source: str) -> str:
+            root = source
+            while parent[root] != root:
+                root = parent[root]
+            while parent[source] != source:
+                nxt = parent[source]
+                parent[source] = root
+                source = nxt
+            return root
+
+        def union(a: str, b: str) -> None:
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[rb] = ra
+
+        for (a, b), edge_mask in edge_flat.items():
+            if edge_mask[cell] and a in parent and b in parent:
+                union(a, b)
+
+        components: dict[str, list[str]] = {}
+        for source in active:
+            components.setdefault(find(source), []).append(source)
+        ordered_components = sorted(
+            (sorted(component) for component in components.values()),
+            key=tuple,
+        )
+        sizes = [len(component) for component in ordered_components]
+        per_cell[cell] = float(m * m) / float(sum(q * q for q in sizes))
+        variance[cell] = (
+            sum(sum(sigmas[source] for source in component) ** 2
+                for component in ordered_components)
+            / float(m * m)
+        )
+        for label, component in enumerate(ordered_components):
+            for source in component:
+                labels[source][cell] = label
+        n_components[cell] = len(ordered_components)
+        n_sources[cell] = m
+
+    observed = n_sources > 0
+    if not observed.any():
+        region_effective_n = 0.0
+    else:
+        region_effective_n = float(observed.sum()) / float(np.sum(1.0 / per_cell[observed]))
+    return ComponentSupport(
+        per_cell=per_cell.reshape(shape),
+        variance_bound_m2=variance.reshape(shape),
+        n_components=n_components.reshape(shape),
+        n_sources=n_sources.reshape(shape),
+        observed_mask=observed.reshape(shape),
+        region_effective_n=region_effective_n,
+        component_labels={
+            source: values.reshape(shape)
+            for source, values in labels.items()
+        },
+    )
 
 
 def per_cell_effective_count(m: int, rho: float) -> float:
     """Independent-observation equivalent for one cell whose m errors are equicorrelated at ``rho``.
 
-    ``rho = 0`` gives ``m`` (fully independent); ``rho = 1`` gives 1 (all m are one observation).
+    A valid equicorrelation satisfies ``rho >= -1/(m-1)``. ``rho = 0``
+    gives ``m`` and ``rho = 1`` gives one. Negative correlation gives more
+    than ``m`` equivalents; at the singular lower endpoint the mean has zero
+    variance and the equivalent count is infinite.
     """
     if m < 1:
         raise ValueError(f"m must be >= 1 (got {m})")
-    if not (0.0 <= rho <= 1.0):
-        raise ValueError(f"rho must be in [0, 1] (got {rho})")
-    return m / (1.0 + (m - 1) * rho)
+    lower = -1.0 / (m - 1) if m > 1 else -1.0
+    if not (lower <= rho <= 1.0):
+        raise ValueError(
+            f"rho must be in [{lower}, 1] for a valid equicorrelation "
+            f"matrix (got {rho})"
+        )
+    denominator = 1.0 + (m - 1) * rho
+    return float("inf") if denominator == 0.0 else m / denominator
 
 
 def conservative_effective_support(m: int, correlated_fraction: float, rho: float = 1.0) -> float:
-    """[C3] Region-level effective independent support. ``rho=1`` is the assumption-free bound.
+    """Legacy equal-sigma region support under a global dependency mask.
 
     ``correlated_fraction`` is ``|D| / n``: the share of cells modified by two or more agents within
     overlapping action windows, as produced by ``shared_terrain.correlation_mask``.
 
-    Never returns less than 1 when ``m >= 1``: however much ground the agents shared, an observation
-    of it is still an observation. That floor is the property the linear placeholder lacked.
+    ``rho=1`` is worst-case within the declared mask and marginal-variance
+    model; it is not assumption-free. The result never falls below one.
     """
     if m < 1:
         raise ValueError(f"m must be >= 1 (got {m})")
@@ -119,7 +271,7 @@ def measured_effective_support(errors: np.ndarray) -> float:
     per_obs_var = float(np.mean(np.var(e, axis=1)))
     mean_var = float(np.var(e.mean(axis=0)))
     if mean_var <= 0.0:
-        return float(e.shape[0])
+        return float("inf")
     return per_obs_var / mean_var
 
 def log_error_tolerance(m: int, min_effective_support: float) -> float:
@@ -193,12 +345,11 @@ def observed_dependency_fraction(correlation_mask, observed_mask) -> float:
 
 
 def coverage_aware_support(m: int, correlation_mask, observed_mask, rho: float = 1.0) -> float:
-    """``conservative_effective_support`` over the observed cells rather than the whole array.
+    """Legacy global-mask support over observed cells, not the whole array.
 
-    Not wired into the decision rule. Doing so requires admitting observations with unobserved
-    cells, which the ``Evidence`` guard currently refuses outright, and that is a change to what
-    inputs the rule accepts rather than to how it weighs them.
+    The production rule now admits NaN as an unobserved cell and computes the
+    more precise graph support directly. This helper remains for the scalar
+    regression comparison.
     """
     return conservative_effective_support(
         m, observed_dependency_fraction(correlation_mask, observed_mask), rho)
-

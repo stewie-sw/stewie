@@ -2,19 +2,20 @@
 
 This family does not add a defence. It establishes a boundary, and the boundary is sharp.
 
-``m_eff`` is derived from the **action history** --- the cells two agents both modified. Duplication
-leaves no trace there: a reading entered twice under different source names produces an unchanged
-``D``, an unchanged ``|D|/n``, and therefore full effective support for what is one observation. The
-two copies agree perfectly, because they are the same numbers, so corroboration passes trivially and
-the duplicated reading overrules a correct physical model.
+``m_eff`` is derived from the declared per-cell source graph. Known
+duplication can be represented by an edge. A relabelled copy presented as a
+genuine new identity with no edge instead counterfeits an independent
+component. The two copies agree perfectly, because they are the same numbers,
+so corroboration passes trivially and the duplicated reading overrules a
+correct physical model.
 
 Measured: a faulty reading presented once is declined in every trial; the same reading relabelled as
 two sources is accepted in **every** trial and is harmful in all of them.
 
-The dependency this dissertation models is **action-induced** dependency specifically. A dependency
-arising from bookkeeping rather than from shared digging defeats the mechanism because the mechanism
-cannot observe it. That is a scope statement, and it belongs in the assumptions rather than in a
-footnote --- see A6 in the theorem sketch.
+The graph can represent possible dependency from any declared provenance
+mechanism, but it cannot infer hidden common identity from equal values without
+making source admission value-dependent. Source integrity is therefore R3,
+not a property supplied by the graph.
 """
 
 from __future__ import annotations
@@ -65,17 +66,17 @@ def test_relabelling_the_same_reading_as_two_sources_defeats_the_rule_completely
     assert all(x.abstain_rate == 0.0 for x in res["gate"])
 
 
-def test_the_dependency_correction_cannot_see_duplication():
+def test_the_dependency_correction_cannot_see_hidden_relabelling():
     """Why it fails, stated as a property rather than left to inference.
 
-    ``m_eff`` is a function of the action history. Duplication changes the evidence set and not the
-    action history, so ``m_eff`` is identical in both runs while the real independent support has
-    halved. The mechanism models action-induced dependency, and this dependency is not action-induced.
+    ``m_eff`` is a function of the declared graph. Hidden relabelling adds a
+    source without adding the dependency edge that its common origin requires,
+    so claimed support rises while real independent support does not.
     """
     truth = _truth()
     once = run_duplicated_evidence_sweep(truth, [0.6], duplicate=False)["gate"][0]
     twice = run_duplicated_evidence_sweep(truth, [0.6], duplicate=True)["gate"][0]
-    # identical action history in both, so no correction can distinguish them
+    # No identity/provenance edge is supplied, so this layer cannot distinguish them.
     assert once.n_harmful == 0 and twice.n_harmful == 20
     assert once.abstain_rate == 1.0 and twice.abstain_rate == 0.0
 
@@ -85,7 +86,7 @@ def test_this_is_a_scope_limit_not_a_regression():
 
     Detecting duplication requires source-identity integrity --- knowing that two labels denote two
     genuine observations. That is a different guarantee from the one under study and would be
-    supplied by the evidence pipeline, not by a dependency measure derived from actions."""
+    supplied by the evidence pipeline, not inferred from equal values."""
     truth = _truth()
     res = run_duplicated_evidence_sweep(truth, [1.0], duplicate=True)["gate"][0]
     assert res.n_harmful == 20

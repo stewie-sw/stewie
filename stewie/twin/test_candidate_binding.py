@@ -1,32 +1,13 @@
-"""[GATE2] The rule must gate the thing it promotes, and the verdict must not depend on list order.
+"""The promoted value is constructed from the evidence the verdict actually used.
 
-Three defects found by an external mathematical review of the construction, all confirmed by
-running them before anything was changed. They are implementation defects rather than errors in the
-measurements: every experiment in the suite passes ``obs[0].values`` as the candidate and lists its
-evidence in a fixed order, so the reported numbers stand. What was wrong is that the function
-permitted -- and the theorem described -- something the code did not enforce.
+The old API accepted an arbitrary candidate and later tried to bind it by exact
+array equality to one offered observation. That both rejected legitimate
+transforms and still permitted a stale candidate: binding ran before the stale
+observation was removed.
 
-**1. The candidate was never examined.** It was read for its shape and its finiteness and for
-nothing else. Every branch reasons about the *evidence*: observation against physics, observation
-against observation. Nothing ever asked what was being promoted. Measured before the fix: a flat
-plane at zero, 1559 m from the real surface, was PROMOTED on three good readings of Haworth,
-because the readings agreed with each other and with the model.
-
-This matters to the theorem and not only to the code. The soundness argument runs "every accepted
-state is an observation, so its error is governed by sigma_o and the model bias never enters". That
-sentence was true of the experiments and false of the function they call.
-
-**2. Only the first two observations were compared.** ``obs[0]`` against ``obs[1]``, in a list with
-no defined order. On ``[bad, bad, good]`` two of the six permutations promoted a 0.900 m error,
-because the two faulty readings happened to be adjacent and agreed with each other. The same
-evidence set gave different verdicts depending on how it was written down.
-
-**3. Only the first physical model was consulted.** A second model was silently ignored, and which
-one counted depended on list order. Physics may only veto, so every model is read now and any
-disagreement is a veto: consulting fewer models can only miss an objection, never invent one, which
-is what keeps the veto-only property intact.
-
-Real Haworth LOLA terrain throughout; the faults are controlled injection.
+The repaired API accepts no caller-supplied candidate. It filters metadata,
+constructs the plain observation mean internally, compares physics with that
+mean, and returns the accepted patch explicitly.
 """
 
 from __future__ import annotations
@@ -36,7 +17,12 @@ import itertools
 import numpy as np
 import pytest
 
-from stewie.twin.promotion import Decision, Evidence, evaluate
+from stewie.twin.promotion import (
+    Decision,
+    Evidence,
+    chi_square_rms_multiplier,
+    evaluate,
+)
 
 SIGMA_O = 0.05
 SIGMA_P = 0.08
@@ -44,92 +30,260 @@ SIGMA_P = 0.08
 
 @pytest.fixture(scope="module")
 def truth() -> np.ndarray:
-    dem = np.fromfile("samples/lunar_dem/haworth_10km_5m/heightmap.rf32", dtype=np.float32)
-    n = int(np.sqrt(dem.size))
-    return dem.reshape(n, n)[1000:1032, 1000:1032].astype(float)
+    dem = np.fromfile(
+        "samples/lunar_dem/haworth_10km_5m/heightmap.rf32",
+        dtype=np.float32,
+    )
+    side = int(np.sqrt(dem.size))
+    return dem.reshape(side, side)[1000:1032, 1000:1032].astype(float)
 
 
-@pytest.fixture(scope="module")
-def good_evidence(truth: np.ndarray) -> list[Evidence]:
+def _independent(shape: tuple[int, int]) -> np.ndarray:
+    return np.zeros(shape, dtype=bool)
+
+
+def test_the_api_has_no_external_candidate_slot(truth):
+    observation = Evidence("stereo", "observation", truth.copy(), SIGMA_O)
+    with pytest.raises(TypeError):
+        evaluate(truth + 50.0, [observation])  # type: ignore[call-arg]
+
+
+def test_promoted_state_is_the_plain_observation_mean(truth):
     rng = np.random.default_rng(1)
-    obs = [Evidence(f"agent_{i}", "observation", truth + rng.normal(0, SIGMA_O, truth.shape),
-                    SIGMA_O, 1.0) for i in range(3)]
-    return [*obs, Evidence("terramech", "physics", truth + rng.normal(0, SIGMA_P, truth.shape),
-                           SIGMA_P, 1.0)]
-
-
-@pytest.mark.parametrize("fabricate", [
-    pytest.param(lambda t, r: t + 50.0, id="fifty_metres_high"),
-    pytest.param(lambda t, r: np.zeros_like(t), id="flat_plane_at_zero"),
-    pytest.param(lambda t, r: r.normal(0.0, 100.0, t.shape), id="pure_noise"),
-    pytest.param(lambda t, r: t * -1.0, id="inverted_surface"),
-])
-def test_a_fabricated_candidate_cannot_ride_on_good_evidence(truth, good_evidence, fabricate):
-    """The severe one. Before the fix every one of these was PROMOTE."""
-    candidate = fabricate(truth, np.random.default_rng(99))
-    result = evaluate(candidate, good_evidence, min_effective_support=2.0)
-
-    assert result.decision is Decision.REJECT, (
-        f"a candidate {float(np.sqrt(np.mean((candidate - truth) ** 2))):.1f} m from the surface "
-        "was accepted; the rule is not gating what it promotes"
+    observations = [
+        Evidence(
+            f"agent_{index}",
+            "observation",
+            truth + rng.normal(0.0, SIGMA_O, truth.shape),
+            SIGMA_O,
+        )
+        for index in range(3)
+    ]
+    physics = Evidence(
+        "terramech",
+        "physics",
+        truth + rng.normal(0.0, SIGMA_P, truth.shape),
+        SIGMA_P,
     )
-    assert "not any of the offered observations" in result.reason
+    result = evaluate(
+        [*observations, physics],
+        correlation_mask=_independent(truth.shape),
+        min_effective_support=2.0,
+    )
 
-
-def test_the_real_observation_is_still_promoted(truth, good_evidence):
-    """The fix must not close the door on the case the rule exists to serve."""
-    result = evaluate(good_evidence[0].values, good_evidence, min_effective_support=2.0)
     assert result.decision is Decision.PROMOTE
+    assert result.accepted_state is not None
+    expected = np.mean(
+        np.stack([np.asarray(item.values, dtype=float) for item in observations]),
+        axis=0,
+    )
+    assert np.array_equal(result.accepted_state, expected)
+    assert not any(
+        np.array_equal(result.accepted_state, item.values)
+        for item in observations
+    ), "the repair must actually aggregate rather than silently retain o_1"
 
 
-def test_the_verdict_does_not_depend_on_the_order_of_the_evidence(truth):
-    """Two faulty readings agreeing with each other must not out-vote a dissenting good one."""
-    rng = np.random.default_rng(2)
-    shared = 0.9
-    bad_a = Evidence("bad_a", "observation", truth + shared + rng.normal(0, 0.005, truth.shape),
-                     SIGMA_O, 1.0)
-    bad_b = Evidence("bad_b", "observation", truth + shared + rng.normal(0, 0.005, truth.shape),
-                     SIGMA_O, 1.0)
-    good = Evidence("good", "observation", truth + rng.normal(0, SIGMA_O, truth.shape),
-                    SIGMA_O, 1.0)
-    physics = Evidence("terramech", "physics", truth + rng.normal(0, SIGMA_P, truth.shape),
-                       SIGMA_P, 1.0)
+def test_noisy_largest_clique_selection_is_worse_than_the_plain_mean(truth):
+    """Reproduce the controlled fault that rejects A-prime.
 
-    verdicts = set()
-    for order in itertools.permutations([bad_a, bad_b, good]):
-        result = evaluate(order[0].values, [*order, physics], min_effective_support=2.0)
-        verdicts.add(result.decision)
+    One source receives a 0.03 m alternating-sign offset, so its trial-average
+    offset is zero but it lies near the pairwise agreement boundary. A-prime is
+    instantiated as the lexicographically first largest pairwise-agreeing
+    clique. Its realised RMS is worse than the plain mean and is not recovered
+    by substituting the selected subset size into ``sigma/sqrt(m)``.
+    """
+    plain_squared_error = []
+    selected_squared_error = []
+    subset_variance_prediction = []
+    multiplier = chi_square_rms_multiplier(truth.size, 1e-3)
 
-    assert verdicts == {Decision.ABSTAIN}, (
-        f"got {sorted(v.name for v in verdicts)}: a dissenting observation must withhold "
-        "corroboration whatever position it occupies in the list"
+    for trial in range(400):
+        rng = np.random.default_rng(90000 + trial)
+        values = np.stack(
+            [
+                truth + rng.normal(0.0, SIGMA_O, truth.shape)
+                for _ in range(3)
+            ]
+        )
+        values[0] += 0.03 if trial % 2 == 0 else -0.03
+
+        agrees = {
+            (a, b): float(
+                np.sqrt(
+                    np.mean(
+                        (values[a] - values[b]) ** 2
+                        / (2.0 * SIGMA_O**2)
+                    )
+                )
+            )
+            <= multiplier
+            for a, b in itertools.combinations(range(3), 2)
+        }
+        selected = None
+        for size in (3, 2, 1):
+            for subset in itertools.combinations(range(3), size):
+                if all(
+                    agrees[tuple(sorted((a, b)))]
+                    for a, b in itertools.combinations(subset, 2)
+                ):
+                    selected = subset
+                    break
+            if selected is not None:
+                break
+        assert selected is not None
+
+        plain = values.mean(axis=0)
+        selected_mean = values[list(selected)].mean(axis=0)
+        plain_squared_error.append(float(np.mean((plain - truth) ** 2)))
+        selected_squared_error.append(
+            float(np.mean((selected_mean - truth) ** 2))
+        )
+        subset_variance_prediction.append(SIGMA_O**2 / len(selected))
+
+    plain_rms = float(np.sqrt(np.mean(plain_squared_error)))
+    selected_rms = float(np.sqrt(np.mean(selected_squared_error)))
+    predicted_rms = float(np.sqrt(np.mean(subset_variance_prediction)))
+
+    assert plain_rms == pytest.approx(0.0305, abs=2e-4)
+    assert selected_rms == pytest.approx(0.0362, abs=2e-4)
+    assert predicted_rms == pytest.approx(0.0350, abs=2e-4)
+    assert selected_rms > plain_rms * 1.15
+    assert selected_rms > predicted_rms + 1e-3
+
+
+def test_stale_observation_cannot_remain_the_accepted_candidate(truth):
+    stale = Evidence(
+        "stale",
+        "observation",
+        truth + 0.90,
+        SIGMA_O,
+        observed_at=0.0,
+    )
+    current = Evidence(
+        "current",
+        "observation",
+        truth.copy(),
+        SIGMA_O,
+        observed_at=2.0,
+    )
+    physics = Evidence(
+        "terramech",
+        "physics",
+        truth.copy(),
+        SIGMA_P,
+        observed_at=2.0,
+    )
+    result = evaluate(
+        [stale, current, physics],
+        last_modified_at=1.0,
+        min_effective_support=1.0,
     )
 
+    assert result.decision is Decision.PROMOTE
+    assert result.accepted_state is not None
+    assert np.array_equal(result.accepted_state, current.values)
+    assert float(np.sqrt(np.mean((result.accepted_state - truth) ** 2))) == 0.0
 
-def test_every_physical_model_gets_a_veto_not_only_the_first(truth):
-    """A model that objects must be heard wherever it sits in the list."""
-    rng = np.random.default_rng(3)
-    obs = [Evidence(f"agent_{i}", "observation", truth + 0.9 + rng.normal(0, 0.005, truth.shape),
-                    SIGMA_O, 1.0) for i in range(2)]
-    agreeing = Evidence("colluding", "physics", truth + 0.9, SIGMA_P, 1.0)
-    objecting = Evidence("terramech", "physics", truth + rng.normal(0, SIGMA_P, truth.shape),
-                         SIGMA_P, 1.0)
+
+def test_dependency_edges_are_filtered_with_their_stale_sources(truth):
+    stale = Evidence(
+        "stale",
+        "observation",
+        truth + 0.90,
+        SIGMA_O,
+        observed_at=0.0,
+    )
+    current = Evidence(
+        "current",
+        "observation",
+        truth.copy(),
+        SIGMA_O,
+        observed_at=2.0,
+    )
+    result = evaluate(
+        [stale, current],
+        dependency_edges={
+            ("stale", "current"): np.ones(truth.shape, dtype=bool)
+        },
+        last_modified_at=1.0,
+    )
+
+    assert result.decision is Decision.PROMOTE
+    assert result.accepted_state is not None
+    assert np.array_equal(result.accepted_state, truth)
+
+
+def test_unknown_validity_time_cannot_cross_a_known_modification(truth):
+    observation = Evidence("undated", "observation", truth.copy(), SIGMA_O)
+    result = evaluate(
+        [observation],
+        last_modified_at=1.0,
+        min_effective_support=1.0,
+    )
+
+    assert result.decision is Decision.ABSTAIN
+    assert "validity time is unknown" in result.reason
+
+
+def test_nonfinite_validity_metadata_and_support_thresholds_are_rejected(truth):
+    for invalid_time in (np.nan, np.inf, -np.inf):
+        with pytest.raises(ValueError, match="observed_at"):
+            Evidence(
+                "invalid-time",
+                "observation",
+                truth,
+                SIGMA_O,
+                observed_at=invalid_time,
+            )
+
+    observation = Evidence("current", "observation", truth, SIGMA_O)
+    with pytest.raises(ValueError, match="last_modified_at"):
+        evaluate([observation], last_modified_at=np.nan)
+    with pytest.raises(ValueError, match="min_effective_support"):
+        evaluate([observation], min_effective_support=np.nan)
+
+
+def test_decision_and_accepted_bytes_are_order_invariant(truth):
+    rng = np.random.default_rng(2)
+    observations = [
+        Evidence(
+            source,
+            "observation",
+            truth + rng.normal(0.0, SIGMA_O * 0.1, truth.shape),
+            SIGMA_O,
+        )
+        for source in ("a", "b", "c")
+    ]
+    physics = Evidence("terramech", "physics", truth.copy(), SIGMA_P)
+    outputs = []
+    for order in itertools.permutations(observations):
+        result = evaluate(
+            [*order, physics],
+            correlation_mask=_independent(truth.shape),
+            min_effective_support=2.0,
+        )
+        assert result.accepted_state is not None
+        outputs.append((result.decision, result.accepted_state.tobytes()))
+
+    assert len(set(outputs)) == 1
+
+
+def test_every_physics_model_is_compared_with_the_actual_aggregate(truth):
+    observations = [
+        Evidence("a", "observation", truth + 0.04, SIGMA_O),
+        Evidence("b", "observation", truth + 0.04, SIGMA_O),
+    ]
+    agreeing = Evidence("agreeing", "physics", truth + 0.04, SIGMA_P)
+    objecting = Evidence("objecting", "physics", truth + 0.50, SIGMA_P)
 
     for order in ([agreeing, objecting], [objecting, agreeing]):
-        result = evaluate(obs[0].values, [*obs, *order], min_effective_support=2.0)
-        assert result.detail["physics_disagrees"], (
-            "the objecting model must register a veto regardless of list position"
+        result = evaluate(
+            [*observations, *order],
+            correlation_mask=_independent(truth.shape),
+            min_effective_support=2.0,
         )
-
-
-def test_the_experiments_were_using_the_rule_correctly_all_along(truth, good_evidence):
-    """Why the measurements stand: the sweeps always promote an observation they actually offered.
-
-    This is the check that separates "the numbers are wrong" from "the API permitted something the
-    numbers never did". It is the second, and this test is what pins it.
-    """
-    for source in (e for e in good_evidence if e.kind == "observation"):
-        result = evaluate(source.values, good_evidence, min_effective_support=2.0)
-        assert result.decision is not Decision.REJECT, (
-            f"offering {source.source} as the candidate must remain admissible"
-        )
+        assert result.detail["physics_disagrees"]
+        assert result.decision is Decision.PROMOTE
+        assert result.accepted_state is not None
+        assert np.allclose(result.accepted_state, truth + 0.04)

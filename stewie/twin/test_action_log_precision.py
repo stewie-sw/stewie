@@ -102,8 +102,12 @@ def test_the_tolerance_is_exact_not_approximate(truth, m: int, threshold: float)
         mask = np.zeros(truth.shape, dtype=bool)
         mask.ravel()[:k] = True
         realized = k / truth.size
-        result = evaluate(evidence[0].values, evidence, correlation_mask=mask,
-                          k_sigma=K_SIGMA, min_effective_support=threshold)
+        result = evaluate(
+            evidence,
+            correlation_mask=mask,
+            effect_size_multiplier=K_SIGMA,
+            min_effective_support=threshold,
+        )
         if result.decision is Decision.PROMOTE:
             accepted_max = max(accepted_max, realized)
         else:
@@ -150,18 +154,26 @@ def test_the_two_directions_fail_in_opposite_ways(truth):
     dependent.append(Evidence("terramech", "physics",
                               truth + rng.normal(0.0, SIGMA_P, truth.shape), SIGMA_P, 1.0))
 
-    blind = evaluate(dependent[0].values, dependent,
-                     correlation_mask=np.zeros(truth.shape, dtype=bool),
-                     k_sigma=K_SIGMA, min_effective_support=threshold)
+    blind = evaluate(
+        dependent,
+        correlation_mask=np.zeros(truth.shape, dtype=bool),
+        effect_size_multiplier=K_SIGMA,
+        min_effective_support=threshold,
+    )
     assert blind.decision is Decision.PROMOTE, "a log reporting nothing accepts dependent evidence"
-    assert float(np.sqrt(np.mean((dependent[0].values - truth) ** 2))) > 0.25, (
+    assert blind.accepted_state is not None
+    assert float(np.sqrt(np.mean((blind.accepted_state - truth) ** 2))) > 0.25, (
         "and that acceptance is harmful, which is the F6 result"
     )
 
     good = _good_independent_evidence(truth, m, np.random.default_rng(77))
     fabricated = np.zeros(truth.shape, dtype=bool)
     fabricated.ravel()[:int(0.30 * truth.size)] = True
-    assert evaluate(good[0].values, good, correlation_mask=fabricated, k_sigma=K_SIGMA,
-                    min_effective_support=threshold).decision is Decision.ABSTAIN, (
+    assert evaluate(
+        good,
+        correlation_mask=fabricated,
+        effect_size_multiplier=K_SIGMA,
+        min_effective_support=threshold,
+    ).decision is Decision.ABSTAIN, (
         "while a log inventing 30% refuses evidence that is entirely sound"
     )

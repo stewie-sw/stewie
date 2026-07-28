@@ -3,12 +3,11 @@
 The prerequisite this proves solvable: STEWIE's fleet planner groups trips by site so no two vehicles
 ever work the same ground, which makes its conflict count zero BY CONSTRUCTION
 (``lode.planner_multivehicle._vehicle_conflicts``) and leaves ``lode.planner_sim`` with no terrain
-reference at all. The world-state work needs the opposite: shared ground, real co-occupation, and the
-resulting dependency made explicit.
+reference at all. The world-state work needs the opposite: shared ground, real co-occupation, and
+the resulting possible-dependency provenance made explicit.
 
-The overlap these tests assert is the action-induced correlation set -- cells whose later observations
-are dependent because two vehicles both changed them. That set is the primitive the promotion policy
-needs; computing it is what makes the multi-robot half of the topic testable at all.
+The overlap does not prove a sensor-noise correlation. It identifies source pairs
+for which independence must not be asserted without a separate error model.
 
 Real data only: the base surface is a window of the committed LOLA Haworth DEM.
 """
@@ -21,7 +20,11 @@ import numpy as np
 import pytest
 
 from stewie.twin.shared_terrain import (
-    VehicleAction, apply_concurrent, correlation_mask, detect_shared_cells,
+    VehicleAction,
+    apply_concurrent,
+    correlation_mask,
+    detect_shared_cells,
+    source_dependency_edges,
 )
 from stewie.twin.terrain_memory import TerrainMemory
 
@@ -138,6 +141,22 @@ def test_three_vehicles_report_every_conflicting_pair():
     c = VehicleAction("c", _patch(18, 18, 30, 30, -0.1), 0.0, 100.0)
     out = detect_shared_cells([a, b, c])
     assert {tuple(sorted((p["a"], p["b"]))) for p in out["pairs"]} == {("a", "b"), ("a", "c"), ("b", "c")}
+
+
+def test_pairwise_dependency_masks_preserve_which_sources_shared_each_cell():
+    tm = _memory()
+    a = VehicleAction("a", _patch(10, 10, 20, 20, -0.1), 0.0, 100.0)
+    b = VehicleAction("b", _patch(15, 15, 25, 25, -0.1), 0.0, 100.0)
+    c = VehicleAction("c", _patch(18, 18, 30, 30, -0.1), 0.0, 100.0)
+    conflicts = detect_shared_cells([a, b, c])
+    edges = source_dependency_edges(tm, conflicts)
+
+    assert set(edges) == {("a", "b"), ("a", "c"), ("b", "c")}
+    assert edges[("a", "b")].sum() == 25
+    assert edges[("a", "c")].sum() == 4
+    assert edges[("b", "c")].sum() == 49
+    assert edges[("a", "b")][16, 16]
+    assert not edges[("a", "c")][16, 16]
 
 
 def test_malformed_actions_refuse():

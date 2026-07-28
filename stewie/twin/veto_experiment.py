@@ -65,6 +65,17 @@ def _rms(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.sqrt(np.mean((np.asarray(a, float) - np.asarray(b, float)) ** 2)))
 
 
+def _result_state(result, prior: np.ndarray) -> np.ndarray:
+    """Apply a promoted observation patch to the prior."""
+    state = np.array(prior, dtype=float, copy=True)
+    if result.decision is not Decision.PROMOTE:
+        return state
+    if result.accepted_state is None or result.accepted_mask is None:
+        raise AssertionError("PROMOTE returned without an accepted observation aggregate")
+    state[result.accepted_mask] = result.accepted_state[result.accepted_mask]
+    return state
+
+
 def _noisy(truth: np.ndarray, sigma: float, seed: int) -> np.ndarray:
     return truth + np.random.default_rng(seed).normal(0.0, sigma, truth.shape)
 
@@ -72,9 +83,12 @@ def _noisy(truth: np.ndarray, sigma: float, seed: int) -> np.ndarray:
 def run_model_bias_sweep(truth: np.ndarray, biases, *, n_trials: int = 20,
                          sigma_o: float = 0.05, sigma_p: float = 0.08,
                          tau_m: float = 0.25, prior_offset_m: float = 0.15,
-                         k_sigma: float = 3.0, seed0: int = 1000) -> dict[str, list[SystemResult]]:
+                         k_sigma: float | None = 3.0,
+                         seed0: int = 1000) -> dict[str, list[SystemResult]]:
     """Condition A. Two good observations, one biased prediction; sweep the bias.
 
+    ``k_sigma`` is the legacy controlled effect-size multiplier. Passing
+    ``None`` exercises the chi-square/Bonferroni production calibration.
     ``prior_offset_m`` is how stale the standing state is. It is deliberately inside ``tau_m``, so
     abstaining is safe but not free: an abstention keeps a state that is worse than a good
     observation would have been, and that cost shows up in ``mean_error_m``.
@@ -93,11 +107,17 @@ def run_model_bias_sweep(truth: np.ndarray, biases, *, n_trials: int = 20,
             fp = baseline_fixed_precedence(prior, obs_a)
             iv = inverse_variance_fusion(obs_a, sigma_o, phys, sigma_p).values
             ci = covariance_intersection(obs_a, sigma_o, phys, sigma_p).values
-            r = evaluate(obs_a, [Evidence("stereo", "observation", obs_a, sigma_o),
-                                 Evidence("lidar", "observation", obs_b, sigma_o),
-                                 Evidence("terramech", "physics", phys, sigma_p)],
-                         prior=prior, k_sigma=k_sigma)
-            gate = obs_a if r.decision is Decision.PROMOTE else prior
+            r = evaluate(
+                [
+                    Evidence("stereo", "observation", obs_a, sigma_o),
+                    Evidence("lidar", "observation", obs_b, sigma_o),
+                    Evidence("terramech", "physics", phys, sigma_p),
+                ],
+                prior=prior,
+                correlation_mask=np.zeros(truth.shape, dtype=bool),
+                effect_size_multiplier=k_sigma,
+            )
+            gate = _result_state(r, prior)
 
             for name, est in (("fixed_precedence", fp), ("inverse_variance", iv),
                               ("ci_trace_optimal", ci), ("gate", gate)):
@@ -116,9 +136,12 @@ def run_model_bias_sweep(truth: np.ndarray, biases, *, n_trials: int = 20,
 def run_sensor_fault_sweep(truth: np.ndarray, offsets, *, n_trials: int = 20,
                            sigma_o: float = 0.05, sigma_p: float = 0.08,
                            tau_m: float = 0.25, prior_offset_m: float = 0.15,
-                           k_sigma: float = 3.0, seed0: int = 5000) -> dict[str, list[SystemResult]]:
+                           k_sigma: float | None = 3.0,
+                           seed0: int = 5000) -> dict[str, list[SystemResult]]:
     """Condition B. One faulty observation, one good prediction; sweep the fault offset.
 
+    ``k_sigma`` is the legacy controlled effect-size multiplier. Passing
+    ``None`` exercises the chi-square/Bonferroni production calibration.
     Only one observation is offered, so nothing corroborates it. That is the situation in which the
     gate must decline rather than guess, and in which a system that cannot decline must take the
     fault at whatever weight its rule assigns.
@@ -136,10 +159,15 @@ def run_sensor_fault_sweep(truth: np.ndarray, offsets, *, n_trials: int = 20,
             fp = baseline_fixed_precedence(prior, bad_obs)
             iv = inverse_variance_fusion(bad_obs, sigma_o, phys, sigma_p).values
             ci = covariance_intersection(bad_obs, sigma_o, phys, sigma_p).values
-            r = evaluate(bad_obs, [Evidence("stereo", "observation", bad_obs, sigma_o),
-                                   Evidence("terramech", "physics", phys, sigma_p)],
-                         prior=prior, k_sigma=k_sigma)
-            gate = bad_obs if r.decision is Decision.PROMOTE else prior
+            r = evaluate(
+                [
+                    Evidence("stereo", "observation", bad_obs, sigma_o),
+                    Evidence("terramech", "physics", phys, sigma_p),
+                ],
+                prior=prior,
+                effect_size_multiplier=k_sigma,
+            )
+            gate = _result_state(r, prior)
 
             for name, est in (("fixed_precedence", fp), ("inverse_variance", iv),
                               ("ci_trace_optimal", ci), ("gate", gate)):
@@ -176,16 +204,16 @@ def analytic_fault_crossing_m(sigma_o: float, sigma_p: float, tau_m: float) -> f
 
 
 def detection_band_m(sigma_o: float, sigma_p: float, k_sigma: float) -> float:
-    """The smallest observation-versus-prediction discrepancy the gate can resolve.
+    """Legacy effect-size band for one observation-versus-model comparison.
 
-    A fault below this is inside the combined declared uncertainty and the gate cannot see it. The
-    soundness claim therefore carries a side condition that the sketch did not state:
+    This is ``k`` times the pointwise standard deviation of the difference of
+    two independent, homoscedastic fields. It is not a false-alarm probability
+    for an RMS statistic. It is retained for controlled effect-size sweeps; the
+    production gate uses a chi-square-calibrated multiplier.
 
-        k * sqrt(sigma_o^2 + sigma_p^2)  <=  tau
-
-    If the detection band exceeds the harm threshold there is a window of faults that are harmful and
-    undetectable, and no choice of decision rule inside this evidence set can close it. This was found
-    by sweeping, not by inspection, and it belongs in the theorem's assumptions.
+    The band is also not an assumption of the model-bias theorem. A physics
+    prediction may veto but cannot enter the observation-only accepted value,
+    so arbitrary model bias is removed structurally rather than detected.
     """
     import numpy as _np
     return float(k_sigma * _np.hypot(sigma_o, sigma_p))
@@ -226,11 +254,17 @@ def run_miscalibration_sweep(truth: np.ndarray, kappas, *, n_trials: int = 20,
 
             fp = baseline_fixed_precedence(prior, obs_a)
             iv = inverse_variance_fusion(obs_a, sigma_declared, phys, sigma_p).values
-            r = evaluate(obs_a, [Evidence("stereo", "observation", obs_a, sigma_declared),
-                                 Evidence("lidar", "observation", obs_b, sigma_declared),
-                                 Evidence("terramech", "physics", phys, sigma_p)],
-                         prior=prior, k_sigma=k_sigma)
-            gate = obs_a if r.decision is Decision.PROMOTE else prior
+            r = evaluate(
+                [
+                    Evidence("stereo", "observation", obs_a, sigma_declared),
+                    Evidence("lidar", "observation", obs_b, sigma_declared),
+                    Evidence("terramech", "physics", phys, sigma_p),
+                ],
+                prior=prior,
+                correlation_mask=np.zeros(truth.shape, dtype=bool),
+                effect_size_multiplier=k_sigma,
+            )
+            gate = _result_state(r, prior)
 
             for name, est in (("fixed_precedence", fp), ("inverse_variance", iv), ("gate", gate)):
                 e = _rms(est, truth)
@@ -250,14 +284,13 @@ def run_asymmetric_miscalibration_sweep(truth: np.ndarray, kappas, *, n_trials: 
                                         tau_m: float = 0.25, prior_offset_m: float = 0.15,
                                         k_sigma: float = 2.0, seed0: int = 11000
                                         ) -> dict[str, list[SystemResult]]:
-    """[F3b] Only the ACCEPTED source is mis-calibrated; the corroborating one is honest.
+    """[F3b] One source is mis-calibrated and the other is honest.
 
-    This is the case the symmetric sweep missed, and it is the harder one. When both sources are
-    equally over-confident their disagreement grows as ``kappa`` and the corroboration branch notices
-    at ``kappa = k``. When only the candidate is bad, the disagreement grows as
-    ``sqrt(kappa^2 + 1)/sqrt(2)`` of the tolerance, so detection is deferred to
-    ``kappa = sqrt(2 k^2 - 1)`` while the harm threshold does not move -- the accepted reading is
-    precisely the bad one. The safety margin therefore narrows, and for large ``k`` it inverts.
+    The accepted-state repair changed this experiment materially: neither
+    source is selected. The accepted value is their mean. Detection is still
+    deferred to the expected-effect crossover
+    ``kappa = sqrt(2 k^2 - 1)``, but expected aggregate RMS reaches ``tau`` at
+    ``sqrt((2 tau / sigma)^2 - 1)`` rather than at ``tau / sigma``.
     """
     out: dict[str, list[SystemResult]] = {s: [] for s in ("fixed_precedence", "gate")}
     for ki, kap in enumerate(kappas):
@@ -269,11 +302,17 @@ def run_asymmetric_miscalibration_sweep(truth: np.ndarray, kappas, *, n_trials: 
             phys = _noisy(truth, sigma_p, s_a + 2)
             prior = truth + prior_offset_m
             fp = baseline_fixed_precedence(prior, obs_a)
-            r = evaluate(obs_a, [Evidence("stereo", "observation", obs_a, sigma_declared),
-                                 Evidence("lidar", "observation", obs_b, sigma_declared),
-                                 Evidence("terramech", "physics", phys, sigma_p)],
-                         prior=prior, k_sigma=k_sigma)
-            gate = obs_a if r.decision is Decision.PROMOTE else prior
+            r = evaluate(
+                [
+                    Evidence("stereo", "observation", obs_a, sigma_declared),
+                    Evidence("lidar", "observation", obs_b, sigma_declared),
+                    Evidence("terramech", "physics", phys, sigma_p),
+                ],
+                prior=prior,
+                correlation_mask=np.zeros(truth.shape, dtype=bool),
+                effect_size_multiplier=k_sigma,
+            )
+            gate = _result_state(r, prior)
             for name, est in (("fixed_precedence", fp), ("gate", gate)):
                 e = _rms(est, truth)
                 acc[name].errors_m.append(e)
@@ -288,41 +327,57 @@ def run_asymmetric_miscalibration_sweep(truth: np.ndarray, kappas, *, n_trials: 
 
 
 def miscalibration_thresholds(sigma_declared: float, tau_m: float, k_sigma: float) -> dict[str, float]:
-    """Kappa thresholds for mis-calibration, for BOTH the symmetric and asymmetric cases.
+    """Asymptotic effect-size crossovers after the accepted-state repair.
 
-    **Corrected 2026-07-27.** An earlier version reported only the symmetric case and gave the
-    fail-safe condition as ``k * sigma_declared < tau``. That is incomplete, and certifying safety on
-    it is unsound.
+    The rule now accepts the mean of two observations.
 
-    *Symmetric* -- every source equally over-confident. Disagreement grows as ``kappa``, so the
-    corroboration branch fires at ``kappa = k``.
+    * Symmetric true scale ``kappa*sigma``: disagreement is detected near
+      ``kappa = k``, while aggregate RMS reaches harm near
+      ``kappa = sqrt(2)*tau/sigma``.
+    * One bad and one honest source: disagreement is detected near
+      ``sqrt(2*k^2-1)`` and aggregate RMS reaches harm near
+      ``sqrt((2*tau/sigma)^2-1)``.
 
-    *Asymmetric* -- only the candidate is over-confident and its corroborator is honest. Disagreement
-    then grows as ``sqrt(kappa^2 + 1)`` against a tolerance of ``k * sqrt(2)``, so detection is
-    deferred to ``kappa = sqrt(2 k^2 - 1)``, which is strictly later. The harm threshold does not
-    move, because the reading that gets accepted is precisely the bad one.
-
-    The asymmetric case is therefore the binding one and the honest condition is
-
-        sqrt(2 k^2 - 1) * sigma_declared < tau
-
-    Measured: at ``k=4`` with ``sigma_declared=0.05`` and ``tau=0.25`` the old condition returns safe
-    (0.20 < 0.25) while the gate accepts a harmful state in 12 of 20 trials. See
-    ``test_miscalibration.py::test_symmetric_condition_alone_certifies_an_unsafe_configuration``.
+    These are large-``n`` root-expected-MSE crossovers for an explicit
+    effect-size multiplier, not ``E[RMS]``, deterministic onsets, or
+    false-alarm probabilities. Calling them overconfidence ``onsets`` assumes
+    ``k >= 1`` and ``tau > sigma/sqrt(2)``: the honest point ``kappa=1`` then
+    lies before both crossings. If the latter condition fails, the honest
+    two-source mean already exceeds ``tau`` in root expected MSE and there is
+    no positive miscalibration margin to protect.
     """
-    if sigma_declared <= 0 or tau_m <= 0 or k_sigma <= 0:
-        raise ValueError("sigma_declared, tau_m and k_sigma must all be > 0")
-    harm = tau_m / sigma_declared
+    if sigma_declared <= 0 or tau_m <= 0:
+        raise ValueError("sigma_declared and tau_m must be > 0")
+    if k_sigma < 1.0:
+        raise ValueError(
+            "k_sigma must be >= 1 for an overconfidence crossover"
+        )
     detect_sym = k_sigma
     detect_asym = float(np.sqrt(2.0 * k_sigma ** 2 - 1.0))
-    return {"detect": detect_sym,
-            "detect_symmetric": detect_sym,
+    harm_sym = float(np.sqrt(2.0) * tau_m / sigma_declared)
+    harm_asym = float(
+        np.sqrt(max(0.0, (2.0 * tau_m / sigma_declared) ** 2 - 1.0))
+    )
+    ordered_sym = detect_sym < harm_sym
+    ordered_asym = detect_asym < harm_asym
+    honest_expected_safe = sigma_declared / np.sqrt(2.0) < tau_m
+    crossings_in_overconfidence_regime = (
+        k_sigma >= 1.0 and honest_expected_safe
+    )
+    return {"detect_symmetric": detect_sym,
             "detect_asymmetric": detect_asym,
-            "harm": harm,
-            # the binding condition is the later detection, i.e. the asymmetric one
-            "fails_safe": float(detect_asym < harm),
-            "fails_safe_symmetric_only": float(detect_sym < harm),
-            "margin": harm / detect_asym}
+            "harm_symmetric": harm_sym,
+            "harm_asymmetric": harm_asym,
+            "honest_expected_safe": float(honest_expected_safe),
+            "crossings_in_overconfidence_regime": float(
+                crossings_in_overconfidence_regime
+            ),
+            "expected_order_symmetric": float(ordered_sym),
+            "expected_order_asymmetric": float(ordered_asym),
+            "expected_order_both": float(ordered_sym and ordered_asym),
+            "margin_symmetric": harm_sym / detect_sym,
+            "margin_asymmetric": harm_asym / detect_asym,
+            "margin": min(harm_sym / detect_sym, harm_asym / detect_asym)}
 
 
 def run_shared_ground_sweep(truth: np.ndarray, overlaps, *, m_agents: int = 3,
@@ -334,12 +389,11 @@ def run_shared_ground_sweep(truth: np.ndarray, overlaps, *, m_agents: int = 3,
                             seed0: int = 13000) -> dict[str, list[SystemResult]]:
     """[F4] The experiment the whole thesis reduces to.
 
-    On cells that several agents have dug, every agent's reading carries the SAME error, because the
-    same physical modification produced it. The readings therefore **agree with each other while all
-    of them are wrong**. Corroboration cannot detect this -- agreement is exactly what it looks for --
-    and neither can a physical-consistency check, since the error is in the terrain rather than in the
-    model. The only thing that can catch it is knowing that agreement between action-correlated
-    sources is worth less than agreement between independent ones.
+    On cells marked by the action-derived dependency graph, this controlled
+    fault injection adds the same observation error to every agent. Shared
+    action is provenance evidence for possible dependence; it is not itself a
+    stochastic mechanism that makes otherwise independent sensor noise
+    correlated.
 
     That is what ``m_eff`` is for, and this sweep is where it either earns its place or does not.
 
@@ -348,8 +402,9 @@ def run_shared_ground_sweep(truth: np.ndarray, overlaps, *, m_agents: int = 3,
       ``linear``  the superseded discount
       ``c3``      the conservative bound
 
-    ``shared_error_m`` is the magnitude of the common error on shared ground. It is injected under
-    control and labelled as such; the terrain beneath it is real.
+    ``shared_error_m`` is the fixed magnitude of the common observation error
+    on shared ground. Its sign alternates by trial. Independent sensor noise is
+    sampled on real Haworth terrain.
     """
     models = ("none", "linear", "c3")
     out: dict[str, list[SystemResult]] = {s: [] for s in models}
@@ -362,9 +417,10 @@ def run_shared_ground_sweep(truth: np.ndarray, overlaps, *, m_agents: int = 3,
             mask.ravel()[:n_shared] = True
         for t in range(n_trials):
             rng = np.random.default_rng(seed0 + 7717 * di + t)
-            # the common error: one draw, applied to EVERY agent on the shared cells
+            # Controlled common-mode observation fault: fixed magnitude and
+            # alternating sign, applied to every agent on the shared cells.
             common = np.zeros(truth.shape, dtype=float)
-            common[mask] = rng.normal(0.0, shared_error_m)
+            common[mask] = shared_error_m if t % 2 == 0 else -shared_error_m
             obs = [truth + common + rng.normal(0.0, sigma_o, truth.shape)
                    for _ in range(m_agents)]
             # Two defensible models of the physics channel, and they are NOT equivalent.
@@ -380,9 +436,15 @@ def run_shared_ground_sweep(truth: np.ndarray, overlaps, *, m_agents: int = 3,
             ev = [Evidence(f"agent{i}", "observation", o, sigma_o) for i, o in enumerate(obs)]
             ev.append(Evidence("terramech", "physics", phys, sigma_p))
             for sm in models:
-                r = evaluate(obs[0], ev, prior=prior, correlation_mask=mask, k_sigma=k_sigma,
-                             min_effective_support=min_support, support_model=sm)
-                est = obs[0] if r.decision is Decision.PROMOTE else prior
+                r = evaluate(
+                    ev,
+                    prior=prior,
+                    correlation_mask=mask,
+                    effect_size_multiplier=k_sigma,
+                    min_effective_support=min_support,
+                    support_model=sm,
+                )
+                est = _result_state(r, prior)
                 e = _rms(est, truth)
                 acc[sm].errors_m.append(e)
                 if e > tau_m:
@@ -395,36 +457,89 @@ def run_shared_ground_sweep(truth: np.ndarray, overlaps, *, m_agents: int = 3,
     return out
 
 
-def shared_ground_harm_onset(sigma_o: float, tau_m: float, shared_error_m: float) -> float:
-    """Overlap fraction at which the accepted state first exceeds ``tau``, derived not fitted.
+def shared_ground_expected_mse_crossover(
+    m_agents: int,
+    sigma_o: float,
+    tau_m: float,
+    shared_error_m: float,
+) -> float:
+    """Fraction where the observation mean's *expected* MSE equals ``tau^2``.
 
-    RMS error over the region is ``sqrt(d * shared^2 + sigma_o^2)``, so harm begins at
-    ``d = (tau^2 - sigma_o^2) / shared^2``.
-    """
-    if shared_error_m <= 0:
-        raise ValueError("shared_error_m must be > 0")
-    return max(0.0, (tau_m ** 2 - sigma_o ** 2) / shared_error_m ** 2)
+    With a deterministic common shift ``S`` on fraction ``d`` and independent
+    per-source noise ``sigma_o``, the plain mean has
 
+        E[RMS^2] = d S^2 + sigma_o^2 / m.
 
-def derived_support_threshold(m_agents: int, sigma_o: float, tau_m: float,
-                              shared_error_m: float) -> float:
-    """The support threshold implied by the harm threshold, rather than chosen.
-
-    A support threshold picked by hand is a free parameter, and picking it too low leaves a window in
-    which the accepted state is already harmful but the support test has not yet fired. Requiring the
-    test to fire exactly at the harm onset removes the freedom:
-
-        d_harm = (tau^2 - sigma_o^2) / shared^2          # where the accepted state first exceeds tau
-        threshold = m / (1 + d_harm * (m - 1))           # the C3 support at that overlap
-
-    Measured effect at m=3, sigma_o=0.05, tau=0.25, shared=0.6: the hand-picked 2.0 fires only at
-    d=0.25 and leaves 31 harmful acceptances across the sweep; the derived 2.25 fires at d=0.167 and
-    leaves 5. The bound was never the problem -- the free parameter was.
+    This is an expectation crossover, not a sharp harm onset. Realised RMS is
+    random on both sides.
     """
     if m_agents < 1:
         raise ValueError(f"m_agents must be >= 1 (got {m_agents})")
-    d_harm = shared_ground_harm_onset(sigma_o, tau_m, shared_error_m)
-    return m_agents / (1.0 + d_harm * (m_agents - 1))
+    if not (sigma_o > 0.0 and tau_m > 0.0 and shared_error_m > 0.0):
+        raise ValueError("sigma_o, tau_m, and shared_error_m must be > 0")
+    noise_mse = sigma_o**2 / m_agents
+    return max(0.0, (tau_m**2 - noise_mse) / shared_error_m**2)
+
+
+def shared_ground_harm_probability(
+    n_cells: int,
+    m_agents: int,
+    sigma_o: float,
+    tau_m: float,
+    shared_error_m: float,
+    correlated_fraction: float,
+) -> float:
+    """Exact harmful-RMS probability for the deterministic common-shift model.
+
+    If ``n_shared`` cells carry fixed shift ``S`` and the accepted value is the
+    mean of ``m`` observations with independent Gaussian noise, then
+
+        n RMS^2 / (sigma_o^2 / m)
+            ~ noncentral-chi-square(n, n_shared S^2 / (sigma_o^2 / m)).
+
+    Spatial independence of the sensor-noise field is required. A random common
+    Gaussian amplitude instead gives a weighted chi-square law.
+    """
+    if n_cells < 1 or m_agents < 1:
+        raise ValueError("n_cells and m_agents must be >= 1")
+    if not (sigma_o > 0.0 and tau_m > 0.0 and shared_error_m >= 0.0):
+        raise ValueError("sigma_o and tau_m must be > 0; shared_error_m must be >= 0")
+    d = float(correlated_fraction)
+    if not 0.0 <= d <= 1.0:
+        raise ValueError("correlated_fraction must be in [0, 1]")
+    from scipy.stats import ncx2
+
+    n_shared = int(round(d * n_cells))
+    aggregate_variance = sigma_o**2 / m_agents
+    noncentrality = n_shared * shared_error_m**2 / aggregate_variance
+    threshold = n_cells * tau_m**2 / aggregate_variance
+    return float(ncx2.sf(threshold, n_cells, noncentrality))
+
+
+def support_threshold_sensitivity(
+    m_agents: int,
+    sigma_o: float,
+    tau_m: float,
+    assumed_shared_error_bound_m: float,
+) -> float:
+    """Offline sensitivity threshold under an explicit common-error bound.
+
+    This maps the expected-MSE crossover to the legacy global-mask support
+    scalar. It is not deployable unless
+    ``assumed_shared_error_bound_m`` is independently justified. Without a
+    finite bound, an independent reference, or a richer error model, no
+    observation-only system can infer the common error from mutually agreeing
+    readings; worst-case safety requires abstaining on every nonempty
+    dependency component.
+    """
+    d = shared_ground_expected_mse_crossover(
+        m_agents,
+        sigma_o,
+        tau_m,
+        assumed_shared_error_bound_m,
+    )
+    d = min(1.0, d)
+    return m_agents / (1.0 + d * (m_agents - 1))
 
 
 def run_stale_evidence_sweep(truth_old: np.ndarray, truth_new: np.ndarray, dug_mask: np.ndarray,
@@ -465,12 +580,15 @@ def run_stale_evidence_sweep(truth_old: np.ndarray, truth_new: np.ndarray, dug_m
         if with_fresh:
             ev.append(Evidence("fresh", "observation", fresh, sigma_o, observed_at=9.0))
         ev.append(Evidence("terramech", "physics", phys, sigma_p, observed_at=9.0))
-        # the candidate is the CURRENT reading where one exists -- a stale reading should be dropped,
-        # not promoted, and with temporal information the rule can tell the difference
-        cand = fresh if (with_fresh and temporal) else stale
-        r = evaluate(cand, ev, prior=prior, k_sigma=k_sigma, min_effective_support=min_support,
-                     last_modified_at=(5.0 if temporal else None))
-        est = cand if r.decision is Decision.PROMOTE else prior
+        r = evaluate(
+            ev,
+            prior=prior,
+            correlation_mask=np.zeros(truth_new.shape, dtype=bool),
+            effect_size_multiplier=k_sigma,
+            min_effective_support=min_support,
+            last_modified_at=(5.0 if temporal else None),
+        )
+        est = _result_state(r, prior)
         e = _rms(est, truth_new)
         acc["gate"].errors_m.append(e)
         if e > tau_m:
@@ -533,15 +651,22 @@ def run_action_log_fidelity_sweep(truth: np.ndarray, fidelities, *, d_true: floa
             else:
                 reported.ravel()[:n_rep] = True          # a prefix of the true region: under-report
             common = np.zeros(truth.shape, dtype=float)
-            common[true_mask] = rng.normal(0.0, shared_error_m)   # terrain ignores the log
+            common[true_mask] = (
+                shared_error_m if t % 2 == 0 else -shared_error_m
+            )
             obs = [truth + common + rng.normal(0.0, sigma_o, truth.shape) for _ in range(m_agents)]
             phys = truth + rng.normal(0.0, sigma_p, truth.shape)  # model predicts the true surface
             prior = truth + prior_offset_m
             ev = [Evidence(f"agent{i}", "observation", o, sigma_o) for i, o in enumerate(obs)]
             ev.append(Evidence("terramech", "physics", phys, sigma_p))
-            r = evaluate(obs[0], ev, prior=prior, correlation_mask=reported, k_sigma=k_sigma,
-                         min_effective_support=min_support)
-            est = obs[0] if r.decision is Decision.PROMOTE else prior
+            r = evaluate(
+                ev,
+                prior=prior,
+                correlation_mask=reported,
+                effect_size_multiplier=k_sigma,
+                min_effective_support=min_support,
+            )
+            est = _result_state(r, prior)
             e = _rms(est, truth)
             acc["gate"].errors_m.append(e)
             if e > tau_m:
@@ -561,10 +686,10 @@ def run_duplicated_evidence_sweep(truth: np.ndarray, offsets, *, n_trials: int =
                                   ) -> dict[str, list[SystemResult]]:
     """[F7] One reading presented twice as two sources: the degenerate case of dependency.
 
-    This is where the mechanism's SCOPE shows. ``m_eff`` is derived from the action history --- the
-    cells two agents both modified --- and duplication leaves no trace there at all. A reading
-    entered twice under different source names produces an unchanged ``D``, an unchanged ``|D|/n``,
-    and therefore full effective support for what is one observation.
+    This is where the mechanism's scope shows. ``m_eff`` is derived from the
+    declared source graph. Known duplication can be encoded by an edge, but a
+    relabelled copy presented as a genuine new identity with no edge
+    counterfeits an independent component.
 
     The two copies then agree perfectly, because they are the same numbers, so corroboration passes
     trivially. Where the physical model disagrees, the duplicated reading overrules it.
@@ -572,9 +697,9 @@ def run_duplicated_evidence_sweep(truth: np.ndarray, offsets, *, n_trials: int =
     ``duplicate=False`` runs the same faulty reading once, as the control: with a single source there
     is nothing to corroborate and the rule should decline.
 
-    The point of this family is not to add another defence. It is to establish that the dependency
-    this dissertation models is **action-induced** dependency specifically, and that a different
-    dependency source defeats the mechanism because the mechanism cannot see it.
+    The point of this family is not to add value-based duplicate detection. It
+    establishes that source integrity is an upstream theorem assumption: this
+    layer cannot discover a hidden common identity from the readings alone.
     """
     out: dict[str, list[SystemResult]] = {"gate": []}
     for oi, d in enumerate(offsets):
@@ -589,8 +714,14 @@ def run_duplicated_evidence_sweep(truth: np.ndarray, offsets, *, n_trials: int =
                 # same array, different source label: a relabelled copy, not a second look
                 ev.append(Evidence("stereo_relay", "observation", bad, sigma_o))
             ev.append(Evidence("terramech", "physics", phys, sigma_p))
-            r = evaluate(bad, ev, prior=prior, k_sigma=k_sigma, min_effective_support=min_support)
-            est = bad if r.decision is Decision.PROMOTE else prior
+            r = evaluate(
+                ev,
+                prior=prior,
+                correlation_mask=np.zeros(truth.shape, dtype=bool),
+                effect_size_multiplier=k_sigma,
+                min_effective_support=min_support,
+            )
+            est = _result_state(r, prior)
             e = _rms(est, truth)
             acc["gate"].errors_m.append(e)
             if e > tau_m:
@@ -630,10 +761,15 @@ def run_no_physics_sweep(truth: np.ndarray,
                        sigma_o, 1.0),
               Evidence("agent_b", "observation", reading + rng.normal(0, sigma_o * 0.1, truth.shape),
                        sigma_o, 1.0)]
-        cand = ev[0].values
-        result = evaluate(cand, ev, min_effective_support=min_effective_support)
+        result = evaluate(
+            ev,
+            correlation_mask=np.zeros(truth.shape, dtype=bool),
+            min_effective_support=min_effective_support,
+        )
         if result.decision is Decision.PROMOTE:
-            err = float(np.sqrt(np.mean((cand - truth) ** 2)))
+            if result.accepted_state is None:
+                raise RuntimeError("PROMOTE returned without an accepted aggregate")
+            err = float(np.sqrt(np.mean((result.accepted_state - truth) ** 2)))
             errors.append(err)
             if err > tau_m:
                 harmful += 1
@@ -674,9 +810,14 @@ def run_action_log_overreporting_sweep(truth: np.ndarray, fp_rates, *, m_agents:
             phys = Evidence("terramech", "physics",
                             truth + rng.normal(0.0, sigma_p, truth.shape), sigma_p, 1.0)
             logged = rng.random(truth.shape) < float(fp)      # pure fabrication
-            result = evaluate(obs[0].values, [*obs, phys], correlation_mask=logged,
-                              k_sigma=k_sigma, min_effective_support=min_support)
-            err = _rms(obs[0].values, truth)
+            result = evaluate(
+                [*obs, phys],
+                correlation_mask=logged,
+                effect_size_multiplier=k_sigma,
+                min_effective_support=min_support,
+            )
+            estimate = _result_state(result, truth)
+            err = _rms(estimate, truth)
             acc.errors_m.append(err)
             if result.decision is Decision.PROMOTE:
                 if err > tau_m:
@@ -686,4 +827,3 @@ def run_action_log_overreporting_sweep(truth: np.ndarray, fp_rates, *, m_agents:
         acc.mean_error_m = float(np.mean(acc.errors_m))
         out["gate"].append(acc)
     return out
-

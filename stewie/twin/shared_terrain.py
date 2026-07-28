@@ -5,12 +5,13 @@ so no two vehicles ever work the same site, which makes ``lode.planner_multivehi
 zero by construction and leaves ``lode.planner_sim`` with no terrain reference at all. Nothing in the
 system has ever had two vehicles write the same ground.
 
-That is the setting the world-state work requires, for a reason sharper than "multi-robot support":
-when two vehicles both modify the same cells, their later observations of those cells are no longer
-independent -- they are correlated THROUGH THE TERRAIN, because each vehicle's action changed what the
-other will see. This module computes that dependency set explicitly. The overlap it returns is the
-action-induced correlation set: the cells for which evidence from vehicle A and evidence from vehicle B
-share a common physical cause.
+That is the setting the world-state work requires, for a reason sharper than
+"multi-robot support": later observations have shared provenance and must not
+be declared independent without an observation-error model that justifies it.
+The shared action changes the true post-action surface; it does not by itself
+correlate conditionally independent sensor noise. This module therefore emits
+a conservative *possible-dependency relation*, not an estimated correlation
+coefficient.
 
 Scope. This is the concurrency + dependency-detection primitive only. It records WHO changed WHICH
 cells WHEN, detects cell-level space-time overlap, and hands the correlated set to a caller. It does
@@ -75,7 +76,7 @@ def detect_shared_cells(actions: list[VehicleAction], *, eps: float = 1e-9) -> d
 
       ``pairs``            one entry per pair of DIFFERENT vehicles whose windows overlap AND whose
                            touched cells intersect, each with the shared flat indices
-      ``correlated_cells`` the union of all shared indices -- the action-induced correlation set
+      ``correlated_cells`` the union of all shared indices -- the possible-dependency set
       ``n_correlated``     its size
       ``concurrent``       True iff any pair conflicts
 
@@ -134,11 +135,42 @@ def apply_concurrent(memory: TerrainMemory, actions: list[VehicleAction], *,
 
 
 def correlation_mask(memory: TerrainMemory, conflicts: dict) -> np.ndarray:
-    """Boolean (rows, cols) mask of the action-induced correlation set, for a caller that wants to
-    weight or discount evidence over those cells. This is the hand-off point to a promotion policy;
-    the decision itself is not made here."""
+    """Legacy union mask of the action-derived possible-dependency set."""
     mask = np.zeros(memory.rows * memory.cols, dtype=bool)
     idx = conflicts.get("correlated_cells")
     if idx is not None and len(idx):
         mask[np.asarray(idx, dtype=np.int64)] = True
     return mask.reshape(memory.rows, memory.cols)
+
+
+def source_dependency_edges(
+    memory: TerrainMemory,
+    conflicts: dict,
+) -> dict[tuple[str, str], np.ndarray]:
+    """Pairwise source-dependency masks derived from the action conflicts.
+
+    The legacy ``correlation_mask`` retains only the union ``D``. That cannot
+    distinguish a single dependent pair from all sources being dependent. This
+    representation preserves the pair identities so a caller can compute
+    connected components per cell and obtain
+
+        m_eff,j = m_j^2 / sum_l q_l^2.
+
+    Observation source IDs must match the vehicle IDs carried by the action
+    history. Identity binding is a caller/pipeline responsibility; this function
+    does not guess aliases.
+    """
+    shape = (memory.rows, memory.cols)
+    n_cells = memory.rows * memory.cols
+    edges: dict[tuple[str, str], np.ndarray] = {}
+    for record in conflicts.get("pairs", []):
+        a, b = str(record["a"]), str(record["b"])
+        if a == b:
+            raise ValueError(f"dependency self-edge is invalid ({a!r})")
+        pair: tuple[str, str] = (a, b) if a < b else (b, a)
+        mask = edges.setdefault(pair, np.zeros(n_cells, dtype=bool))
+        idx = np.asarray(record.get("shared_idx", []), dtype=np.int64)
+        if idx.size and (int(idx.min()) < 0 or int(idx.max()) >= n_cells):
+            raise ValueError(f"dependency edge {pair!r} contains an out-of-grid cell")
+        mask[idx] = True
+    return {pair: mask.reshape(shape) for pair, mask in edges.items()}

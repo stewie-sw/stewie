@@ -56,6 +56,19 @@ def test_per_cell_count_spans_one_to_m():
     assert per_cell_effective_count(5, 0.0) == pytest.approx(5.0)
     assert per_cell_effective_count(5, 1.0) == pytest.approx(1.0)
     assert 1.0 < per_cell_effective_count(5, 0.5) < 5.0
+    assert per_cell_effective_count(2, -0.5) == pytest.approx(4.0)
+    assert np.isinf(per_cell_effective_count(2, -1.0))
+
+
+def test_measured_support_is_infinite_when_the_mean_cancels_exactly():
+    errors = np.array(
+        [
+            [1.0, -1.0, 2.0, -2.0],
+            [-1.0, 1.0, -2.0, 2.0],
+        ]
+    )
+
+    assert np.isinf(measured_effective_support(errors))
 
 
 def test_region_support_endpoints():
@@ -159,7 +172,7 @@ def test_for_two_observations_the_placeholder_only_ever_understates():
         assert linear_placeholder_support(2, d) < conservative_effective_support(2, d)
 
 
-def test_placeholder_and_c3_agree_only_where_nothing_is_shared():
+def test_zero_overlap_is_the_first_of_two_crossover_roots():
     assert linear_placeholder_support(4, 0.0) == pytest.approx(conservative_effective_support(4, 0.0))
 
 
@@ -193,8 +206,8 @@ def test_end_to_end_on_real_terrain_geometry():
 # --------------------------------------------------------------------------------------------
 # ASYMMETRY AUDIT 2026-07-27.
 #
-# Two shipped results have now turned out to hide an asymmetric case behind a symmetric derivation
-# (the A5 condition, and the F3 fail-safe condition). C3 is derived under EQUICORRELATION -- every
+# Earlier results hid asymmetric cases behind symmetric derivations. C3 is
+# derived under EQUICORRELATION -- every
 # pair of observations correlated at the same rho -- so it is the obvious next place to look. Partial
 # structures, where some pairs share ground and others do not, are the asymmetric case.
 #
@@ -223,6 +236,14 @@ def test_equicorrelation_is_provably_the_worst_case_not_merely_the_assumed_one()
             assert m_eff >= floor - 1e-9, (
                 f"a valid correlation structure produced less support than C3 assumes: "
                 f"{m_eff:.4f} < {floor:.4f} at m={m}")
+
+
+def test_negative_correlation_improves_support_and_can_cancel_the_mean():
+    r = np.array([[1.0, -1.0], [-1.0, 1.0]])
+    assert np.linalg.eigvalsh(r).min() >= -1e-12
+    denominator = float(np.ones(2) @ r @ np.ones(2))
+    assert denominator == pytest.approx(0.0)
+    assert per_cell_effective_count(2, -1.0) == float("inf")
 
 
 def test_a_partial_correlation_structure_gives_more_support_than_c3_assumes():

@@ -1,38 +1,12 @@
-"""[F8] Partial coverage: the fault family the taxonomy omits, found from the real ingest path.
+"""[F8] Partial coverage is represented explicitly after the theorem repair.
 
-The previous iteration shipped a fix requiring the candidate to be one of the offered observations,
-and flagged one worry: exact matching is brittle against any pipeline that transforms a reading
-between sensor and proposal. Checking that turned up something larger.
+The real ingest path emits unobserved cells. NaN now means unobserved, the
+accepted object is a patch rather than a fabricated full field, and graph
+support is computed from the sources present at each cell.
 
-**The perception path produces height fields with unobserved cells, by design.** ``replay_loop``
-computes ``valid = np.isfinite(z).mean()`` and carries it forward as ``coverage_fraction`` precisely
-because parts of the field are never seen. **The promotion rule cannot represent that at all**: the
-``Evidence`` guard raises on any non-finite value, so a realistically partial reading cannot even be
-constructed. The two subsystems cannot be connected.
-
-That is the same shape as the A7 finding -- each component internally consistent, incompatible at
-the seam -- and it has the same consequence: every measurement in this dissertation uses fully
-covered observations, which no real sensor produces, and the coverage regime of the soundness claim
-is "100%", unstated and untested.
-
-**The failure is not merely availability.** The rule computes the dependency fraction as
-``n_correlated / candidate.size`` -- over the whole array. The denominator that matters is the
-number of cells actually observed, since those are the only cells the corroboration was computed
-over. Where coverage is uncorrelated with dependency the two agree. Where it is correlated, the
-full-grid fraction *understates* dependency among the compared cells and the rule believes the
-readings are more independent than they are.
-
-**And the correlation is the default case, not an adversarial one.** Both coverage and disturbance
-are caused by the same thing: where the machines are. They churn the ground they stand on and they
-see the ground they stand on, so a sensor preferentially observes exactly the cells its own vehicle
-disturbed. Measured at 50% coverage with a true dependency of 15% of the grid, the full-grid
-denominator gives ``m_eff = 2.31`` and accepts while the observed-cell denominator gives 1.88 and
-would refuse.
-
-Status: the rule currently **fails closed**, so this is latent rather than live. It becomes live the
-moment the real perception path is connected. The corrected denominator is implemented and measured
-in ``effective_support.coverage_aware_support`` but deliberately **not wired in**, because wiring it
-requires admitting observations with unobserved cells, which changes what inputs the rule accepts.
+The scalar tests below retain the superseded full-grid calculation as an
+ablation: when coverage and dependency are co-located, it overstates support.
+The production graph path uses observed cells directly.
 
 Real Haworth LOLA terrain. Coverage patterns are controlled fault injection.
 """
@@ -47,7 +21,7 @@ from stewie.twin.effective_support import (
     coverage_aware_support,
     observed_dependency_fraction,
 )
-from stewie.twin.promotion import Evidence
+from stewie.twin.promotion import Decision, Evidence, evaluate
 
 N_CELLS = 32 * 32
 M_AGENTS = 3
@@ -68,15 +42,22 @@ def _masks(coverage: float, mode: str, seed: int = 0):
     return corr, seen
 
 
-def test_the_rule_cannot_represent_a_realistically_partial_reading():
-    """The seam. ``Evidence`` refuses to be constructed from what the perception path emits."""
+def test_the_rule_represents_a_realistically_partial_reading_as_a_patch():
     dem = np.fromfile("samples/lunar_dem/haworth_10km_5m/heightmap.rf32", dtype=np.float32)
     n = int(np.sqrt(dem.size))
     partial = dem.reshape(n, n)[1000:1032, 1000:1032].astype(float)
     partial[:4, :] = np.nan                      # 12.5% unobserved, as coverage_fraction implies
 
-    with pytest.raises(ValueError, match="must be finite"):
-        Evidence("stereo", "observation", partial, 0.05, 1.0)
+    evidence = Evidence("stereo", "observation", partial, 0.05, 1.0)
+    result = evaluate([evidence], min_effective_support=1.0)
+
+    assert result.decision is Decision.PROMOTE
+    assert result.accepted_state is not None and result.accepted_mask is not None
+    assert result.detail["coverage_fraction"] == pytest.approx(0.875)
+    assert not result.accepted_mask[:4, :].any()
+    assert result.accepted_mask[4:, :].all()
+    assert np.isnan(result.accepted_state[:4, :]).all()
+    assert np.array_equal(result.accepted_state[4:, :], partial[4:, :])
 
 
 def test_coverage_uncorrelated_with_dependency_is_harmless():

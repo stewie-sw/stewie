@@ -10,7 +10,7 @@ the rule. Changing it after comparative results exist requires recording the cha
 No existing dataset supplies, together: an evolving reference state; per-agent action logs that
 distinguish commanded from executed actions; asynchronous observations carrying declared uncertainty
 and provenance; and controlled source failures. Each exists somewhere. The conjunction is what makes
-action-induced evidence dependency measurable, and it is the conjunction that is missing.
+action-linked evidence dependency measurable, and it is the conjunction that is missing.
 
 The benchmark is designed to outlive the rule it was built to test. A different acceptance rule, a
 different dependency model, or a different domain must be substitutable without touching the harness.
@@ -34,20 +34,20 @@ inputs.
 
 ## 2. Pre-registered fault taxonomy
 
-Seven families. The first two are implemented and swept; the third is added on the committee's
-condition C4; the remainder are specified here and built in order.
+Nine axes: the seven original families plus F6b and F8, which were added by
+recorded amendment. All are implemented; limitations are stated in amendment 9.
 
 | # | Family | Parameter | Status | Why it is in the set |
 |---|---|---|---|---|
 | F1 | Physical-model bias | bias $b$, metres | **implemented** | The channel the veto-only argument is about |
 | F2 | Sensor fault | offset $d$, metres | **implemented** | The channel fixed precedence is blind to |
-| F3 | **Sensor mis-calibration** | $\kappa$ = true $\sigma$ / declared $\sigma$ | **implemented** | Mis-calibration converts into abstention, not harm, provided $\sqrt{2k^2-1}\,\sigma_{\text{declared}} < \tau$. See the amendment below: the first version of this row gave the weaker symmetric condition and was wrong |
-| F4 | Shared-ground concurrency | overlap fraction $d=\lvert D\rvert/n$, agent count $m$ | **implemented** | Correlated error makes readings agree while all are wrong, defeating corroboration. Support models order none $>$ linear $>$ C3 in harm (57/40/31). See the amendment below: the free support threshold, not the bound, was the larger defect |
+| F3 | **Sensor mis-calibration** | $\kappa$ = true $\sigma$ / declared $\sigma$ | **implemented** | The accepted state is now the two-source mean. For \(k\geq1\), symmetric and asymmetric detection-before-expected-harm order both reduce to $k\sigma<\sqrt{2}\tau$; an overconfidence-onset reading also needs \(\tau>\sigma/\sqrt2\). This is an effect-size crossover, not a guarantee |
+| F4 | Shared-ground concurrency | overlap fraction $d$, source graph, common shift $S$ | **implemented** | A labelled common observation fault is injected on action-linked cells. Harm follows an exact noncentral chi-square under the stated fixed-shift model; graph components determine the aggregate variance bound |
 | F5 | Delayed / out-of-order evidence | lag distribution | **implemented** | The gap was availability, not safety: the physics channel already caught a lone stale reading, but a stale reading present alongside a current one blocked it 100% of the time. Dating evidence against the action history restores availability at no cost in harm |
 | F6 | Partial or misreported action execution | log fidelity (recall) | **implemented** | Under-reporting is the direction that causes *harm*, and the failure is a cliff at the support threshold, not a decay. Tolerated to 50\% fidelity; broken by 25\%. The row first called this "the dangerous direction"; see amendment 7 --- it is the *less* sensitive one |
-| F8 | **Partial sensor coverage** | coverage fraction $\times$ its correlation with $D$ | **specified, latent** | The real perception path emits fields with unobserved cells; the rule cannot represent them. Where coverage is co-located with disturbance --- the default, since both follow the machines --- the full-grid denominator understates dependency among the compared cells. Fails closed today, so latent until the perception path is connected |
-| F6b | **Action log fabricates overlap** | log precision (false-positive rate) | **implemented** | The direction F6 did not cover. Roughly four times more sensitive: availability is destroyed at 20\% fabrication against 50\% for omission. Fails to refusal, never to harm. Both cliffs sit at one closed-form constant, so precision and recall trade off exactly |
-| F7 | Duplicated evidence | duplication factor | **implemented** | **Defeats the rule completely**: 0/20 harmful presented once, 20/20 relabelled as two sources. Establishes the mechanism's scope --- it models *action-induced* dependency, and duplication leaves no trace in the action history |
+| F8 | **Partial sensor coverage** | coverage fraction $\times$ graph geometry | **implemented** | NaN denotes an unobserved cell; support and residuals use actual pair coverage, and promotion returns an explicit patch mask |
+| F6b | **Action log fabricates overlap** | log precision (false-positive rate) | **implemented** | The closed-form $d_{\mathrm{crit}}$ result is retained for the legacy global-mask scalar; it does not fully characterize the repaired graph decision |
+| F7 | Duplicated evidence | duplication factor | **implemented** | Duplicate source identities are rejected. Relabelled duplication remains an upstream source-integrity assumption because it leaves no trace in the action graph |
 
 ### Amendment 2026-07-27 — F3 condition corrected
 
@@ -313,6 +313,116 @@ who can inject one contradicting observation can hold the rule in abstention ind
 ever causing a harmful acceptance. Safety and availability are separate properties and this
 benchmark measures both.
 
+### Amendment 2026-07-28 (9) — accepted-state and theorem rebuild
+
+This amendment supersedes the mathematical interpretation, but not the audit
+history, of amendments 1–8.
+
+**Accepted object.** The old rule selected one observation while `m_eff`
+described the mean. The repaired rule has no external candidate slot. After
+metadata filtering it constructs the plain mean of every admitted observation,
+and every promotion returns that mean plus its coverage mask. Physics may veto
+but cannot select a source subset, assign weights, fill cells, or alter values.
+
+**Why A-prime was rejected.** The all-pairs rule has no unique
+“corroborating subset.” A largest-clique interpretation can choose two agreeing
+bad readings over an honest dissent. On real Haworth terrain, 400 controlled
+trials with a one-source alternating-sign 0.03 m offset near the pair threshold
+gave RMS 0.0305 m for the plain mean, 0.0362 m
+for the selected mean, and 0.0350 m from the selected-subset variance formula.
+Value-dependent selection made the identity inexact and discontinuous.
+
+**Graph support.** Pairwise per-cell source edges are converted into connected
+components. Component sizes \(q_\ell\) give
+
+\[
+m_{\mathrm{eff},j}=m_j^2/\sum_\ell q_\ell^2.
+\]
+
+For unequal declared sigmas the implemented variance bound is
+
+\[
+v_j=m_j^{-2}\sum_C\left(\sum_{i\in C}\sigma_{ij}\right)^2.
+\]
+
+This requires calibrated marginal variances and zero cross-component
+covariance. Dependence inside a component is unrestricted. The action history
+is conservative provenance for possible dependency; shared physical action
+does not itself correlate sensor noise conditional on the actual post-action
+surface.
+
+The graph restores source-pair structure, not spatial geometry. The regional
+harmonic support and \(V=n^{-1}\sum_jv_j\) are unchanged by permuting cells
+with the same component-size multiset. A geometry-sensitive tail requires
+spatial covariance or neighbourhood structure; the old shuffle limitation
+therefore remains.
+
+**Repaired bound.** Every successful return contains the observation mean
+\(c\), so for arbitrary physics bias \(b\),
+
+\[
+\{\text{promote and harmful}\}\subseteq\{c\text{ is harmful}\}.
+\]
+
+With \(V=n^{-1}\sum_jv_j\), Markov gives
+
+\[
+\Pr(\text{harmful promotion})\le\min(1,V/\tau^2).
+\]
+
+The old branch-4 proof was invalid: a realised residual contains arbitrary
+\(b\), which can cancel a harmful observation error. The old A5
+resolvability condition is neither required for this theorem nor sufficient
+against arbitrary bias.
+
+**Gate calibration.** Production RMS comparisons use chi-square quantiles
+with a Bonferroni family-wise correction. At \(n=1024\) and family error
+\(10^{-3}\), the one-comparison multiplier is approximately 1.0687. A
+separately named effect-size multiplier is retained for controlled sweeps.
+The false-alarm interpretation requires independent Gaussian standardised
+residual cells and a correct residual covariance model, including
+observation--physics cross-covariance. These are gate-calibration assumptions,
+not assumptions of the arbitrary-bias theorem.
+
+**Registered-sweep recalibration result.** Re-running the same 20 seeds at
+model biases \(0,0.5,1,2,4\) m changed neither harm nor availability: both
+threshold modes produced 0 harmful and 0 abstentions at every level. At sensor
+offsets \(0,0.20,0.30\) m, both modes again produced 0 harmful; the legacy
+\(k=3\) effect-size gate abstained \(0,0,20\) times, while the chi-square gate
+abstained \(0,20,20\) times. The headline harm separation survives, but the
+availability curve does not remain unchanged.
+
+**C7.** For a deterministic common shift \(S\) on \(n_D\) cells and aggregate
+independent Gaussian noise variance \(s^2\),
+
+\[
+n\,\mathrm{RMS}^2/s^2\sim\chi'^2_n(n_D S^2/s^2).
+\]
+
+The former square-root expression is expected MSE, not a sharp onset. If the
+common amplitude is one Gaussian latent variable, the unconditional law is a
+weighted chi-square.
+
+**C8.** The common magnitude is not observable from mutually agreeing
+readings. The threshold mapping now requires an explicitly assumed
+`shared_error_bound_m` and is labelled offline sensitivity analysis. Deployment
+needs a justified bound, an independent reference, or abstention on
+single-component cells.
+
+**Coverage and ordering.** NaN is an unobserved cell. Support uses the sources
+present per cell; comparisons use pairwise overlap; a promoted patch never
+fills a missing cell. Shapes, source identities and dependency edges are
+validated; nonfinite validity times and support thresholds are refused.
+Dependency edges incident to a stale source are removed with that source before
+the aggregate is built. Floating reductions and decisions are invariant to
+evidence order.
+
+**Formal boundary.** The Lean project in `dissertation/formal` kernel-checks
+accepted-value noninterference, event inclusion and measure monotonicity,
+component arithmetic, the harmonic special case, crossover roots and
+direction, and the algebraic counterexamples. Distribution-specific tails
+remain analytic dependencies.
+
 ---
 
 ## 3. Metrics
@@ -453,3 +563,8 @@ Stated so that later choices are visible as choices.
 - **Whether $\tau$ can be given a physical derivation** rather than being declared per scenario. If
   it can be tied to the tolerance a downstream operation actually requires, the primary metric
   becomes less author-dependent.
+- **Whether graph components are genuinely separated.** Action overlap is a
+  provenance signal, not a covariance measurement. Independent-reference
+  residual data are required.
+- **The spatial covariance needed for a useful sharp tail.** The Markov bound
+  does not require it; chi-square calibration does.

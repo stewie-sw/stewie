@@ -51,15 +51,17 @@ def test_an_accurate_log_keeps_the_rule_safe():
     assert res["gate"][0].abstain_rate == 1.0
 
 
-def test_severe_under_reporting_breaks_the_rule():
-    """A log recording a quarter of the shared ground lifts m_eff above the support threshold, so the
-    rule promotes evidence it should have declined. The action history is therefore load-bearing:
-    corrupt it enough and the guarantee goes with it."""
+def test_component_check_survives_partial_reporting_but_not_total_omission():
+    """Pair structure removes the old scalar cliff.
+
+    Any reported dependent cell blocks the whole-patch physics override. Total
+    omission presents a false all-independent graph and remains unsafe.
+    """
     truth = _truth()
     res = run_action_log_fidelity_sweep(truth, [0.25, 0.0], n_trials=20)
-    assert sum(x.n_harmful for x in res["gate"]) > 0, \
-        "if a badly wrong log changed nothing, m_eff would not be doing any work"
-    assert all(x.abstain_rate == 0.0 for x in res["gate"])
+    partial, omitted = res["gate"]
+    assert partial.n_harmful == 0 and partial.abstain_rate == 1.0
+    assert omitted.n_harmful > 0 and omitted.abstain_rate == 0.0
 
 
 def test_moderate_under_reporting_is_tolerated():
@@ -110,7 +112,7 @@ def test_shuffling_the_log_changes_nothing_because_m_eff_ignores_geometry():
 def test_a_geometry_aware_control_would_be_needed_to_test_the_premise():
     """Consequence, stated so the pre-registration is not read as satisfied when it is not.
 
-    The shuffle control cannot falsify the premise while m_eff is a scalar, because the manipulation
+    The shuffle control cannot test the premise while m_eff is a scalar, because the manipulation
     it applies is one the quantity is blind to by construction. Testing whether the action history's
     STRUCTURE matters requires a dependency representation that carries structure. Until then this
     control verifies the cardinality path only."""

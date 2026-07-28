@@ -65,6 +65,7 @@
 | The cheap in-loop observability map channel (route coverage and per-cell uncertainty from conserved truth; a low-coverage dig site triggers observe-more before it commits) | AprilTag 12.7 mm / 7.15 degrees end to end, container-gated, not reproducible in default CI | The dense render to depth to point-cloud perception producer |
 | Terrain scan-match and AprilTag-beacon localization fixes in the closed loop (`lode/autonomy.py`) | | |
 | A typed navigation factor contract: accepted estimator evidence carries factor type, covariance, frame, source, and evidence class (`dart/factors.py`, `dart/evidence_ledger.py`); metric shadow-length and boundary claims are blocked behind a negative-residual artifact | | Truth-free operational SLAM at centimeter parity (the real Katwijk ATE is 3.35 m; map visibility is not operational parity) |
+| | The theorem-facing twin promotion rule constructs a plain observation mean, admits partial fields, consumes per-cell dependency components, and permits physics only to veto (`stewie/twin/promotion.py`). It is an offline research path, not the deployed state merge | Production identity binding from action sources to observation sources, plus independently referenced calibration of graph edges and spatial covariance |
 
 ## Cockpit and UI
 
