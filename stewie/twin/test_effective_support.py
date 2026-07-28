@@ -188,3 +188,50 @@ def test_end_to_end_on_real_terrain_geometry():
     got = effective_support_from_mask(2, mask)
     assert got == pytest.approx(2 / (1 + 0.25), rel=1e-9)
     assert got > linear_placeholder_support(2, 0.25)
+
+
+# --------------------------------------------------------------------------------------------
+# ASYMMETRY AUDIT 2026-07-27.
+#
+# Two shipped results have now turned out to hide an asymmetric case behind a symmetric derivation
+# (the A5 condition, and the F3 fail-safe condition). C3 is derived under EQUICORRELATION -- every
+# pair of observations correlated at the same rho -- so it is the obvious next place to look. Partial
+# structures, where some pairs share ground and others do not, are the asymmetric case.
+#
+# It survives, and the reason is a two-line argument rather than a hope.
+# --------------------------------------------------------------------------------------------
+def test_equicorrelation_is_provably_the_worst_case_not_merely_the_assumed_one():
+    """For m observations with correlation matrix R, the mean has variance ``(1'R1)/m^2`` times
+    sigma^2, so the independent-observation equivalent is ``m^2 / (1'R1)``. Every entry of a
+    correlation matrix is at most 1, so ``1'R1 <= m^2`` and therefore ``m_eff >= 1``, with equality
+    exactly when every pair is perfectly correlated -- which is what C3 assumes at full overlap.
+
+    Checked against randomly generated VALID correlation matrices (Gram matrices normalised, so they
+    are positive semi-definite by construction rather than merely symmetric). None goes below the
+    bound. An asymmetric structure gives MORE effective support, never less, so C3 is loose there
+    rather than wrong."""
+    rng = np.random.default_rng(20260727)
+    for m in (3, 5, 8):
+        floor = conservative_effective_support(m, correlated_fraction=1.0, rho=1.0)
+        assert floor == pytest.approx(1.0)
+        for _ in range(400):
+            a = rng.normal(size=(m, m))
+            cov = a @ a.T
+            d = np.sqrt(np.diag(cov))
+            r = cov / np.outer(d, d)
+            m_eff = m ** 2 / float(np.ones(m) @ r @ np.ones(m))
+            assert m_eff >= floor - 1e-9, (
+                f"a valid correlation structure produced less support than C3 assumes: "
+                f"{m_eff:.4f} < {floor:.4f} at m={m}")
+
+
+def test_a_partial_correlation_structure_gives_more_support_than_c3_assumes():
+    """One correlated pair among m independent sources is the canonical asymmetric case. C3 is sound
+    there and increasingly loose as m grows, which is the expected direction and worth recording so
+    the looseness is not later mistaken for an error."""
+    for m, expected in ((3, 1.8), (5, 3.5714), (8, 6.4)):
+        r = np.eye(m)
+        r[0, 1] = r[1, 0] = 1.0
+        m_eff = m ** 2 / float(np.ones(m) @ r @ np.ones(m))
+        assert m_eff == pytest.approx(expected, rel=1e-3)
+        assert m_eff > conservative_effective_support(m, 1.0, 1.0)
