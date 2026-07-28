@@ -171,9 +171,26 @@ So two components, each individually sound, compose into a system that is not:
 | `evaluate` | accepts whatever is corroborated | fails **open** --- wrong |
 
 **The refusal meant to protect the mission is exactly what removes the veto**, and it does so on the
-least familiar terrain. The recommendation is therefore to **enforce A7** --- abstain when no model
-is available --- rather than assume it. The decision is Aaron's, but it is no longer an open
-question with nothing on either side.
+least familiar terrain.
+
+**The obvious repair loses.** Enforcing A7 --- abstain when no model is available --- was recommended
+and then measured. Forty sequential promotions on terrain that genuinely moves because the agents
+excavate it:
+
+| policy | harmful | abstained | mean map error |
+|---|---|---|---|
+| accept on corroboration, log unread | 12 | 0/40 | 0.271 m |
+| **enforce A7** | **0** | 40/40 | **1.718 m** |
+| **require the mask** | **0** | 12/40 | **0.067 m** |
+
+Enforcement is safe and useless: never harmful because it never accepts, and its map ends seven times
+worse than the policy it replaced. **Requiring the mask rather than the model wins on both axes**,
+and enforcement wins only below a dig rate near one promotion in twenty --- the regime where the twin
+has nothing to do.
+
+**Harness consequence.** The model-absent sweep must be run as a *policy* comparison, not a single
+system, or it will read as "the rule is unsafe without a model" when the measured statement is "the
+rule is unsafe without a model *or* a faithful action log, and the log is the cheaper requirement."
 
 The reason it went unnoticed is worth recording for the harness: across the whole twin suite only
 5 of 6,129 rule evaluations omitted the physical model, and 3 of those accepted. **A path exercised
