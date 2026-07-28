@@ -45,7 +45,7 @@ condition C4; the remainder are specified here and built in order.
 | F4 | Shared-ground concurrency | overlap fraction $d=\lvert D\rvert/n$, agent count $m$ | **implemented** | Correlated error makes readings agree while all are wrong, defeating corroboration. Support models order none $>$ linear $>$ C3 in harm (57/40/31). See the amendment below: the free support threshold, not the bound, was the larger defect |
 | F5 | Delayed / out-of-order evidence | lag distribution | **implemented** | The gap was availability, not safety: the physics channel already caught a lone stale reading, but a stale reading present alongside a current one blocked it 100% of the time. Dating evidence against the action history restores availability at no cost in harm |
 | F6 | Partial or misreported action execution | log fidelity | **implemented** | Under-reporting is the dangerous direction and the failure is a cliff at the support threshold, not a decay. Tolerated to 50\% fidelity; broken by 25\% |
-| F7 | Duplicated evidence | duplication factor | specified | One reading counted twice is the degenerate case of dependency; a rule that cannot catch it cannot catch the general case |
+| F7 | Duplicated evidence | duplication factor | **implemented** | **Defeats the rule completely**: 0/20 harmful presented once, 20/20 relabelled as two sources. Establishes the mechanism's scope --- it models *action-induced* dependency, and duplication leaves no trace in the action history |
 
 ### Amendment 2026-07-27 — F3 condition corrected
 
@@ -123,6 +123,24 @@ do not.
 One prediction was wrong and is recorded as such. I expected a lone stale reading to be accepted and
 cause harm. It is not: the model predicts the current surface, disagrees with the stale one, and with
 no corroboration the rule declines. **The temporal gap was never a safety gap.**
+
+### Amendment 2026-07-27 (5) --- F7 establishes where the mechanism stops
+
+All seven families are now implemented. The last one draws a boundary rather than adding a defence,
+and the boundary is sharp: a faulty reading presented once is declined in every trial; the same
+reading relabelled as a second source is accepted in every trial and harmful in all of them.
+
+$m_{\text{eff}}$ is a function of the action history. Duplication changes the evidence set and not
+the action history, so the correction is identical in both cases while the real independent support
+has halved. The two copies then agree perfectly --- they are the same numbers --- so corroboration is
+satisfied by construction and the duplicated reading overrules a correct model.
+
+**This is a scope statement, not a defect to be fixed inside $m_{\text{eff}}$.** The dependency
+modelled here is action-induced dependency specifically. Detecting duplication requires
+source-identity integrity, a different guarantee supplied by the evidence pipeline rather than by a
+dependency measure derived from actions. It is recorded as assumption A6 in the theorem sketch
+alongside A1 calibrated sensors, since both are conditions the result rests on rather than things it
+provides.
 
 **Adversarial variants.** F1 and F3 have adversarial forms in which the parameter is chosen with
 knowledge of the rule rather than fixed in advance. For a rule whose branches are published this is

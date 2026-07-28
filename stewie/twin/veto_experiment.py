@@ -543,3 +543,52 @@ def run_action_log_fidelity_sweep(truth: np.ndarray, fidelities, *, d_true: floa
         acc["gate"].mean_error_m = float(np.mean(acc["gate"].errors_m))
         out["gate"].append(acc["gate"])
     return out
+
+
+def run_duplicated_evidence_sweep(truth: np.ndarray, offsets, *, n_trials: int = 20,
+                                  sigma_o: float = 0.05, sigma_p: float = 0.08,
+                                  tau_m: float = 0.25, prior_offset_m: float = 0.15,
+                                  k_sigma: float = 2.0, min_support: float = 2.0,
+                                  duplicate: bool = True, seed0: int = 23000
+                                  ) -> dict[str, list[SystemResult]]:
+    """[F7] One reading presented twice as two sources: the degenerate case of dependency.
+
+    This is where the mechanism's SCOPE shows. ``m_eff`` is derived from the action history --- the
+    cells two agents both modified --- and duplication leaves no trace there at all. A reading
+    entered twice under different source names produces an unchanged ``D``, an unchanged ``|D|/n``,
+    and therefore full effective support for what is one observation.
+
+    The two copies then agree perfectly, because they are the same numbers, so corroboration passes
+    trivially. Where the physical model disagrees, the duplicated reading overrules it.
+
+    ``duplicate=False`` runs the same faulty reading once, as the control: with a single source there
+    is nothing to corroborate and the rule should decline.
+
+    The point of this family is not to add another defence. It is to establish that the dependency
+    this dissertation models is **action-induced** dependency specifically, and that a different
+    dependency source defeats the mechanism because the mechanism cannot see it.
+    """
+    out: dict[str, list[SystemResult]] = {"gate": []}
+    for oi, d in enumerate(offsets):
+        acc = {"gate": SystemResult("gate", float(d), n_trials)}
+        for t in range(n_trials):
+            rng = np.random.default_rng(seed0 + 3571 * oi + t)
+            bad = truth + float(d) + rng.normal(0.0, sigma_o, truth.shape)
+            phys = truth + rng.normal(0.0, sigma_p, truth.shape)     # model is correct
+            prior = truth + prior_offset_m
+            ev = [Evidence("stereo", "observation", bad, sigma_o)]
+            if duplicate:
+                # same array, different source label: a relabelled copy, not a second look
+                ev.append(Evidence("stereo_relay", "observation", bad, sigma_o))
+            ev.append(Evidence("terramech", "physics", phys, sigma_p))
+            r = evaluate(bad, ev, prior=prior, k_sigma=k_sigma, min_effective_support=min_support)
+            est = bad if r.decision is Decision.PROMOTE else prior
+            e = _rms(est, truth)
+            acc["gate"].errors_m.append(e)
+            if e > tau_m:
+                acc["gate"].n_harmful += 1
+            if r.decision is Decision.ABSTAIN:
+                acc["gate"].n_abstained += 1
+        acc["gate"].mean_error_m = float(np.mean(acc["gate"].errors_m))
+        out["gate"].append(acc["gate"])
+    return out
