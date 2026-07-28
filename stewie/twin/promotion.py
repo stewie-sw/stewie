@@ -60,6 +60,11 @@ class Evidence:
     authority's predicted deformation), or "action" (a reported executed action). ``sigma_m`` is the
     declared 1-sigma height uncertainty [m]; it is what makes a disagreement meaningful or not.
     ``reliability`` in (0, 1] is the prior trust in this source.
+
+    ``observed_at`` is when the reading was TAKEN, which is neither when it arrived nor when it is
+    being judged. Without it, a reading describing a surface that has since been dug away is
+    indistinguishable from one describing the surface as it is now. Optional, because evidence
+    predating the temporal model still has to be judged; where it is absent no staleness check runs.
     """
 
     source: str
@@ -67,6 +72,7 @@ class Evidence:
     values: np.ndarray            # per-cell height [m] over the candidate region
     sigma_m: float
     reliability: float = 1.0
+    observed_at: float | None = None   # when the reading was taken, not when it arrived
 
     def __post_init__(self) -> None:
         if self.kind not in ("observation", "physics", "action"):
@@ -95,11 +101,29 @@ def _combined_tolerance(a: Evidence, b: Evidence, k: float) -> float:
     return k * float(np.hypot(a.sigma_m, b.sigma_m))
 
 
+def stale_sources(evidence: list[Evidence], last_modified_at: float | None) -> list[str]:
+    """[F5] Sources whose reading predates the last action on the ground it describes.
+
+    Such a reading is not wrong. It is a correct description of a surface that no longer exists, and
+    the distinction matters: admitted as contradicting evidence it makes the rule decline while a
+    correct current reading sits unused, which is safe and useless. Recognised as stale, it is
+    dropped and the current reading gets through.
+
+    Returns the empty list when the modification time or the observation times are unknown, so that
+    absent temporal information changes nothing rather than being guessed at.
+    """
+    if last_modified_at is None:
+        return []
+    return [e.source for e in evidence
+            if e.observed_at is not None and e.observed_at < last_modified_at]
+
+
 def evaluate(candidate: np.ndarray,
              evidence: list[Evidence],
              *,
              prior: np.ndarray | None = None,
              correlation_mask: np.ndarray | None = None,
+             last_modified_at: float | None = None,
              k_sigma: float = 3.0,
              min_effective_support: float = 1.0,
              support_model: str = "c3") -> PromotionResult:
@@ -119,6 +143,16 @@ def evaluate(candidate: np.ndarray,
         return PromotionResult(Decision.REJECT, "candidate contains non-finite heights")
     if not evidence:
         return PromotionResult(Decision.ABSTAIN, "no evidence offered")
+
+    # [F5] Drop readings taken before the last action on this ground. They are correct about a
+    # surface that is gone, and admitting them as contradicting evidence makes the rule decline
+    # while a current reading sits unused.
+    stale = set(stale_sources(evidence, last_modified_at))
+    if stale:
+        evidence = [e for e in evidence if e.source not in stale]
+        if not evidence:
+            return PromotionResult(Decision.ABSTAIN,
+                                   "all evidence predates the last action on this ground")
 
     obs = [e for e in evidence if e.kind == "observation"]
     phys = [e for e in evidence if e.kind == "physics"]

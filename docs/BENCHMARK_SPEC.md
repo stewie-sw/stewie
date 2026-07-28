@@ -43,7 +43,7 @@ condition C4; the remainder are specified here and built in order.
 | F2 | Sensor fault | offset $d$, metres | **implemented** | The channel fixed precedence is blind to |
 | F3 | **Sensor mis-calibration** | $\kappa$ = true $\sigma$ / declared $\sigma$ | **implemented** | Mis-calibration converts into abstention, not harm, provided $\sqrt{2k^2-1}\,\sigma_{\text{declared}} < \tau$. See the amendment below: the first version of this row gave the weaker symmetric condition and was wrong |
 | F4 | Shared-ground concurrency | overlap fraction $d=\lvert D\rvert/n$, agent count $m$ | **implemented** | Correlated error makes readings agree while all are wrong, defeating corroboration. Support models order none $>$ linear $>$ C3 in harm (57/40/31). See the amendment below: the free support threshold, not the bound, was the larger defect |
-| F5 | Delayed / out-of-order evidence | lag distribution | specified | Observation time, validity time and ingestion time must be distinguishable for acceptance to be well defined |
+| F5 | Delayed / out-of-order evidence | lag distribution | **implemented** | The gap was availability, not safety: the physics channel already caught a lone stale reading, but a stale reading present alongside a current one blocked it 100% of the time. Dating evidence against the action history restores availability at no cost in harm |
 | F6 | Partial or misreported action execution | executed / commanded ratio | specified | $S(a)$ is itself uncertain when a commanded action was only partly performed |
 | F7 | Duplicated evidence | duplication factor | specified | One reading counted twice is the degenerate case of dependency; a rule that cannot catch it cannot catch the general case |
 
@@ -107,6 +107,22 @@ physical model comes from independence, and $m_{\text{eff}}$ is the only thing t
 
 Both physics models are now selectable in the sweep, because the choice changes the conclusion and
 should not be silent.
+
+### Note 2026-07-27 --- F5 gave the action history a second job
+
+The temporal fix does not add a new source of information. The action history already records the
+interval during which each cell was modified, so it can date the ground a reading describes. That
+lets a stale reading be **dropped** rather than admitted as a contradiction.
+
+The action history therefore does two distinct things in this design: it yields $D$, and through it
+$m_{\text{eff}}$, which says how much of the agreement between readings is real; and it dates the
+evidence, which says whether a reading is about the surface that currently exists. Both are cases of
+the same claim --- that the record of what the machines did carries information the readings alone
+do not.
+
+One prediction was wrong and is recorded as such. I expected a lone stale reading to be accepted and
+cause harm. It is not: the model predicts the current surface, disagrees with the stale one, and with
+no corroboration the rule declines. **The temporal gap was never a safety gap.**
 
 **Adversarial variants.** F1 and F3 have adversarial forms in which the parameter is chosen with
 knowledge of the rule rather than fixed in advance. For a rule whose branches are published this is

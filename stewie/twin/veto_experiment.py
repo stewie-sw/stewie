@@ -425,3 +425,59 @@ def derived_support_threshold(m_agents: int, sigma_o: float, tau_m: float,
         raise ValueError(f"m_agents must be >= 1 (got {m_agents})")
     d_harm = shared_ground_harm_onset(sigma_o, tau_m, shared_error_m)
     return m_agents / (1.0 + d_harm * (m_agents - 1))
+
+
+def run_stale_evidence_sweep(truth_old: np.ndarray, truth_new: np.ndarray, dug_mask: np.ndarray,
+                             *, n_trials: int = 20, sigma_o: float = 0.05, sigma_p: float = 0.08,
+                             tau_m: float = 0.25, k_sigma: float = 2.0, min_support: float = 1.0,
+                             with_fresh: bool = True, temporal: bool = False, seed0: int = 17000
+                             ) -> dict[str, list[SystemResult]]:
+    """[F5] Evidence that describes a surface which no longer exists.
+
+    An observation made before an action and arriving after it is not wrong about anything -- it is a
+    correct description of a surface that has since been dug away. The rule currently has no way to
+    know that: ``Evidence`` carries no time, so a stale reading and a current one are
+    indistinguishable to it.
+
+    Two situations, and they fail differently:
+
+    ``with_fresh=True``   a stale reading arrives alongside a current one. They disagree, because the
+        ground changed between them, so the corroboration branch fires and the rule ABSTAINS. Safe
+        and wrong: the disagreement is not genuine ambiguity, and the current reading is right. The
+        cost is availability.
+
+    ``with_fresh=False``  the stale reading arrives alone. Nothing contradicts it, so it is accepted
+        and the state reverts to a surface that no longer exists. The cost is harm.
+
+    Both are scored against ``truth_new``, the surface that actually exists. ``dug_mask`` marks the
+    cells the intervening action changed.
+    """
+    out: dict[str, list[SystemResult]] = {"gate": []}
+    acc = {"gate": SystemResult("gate", 0.0, n_trials)}
+    for t in range(n_trials):
+        rng = np.random.default_rng(seed0 + 5 * t)
+        stale = truth_old + rng.normal(0.0, sigma_o, truth_old.shape)
+        fresh = truth_new + rng.normal(0.0, sigma_o, truth_new.shape)
+        phys = truth_new + rng.normal(0.0, sigma_p, truth_new.shape)
+        prior = truth_new.copy()          # the standing state is already correct
+        # times: the dig happens at t=5; the stale reading predates it, the fresh one follows it
+        ev = [Evidence("stale", "observation", stale, sigma_o, observed_at=1.0)]
+        if with_fresh:
+            ev.append(Evidence("fresh", "observation", fresh, sigma_o, observed_at=9.0))
+        ev.append(Evidence("terramech", "physics", phys, sigma_p, observed_at=9.0))
+        # the candidate is the CURRENT reading where one exists -- a stale reading should be dropped,
+        # not promoted, and with temporal information the rule can tell the difference
+        cand = fresh if (with_fresh and temporal) else stale
+        r = evaluate(cand, ev, prior=prior, k_sigma=k_sigma, min_effective_support=min_support,
+                     last_modified_at=(5.0 if temporal else None))
+        est = cand if r.decision is Decision.PROMOTE else prior
+        e = _rms(est, truth_new)
+        acc["gate"].errors_m.append(e)
+        if e > tau_m:
+            acc["gate"].n_harmful += 1
+        if r.decision is Decision.ABSTAIN:
+            acc["gate"].n_abstained += 1
+    for s, res in acc.items():
+        res.mean_error_m = float(np.mean(res.errors_m))
+        out[s].append(res)
+    return out
