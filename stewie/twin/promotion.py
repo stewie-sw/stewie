@@ -141,6 +141,27 @@ def evaluate(candidate: np.ndarray,
     cand = np.asarray(candidate, dtype=float)
     if not np.all(np.isfinite(cand)):
         return PromotionResult(Decision.REJECT, "candidate contains non-finite heights")
+
+    # [FIX 2026-07-28] The candidate was previously read for its SHAPE and finiteness and for
+    # nothing else. Every branch below reasons about the evidence -- observation against physics,
+    # observation against observation -- and none of them ever looked at the thing being promoted.
+    # A flat plane at zero, 1559 m from the surface, was accepted on three good readings of real
+    # terrain, because the readings agreed with each other and with the model and nobody asked what
+    # the candidate was.
+    #
+    # The theorem's whole structure is "every accepted state is an observation", which is what makes
+    # its error governed by sigma_o and independent of the model bias. That sentence was true of the
+    # experiments, which all pass obs[0].values, and false of the function they call. Enforced here
+    # rather than assumed: the candidate must BE one of the offered observations.
+    _observations = [e for e in evidence if e.kind == "observation"]
+    if _observations and not any(
+            np.asarray(e.values, dtype=float).shape == cand.shape
+            and np.array_equal(np.asarray(e.values, dtype=float), cand)
+            for e in _observations):
+        return PromotionResult(
+            Decision.REJECT,
+            "candidate is not any of the offered observations: the rule promotes an observation, "
+            "and a state assembled from something else is outside what it can vouch for")
     if not evidence:
         return PromotionResult(Decision.ABSTAIN, "no evidence offered")
 
@@ -183,19 +204,41 @@ def evaluate(candidate: np.ndarray,
     residual_rms = 0.0
     tol = 0.0
     physics_disagrees = False
+    # [FIX 2026-07-28] Only phys[0] was consulted, so a second physical model was silently ignored
+    # and which one that was depended on list order. Physics may only veto, so the conservative
+    # composition is that ANY model disagreeing is a veto: reading fewer models can only ever miss
+    # an objection, never manufacture one, which keeps the veto-only property intact.
     if phys:
-        p, o = phys[0], obs[0]
-        resid = np.asarray(o.values, dtype=float) - np.asarray(p.values, dtype=float)
-        residual_rms = float(np.sqrt(np.mean(resid ** 2)))
-        tol = _combined_tolerance(o, p, k_sigma)
-        physics_disagrees = residual_rms > tol
+        o = obs[0]
+        worst = None
+        for p in phys:
+            resid = np.asarray(o.values, dtype=float) - np.asarray(p.values, dtype=float)
+            rms = float(np.sqrt(np.mean(resid ** 2)))
+            this_tol = _combined_tolerance(o, p, k_sigma)
+            if rms > this_tol:
+                physics_disagrees = True
+            if worst is None or rms - this_tol > worst[0] - worst[1]:
+                worst = (rms, this_tol)
+        residual_rms, tol = worst
 
     # --- corroboration among observations --------------------------------------------------------
+    # [FIX 2026-07-28] This compared obs[0] against obs[1] only, so the verdict depended on the
+    # ORDER of a list with no defined order. Measured on [bad, bad, good]: two of six permutations
+    # promoted a 0.900 m error, because the two faulty readings happened to be adjacent and agreed
+    # with each other. Every pair is compared now, and a single dissenting source is enough to
+    # withhold corroboration -- which is what "the observations corroborate each other" has to mean
+    # if the sentence is to bear the weight the override branch puts on it.
     obs_disagrees = False
-    if len(obs) >= 2:
-        a, b = obs[0], obs[1]
-        d = float(np.sqrt(np.mean((np.asarray(a.values, float) - np.asarray(b.values, float)) ** 2)))
-        obs_disagrees = d > _combined_tolerance(a, b, k_sigma)
+    for i in range(len(obs)):
+        for j in range(i + 1, len(obs)):
+            a, b = obs[i], obs[j]
+            gap = float(np.sqrt(np.mean(
+                (np.asarray(a.values, float) - np.asarray(b.values, float)) ** 2)))
+            if gap > _combined_tolerance(a, b, k_sigma):
+                obs_disagrees = True
+                break
+        if obs_disagrees:
+            break
 
     # Which regime the call is in, and it matters for what any soundness claim covers. A veto that
     # cannot fire is not a veto: with no physics prediction offered, the residual test below never

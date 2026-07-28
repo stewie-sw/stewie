@@ -44,7 +44,8 @@ condition C4; the remainder are specified here and built in order.
 | F3 | **Sensor mis-calibration** | $\kappa$ = true $\sigma$ / declared $\sigma$ | **implemented** | Mis-calibration converts into abstention, not harm, provided $\sqrt{2k^2-1}\,\sigma_{\text{declared}} < \tau$. See the amendment below: the first version of this row gave the weaker symmetric condition and was wrong |
 | F4 | Shared-ground concurrency | overlap fraction $d=\lvert D\rvert/n$, agent count $m$ | **implemented** | Correlated error makes readings agree while all are wrong, defeating corroboration. Support models order none $>$ linear $>$ C3 in harm (57/40/31). See the amendment below: the free support threshold, not the bound, was the larger defect |
 | F5 | Delayed / out-of-order evidence | lag distribution | **implemented** | The gap was availability, not safety: the physics channel already caught a lone stale reading, but a stale reading present alongside a current one blocked it 100% of the time. Dating evidence against the action history restores availability at no cost in harm |
-| F6 | Partial or misreported action execution | log fidelity | **implemented** | Under-reporting is the dangerous direction and the failure is a cliff at the support threshold, not a decay. Tolerated to 50\% fidelity; broken by 25\% |
+| F6 | Partial or misreported action execution | log fidelity (recall) | **implemented** | Under-reporting is the direction that causes *harm*, and the failure is a cliff at the support threshold, not a decay. Tolerated to 50\% fidelity; broken by 25\%. The row first called this "the dangerous direction"; see amendment 7 --- it is the *less* sensitive one |
+| F6b | **Action log fabricates overlap** | log precision (false-positive rate) | **implemented** | The direction F6 did not cover. Roughly four times more sensitive: availability is destroyed at 20\% fabrication against 50\% for omission. Fails to refusal, never to harm. Both cliffs sit at one closed-form constant, so precision and recall trade off exactly |
 | F7 | Duplicated evidence | duplication factor | **implemented** | **Defeats the rule completely**: 0/20 harmful presented once, 20/20 relabelled as two sources. Establishes the mechanism's scope --- it models *action-induced* dependency, and duplication leaves no trace in the action history |
 
 ### Amendment 2026-07-27 — F3 condition corrected
@@ -197,6 +198,48 @@ The reason it went unnoticed is worth recording for the harness: across the whol
 0.08% of the time carried an unbounded failure**, and every one of those 5 calls came from tests
 written to probe the support mechanism in isolation, which is exactly the setting that made the
 omission look deliberate.
+
+### Amendment 2026-07-28 (7) --- F6 covered one direction and called it the dangerous one
+
+F6 sweeps a log that **omits** real shared ground. It never makes the log report an overlap that did
+not happen, so nothing in the family could contradict its own docstring's claim that under-reporting
+is "the dangerous direction". That claim was a scoping assumption, and on sensitivity it is wrong.
+
+**F6b** adds the missing direction. The evidence is genuinely independent and entirely within its
+declared sigma; only the record of what produced it is wrong.
+
+| fabricated overlap | abstained | harmful |
+|---|---|---|
+| 0% | 0/20 | 0 |
+| 10% | 0/20 | 0 |
+| 20% | **20/20** | 0 |
+| 50% | 20/20 | 0 |
+| 100% | 20/20 | 0 |
+
+**Roughly four times more sensitive than omission** --- 20% against 50% --- and it fails to refusal
+rather than to harm. That is not the same as harmless: total abstention leaves a twin that never
+learns the ground moved, which the A7 repair comparison measured as the worst map error of the
+available policies on a worked site.
+
+**Both cliffs are the same constant, and it is closed form.** Solving
+$m/(1 + d(m-1)) = \text{threshold}$ gives
+
+$$d_{\text{crit}} = \frac{m/\text{threshold} - 1}{m - 1}$$
+
+and the decision flips there exactly --- verified per trial to within one cell for $m$ from 2 to 8
+(`effective_support.log_error_tolerance`). The constant reads two ways at once: how much fabrication
+the rule tolerates, *and* how much real dependency it accepts. **Raising the threshold to buy safety
+against an omitting log lowers $d_{\text{crit}}$ and buys fragility against a fabricating one, in
+exact proportion.** No setting is robust to both; there is only a choice about which way to fail.
+
+**Why this is an amendment rather than a new family.** It is the same fault --- an inaccurate action
+log --- swept along the axis the original family fixed at zero. Recorded here because it corrects a
+claim the specification itself made, which the specification's own rule requires.
+
+**Method note for the harness.** A first pass swept the fabrication *probability* and read every
+cliff about two percentage points high, consistently. A Bernoulli mask makes the realized fraction a
+random variable, so requiring all trials to abstain measures the upper tail rather than the
+boundary. Sweep the realized fraction when the quantity under test is a threshold.
 
 ### Amendment 2026-07-27 (5) --- F7 establishes where the mechanism stops
 

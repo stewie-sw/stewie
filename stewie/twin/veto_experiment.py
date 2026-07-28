@@ -493,9 +493,17 @@ def run_action_log_fidelity_sweep(truth: np.ndarray, fidelities, *, d_true: floa
     """[F6] The action log is wrong, and everything downstream is built on it.
 
     ``m_eff`` is derived from the record of what the machines did. If that record is inaccurate the
-    derivation inherits the inaccuracy, and the dangerous direction is **under-reporting**: a log
+    derivation inherits the inaccuracy. **Under-reporting** is the direction this sweep varies: a log
     claiming less shared ground than there was makes the rule believe the readings are more
     independent than they are, which is the optimistic error this whole design exists to prevent.
+
+    [CORRECTION 2026-07-28] This docstring previously called under-reporting "the dangerous
+    direction". That was a scoping assumption, never tested against the other direction, and it is
+    wrong on sensitivity. Over-reporting is roughly four times more sensitive here --- tolerated to
+    10% against 50% --- and its failure is total loss of availability, which
+    ``test_a7_repair_choice`` already measured to be the worst outcome on a worked site. Both cliffs
+    sit at the same closed-form constant; see ``effective_support.log_error_tolerance`` and
+    ``run_action_log_overreporting_sweep``.
 
     ``fidelity`` is the share of genuinely shared cells the log actually records. 1.0 is an accurate
     log; 0.0 claims no shared ground at all, at which point the rule behaves like the no-correction
@@ -635,4 +643,47 @@ def run_no_physics_sweep(truth: np.ndarray,
                         n_harmful=harmful, n_abstained=abstained,
                         mean_error_m=float(np.mean(errors)) if errors else 0.0,
                         errors_m=errors)
+
+def run_action_log_overreporting_sweep(truth: np.ndarray, fp_rates, *, m_agents: int = 3,
+                                       n_trials: int = 20, sigma_o: float = 0.05,
+                                       sigma_p: float = 0.08, tau_m: float = 0.25,
+                                       k_sigma: float = 2.0, min_support: float = 2.25,
+                                       seed0: int = 41000) -> dict[str, list[SystemResult]]:
+    """[F6b] The action log claims shared ground that was never worked.
+
+    F6 sweeps the log omitting real overlap. This sweeps the opposite error, which the family did
+    not cover and which its docstring wrongly dismissed as the safe direction.
+
+    The evidence here is genuinely independent and genuinely good: the agents worked separate
+    ground, there is no common error, and every reading is within its declared sigma. **Only the log
+    is wrong.** ``fp_rate`` is the share of independent cells it wrongly reports as shared, so any
+    abstention is a promotion the rule should have made and did not.
+
+    The failure is availability rather than harm, and that is not the same as harmless: a rule that
+    abstains on every promotion leaves a twin that never learns the ground moved, measured elsewhere
+    as the worst map error of the available policies on a worked site.
+    """
+    out: dict[str, list[SystemResult]] = {"gate": []}
+    for fi, fp in enumerate(fp_rates):
+        acc = SystemResult("gate", float(fp), n_trials)
+        for t in range(n_trials):
+            rng = np.random.default_rng(seed0 + 7919 * fi + 13 * t)
+            obs = [Evidence(f"agent_{i}", "observation",
+                            truth + rng.normal(0.0, sigma_o, truth.shape), sigma_o, 1.0)
+                   for i in range(m_agents)]
+            phys = Evidence("terramech", "physics",
+                            truth + rng.normal(0.0, sigma_p, truth.shape), sigma_p, 1.0)
+            logged = rng.random(truth.shape) < float(fp)      # pure fabrication
+            result = evaluate(obs[0].values, [*obs, phys], correlation_mask=logged,
+                              k_sigma=k_sigma, min_effective_support=min_support)
+            err = _rms(obs[0].values, truth)
+            acc.errors_m.append(err)
+            if result.decision is Decision.PROMOTE:
+                if err > tau_m:
+                    acc.n_harmful += 1
+            else:
+                acc.n_abstained += 1
+        acc.mean_error_m = float(np.mean(acc.errors_m))
+        out["gate"].append(acc)
+    return out
 

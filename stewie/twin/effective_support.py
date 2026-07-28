@@ -121,3 +121,35 @@ def measured_effective_support(errors: np.ndarray) -> float:
     if mean_var <= 0.0:
         return float(e.shape[0])
     return per_obs_var / mean_var
+
+def log_error_tolerance(m: int, min_effective_support: float) -> float:
+    """The exact fraction of mis-reported ground the support test tolerates, in EITHER direction.
+
+    Solving ``m / (1 + d(m-1)) = threshold`` for the dependency fraction gives
+
+        d_crit = (m / threshold - 1) / (m - 1)
+
+    and the decision flips there exactly, verified per-trial to within one cell across
+    ``m`` from 2 to 8. The quantity has two opposed readings and that is the point:
+
+    * an action log that **fabricates** overlap drives the rule to abstain on genuinely
+      independent evidence once the fabricated fraction exceeds ``d_crit``;
+    * an action log that **omits** overlap drives the rule to accept genuinely dependent
+      evidence once the reported fraction falls below ``d_crit``.
+
+    **One constant governs both, so they are not independent knobs.** Raising the support
+    threshold to buy safety against an omitting log lowers ``d_crit`` and buys fragility
+    against a fabricating one, in exact proportion. There is no setting that is robust to
+    both; there is only a choice about which way to fail.
+
+    Returns 0.0 when the threshold is at or above ``m`` (nothing is acceptable) and is
+    capped at 1.0, since a dependency fraction cannot exceed the region.
+    """
+    if m <= 1:
+        raise ValueError("log error tolerance is undefined for a single observation")
+    if min_effective_support <= 0.0:
+        raise ValueError("support threshold must be positive")
+    if min_effective_support >= m:
+        return 0.0
+    return min(1.0, (m / min_effective_support - 1.0) / (m - 1.0))
+
