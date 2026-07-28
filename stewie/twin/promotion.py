@@ -174,10 +174,25 @@ def evaluate(candidate: np.ndarray,
 
     if physics_disagrees:
         # The residual is real. It means EITHER the observation is wrong OR the model is misspecified,
-        # and this gate deliberately refuses to settle that by trusting the model. A second,
-        # independent observation agreeing with the first is what breaks the tie: then the
-        # observations corroborate and the model is the outlier, so promote. Otherwise abstain.
-        if len(obs) >= 2 and not obs_disagrees:
+        # and this gate deliberately refuses to settle that by trusting the model. Corroboration is
+        # what breaks the tie -- but only INDEPENDENT corroboration.
+        #
+        # [FIX 2026-07-27] This branch previously tested ``len(obs) >= 2``, a raw count, while its own
+        # reason string claimed the observations were independent. Where several agents have modified
+        # the same ground, their readings carry a common error and therefore AGREE WHILE ALL BEING
+        # WRONG. The old test read that counterfeit agreement as grounds to overrule a correct model,
+        # promoting the bad reading and blaming the physics: measured 9-13 harmful acceptances in 20
+        # trials, with the model wrongly named the outlier in 11-17 of them.
+        #
+        # Requiring effective rather than raw support closes it. This is also what makes m_eff
+        # load-bearing for the veto-only argument itself, rather than an extra safety check bolted on
+        # afterwards: the authority to overrule the model comes from independence, and m_eff is the
+        # only thing that measures it.
+        # BOTH conditions, and the pair matters. The count alone was the original defect; effective
+        # support alone is not enough either, because a single observation has m_eff = 1 and would
+        # clear a threshold of 1.0, letting one unchallenged reading dismiss the model. Overruling
+        # the physics requires more than one source AND those sources being effectively independent.
+        if len(obs) >= 2 and effective_n >= min_effective_support and not obs_disagrees:
             return PromotionResult(Decision.PROMOTE,
                                    "physics residual exceeds tolerance, but independent observations "
                                    "corroborate: the model is the outlier, not the observation",
@@ -185,7 +200,8 @@ def evaluate(candidate: np.ndarray,
         return PromotionResult(Decision.ABSTAIN,
                                "physics residual exceeds the combined declared uncertainty and no "
                                "independent observation corroborates: cannot distinguish a bad "
-                               "observation from a misspecified model",
+                               "observation from a misspecified model, and effective support is "
+                               "insufficient to overrule it",
                                residual_rms, tol, n_corr, effective_n, detail)
 
     if effective_n < min_effective_support:

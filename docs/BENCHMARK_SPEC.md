@@ -83,6 +83,31 @@ $d=0.167$ and leaves **5**. The bound was never the problem.
 This is the third parameter in this work that needed deriving rather than choosing, after the A5
 gate width and the F3 fail-safe condition. Recorded as a pattern rather than three incidents.
 
+### Amendment 2026-07-27 (3) --- F4 exposed a defect in the rule, not only in a parameter
+
+The first F4 sweep modelled the physics channel as sharing the common error, so it agreed with the
+biased sensors and was blind. That is one defensible reading. The other, and the physically apt one
+for G-A --- whose mechanism is dependence among *observation* errors --- is that the common error is a
+**sensing artefact**: every sensor mis-sees the disturbed surface the same way, so the model predicts
+the true surface and disagrees with all of them.
+
+Under that model the rule was **harmed in 9 to 13 trials of 20**, and named the model the outlier in
+11 to 17. The cause was a single line. The physics branch tested `len(obs) >= 2`, a raw count, while
+its own reason string claimed the observations were *independent*. Where agents share ground their
+readings carry a common error and therefore agree while all being wrong, and the branch read that
+counterfeit agreement as licence to overrule a correct model.
+
+Requiring `len(obs) >= 2` **and** `m_eff >= threshold` closes it: 0 harmful and 0 wrongly-blamed from
+the harm onset onward. Both conditions are needed --- effective support alone is insufficient, since
+a single observation has $m_{\text{eff}}=1$ and would clear a threshold of 1.0.
+
+**Consequence for the argument.** The dependency correction is not a safety check added on top of the
+veto-only design; it is what licenses the design's central move. The authority to overrule the
+physical model comes from independence, and $m_{\text{eff}}$ is the only thing that measures it.
+
+Both physics models are now selectable in the sweep, because the choice changes the conclusion and
+should not be silent.
+
 **Adversarial variants.** F1 and F3 have adversarial forms in which the parameter is chosen with
 knowledge of the rule rather than fixed in advance. For a rule whose branches are published this is
 the realistic threat model. Scheduled, not an extension.

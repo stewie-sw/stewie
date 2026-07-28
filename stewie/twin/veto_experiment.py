@@ -330,6 +330,7 @@ def run_shared_ground_sweep(truth: np.ndarray, overlaps, *, m_agents: int = 3,
                             sigma_o: float = 0.05, sigma_p: float = 0.08,
                             tau_m: float = 0.25, prior_offset_m: float = 0.15,
                             k_sigma: float = 2.0, min_support: float = 2.0,
+                            physics_sees_truth: bool = False,
                             seed0: int = 13000) -> dict[str, list[SystemResult]]:
     """[F4] The experiment the whole thesis reduces to.
 
@@ -366,7 +367,15 @@ def run_shared_ground_sweep(truth: np.ndarray, overlaps, *, m_agents: int = 3,
             common[mask] = rng.normal(0.0, shared_error_m)
             obs = [truth + common + rng.normal(0.0, sigma_o, truth.shape)
                    for _ in range(m_agents)]
-            phys = truth + common + rng.normal(0.0, sigma_p, truth.shape)
+            # Two defensible models of the physics channel, and they are NOT equivalent.
+            # physics_sees_truth=False: the common error is something the model shares, so it agrees
+            #   with the biased sensors and the physics branch is blind. Isolates the support test.
+            # physics_sees_truth=True: the common error is a SENSING artefact -- every sensor mis-sees
+            #   the disturbed surface the same way -- so the model predicts the true surface and
+            #   disagrees with all of them. This is the physically apt reading for G-A, since the
+            #   mechanism is dependence among OBSERVATION errors, and it is the harder case.
+            phys = (truth + rng.normal(0.0, sigma_p, truth.shape) if physics_sees_truth
+                    else truth + common + rng.normal(0.0, sigma_p, truth.shape))
             prior = truth + prior_offset_m
             ev = [Evidence(f"agent{i}", "observation", o, sigma_o) for i, o in enumerate(obs)]
             ev.append(Evidence("terramech", "physics", phys, sigma_p))

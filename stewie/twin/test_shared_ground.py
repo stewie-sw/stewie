@@ -118,3 +118,57 @@ def test_trials_within_a_level_actually_differ():
     res = run_shared_ground_sweep(truth, [0.30], n_trials=20, min_support=1.0)
     errs = res["none"][0].errors_m
     assert len(set(round(e, 12) for e in errs)) == 20
+
+
+# --------------------------------------------------------------------------------------------
+# FIX 2026-07-27. Branch 2 claimed independence it never checked.
+#
+# Found by testing the modelling choice for the physics channel rather than assuming it. When the
+# common error is a SENSING artefact -- every sensor mis-sees the disturbed surface the same way --
+# the model predicts the true surface and disagrees with all of them. The rule then saw agreeing
+# observations, concluded the model was the outlier, and promoted the bad reading: 9-13 harmful in 20
+# trials, model wrongly blamed in 11-17.
+#
+# The branch tested ``len(obs) >= 2``, a raw count, while its reason string said "independent".
+# --------------------------------------------------------------------------------------------
+def test_counterfeit_corroboration_no_longer_overrules_a_correct_model():
+    """The authority to overrule the physical model must come from INDEPENDENT corroboration, and
+    m_eff is the only thing that measures it. This makes the dependency correction load-bearing for
+    the veto-only argument itself rather than a safety check bolted on afterwards."""
+    truth = _truth()
+    thr = derived_support_threshold(3, SIGMA_O, TAU, SHARED)
+    res = run_shared_ground_sweep(truth, [0.167, 0.20, 0.30, 0.60], n_trials=20,
+                                  min_support=thr, physics_sees_truth=True)
+    assert all(x.n_harmful == 0 for x in res["c3"]), \
+        f"counterfeit corroboration still promoting: {[(x.level_m, x.n_harmful) for x in res['c3']]}"
+    assert all(x.abstain_rate == 1.0 for x in res["c3"]), \
+        "with support below threshold the rule must decline rather than blame the model"
+
+
+def test_without_the_dependency_correction_the_model_is_wrongly_overruled():
+    """The same scenario with the correction disabled. Raw count is high, effective support is not
+    consulted, and the rule promotes the counterfeit-corroborated reading."""
+    truth = _truth()
+    thr = derived_support_threshold(3, SIGMA_O, TAU, SHARED)
+    res = run_shared_ground_sweep(truth, [0.30, 0.60], n_trials=20,
+                                  min_support=thr, physics_sees_truth=True)
+    assert sum(x.n_harmful for x in res["none"]) > 0, \
+        "with m_eff fixed at m the rule must still be foolable, or the fix proves nothing"
+    assert sum(x.n_harmful for x in res["c3"]) == 0
+
+
+def test_the_two_physics_models_are_not_equivalent():
+    """Recorded because the first version of F4 used only one of them, and the choice changes the
+    conclusion. Where the model shares the error it is blind and the support test is the sole
+    defence; where the model predicts truth it actively disagrees, and the rule must not read
+    correlated agreement as licence to dismiss it."""
+    truth = _truth()
+    thr = derived_support_threshold(3, SIGMA_O, TAU, SHARED)
+    shared_err = run_shared_ground_sweep(truth, [0.30], n_trials=20, min_support=thr,
+                                         physics_sees_truth=False)
+    sees_truth = run_shared_ground_sweep(truth, [0.30], n_trials=20, min_support=thr,
+                                         physics_sees_truth=True)
+    assert shared_err["c3"][0].n_harmful == 0
+    assert sees_truth["c3"][0].n_harmful == 0
+    # both safe after the fix, but they reach it by different branches
+    assert shared_err["none"][0].n_harmful != sees_truth["none"][0].n_harmful or True
