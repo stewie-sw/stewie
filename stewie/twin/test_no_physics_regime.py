@@ -158,3 +158,32 @@ def test_the_protection_in_4b_is_knife_edge(truth):
     result = evaluate(ev[0].values, ev, correlation_mask=one_cell, min_effective_support=2.0)
     assert result.decision is Decision.ABSTAIN
     assert result.effective_n < 2.0
+
+
+def test_the_platform_can_refuse_to_supply_the_model_that_4b_assumes_is_there():
+    """The composition, and it is why A7 cannot be waved through.
+
+    The previous iteration flagged one claim as most likely wrong: that leaving A7 unenforced is
+    safe because a physical prediction is always available in deployment. It is not.
+
+    The platform's own governance contract refuses to resolve a physics model for a LIVE mission
+    when the model has no validated profile for the body in question -- deliberately, fail-closed,
+    so an unvalidated model cannot drive real hardware. Outside the gravity-loaded Bekker regime
+    that refusal is the designed behaviour, not an error.
+
+    So two components, each individually correct, compose into a system that is not:
+
+      * ``resolve_live_backend`` fails CLOSED and supplies no model;
+      * ``evaluate``, handed no model, fails OPEN and accepts whatever is corroborated.
+
+    The refusal meant to protect a mission is exactly what removes the veto, and it does so on the
+    least familiar terrain. This is evidence for enforcing A7 rather than assuming it; the decision
+    is not taken here, but it is no longer an open question with nothing on either side.
+    """
+    from stewie.contracts.physics_model_control import PhysicsModelRefused, resolve_live_backend
+
+    resolve_live_backend(body="moon")          # in regime: a model is available
+
+    for body in ("bennu", "phobos"):
+        with pytest.raises(PhysicsModelRefused):
+            resolve_live_backend(body=body)

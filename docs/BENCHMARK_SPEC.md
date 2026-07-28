@@ -156,8 +156,24 @@ harness. Any future family reporting a protective effect without the model prese
 suspected of measuring something else.
 
 **Assumption A7 (veto availability)** --- a physical prediction is offered whenever a promotion is
-evaluated --- is added to the theorem's hypotheses. It is **not enforced in the rule**, and whether
-to enforce it or to prove the regime from $m_{\text{eff}}$ is left open deliberately.
+evaluated --- is added to the theorem's hypotheses. It is **not enforced in the rule**.
+
+**And it is false on this platform.** Checked by running the resolver, not by reading it:
+`resolve_live_backend` **refuses** to supply a physics model for a LIVE mission when the model has
+no validated profile for the body --- confirmed refusing `bennu` and `phobos`, resolving `moon`.
+That refusal is deliberate and correct: an unvalidated model must not drive real hardware.
+
+So two components, each individually sound, compose into a system that is not:
+
+| component | on an unvalidated body | correctness |
+|---|---|---|
+| `resolve_live_backend` | supplies no model | fails **closed** --- right |
+| `evaluate` | accepts whatever is corroborated | fails **open** --- wrong |
+
+**The refusal meant to protect the mission is exactly what removes the veto**, and it does so on the
+least familiar terrain. The recommendation is therefore to **enforce A7** --- abstain when no model
+is available --- rather than assume it. The decision is Aaron's, but it is no longer an open
+question with nothing on either side.
 
 The reason it went unnoticed is worth recording for the harness: across the whole twin suite only
 5 of 6,129 rule evaluations omitted the physical model, and 3 of those accepted. **A path exercised
