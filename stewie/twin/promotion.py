@@ -197,8 +197,16 @@ def evaluate(candidate: np.ndarray,
         d = float(np.sqrt(np.mean((np.asarray(a.values, float) - np.asarray(b.values, float)) ** 2)))
         obs_disagrees = d > _combined_tolerance(a, b, k_sigma)
 
+    # Which regime the call is in, and it matters for what any soundness claim covers. A veto that
+    # cannot fire is not a veto: with no physics prediction offered, the residual test below never
+    # runs and the rule degenerates to "accept what corroborated observations say", which is the
+    # fusing baseline this design exists to beat. Reported rather than silently folded into the
+    # agreeing case, because the branch-4 derivation assumes the residual test PASSED, not that it
+    # was skipped.
+    veto_available = bool(phys)
     detail = {"n_obs": len(obs), "n_physics": len(phys), "frac_independent": frac_independent,
-              "physics_disagrees": physics_disagrees, "obs_disagrees": obs_disagrees}
+              "physics_disagrees": physics_disagrees, "obs_disagrees": obs_disagrees,
+              "veto_available": veto_available}
 
     # --- the decision ----------------------------------------------------------------------------
     if obs_disagrees:
@@ -244,7 +252,18 @@ def evaluate(candidate: np.ndarray,
                                f"{min_effective_support:.2f} (action-correlated cells discounted)",
                                residual_rms, tol, n_corr, effective_n, detail)
 
-    return PromotionResult(Decision.PROMOTE, "evidence consistent within declared uncertainty",
+    # [FIX 2026-07-28] This return is reachable in TWO regimes and previously reported both with the
+    # same sentence. Either the physical model was offered and agreed -- the case the safety argument
+    # covers -- or no model was offered at all, in which case nothing was checked against anything
+    # and ``residual_rms``/``tolerance`` are both a sentinel 0.0 indistinguishable from perfect
+    # agreement. Saying "consistent within declared uncertainty" of the second case asserted a check
+    # that never ran. The decision is unchanged; only the claim made about it is now accurate.
+    if veto_available:
+        return PromotionResult(Decision.PROMOTE, "evidence consistent within declared uncertainty",
+                               residual_rms, tol, n_corr, effective_n, detail)
+    return PromotionResult(Decision.PROMOTE,
+                           "observations corroborate and support is sufficient, but NO physical "
+                           "model was offered: nothing vetoed this and nothing could have",
                            residual_rms, tol, n_corr, effective_n, detail)
 
 

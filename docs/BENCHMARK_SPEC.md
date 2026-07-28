@@ -124,6 +124,47 @@ One prediction was wrong and is recorded as such. I expected a lone stale readin
 cause harm. It is not: the model predicts the current surface, disagrees with the stale one, and with
 no corroboration the rule declines. **The temporal gap was never a safety gap.**
 
+### Amendment 2026-07-28 (6) --- a regime the taxonomy did not name
+
+The seven families all vary *what the evidence says*. None of them varies *whether the physical
+model is present at all*, and that turns out to be a regime of its own rather than a corner of F4.
+
+The acceptance rule reaches its agreeing branch two ways. Either the model was offered and the
+residual test passed --- the case the derivation covers --- or no model was offered, the residual
+test never ran, and `residual_rms` and `tolerance` are both a sentinel `0.0` indistinguishable from
+perfect agreement. **A veto that cannot fire is not a veto**: in that regime the design degenerates
+into the fusing baseline it exists to beat.
+
+Measured, shared error injected across two agents on real Haworth terrain, $\tau = 0.25$ m:
+
+| common error | no dependency mask | mask at $d = 0.25$ |
+|---|---|---|
+| 0.20 m | 0/20 harmful | 0/20 |
+| 0.30 m | **20/20** | 0/20 |
+| 0.90 m | **20/20** | 0/20 |
+| 10.0 m | **20/20** | 0/20 |
+
+Unprotected, the regime **does not degrade with the fault; it is indifferent to it.** A ten-metre
+error is accepted as readily as a thirty-centimetre one, so harm is bounded by what was injected
+rather than by anything the rule does.
+
+**Why this is an amendment and not a new family.** It is not a fault in the evidence; it is a
+deployment condition under which the mechanism under test is absent. It is added as a **negative
+control on the harness**: every family must be swept with the model present, and the model-absent
+sweep is what establishes that the measured protection comes from the veto rather than from the
+harness. Any future family reporting a protective effect without the model present should be
+suspected of measuring something else.
+
+**Assumption A7 (veto availability)** --- a physical prediction is offered whenever a promotion is
+evaluated --- is added to the theorem's hypotheses. It is **not enforced in the rule**, and whether
+to enforce it or to prove the regime from $m_{\text{eff}}$ is left open deliberately.
+
+The reason it went unnoticed is worth recording for the harness: across the whole twin suite only
+5 of 6,129 rule evaluations omitted the physical model, and 3 of those accepted. **A path exercised
+0.08% of the time carried an unbounded failure**, and every one of those 5 calls came from tests
+written to probe the support mechanism in isolation, which is exactly the setting that made the
+omission look deliberate.
+
 ### Amendment 2026-07-27 (5) --- F7 establishes where the mechanism stops
 
 All seven families are now implemented. The last one draws a boundary rather than adding a defence,
@@ -203,7 +244,7 @@ The last was intended as the strongest control in the set, testing the premise r
 implementation. **It cannot currently do that**, and the reason is itself a finding --- see the
 amendment below.
 
-### Amendment 2026-07-27 (4) --- the shuffle control cannot falsify the premise yet
+### Amendment 2026-07-27 (4) --- the shuffle control cannot yet refute the premise
 
 Permuting the action log while preserving its size leaves the outcome bit-identical. That is not
 because the action history is inert: the fidelity sweep shows harmful acceptance rising sharply once

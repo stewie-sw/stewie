@@ -592,3 +592,47 @@ def run_duplicated_evidence_sweep(truth: np.ndarray, offsets, *, n_trials: int =
         acc["gate"].mean_error_m = float(np.mean(acc["gate"].errors_m))
         out["gate"].append(acc["gate"])
     return out
+
+def run_no_physics_sweep(truth: np.ndarray,
+                         common_error_m: float,
+                         *,
+                         trials: int = 20,
+                         sigma_o: float = 0.05,
+                         tau_m: float = 0.25,
+                         min_effective_support: float = 2.0,
+                         seed: int = 0) -> SystemResult:
+    """Measure the regime where the veto is structurally unable to fire.
+
+    The rule's safety argument for the agreeing branch assumes the residual test PASSED. It is also
+    reachable when no physical model was offered at all, in which case the test never ran. This
+    sweep isolates that regime: two agents worked the same ground and carry the same error, exactly
+    the F4 fault, but the physics prediction that would catch it is absent.
+
+    Controlled fault injection on real terrain. ``common_error_m`` is the shared bias both readings
+    carry; the terrain is real Haworth LOLA.
+    """
+    rng = np.random.default_rng(seed)
+    harmful = 0
+    abstained = 0
+    errors: list[float] = []
+    for _ in range(trials):
+        shared = rng.normal(common_error_m, 0.02 * abs(common_error_m) or 1e-6)
+        reading = truth + shared
+        ev = [Evidence("agent_a", "observation", reading + rng.normal(0, sigma_o * 0.1, truth.shape),
+                       sigma_o, 1.0),
+              Evidence("agent_b", "observation", reading + rng.normal(0, sigma_o * 0.1, truth.shape),
+                       sigma_o, 1.0)]
+        cand = ev[0].values
+        result = evaluate(cand, ev, min_effective_support=min_effective_support)
+        if result.decision is Decision.PROMOTE:
+            err = float(np.sqrt(np.mean((cand - truth) ** 2)))
+            errors.append(err)
+            if err > tau_m:
+                harmful += 1
+        else:
+            abstained += 1
+    return SystemResult(system="veto_no_physics", level_m=common_error_m, n_trials=trials,
+                        n_harmful=harmful, n_abstained=abstained,
+                        mean_error_m=float(np.mean(errors)) if errors else 0.0,
+                        errors_m=errors)
+
