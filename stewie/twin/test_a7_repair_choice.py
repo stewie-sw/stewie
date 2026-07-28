@@ -172,3 +172,59 @@ def test_the_mask_policy_inherits_f6_and_degrades_to_doing_nothing(base):
     assert faithful_harm == 0
     assert blind_harm > faithful_harm, "an unfaithful log costs harmful acceptances"
     assert blind_harm >= current_harm, "with no log at all it is exactly the current policy"
+
+
+def test_the_ordering_survives_bursty_spatially_clustered_drift(base):
+    """The doubt raised against the finding, checked and NOT upheld.
+
+    The campaign above excavates a fixed patch by a fixed depth at every worked step. Regular drift
+    is the friendliest case for a policy that updates often, so the worry was that the measured
+    penalty for abstaining was an artefact of it: real excavation is bursty and spatially
+    concentrated, with long idle stretches and then a berm going up in one place, and most of an
+    abstaining policy's refusals would fall on ground that had not moved.
+
+    It goes the other way. Holding the total volume moved fixed and delivering it in two
+    concentrated bursts at four times the depth, the gap *widens* -- because a policy that never
+    updates absorbs the whole of a large step and then carries it for the rest of the run, where
+    regular drift lets error accumulate gently. The ordering is not an artefact of the drift model,
+    and the factor quoted for the regular case is the conservative one.
+    """
+    _, _, a7_regular = _campaign(base, "enforce_a7")
+    _, _, mask_regular = _campaign(base, "require_mask")
+    a7_bursty, mask_bursty = _bursty_campaign(base, "enforce_a7"), _bursty_campaign(base, "require_mask")
+
+    assert mask_regular < a7_regular and mask_bursty < a7_bursty
+    assert a7_bursty / mask_bursty > a7_regular / mask_regular, (
+        "bursty drift should widen the gap, not close it; if this flips, the staleness cost is "
+        "sensitive to the drift model and the quoted factor must be re-derived before it is used"
+    )
+
+
+def _bursty_campaign(base: np.ndarray, policy: str, *, steps: int = 40, p_dependent: float = 0.35,
+                     seed: int = 5) -> float:
+    """Same total volume moved as ``_campaign``, delivered in two bursts on one site."""
+    rng = np.random.default_rng(seed)
+    truth = base.copy()
+    held = base.copy()
+    errors: list[float] = []
+    burst = {s for start in (8, 24) for s in range(start, start + 5)}
+
+    for t in range(steps):
+        if t in burst:
+            truth[4:16, 4:16] -= 1.60            # four times the depth, a quarter as often
+        dependent = rng.random() < p_dependent
+        reading = truth + (rng.normal(0.9, 0.05) if dependent else 0.0)
+        evidence = [
+            Evidence("agent_a", "observation", reading + rng.normal(0, SIGMA_O * 0.1, truth.shape),
+                     SIGMA_O, 1.0),
+            Evidence("agent_b", "observation", reading + rng.normal(0, SIGMA_O * 0.1, truth.shape),
+                     SIGMA_O, 1.0),
+        ]
+        mask = np.ones(truth.shape, dtype=bool) if dependent else np.zeros(truth.shape, dtype=bool)
+        result = None if policy == "enforce_a7" else evaluate(
+            evidence[0].values, evidence, correlation_mask=mask,
+            min_effective_support=SUPPORT_THRESHOLD)
+        if result is not None and result.decision is Decision.PROMOTE:
+            held = evidence[0].values.copy()
+        errors.append(float(np.sqrt(np.mean((held - truth) ** 2))))
+    return float(np.mean(errors))
