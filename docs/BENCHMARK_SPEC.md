@@ -1,9 +1,14 @@
 # Benchmark specification — state acceptance under agent-induced change
 
-**Status:** specification, pre-registered 2026-07-27. Implementation follows.
+**Status:** fault probes and theorem-facing research harness implemented; the integrated,
+two-domain, multi-robot D4 benchmark and frozen release artifact remain incomplete.
 **Purpose:** this document exists to be written *before* the comparative runs, so that the fault
 families swept are the families chosen in advance rather than the families that happened to favour
 the rule. Changing it after comparative results exist requires recording the change and the reason.
+
+The implemented rows below are component probes, not a claim that the complete benchmark has run.
+In particular, they do not exercise the live `POST /twin/resync` ingestion path, which currently
+bypasses the theorem-facing promotion rule.
 
 ## Why a new benchmark
 
@@ -49,7 +54,7 @@ recorded amendment. All are implemented; limitations are stated in amendment 9.
 | F6b | **Action log fabricates overlap** | log precision (false-positive rate) | **implemented** | The closed-form $d_{\mathrm{crit}}$ result is retained for the legacy global-mask scalar; it does not fully characterize the repaired graph decision |
 | F7 | Duplicated evidence | duplication factor | **implemented** | Duplicate source identities are rejected. Relabelled duplication remains an upstream source-integrity assumption because it leaves no trace in the action graph |
 
-### Amendment 2026-07-27 — F3 condition corrected
+### Amendment 2026-07-27 (1) — F3 condition corrected
 
 This document requires that a change made after results exist be recorded with its reason. One has
 been made.
@@ -286,6 +291,34 @@ must run over the *jointly* observed cells of each pair, and different pairs the
 support sets. Whether a scalar $m_{\text{eff}}$ can survive that is the same
 scalar-versus-structure question, arriving from a third direction.
 
+### Amendment 2026-07-28 (10) --- the theorem's premise needed a gate, not a sentence
+
+The rebuilt result rests on R1: the accepted value is a function of the observations alone. The Lean
+proof encodes R1 in the candidate's *type*, so it establishes that the conclusion follows from the
+premise and cannot establish that the code satisfies it.
+
+Checked by mutating the live rule:
+
+| violation | caught by the suite? |
+|---|---|
+| blend 1% of the physics prediction into the accepted value | **yes**, 8 tests |
+| use physics to **fill cells no sensor observed** | **no**, 302/302 passed |
+
+The second is the tempting mistake, it lives on the partial-coverage path that F8 established is the
+only path a real sensor produces, and it was already forbidden in writing twice --- "unobserved
+cells are not silently filled", "never fill missing cells as part of the theorem" --- with nothing
+testing either sentence.
+
+`test_r1_enforcement.py` closes it and is itself mutation-tested: 8 of its 14 fail under the
+violation while the rest of the suite still passes. **A gate that has not been shown to fail against
+the defect it targets is not evidence of anything**, and this benchmark should hold its own tests to
+that standard from here.
+
+**Design point surfaced while building it.** The override branch requires two distinct dependency
+components at *every* promoted cell, so one cell with a single observer makes the whole patch
+un-overridable. Correct and conservative, but it means override availability is set by the
+worst-covered cell in the patch rather than the average, and it is easy to walk into by accident.
+
 ### Amendment 2026-07-27 (5) --- F7 establishes where the mechanism stops
 
 All seven families are now implemented. The last one draws a boundary rather than adding a defence,
@@ -297,12 +330,13 @@ the action history, so the correction is identical in both cases while the real 
 has halved. The two copies then agree perfectly --- they are the same numbers --- so corroboration is
 satisfied by construction and the duplicated reading overrules a correct model.
 
-**This is a scope statement, not a defect to be fixed inside $m_{\text{eff}}$.** The dependency
-modelled here is action-induced dependency specifically. Detecting duplication requires
-source-identity integrity, a different guarantee supplied by the evidence pipeline rather than by a
-dependency measure derived from actions. It is recorded as assumption A6 in the theorem sketch
-alongside A1 calibrated sensors, since both are conditions the result rests on rather than things it
-provides.
+**This is a scope statement, not a defect to be fixed inside $m_{\text{eff}}$.**
+This amendment originally called the relation action-induced dependency;
+Amendment 9 corrects that causal wording to action-derived
+possible dependency. Detecting duplication requires source-identity integrity,
+a different guarantee supplied by the evidence pipeline rather than by a
+dependency measure derived from actions. It was recorded as assumption A6 in
+the superseded theorem sketch; source integrity is R3 in the repaired theorem.
 
 **Adversarial variants.** F1 and F3 have adversarial forms in which the parameter is chosen with
 knowledge of the rule rather than fixed in advance. For a rule whose branches are published this is
@@ -350,6 +384,11 @@ covariance. Dependence inside a component is unrestricted. The action history
 is conservative provenance for possible dependency; shared physical action
 does not itself correlate sensor noise conditional on the actual post-action
 surface.
+
+The analytic expression permits cell-varying \(\sigma_{ij}\). The current
+`Evidence` representation supplies one scalar \(\sigma_i\) per source and
+therefore implements the special case \(\sigma_{ij}=\sigma_i\) on that
+source's observed cells. Per-cell uncertainty fields are not yet accepted.
 
 The graph restores source-pair structure, not spatial geometry. The regional
 harmonic support and \(V=n^{-1}\sum_jv_j\) are unchanged by permuting cells
@@ -407,7 +446,9 @@ weighted chi-square.
 readings. The threshold mapping now requires an explicitly assumed
 `shared_error_bound_m` and is labelled offline sensitivity analysis. Deployment
 needs a justified bound, an independent reference, or abstention on
-single-component cells.
+single-component cells. The mapping refuses a configuration whose independent
+observation mean already reaches the harm threshold in expected MSE, because
+no support cutoff can repair that baseline regime.
 
 **Coverage and ordering.** NaN is an unobserved cell. Support uses the sources
 present per cell; comparisons use pairwise overlap; a promoted patch never

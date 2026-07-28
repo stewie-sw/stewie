@@ -207,8 +207,15 @@ def evaluate(
         and np.isfinite(min_effective_support)
     ):
         raise ValueError("min_effective_support must be finite and > 0")
-    if min_override_components < 2:
-        raise ValueError("min_override_components must be >= 2")
+    if (
+        not np.isfinite(min_override_components)
+        or min_override_components != int(min_override_components)
+        or min_override_components < 2
+    ):
+        raise ValueError(
+            "min_override_components must be a finite integer >= 2 "
+            f"(got {min_override_components!r})"
+        )
     if not (0.0 < false_alarm_probability < 1.0):
         raise ValueError("false_alarm_probability must be in (0, 1)")
     if dependency_edges is not None and correlation_mask is not None:
@@ -322,9 +329,15 @@ def evaluate(
         sigmas,
         edges,
     )
+    # An edge asserts that two sources may share an error. That assertion can only bite on cells
+    # where BOTH of them actually observed: where only one saw the ground, there is no second
+    # reading for a common error to correlate with, and counting the cell as dependent discounts
+    # support that was never claimed. Restricting to the pairwise overlap is what makes the
+    # dependency fraction agree with the coverage the corroboration was computed over.
     edge_union = np.zeros(shape, dtype=bool)
-    for edge_mask in edges.values():
-        edge_union |= np.asarray(edge_mask, dtype=bool)
+    for (left, right), edge_mask in edges.items():
+        both_observed = observed_masks[left] & observed_masks[right]
+        edge_union |= np.asarray(edge_mask, dtype=bool) & both_observed
     n_correlated = int((edge_union & candidate_mask).sum())
     n_observed = int(candidate_mask.sum())
     d = n_correlated / n_observed if n_observed else 0.0
