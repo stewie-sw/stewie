@@ -11,6 +11,7 @@ import numpy as np
 from stewie.ultrabuild.canonical import canonical_bytes, sha256_json
 from stewie.ultrabuild.experiment import generate_trial, run_candidate
 from stewie.ultrabuild.golden import build_golden_world
+from stewie.ultrabuild.identity import build_identity
 from stewie.ultrabuild.records import branch_record, submission
 from stewie.ultrabuild.scenario_runner import run_conflict_retention_demo
 from stewie.ultrabuild.store import (
@@ -187,6 +188,7 @@ def run_fault_injection(output_directory: str | Path) -> dict[str, Any]:
             "sensor hardware, ROS, network, and physical robot faults remain untested."
         ),
         "faults": results,
+        "build_identity": build_identity(),
         "passed": sum(int(result["observed"]) for result in results),
         "failed": sum(int(not result["observed"]) for result in results),
         "unimplemented_fault_families": [

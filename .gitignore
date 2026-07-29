@@ -17,6 +17,12 @@ __pycache__/
 build/
 dist/
 
+# UltraBuild evidence keeps small reports/trial tables; durable DB/CAS workspaces are regenerated.
+/reports/ultrabuild/**/*.sqlite3
+/reports/ultrabuild/**/*.sqlite3-shm
+/reports/ultrabuild/**/*.sqlite3-wal
+/reports/ultrabuild/**/payloads/
+
 # ── Third-party copyrighted research PDFs — NOT redistributed ──
 # Journal / IEEE / NASA / conference papers: John's private research library,
 # cited by filename throughout the repo (README §4, scene metadata) but cannot be
@@ -200,4 +206,3 @@ gis/qwc2/dist/
 gis/qwc2/icons/build/
 gis/qwc2/_stewie_orig/
 gis/qwc2/proof/
-

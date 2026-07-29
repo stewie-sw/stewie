@@ -9,6 +9,7 @@ import numpy as np
 
 from stewie.ultrabuild.experiment import generate_trial, run_candidate
 from stewie.ultrabuild.golden import append_with_provenance
+from stewie.ultrabuild.identity import build_identity
 from stewie.ultrabuild.payloads import ContentAddressedPayloadStore
 from stewie.ultrabuild.records import (
     autonomous_action_record,
@@ -411,6 +412,7 @@ def run_multi_robot_closed_loop(
         "planner_decision_id": planner_decision["decision_record_id"],
         "planned_action_id": planned_action["event_id"],
         "integrity": store.verify_integrity(),
+        "build_identity": build_identity(),
     }
     return store, report
 
@@ -612,5 +614,6 @@ def run_conflict_retention_demo(
         "decision": stored_decision["decision"],
         "accepted_head": store.branch_head("branch.accepted"),
         "integrity": store.verify_integrity(),
+        "build_identity": build_identity(),
     }
     return store, report

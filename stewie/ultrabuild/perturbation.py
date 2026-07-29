@@ -16,6 +16,7 @@ from stewie.ultrabuild.experiment import (
     generate_trial,
     run_candidate,
 )
+from stewie.ultrabuild.identity import build_identity
 from stewie.ultrabuild.reconciliation import Method, RasterEvidence
 
 
@@ -260,6 +261,7 @@ def run_perturbation_study(output_directory: str | Path) -> dict[str, Any]:
             for factor, (levels, _) in FACTORS.items()
         },
         "cells": cells,
+        "build_identity": build_identity(),
         "registered_stewie_failure_cells": stewie_failures,
         "unmeasured_factors": [
             "wheel_slip",

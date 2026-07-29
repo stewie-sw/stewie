@@ -10,6 +10,7 @@ from typing import Any, Iterable
 import numpy as np
 
 from stewie.ultrabuild.canonical import canonical_bytes, sha256_json
+from stewie.ultrabuild.identity import build_identity
 from stewie.ultrabuild.reconciliation import (
     ActionContext,
     Method,
@@ -432,6 +433,7 @@ def run_controlled_evaluation(output_directory: str | Path) -> dict[str, Any]:
         "seeds_per_unit": len(EVALUATION_SEEDS),
         "methods": list(METHODS),
         "trial_count": len(records),
+        "build_identity": build_identity(),
         "aggregates": _aggregate(records),
         "contrasts": [
             _paired_unit_bootstrap(

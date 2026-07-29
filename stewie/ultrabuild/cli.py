@@ -12,6 +12,7 @@ from stewie.ultrabuild.benchmark import run_benchmarks
 from stewie.ultrabuild.experiment import run_controlled_evaluation
 from stewie.ultrabuild.faults import run_fault_injection
 from stewie.ultrabuild.golden import build_golden_world
+from stewie.ultrabuild.identity import build_identity
 from stewie.ultrabuild.payloads import ContentAddressedPayloadStore
 from stewie.ultrabuild.perturbation import run_perturbation_study
 from stewie.ultrabuild.scenario_runner import (
@@ -42,6 +43,7 @@ def _demo(output: Path) -> int:
             "record_ids": ids,
             "accepted_head": store.branch_head("branch.accepted"),
             "integrity": integrity,
+            "build_identity": build_identity(),
         }
         _write_json(output / "demo-summary.json", summary)
         print(json.dumps(summary, indent=2, sort_keys=True))

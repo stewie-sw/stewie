@@ -20,6 +20,7 @@ from stewie.ultrabuild.contracts import (
     submission_errors,
 )
 from stewie.ultrabuild.experiment import generate_trial
+from stewie.ultrabuild.identity import build_identity
 from stewie.ultrabuild.records import branch_record, submission
 from stewie.ultrabuild.reconciliation import (
     ReconciliationPolicy,
@@ -267,6 +268,7 @@ def run_benchmarks(
                 resource.RUSAGE_SELF
             ).ru_maxrss,
         },
+        "build_identity": build_identity(),
         "measurements": {
             "evidence_validation": validation,
             "durable_append": append,
