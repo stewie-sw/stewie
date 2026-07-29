@@ -21,13 +21,26 @@ _draft_quota = RateLimiter(120, 60.0)   # #241: bound per-identity autosave chur
 
 @router.post("/missions/{name}")
 def mission_save(name: str, doc: dict, ns: str = "live", identity: str = Depends(require_auth)):
+    """SR-01: authorize on the ARTIFACT, not merely the namespace. `namespace_for` grants every
+    operator+ the live namespace, and the store performs no ownership check, so this route was the only
+    thing standing between one operator and a wholesale overwrite of another's live mission -- and it
+    checked nothing. Mirrors the `deletion_allowed` gate on the sibling DELETE below."""
+    from stewie.server import auth as AUTH
     namespace, _owner = namespace_for(identity, ns)
     try:
-        out = OBJ.save_mission(name, doc, owner=identity, namespace=namespace)   # AG-05/07: owner + namespace
-        log_event(identity, "mission.save", out["name"])
-        return {"ok": True, "namespace": namespace, **out}
+        out = OBJ.save_mission_authorized(
+            name, doc, actor=identity, is_director=AUTH.role_of(identity) == "director",
+            namespace=namespace, namespace_owner=_owner)
+    except PermissionError:
+        return JSONResponse(status_code=403, content={
+            "ok": False,
+            "error": f"mission {name!r} belongs to another operator; only its owner or a director "
+                     "may overwrite it"})
     except ValueError as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    else:
+        log_event(identity, "mission.save", out["name"])
+        return {"ok": True, "namespace": namespace, **out}
 
 
 @router.get("/missions")
@@ -102,14 +115,15 @@ def mission_delete(name: str, ns: str = "live", identity: str = Depends(require_
     delete your OWN mission; another operator's (or an unowned) mission requires a director."""
     from stewie.server import auth as AUTH
     namespace, owner = namespace_for(identity, ns)
-    art_owner = OBJ.owner_of("missions", name, namespace=namespace, owner=owner)
-    if not OBJ.deletion_allowed(art_owner, identity, AUTH.role_of(identity) == "director",
-                                namespace=namespace):
+    try:
+        ok = OBJ.delete_authorized(
+            "missions", name, actor=identity, is_director=AUTH.role_of(identity) == "director",
+            namespace=namespace, namespace_owner=owner)
+    except PermissionError:
         # BP-05: a LIVE mission is operational -> director-only; sandbox stays self-service.
         reason = ("deleting a live (operational) mission requires a director" if namespace == "live"
                   else "deleting another operator's mission requires a director")
         return JSONResponse(status_code=403, content={"ok": False, "error": reason})
-    ok = OBJ.delete_mission(name, namespace=namespace, owner=owner)
     log_event(identity, "mission.delete", f"{name} ns={namespace}")   # BP-05: audit names the namespace
     return {"ok": ok, "recoverable": True}
 
@@ -124,7 +138,19 @@ def mission_publish(name: str, owner: str | None = None,
     if target != identity and AUTH.role_of(identity) != "director":
         return JSONResponse(status_code=403, content={
             "ok": False, "error": "publishing another operator's sandbox draft requires a director"})
-    ok = OBJ.publish("missions", name, owner=target)
+    # SR-01: publish WRITES the live namespace, so it is a second door onto the same overwrite. Guarding
+    # only the SOURCE draft (above) left the DESTINATION unguarded: an operator could publish their own
+    # sandbox draft over another operator's live mission of the same slug, routing around the gate on
+    # POST /missions/{name}. Authorize the live destination with the same policy.
+    try:
+        ok = OBJ.publish_authorized(
+            "missions", name, source_owner=target, actor=identity,
+            is_director=AUTH.role_of(identity) == "director")
+    except PermissionError:
+        return JSONResponse(status_code=403, content={
+            "ok": False,
+            "error": f"a live mission {name!r} owned by another operator already exists; only its owner "
+                     "or a director may replace it"})
     if ok:
         log_event(identity, "mission.publish", name)
     return {"ok": ok}
@@ -132,9 +158,17 @@ def mission_publish(name: str, owner: str | None = None,
 
 @router.post("/missions/{name}/restore")
 def mission_restore(name: str, ns: str = "live", identity: str = Depends(require_role("operator"))):
-    """AG-06/07: restore the most-recent trashed copy of a mission within a namespace (operator+)."""
+    """Restore without overwriting a new artifact; shared/live recovery is director-only."""
+    from stewie.server import auth as AUTH
     namespace, owner = namespace_for(identity, ns)
-    ok = OBJ.restore("missions", name, namespace=namespace, owner=owner)
+    try:
+        ok = OBJ.restore_authorized(
+            "missions", name, actor=identity, is_director=AUTH.role_of(identity) == "director",
+            namespace=namespace, namespace_owner=owner)
+    except PermissionError as e:
+        return JSONResponse(status_code=403, content={"ok": False, "error": str(e)})
+    except FileExistsError as e:
+        return JSONResponse(status_code=409, content={"ok": False, "error": str(e)})
     if ok:
         log_event(identity, "mission.restore", name)        # FS-19: operator-action audit
     return {"ok": ok}

@@ -59,15 +59,31 @@ def _enforce_live_token(body: dict, *, required: bool) -> None:
                 "bound to a released revision (POST /executive/run to obtain one)"))
         return
     rev_hash = body.get("revision_hash")
-    if not rev_hash or db.read_release_revision(str(rev_hash)) is None:
+    rel = db.read_release_revision(str(rev_hash)) if rev_hash else None
+    if not rev_hash or rel is None:
         raise HTTPException(status_code=403,
                             detail="live_token requires a revision_hash of a released revision")
+    # [SR-02 / AR-001] Bind the token to the mission actually BEING COMMANDED, cross-checked against the
+    # mission the revision was RELEASED for. The previous form passed `token.mission_id` as the expected
+    # mission -- comparing a value with itself -- so `require_live_token`'s mission check could never
+    # fail and a token attesting one mission authorized a command against any other. Both ends are now
+    # anchored to the stored release record, which is the only party neither client controls.
+    commanded = str(body.get("mission") or "")
+    try:
+        released_for = db.release_revision_mission_id(rel)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=403, detail=f"live-execution token rejected: invalid released revision: {e}") from e
+    if commanded != released_for:
+        raise HTTPException(status_code=403, detail=(
+            f"live-execution token rejected: revision {str(rev_hash)[:12]} was released for mission "
+            f"{released_for!r}, not the commanded mission {commanded!r}"))
     try:
         token = LiveExecutionToken(
             mission_id=str(tok_d.get("mission_id")), revision_id=str(tok_d.get("revision_id")),
             issued_at=float(tok_d.get("issued_at")), ttl_s=float(tok_d.get("ttl_s")),
             signature=str(tok_d.get("signature")))
-        require_live_token(token, token.mission_id, str(rev_hash), now=time.time())
+        require_live_token(token, released_for, str(rev_hash), now=time.time())
     except (LiveExecutionRefused, TypeError, ValueError, KeyError) as e:
         raise HTTPException(status_code=403, detail=f"live-execution token rejected: {e}") from e
 

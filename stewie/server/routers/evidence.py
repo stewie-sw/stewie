@@ -188,7 +188,8 @@ def _audit(mission: str | None, session: str | None) -> dict:
     records = [asdict(r) for r in lg.records()]
     if mission:
         records = [r for r in records if mission in str(r.get("location", ""))]
-    out: dict = {"executive": {"verified": lg.verify(), "count": len(lg.records()),
+    # SR-04: null = nothing recorded (not "verified"), so an EV-01 bundle cannot embed a vacuous pass.
+    out: dict = {"executive": {"verified": lg.integrity(), "count": len(lg.records()),
                                "records": records, "returned": len(records)}}
     if session:
         from stewie.server.edit_session import get_session

@@ -16,7 +16,15 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import time
+from contextlib import contextmanager
+
+import fcntl
+
+
+_ARTIFACT_LOCKS: dict[str, threading.RLock] = {}
+_ARTIFACT_LOCKS_GUARD = threading.Lock()
 
 
 def _slug(name: str) -> str:
@@ -37,6 +45,28 @@ def _ns_dir(kind: str, namespace: str = "live", owner: str | None = None) -> str
         raise ValueError(f"unknown namespace {namespace!r}")
     os.makedirs(d, exist_ok=True)
     return d
+
+
+@contextmanager
+def _artifact_lock(kind: str, name: str, namespace: str = "live", owner: str | None = None):
+    """One lock for the complete authorize-and-mutate operation on an artifact slug.
+
+    The local lock covers threads; the sidecar ``flock`` covers independent backend workers. Both use
+    the destination namespace, so save, publish, delete, and restore serialize on the same key.
+    """
+    lock_dir = os.path.join(_ns_dir(kind, namespace, owner), ".locks")
+    os.makedirs(lock_dir, exist_ok=True)
+    lock_path = os.path.join(lock_dir, f"{_slug(name)}.lock")
+    with _ARTIFACT_LOCKS_GUARD:
+        local_lock = _ARTIFACT_LOCKS.setdefault(lock_path, threading.RLock())
+    with local_lock:
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
 
 
 def _owner_meta(path: str, owner: str) -> dict:
@@ -81,14 +111,37 @@ def deletion_allowed(owner: str | None, identity: str, is_director: bool,
     return is_director or owner == identity          # sandbox: self-service (own or director)
 
 
+def write_allowed(owner: str | None, identity: str, is_director: bool,
+                  *, namespace: str = "live") -> bool:
+    """SR-01 (2026-07-28 review): the OVERWRITE policy -- the missing mirror of `deletion_allowed`.
+
+    `POST /missions/{name}` and `POST /structures/custom/{name}` were gated on authentication alone, so
+    ANY operator could replace ANY other operator's live artifact wholesale. Because `_owner_meta`
+    preserves the original `created_by`, the overwritten document kept the victim's name on the
+    attacker's orders, and `save_mission` is a bare atomic write -- no prior version, no `.trash`,
+    unrecoverable. Deleting the same artifact was already director-only (BP-05); overwriting it, which
+    is strictly more destructive because it also launders provenance, was open to everyone.
+
+    The rule, in both namespaces: an EXISTING artifact is writable by its OWNER (ordinary authoring) or
+    by a DIRECTOR (AG-06 escalation). A name with no stored artifact is free to create.
+
+    Deliberately more permissive than `deletion_allowed` for a live artifact: the owner keeps editing
+    their own mission (that is the normal authoring loop), whereas removing a shared operational
+    artifact stays director-only. `namespace` is accepted for call-site symmetry with its sibling and to
+    keep the signature stable if the two ever diverge.
+    """
+    if owner is None:
+        return True                                  # a new name -- creating is not overwriting
+    return is_director or owner == identity
+
+
 def _trash_dir(kind: str, namespace: str = "live", owner: str | None = None) -> str:
     d = os.path.join(_ns_dir(kind, namespace, owner), ".trash")   # not a *.json -> invisible to the listing
     os.makedirs(d, exist_ok=True)
     return d
 
 
-def soft_delete(kind: str, name: str, namespace: str = "live", owner: str | None = None) -> bool:
-    """Move an artifact into its namespace's .trash (recoverable) instead of unlinking it."""
+def _soft_delete_unlocked(kind: str, name: str, namespace: str, owner: str | None) -> bool:
     slug = _slug(name)
     src = os.path.join(_ns_dir(kind, namespace, owner), f"{slug}.json")
     if not os.path.exists(src):
@@ -97,9 +150,13 @@ def soft_delete(kind: str, name: str, namespace: str = "live", owner: str | None
     return True
 
 
-def restore(kind: str, name: str, namespace: str = "live", owner: str | None = None) -> bool:
-    """Restore the most-recent trashed copy of `name` back into its namespace (slugs carry no '.',
-    so the '.'-delimited timestamp suffix cannot collide a prefix slug)."""
+def soft_delete(kind: str, name: str, namespace: str = "live", owner: str | None = None) -> bool:
+    """Move an artifact into its namespace's .trash (recoverable) instead of unlinking it."""
+    with _artifact_lock(kind, name, namespace, owner):
+        return _soft_delete_unlocked(kind, name, namespace, owner)
+
+
+def _restore_unlocked(kind: str, name: str, namespace: str, owner: str | None) -> bool:
     slug = _slug(name)
     tdir = _trash_dir(kind, namespace, owner)
     hits = sorted(f for f in os.listdir(tdir) if f.startswith(f"{slug}.") and f.endswith(".json"))
@@ -107,6 +164,48 @@ def restore(kind: str, name: str, namespace: str = "live", owner: str | None = N
         return False
     os.replace(os.path.join(tdir, hits[-1]), os.path.join(_ns_dir(kind, namespace, owner), f"{slug}.json"))
     return True
+
+
+def restore(kind: str, name: str, namespace: str = "live", owner: str | None = None) -> bool:
+    """Restore the newest trashed copy. Refuse to overwrite a newly-created live artifact.
+
+    Callers that expose recovery over HTTP should use ``restore_authorized``; this storage primitive
+    retains its back-compatible signature for internal/tests but still serializes the destination.
+    """
+    with _artifact_lock(kind, name, namespace, owner):
+        dst = os.path.join(_ns_dir(kind, namespace, owner), f"{_slug(name)}.json")
+        if os.path.exists(dst):
+            raise FileExistsError(f"refusing to restore {kind}/{_slug(name)} over an existing artifact")
+        return _restore_unlocked(kind, name, namespace, owner)
+
+
+def restore_authorized(kind: str, name: str, *, actor: str, is_director: bool,
+                       namespace: str = "live", namespace_owner: str | None = None) -> bool:
+    """Authorize and restore under one destination lock.
+
+    Shared/live recovery is director-only because it can reintroduce operational state. Sandbox
+    recovery is self-service for that sandbox's owner. An occupied destination is always a conflict,
+    never an implicit overwrite.
+    """
+    with _artifact_lock(kind, name, namespace, namespace_owner):
+        if namespace == "live" and not is_director:
+            raise PermissionError("restoring a shared (live) artifact requires a director")
+        if namespace == "sandbox" and namespace_owner != actor and not is_director:
+            raise PermissionError("restoring another operator's sandbox artifact requires a director")
+        dst = os.path.join(_ns_dir(kind, namespace, namespace_owner), f"{_slug(name)}.json")
+        if os.path.exists(dst):
+            raise FileExistsError(f"refusing to restore {kind}/{_slug(name)} over an existing artifact")
+        return _restore_unlocked(kind, name, namespace, namespace_owner)
+
+
+def delete_authorized(kind: str, name: str, *, actor: str, is_director: bool,
+                      namespace: str = "live", namespace_owner: str | None = None) -> bool:
+    """Authorize against the current owner and soft-delete without a check/write race."""
+    with _artifact_lock(kind, name, namespace, namespace_owner):
+        current_owner = owner_of(kind, name, namespace, namespace_owner)
+        if not deletion_allowed(current_owner, actor, is_director, namespace=namespace):
+            raise PermissionError(f"not authorized to delete {namespace} {kind}/{_slug(name)}")
+        return _soft_delete_unlocked(kind, name, namespace, namespace_owner)
 
 
 def list_trash(kind: str, namespace: str = "live", owner: str | None = None) -> list:
@@ -124,7 +223,7 @@ def purge_trash(kind: str, filename: str, namespace: str = "live", owner: str | 
     return False
 
 
-def publish(kind: str, name: str, owner: str) -> bool:
+def _publish_unlocked(kind: str, name: str, owner: str) -> bool:
     """AG-07: promote a sandbox draft into the shared live namespace (a copy; the sandbox keeps its
     original). The stored bytes carry the original created_by/created_at, so the live copy preserves
     them. Returns False if the draft does not exist. (Operator+ is enforced by the route.)"""
@@ -138,12 +237,28 @@ def publish(kind: str, name: str, owner: str) -> bool:
     return True
 
 
+def publish(kind: str, name: str, owner: str) -> bool:
+    """Storage-level promotion, serialized on the live destination."""
+    with _artifact_lock(kind, name, "live"):
+        return _publish_unlocked(kind, name, owner)
+
+
+def publish_authorized(kind: str, name: str, *, source_owner: str, actor: str,
+                       is_director: bool) -> bool:
+    """Authorize the current live destination and publish under one lock."""
+    with _artifact_lock(kind, name, "live"):
+        live_owner = owner_of(kind, name, "live")
+        if not write_allowed(live_owner, actor, is_director, namespace="live"):
+            raise PermissionError(f"not authorized to replace live {kind}/{_slug(name)}")
+        return _publish_unlocked(kind, name, source_owner)
+
+
 # ---- missions -----------------------------------------------------------------------------
 _MISSION_KEYS = {"body", "orders", "keepouts", "precedence", "vehicle", "tools", "soil", "lander",
                  "mission_t0_s", "note"}
 
 
-def save_mission(name: str, doc: dict, owner: str = "unknown", namespace: str = "live") -> dict:
+def _save_mission_unlocked(name: str, doc: dict, owner: str, namespace: str) -> dict:
     unknown = set(doc) - _MISSION_KEYS                    # created_by/created_at are store-stamped, not client fields
     if unknown:
         raise ValueError(f"unknown mission fields {sorted(unknown)}")
@@ -154,6 +269,22 @@ def save_mission(name: str, doc: dict, owner: str = "unknown", namespace: str = 
     atomic_write_bytes(path, json.dumps({"name": slug, "title": name, **meta, **doc},
                                         indent=1, sort_keys=True).encode())   # RC-05: atomic (.part->replace)
     return {"name": slug, "created_by": meta["created_by"]}
+
+
+def save_mission(name: str, doc: dict, owner: str = "unknown", namespace: str = "live") -> dict:
+    """Storage-level mission save, serialized on its namespace/slug."""
+    with _artifact_lock("missions", name, namespace, owner if namespace == "sandbox" else None):
+        return _save_mission_unlocked(name, doc, owner, namespace)
+
+
+def save_mission_authorized(name: str, doc: dict, *, actor: str, is_director: bool,
+                            namespace: str = "live", namespace_owner: str | None = None) -> dict:
+    """Authorize against the current owner and save without a check/write race."""
+    with _artifact_lock("missions", name, namespace, namespace_owner):
+        current_owner = owner_of("missions", name, namespace, namespace_owner)
+        if not write_allowed(current_owner, actor, is_director, namespace=namespace):
+            raise PermissionError(f"not authorized to overwrite {namespace} mission/{_slug(name)}")
+        return _save_mission_unlocked(name, doc, actor, namespace)
 
 
 def list_missions(namespace: str = "live", owner: str | None = None) -> list:
@@ -300,7 +431,7 @@ def delete_mission(name: str, namespace: str = "live", owner: str | None = None)
 _ENTRY_KEYS = {"kind", "dx", "dy", "footprint_m2", "depth_m"}
 
 
-def save_structure(name: str, doc: dict, owner: str = "unknown", namespace: str = "live") -> dict:
+def _save_structure_unlocked(name: str, doc: dict, owner: str, namespace: str) -> dict:
     entries = doc.get("kind_list")
     if not isinstance(entries, list) or not entries or len(entries) > 64:
         raise ValueError("kind_list must be a non-empty list (max 64 entries)")
@@ -317,6 +448,22 @@ def save_structure(name: str, doc: dict, owner: str = "unknown", namespace: str 
     atomic_write_bytes(path, json.dumps({"name": slug, "title": name, "kind_list": entries,
                "note": str(doc.get("note", "")), **meta}, indent=1, sort_keys=True).encode())   # RC-05: atomic
     return {"name": slug, "created_by": meta["created_by"]}
+
+
+def save_structure(name: str, doc: dict, owner: str = "unknown", namespace: str = "live") -> dict:
+    """Storage-level structure save, serialized on its namespace/slug."""
+    with _artifact_lock("structures", name, namespace, owner if namespace == "sandbox" else None):
+        return _save_structure_unlocked(name, doc, owner, namespace)
+
+
+def save_structure_authorized(name: str, doc: dict, *, actor: str, is_director: bool,
+                              namespace: str = "live", namespace_owner: str | None = None) -> dict:
+    """Authorize against the current owner and save without a check/write race."""
+    with _artifact_lock("structures", name, namespace, namespace_owner):
+        current_owner = owner_of("structures", name, namespace, namespace_owner)
+        if not write_allowed(current_owner, actor, is_director, namespace=namespace):
+            raise PermissionError(f"not authorized to overwrite {namespace} structure/{_slug(name)}")
+        return _save_structure_unlocked(name, doc, actor, namespace)
 
 
 def list_structures(namespace: str = "live", owner: str | None = None) -> list:

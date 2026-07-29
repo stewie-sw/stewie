@@ -52,9 +52,28 @@ def advance_executive(intent: MissionIntent, _auth: str = Depends(require_direct
         # an uncompilable intent (no work geometry, bad frame, ...) -> 400; nothing advanced, no fabrication.
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     rel = res.executive.released_revision
+    release_hash = getattr(rel, "content_hash", "") if rel is not None else ""
+    from stewie.server.audit_log import record_action
+    try:
+        record_action(
+            _auth, "executive.advance.intent", location=intent.mission_id, mode="sim",
+            reason="prepare durable signed-revision persistence", before_state="reviewed",
+            after_state="pending", evidence=release_hash)
+    except Exception as e:  # noqa: BLE001 -- authority mutation fails closed if its durable intent cannot append
+        return JSONResponse(status_code=503, content={
+            "ok": False, "error": f"audit unavailable; released revision was not persisted: {e}"})
     persisted = _persist_released_revision(rel, res)     # [dispatch-audit R1] freeze it in the durable store
     log_event(_auth, "executive.advance",
               f"{intent.mission_id} rev {intent.revision} -> {res.executive.state.value}")
+    try:
+        record_action(
+            _auth, "executive.advance", location=intent.mission_id, mode="sim",
+            reason="signed revision persistence completed", before_state="pending",
+            after_state=("released" if persisted else "release_not_persisted"), evidence=release_hash)
+    except Exception as e:  # noqa: BLE001 -- the durable intent remains as a detectable incomplete operation
+        return JSONResponse(status_code=503, content={
+            "ok": False, "revision_persisted": persisted,
+            "error": f"release completed but audit result append failed: {e}"})
     return JSONResponse(content={
         "ok": True,
         "label": "sim",                                   # MO-04: planned/rehearsed on the sim authority
@@ -164,14 +183,31 @@ def release_plan(req: ReleasePlanRequest, _auth: str = Depends(require_director)
         # uncaught TypeError -> 500. an uncompilable plan (no work geometry, bad frame, ...) -> 400 too.
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e), "skipped": []})
     rel = res.executive.released_revision
+    release_hash = getattr(rel, "content_hash", "") if rel is not None else ""
+    from stewie.server.audit_log import record_action                                    # [REQ:EG-07]
+    try:
+        record_action(
+            _auth, "executive.release_plan.intent", location=req.mission_id, mode="sim",
+            reason="prepare durable signed-revision persistence", before_state="reviewed",
+            after_state="pending", evidence=release_hash)
+    except Exception as e:  # noqa: BLE001 -- authority mutation fails closed if its durable intent cannot append
+        return JSONResponse(status_code=503, content={
+            "ok": False, "error": f"audit unavailable; released revision was not persisted: {e}",
+            "skipped": skipped})
     persisted = _persist_released_revision(rel, res)     # [dispatch-audit R1] freeze it in the durable store
     log_event(_auth, "executive.release_plan",
               f"{req.mission_id}: {len(intent.objectives)} objectives -> {res.executive.state.value}")
-    from stewie.server.audit_log import record_action                                    # [REQ:EG-07]
-    record_action(_auth, "executive.release_plan", location=req.mission_id, mode="sim",
-                  reason=f"{len(intent.objectives)} objectives released",
-                  before_state="planned", after_state=res.executive.state.value,
-                  evidence=(getattr(rel, "content_hash", "") if rel is not None else ""))   # F5: SignedRevision.content_hash (there is no plan_hash key)
+    try:
+        record_action(
+            _auth, "executive.release_plan", location=req.mission_id, mode="sim",
+            reason=f"{len(intent.objectives)} objectives released",
+            before_state="pending",
+            after_state=(res.executive.state.value if persisted else "release_not_persisted"),
+            evidence=release_hash)   # F5: SignedRevision.content_hash (there is no plan_hash key)
+    except Exception as e:  # noqa: BLE001 -- the durable intent remains as a detectable incomplete operation
+        return JSONResponse(status_code=503, content={
+            "ok": False, "revision_persisted": persisted, "signed_revision_hash": release_hash,
+            "error": f"release completed but audit result append failed: {e}", "skipped": skipped})
     return JSONResponse(content={
         "ok": True,
         "label": "sim",
@@ -321,6 +357,7 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     from lode.sim_execution import run_sim_execution
     skipped: list = []
     bound_revision: str | None = None
+    effective_mission_id = req.mission_id
     try:
         if req.revision_hash:
             # [dispatch-audit R2 / F1] BIND: execute the FROZEN signed revision, never the mutable client
@@ -333,6 +370,20 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
                 return JSONResponse(status_code=400, content={
                     "ok": False, "error": f"revision_hash {req.revision_hash!r} is not a released revision "
                     "(release the plan first)"})
+            try:
+                effective_mission_id = db.release_revision_mission_id(art)
+            except ValueError as e:
+                return JSONResponse(status_code=409, content={
+                    "ok": False, "error": f"released revision identity is invalid: {e}"})
+            # Pydantic retains which fields the caller actually supplied. The default is "unspecified" on
+            # the bound path, but an explicitly supplied value -- even the literal default string -- must
+            # match the frozen identity or it is a retarget attempt.
+            if ("mission_id" in req.model_fields_set
+                    and req.mission_id != effective_mission_id):
+                return JSONResponse(status_code=409, content={
+                    "ok": False,
+                    "error": f"revision was released for mission {effective_mission_id!r}, not "
+                             f"{req.mission_id!r}"})
             intent = MissionIntent.model_validate(art["signed_revision"]["intent"])
             released = LC.run_lifecycle(MissionExecutive.start(intent)).executive
             rel = released.released_revision
@@ -367,13 +418,22 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     run_id = secrets.token_hex(6)
     rec = {"label": run["label"], "final_state": run["final_state"], "transitions": run["transitions"],
            "n_legs_total": run["n_legs_total"], "safed": run["safed"], "nonnominal_legs": run["nonnominal_legs"],
-           "executed_legs": run["executed_legs"], "mission_id": req.mission_id, "site": req.site,
+           "executed_legs": run["executed_legs"], "mission_id": effective_mission_id, "site": req.site,
            # [dispatch-audit R6b] reproducibility + HONEST playback provenance (finding #10): the immutable
            # signed revision this run executed (R2 content_hash -- re-fetchable + re-runnable), the reviewed
            # physics backend (R4), and trajectory_kind -- the per-leg SSE/QWC2 playback is a plan-interpolated
            # FORECAST, NOT executed per-vehicle pose telemetry (real pose telemetry is the larger deferred piece).
            "bound_revision": bound_revision, "physics_backend": mission.physics_backend_id,
            "trajectory_kind": "forecast"}
+    from stewie.server.audit_log import record_action                                    # [REQ:EG-07]
+    try:
+        record_action(
+            identity, "executive.run.intent", location=f"{effective_mission_id}@{req.site}", mode="sim",
+            reason=f"prepare SIM run {run_id}", before_state="released", after_state="pending",
+            evidence=f"run_id={run_id};revision={bound_revision or 'legacy-unbound'}")
+    except Exception as e:  # noqa: BLE001 -- no terrain/world/run mutation without durable audit intent
+        return JSONResponse(status_code=503, content={
+            "ok": False, "error": f"audit unavailable; SIM run was not committed: {e}"})
     # gap W1: the SIM run is one canonical world-state record -- commit the released plan + per-leg
     # ExecutionEvents through the one DT-01 log so /world/transaction reflects the executed mission.
     # gap N1/N2: and CLOSE the execute->REMEMBER loop -- a completed terrain-changing SIM run folds its
@@ -390,27 +450,52 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
         # DT-03-compensatable) BEFORE any world-journal write, so a fold failure leaves the append-only journal
         # untouched -- the run 500s with ZERO orphan plan/leg records (audit finding #6). Then COMMIT the
         # journal records: the plan + per-leg events, then the as-built terrain record + belief.
-        folded = (_fold_sim_terrain(mission, out, site=req.site, mission_id=req.mission_id)
+        folded = (_fold_sim_terrain(mission, out, site=req.site, mission_id=effective_mission_id)
                   if not run.get("safed") else None)
-        commit_sim_run(wss, run, mission=req.mission_id, site=req.site, body=body,
-                       plan_id=req.mission_id)
+        commit_sim_run(wss, run, mission=effective_mission_id, site=req.site, body=body,
+                       plan_id=effective_mission_id)
         if folded is not None:
-            _commit_sim_terrain(wss, folded, site=req.site, body=body, mission_id=req.mission_id)
+            _commit_sim_terrain(
+                wss, folded, site=req.site, body=body, mission_id=effective_mission_id)
             # [REQ:TW-11] fold the run's driven path into the per-site TrafficMemory (best-effort, non-fatal).
             _remember_sim_traffic(wss, mission, out, site=req.site, body=body,
-                                  mission_id=req.mission_id, dem=dem)
+                                  mission_id=effective_mission_id, dem=dem)
     except Exception as e:   # noqa: BLE001 -- DT-03: world-state commit failed; the terrain fold self-
         # compensated and the run is NOT persisted ahead of the failed log -- surfaced, not swallowed.
         log.warning("world-state commit for SIM run %s failed; run not persisted: %s", run_id, e)
+        try:
+            record_action(
+                identity, "executive.run.abort", location=f"{effective_mission_id}@{req.site}", mode="sim",
+                reason="world-state commit failed", before_state="pending", after_state="aborted",
+                evidence=f"run_id={run_id};error={type(e).__name__}")
+        except Exception:  # noqa: BLE001 -- original failure wins; durable intent already marks incomplete work
+            log.exception("could not append abort result for SIM run %s", run_id)
         return JSONResponse(status_code=500,
                             content={"ok": False, "error": f"world-state commit failed: {e}"})
-    OBJ.save_run(run_id, rec, owner=identity)                  # #245: persist the run only after the world state is durable
+    try:
+        OBJ.save_run(run_id, rec, owner=identity)              # persist only after world state is durable
+    except Exception as e:  # noqa: BLE001 -- intent makes this committed-but-unmaterialized run detectable
+        try:
+            record_action(
+                identity, "executive.run.abort", location=f"{effective_mission_id}@{req.site}", mode="sim",
+                reason="run-record persistence failed", before_state="pending",
+                after_state="world_committed_run_record_failed",
+                evidence=f"run_id={run_id};error={type(e).__name__}")
+        except Exception:  # noqa: BLE001
+            log.exception("could not append persistence-failure result for SIM run %s", run_id)
+        return JSONResponse(status_code=500, content={
+            "ok": False, "error": f"run record persistence failed after world commit: {e}"})
     log_event(identity, "executive.run",
-              f"{run_id} {req.mission_id}: {run['final_state']} ({run['n_legs_total']} legs)")
-    from stewie.server.audit_log import record_action                                    # [REQ:EG-07]
-    record_action(identity, "executive.run", location=f"{req.mission_id}@{req.site}", mode="sim",
-                  reason=f"SIM run {run_id}", before_state="released", after_state=str(run["final_state"]),
-                  evidence=f"run_id={run_id};legs={run['n_legs_total']};safed={run.get('safed')}")
+              f"{run_id} {effective_mission_id}: {run['final_state']} ({run['n_legs_total']} legs)")
+    try:
+        record_action(
+            identity, "executive.run", location=f"{effective_mission_id}@{req.site}", mode="sim",
+            reason=f"SIM run {run_id}", before_state="pending", after_state=str(run["final_state"]),
+            evidence=f"run_id={run_id};legs={run['n_legs_total']};safed={run.get('safed')}")
+    except Exception as e:  # noqa: BLE001 -- durable intent remains; report incomplete audit honestly
+        return JSONResponse(status_code=503, content={
+            "ok": False, "run_id": run_id, "world_committed": True, "run_persisted": True,
+            "error": f"SIM run committed but audit result append failed: {e}"})
     # [REQ:MP-07] the plan-executability card: the 8 §30.3 preconditions derived from the REAL released +
     # rehearsal (closed-loop) + run state -- reported on the run, so an operator sees which gates held.
     from stewie.contracts.plan_gate import PlanPreconditions, is_executable
@@ -446,7 +531,8 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
         "proposals": [{"proposal_id": p.proposal_id, "state": p.state.value, "confidence": p.confidence,
                        "model_error": p.model_error, "change": p.change} for p in _recon.proposals]}
     if _recon.residual.implicates_model:                                                 # [REQ:EG-08] audit
-        record_action(identity, "executive.reconcile", location=f"{req.mission_id}@{req.site}", mode="sim",
+        record_action(
+            identity, "executive.reconcile", location=f"{effective_mission_id}@{req.site}", mode="sim",
                       reason="energy residual exceeds estimator sigma -> model-update proposed",
                       before_state=f"predicted={_pred_j:.1f}J", after_state=f"observed={_obs_j:.1f}J",
                       evidence=f"residual={_recon.residual.residual:.1f}J;proposals={len(_recon.proposals)}")
@@ -470,8 +556,11 @@ def executive_run(req: RunRequest, identity: str = Depends(require_director)) ->
     # requires an unexpired, hash-matching token before a real rover command (the R3 gated-live-writes seam).
     _rev_id = released.released_revision.content_hash if released.released_revision is not None \
         else str(req.revision)
+    # [SR-02] ``effective_mission_id`` was derived from the signed release on the bound path. There is no
+    # request-controlled fallback for a legacy/invalid row: such a row was refused before simulation.
+    _bind_mission = effective_mission_id
     try:
-        _tok = issue_live_token(req.mission_id, _rev_id, _live_pre, now=_time.time())
+        _tok = issue_live_token(_bind_mission, _rev_id, _live_pre, now=_time.time())
         live_token = {"issued": True, "mission_id": _tok.mission_id, "revision_id": _tok.revision_id,
                       "signature": _tok.signature, "issued_at": _tok.issued_at, "ttl_s": _tok.ttl_s,
                       "expires_at": _tok.issued_at + _tok.ttl_s}
@@ -528,7 +617,9 @@ def executive_audit(identity: str = Depends(require_role("operator"))) -> JSONRe
 
     from stewie.server.audit_log import get_audit_log
     lg = get_audit_log()
-    return JSONResponse(content={"ok": True, "verified": lg.verify(), "count": len(lg.records()),
+    # SR-04: three-valued integrity -- null means "nothing recorded, nothing to attest". Reporting the
+    # old vacuous `True` on an empty chain made a wiped log indistinguishable from a clean one.
+    return JSONResponse(content={"ok": True, "verified": lg.integrity(), "count": len(lg.records()),
                                  "records": [asdict(r) for r in lg.records()]})
 
 

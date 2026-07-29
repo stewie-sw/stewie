@@ -334,16 +334,17 @@ def trash_assets() -> list[dict[str, Any]]:
     return out
 
 
-def recover_asset(atype: str, aid: str) -> dict[str, Any]:
-    """RECOVER (restore) a soft-deleted durable asset from its .trash, in place. Delegates to the
-    existing recoverable soft-delete (server.objects.restore) for missions + structures. Returns
+def recover_asset(atype: str, aid: str, *, actor: str, is_director: bool) -> dict[str, Any]:
+    """RECOVER a soft-deleted durable asset without overwriting current live state. Delegates to the
+    authorized recoverable soft-delete path for missions + structures. Returns
     {ok, restored, type, id}. The observed-twin journal recovers by cold restore (server lifecycle,
     not a per-request op), so it reports ok=False with a reason rather than pretending."""
     kind = {"mission": "missions", "structure": "structures"}.get(atype)
     if kind is None:
         return {"ok": False, "restored": False, "type": atype, "id": aid,
                 "reason": f"{atype} is not trash-recoverable (a report is regenerated; a twin cold-restores)"}
-    restored = OBJ.restore(kind, aid, namespace="live")
+    restored = OBJ.restore_authorized(
+        kind, aid, actor=actor, is_director=is_director, namespace="live")
     return {"ok": bool(restored), "restored": bool(restored), "type": atype, "id": aid,
             "reason": None if restored else "no trashed copy to restore"}
 
