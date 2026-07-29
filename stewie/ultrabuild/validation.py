@@ -104,8 +104,16 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
     errors: list[str] = []
 
     for path, value in _walk(record):
-        if isinstance(value, float) and not math.isfinite(value):
-            errors.append(f"{_path_text(path)}: numeric value must be finite")
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            try:
+                finite_value = math.isfinite(float(value))
+            except OverflowError:
+                finite_value = False
+            if not finite_value:
+                errors.append(
+                    f"{_path_text(path)}: numeric value must be finite and representable "
+                    "as an IEEE-754 binary64 value"
+                )
         if path and path[-1] in {"valid_time", "planned_valid_time", "executed_valid_time"}:
             if isinstance(value, Mapping) and value.get("end") is not None:
                 start = value.get("start")

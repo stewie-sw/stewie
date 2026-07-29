@@ -514,6 +514,20 @@ class AuthoritativeStore:
                     errors.append(f"{prefix}: row timestamp differs from record")
                 if record.get("content_hash") != row["content_hash"]:
                     errors.append(f"{prefix}: row hash differs from record")
+                valid = record.get("valid_time")
+                expected_shadow = {
+                    "schema_version": record.get("schema_version"),
+                    "world_id": record.get("world_id"),
+                    "site_id": record.get("site_id"),
+                    "branch_id": record.get("branch_id"),
+                    "valid_start": valid.get("start") if isinstance(valid, Mapping) else None,
+                    "valid_end": valid.get("end") if isinstance(valid, Mapping) else None,
+                }
+                for field, expected_value in expected_shadow.items():
+                    if row[field] != expected_value:
+                        errors.append(
+                            f"{prefix}: row {field} differs from immutable record"
+                        )
                 payload_requirements = self._payload_requirements(
                     schema_name,
                     record,
@@ -549,22 +563,160 @@ class AuthoritativeStore:
             if next_sequence != expected_next:
                 errors.append(f"store_meta.next_sequence: {next_sequence} != {expected_next}")
 
-            for row in self._connection.execute("SELECT receipt_json FROM idempotency").fetchall():
+            record_rows = {str(row["record_id"]): row for row in rows}
+            append_receipts_by_id: dict[str, Mapping[str, Any]] = {}
+            append_receipt_counts: dict[str, int] = {}
+            for row in self._connection.execute("SELECT * FROM idempotency").fetchall():
                 receipt = json.loads(bytes(row["receipt_json"]))
                 errors.extend(
                     f"append receipt: {error}" for error in json_schema_errors("append_receipt.schema.json", receipt)
                 )
-                stored = self._connection.execute(
-                    "SELECT content_hash FROM records WHERE record_id=?",
-                    (receipt["record_id"],),
-                ).fetchone()
-                if stored is None or stored["content_hash"] != receipt["content_hash"]:
+                for field in (
+                    "idempotency_key",
+                    "submission_hash",
+                    "submission_id",
+                    "record_id",
+                ):
+                    if row[field] != receipt.get(field):
+                        errors.append(
+                            f"append receipt {receipt.get('receipt_id', '<unknown>')}: "
+                            f"registry {field} differs from receipt"
+                        )
+                receipt_id = receipt.get("receipt_id")
+                if isinstance(receipt_id, str):
+                    if receipt_id in append_receipts_by_id:
+                        errors.append(f"append receipt {receipt_id}: duplicate receipt identity")
+                    append_receipts_by_id[receipt_id] = receipt
+                receipt_record_id = receipt.get("record_id")
+                if isinstance(receipt_record_id, str):
+                    append_receipt_counts[receipt_record_id] = (
+                        append_receipt_counts.get(receipt_record_id, 0) + 1
+                    )
+                stored = record_rows.get(str(receipt_record_id))
+                if stored is None or stored["content_hash"] != receipt.get("content_hash"):
                     errors.append(f"append receipt {receipt['receipt_id']}: durable record/hash is absent")
+                    continue
+                stored_record = json.loads(bytes(stored["record_json"]))
+                if receipt.get("record_schema") != stored["record_schema"]:
+                    errors.append(f"append receipt {receipt['receipt_id']}: record schema differs")
+                if receipt.get("transaction_time") != stored_record.get("transaction_time"):
+                    errors.append(f"append receipt {receipt['receipt_id']}: transaction time differs")
+                if receipt.get("duplicate") is not False:
+                    errors.append(f"append receipt {receipt['receipt_id']}: durable receipt must be original")
 
-            for row in self._connection.execute("SELECT receipt_json FROM operations").fetchall():
+            for durable_record_id in record_rows:
+                count = append_receipt_counts.get(durable_record_id, 0)
+                if count != 1:
+                    errors.append(
+                        f"append receipt registry: record {durable_record_id} has "
+                        f"{count} durable receipt rows; expected 1"
+                    )
+            unknown_receipt_records = sorted(set(append_receipt_counts) - set(record_rows))
+            for unknown_record_id in unknown_receipt_records:
+                errors.append(
+                    f"append receipt registry: receipt targets absent record {unknown_record_id}"
+                )
+
+            applied_operations: dict[tuple[str, str], int] = {}
+            for row in self._connection.execute("SELECT * FROM operations").fetchall():
                 receipt = json.loads(bytes(row["receipt_json"]))
                 errors.extend(
                     f"CAS receipt: {error}" for error in json_schema_errors("cas_receipt.schema.json", receipt)
+                )
+                if row["operation_id"] != receipt.get("operation_id"):
+                    errors.append(
+                        f"CAS receipt {receipt.get('receipt_id', '<unknown>')}: "
+                        "registry operation_id differs from receipt"
+                    )
+                operation_hash = str(row["operation_hash"])
+                if len(operation_hash) != 64 or any(
+                    character not in "0123456789abcdef"
+                    for character in operation_hash
+                ):
+                    errors.append(
+                        f"CAS receipt {receipt.get('receipt_id', '<unknown>')}: "
+                        "registry operation_hash is malformed"
+                    )
+                append_receipt_ids = receipt.get("append_receipt_ids", [])
+                if isinstance(append_receipt_ids, list):
+                    for append_receipt_id in append_receipt_ids:
+                        if append_receipt_id not in append_receipts_by_id:
+                            errors.append(
+                                f"CAS receipt {receipt.get('receipt_id', '<unknown>')}: "
+                                f"append receipt {append_receipt_id} is absent"
+                            )
+                if receipt.get("applied") is not True:
+                    continue
+                revision_id = receipt.get("proposed_revision_id")
+                decision_id = receipt.get("decision_id")
+                if not isinstance(revision_id, str) or not isinstance(decision_id, str):
+                    continue
+                promotion_key = (revision_id, decision_id)
+                applied_operations[promotion_key] = (
+                    applied_operations.get(promotion_key, 0) + 1
+                )
+                revision_row = record_rows.get(revision_id)
+                decision_row = record_rows.get(decision_id)
+                if (
+                    revision_row is None
+                    or revision_row["record_schema"] != "world_revision.schema.json"
+                ):
+                    errors.append(
+                        f"CAS receipt {receipt['receipt_id']}: promoted revision is absent"
+                    )
+                if (
+                    decision_row is None
+                    or decision_row["record_schema"]
+                    != "reconciliation_decision.schema.json"
+                ):
+                    errors.append(
+                        f"CAS receipt {receipt['receipt_id']}: promotion decision is absent"
+                    )
+                required_receipt_ids = {
+                    append_receipt_id
+                    for record_row in (revision_row, decision_row)
+                    if record_row is not None
+                    for append_receipt_id, append_receipt in append_receipts_by_id.items()
+                    if append_receipt.get("record_id") == record_row["record_id"]
+                }
+                if not required_receipt_ids.issubset(set(append_receipt_ids)):
+                    errors.append(
+                        f"CAS receipt {receipt['receipt_id']}: decision/revision append "
+                        "receipt closure is incomplete"
+                    )
+                if revision_row is not None:
+                    revision = json.loads(bytes(revision_row["record_json"]))
+                    if receipt.get("transaction_time", {}).get("sequence") != revision.get(
+                        "transaction_time", {}
+                    ).get("sequence"):
+                        errors.append(
+                            f"CAS receipt {receipt['receipt_id']}: transaction sequence "
+                            "differs from promoted revision"
+                        )
+
+            expected_promotions = {
+                (
+                    str(record["revision_id"]),
+                    str(record["reconciliation_decision_id"]),
+                )
+                for schema_name, record in graph
+                if schema_name == "world_revision.schema.json"
+                and record.get("state_kind")
+                in {"reconciled", "verified", "authoritative"}
+            }
+            for revision_id, decision_id in sorted(expected_promotions):
+                count = applied_operations.get((revision_id, decision_id), 0)
+                if count != 1:
+                    errors.append(
+                        f"CAS receipt registry: promotion {decision_id} -> {revision_id} "
+                        f"has {count} applied operation rows; expected 1"
+                    )
+            for revision_id, decision_id in sorted(
+                set(applied_operations) - expected_promotions
+            ):
+                errors.append(
+                    f"CAS receipt registry: applied operation targets non-authoritative "
+                    f"promotion {decision_id} -> {revision_id}"
                 )
 
             expected_heads = self._derive_branch_heads(graph)

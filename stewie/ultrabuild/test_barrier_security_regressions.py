@@ -597,10 +597,19 @@ def test_authoritative_query_rejects_broken_upstream_lineage(
         store.close()
 
 
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        (10**400, None),
+        (10, 10**400),
+    ],
+)
 def test_validator_fails_closed_on_numeric_time_overflow(
     tmp_path: Path,
+    start: int,
+    end: int | None,
 ) -> None:
-    """Schema-valid but unbounded integers must not escape the contract boundary."""
+    """Valid intervals with unbounded integers must not reach SQLite binding."""
 
     with AuthoritativeStore(
         tmp_path / "overflow.sqlite3",
@@ -611,10 +620,11 @@ def test_validator_fails_closed_on_numeric_time_overflow(
             claim_id="claim.time-overflow",
             provenance_bundle_id="provenance.time-overflow",
         )
-        claim["valid_time"]["start"] = 10**400
+        claim["valid_time"]["start"] = start
+        claim["valid_time"]["end"] = end
         with pytest.raises(
             StoreContractError,
-            match=r"(?i)(overflow|malformed|validation|graph)",
+            match=r"(?i)(finite|representable|validation|graph)",
         ):
             append_with_provenance(
                 store,

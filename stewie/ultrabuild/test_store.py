@@ -257,6 +257,81 @@ def test_integrity_detects_deleted_transaction_sequence(
     assert any("transaction sequence gap" in error for error in report["errors"])
 
 
+@pytest.mark.parametrize(
+    ("field", "corrupt_value"),
+    [
+        ("schema_version", "stewie.corrupt/1.0"),
+        ("world_id", "world.corrupt"),
+        ("site_id", "site.corrupt"),
+        ("branch_id", "branch.corrupt"),
+        ("valid_start", 9.0),
+        ("valid_end", 12.0),
+    ],
+)
+def test_integrity_rejects_corrupt_index_shadow_metadata(
+    tmp_path: Path,
+    field: str,
+    corrupt_value: object,
+) -> None:
+    database = tmp_path / f"shadow-{field}.sqlite3"
+    store, ids = build_golden_world(database)
+    try:
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                f"UPDATE records SET {field}=? WHERE record_id=?",
+                (corrupt_value, ids["revision_id"]),
+            )
+        integrity = store.verify_integrity()
+        assert integrity["ok"] is False
+        assert any(f"row {field} differs" in error for error in integrity["errors"])
+        with pytest.raises(StoreContractError, match=f"row {field} differs"):
+            store.rebuild_projections()
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize(
+    ("table", "predicate", "value", "expected_error"),
+    [
+        (
+            "idempotency",
+            "record_id",
+            "observation",
+            "append receipt registry",
+        ),
+        (
+            "operations",
+            "operation_id",
+            "operation.promote.golden",
+            "CAS receipt registry",
+        ),
+    ],
+)
+def test_integrity_rejects_missing_required_receipt_registry_rows(
+    tmp_path: Path,
+    table: str,
+    predicate: str,
+    value: str,
+    expected_error: str,
+) -> None:
+    database = tmp_path / f"missing-{table}.sqlite3"
+    store, ids = build_golden_world(database)
+    target = ids["observation_id"] if value == "observation" else value
+    try:
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                f"DELETE FROM {table} WHERE {predicate}=?",
+                (target,),
+            )
+        integrity = store.verify_integrity()
+        assert integrity["ok"] is False
+        assert any(expected_error in error for error in integrity["errors"])
+        with pytest.raises(StoreContractError, match=expected_error):
+            store.rebuild_projections()
+    finally:
+        store.close()
+
+
 def test_environment_commit_is_externally_declared_not_verified(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
