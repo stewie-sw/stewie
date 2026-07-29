@@ -1,0 +1,69 @@
+{
+  "schema_version": "stewie.barrier_decision/1.0",
+  "decision_id": "decision.barrier-1.608c6881",
+  "barrier_id": "BARRIER-1",
+  "target_commit": "608c6881e9be5754ac801a7833ee1f8217c238a0",
+  "review_scope": "tree_at_target_commit_excluding_later_pointer_and_decision_records",
+  "decision": "BLOCK",
+  "reviewed_node_ids": [
+    "INV-001",
+    "RES-010",
+    "RES-020",
+    "RES-030",
+    "EXP-010",
+    "REV-010"
+  ],
+  "reviewer_ids": [
+    "scientific_reviewer",
+    "adversarial_systems_critic"
+  ],
+  "reviewer_independence_groups": [
+    "scientific_review",
+    "adversarial_review"
+  ],
+  "evidence_artifacts": [
+    {
+      "artifact_id": "ART-B1-SCIENTIFIC-REVIEW",
+      "sha256": "1f9a0b55f900dc41507587daf85261dbc3f11c94b5754e4b86217251e9a9fd20"
+    },
+    {
+      "artifact_id": "ART-B1-ADVERSARIAL-REVIEW",
+      "sha256": "53e78c4a495deeb7426a73ace058e3cb2256414f32eeced1318a9a0ccc49319a"
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "R-03",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-SCIENTIFIC-REVIEW", "ART-B1-ADVERSARIAL-REVIEW"]
+    },
+    {
+      "finding_id": "R-06",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-SCIENTIFIC-REVIEW", "ART-B1-ADVERSARIAL-REVIEW"]
+    },
+    {
+      "finding_id": "R-07",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-SCIENTIFIC-REVIEW", "ART-B1-ADVERSARIAL-REVIEW"]
+    },
+    {
+      "finding_id": "R-10",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-SCIENTIFIC-REVIEW", "ART-B1-ADVERSARIAL-REVIEW"]
+    },
+    {
+      "finding_id": "R-11",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-SCIENTIFIC-REVIEW", "ART-B1-ADVERSARIAL-REVIEW"]
+    }
+  ],
+  "open_critical_defect_ids": ["R-03", "R-06", "R-07", "R-10", "R-11"],
+  "decided_at": "2026-07-29T15:29:00Z",
+  "content_hash": "78166fc973df027e1d234688479f206c42ec34548a827f8007038ab1aa24f116"
+}

@@ -1,0 +1,7 @@
+{
+  "cpu_count": 32,
+  "numpy": "2.4.6",
+  "peak_rss_raw": 837356,
+  "platform": "Linux-6.1.0-51-amd64-x86_64-with-glibc2.36",
+  "python": "3.11.2 (main, May 12 2026, 05:17:27) [GCC 12.2.0]"
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": "stewie.barrier_decision/1.0",
+  "decision_id": "decision.barrier-3.608c6881",
+  "barrier_id": "BARRIER-3",
+  "target_commit": "608c6881e9be5754ac801a7833ee1f8217c238a0",
+  "review_scope": "tree_at_target_commit_excluding_later_pointer_and_decision_records",
+  "decision": "BLOCK",
+  "reviewed_node_ids": ["VERT-010", "REV-010"],
+  "reviewer_ids": [
+    "database_reviewer",
+    "adversarial_systems_critic"
+  ],
+  "reviewer_independence_groups": [
+    "database_review",
+    "adversarial_review"
+  ],
+  "evidence_artifacts": [
+    {
+      "artifact_id": "ART-B2-DATABASE-REVIEW",
+      "sha256": "17a5c7a81736b14061381c7c650a66b4255cb242e16ab0f1d6f281c4754bd76c"
+    },
+    {
+      "artifact_id": "ART-B1-ADVERSARIAL-REVIEW",
+      "sha256": "53e78c4a495deeb7426a73ace058e3cb2256414f32eeced1318a9a0ccc49319a"
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "B3-REAL-TERRAIN",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-ADVERSARIAL-REVIEW", "ART-B2-DATABASE-REVIEW"]
+    },
+    {
+      "finding_id": "B3-PRIOR-VERSION",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-ADVERSARIAL-REVIEW", "ART-B2-DATABASE-REVIEW"]
+    },
+    {
+      "finding_id": "B3-DISCREPANCY",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-ADVERSARIAL-REVIEW", "ART-B2-DATABASE-REVIEW"]
+    },
+    {
+      "finding_id": "R-01",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-ADVERSARIAL-REVIEW"]
+    },
+    {
+      "finding_id": "R-13",
+      "severity": "critical",
+      "disposition": "open",
+      "evidence_artifact_ids": ["ART-B1-ADVERSARIAL-REVIEW"]
+    }
+  ],
+  "open_critical_defect_ids": [
+    "B3-REAL-TERRAIN",
+    "B3-PRIOR-VERSION",
+    "B3-DISCREPANCY",
+    "R-01",
+    "R-13"
+  ],
+  "decided_at": "2026-07-29T15:31:00Z",
+  "content_hash": "bdb96d104c29d0941a3455dd6a8890ee6c32a992db9027cfa32d29dbbe906ba7"
+}

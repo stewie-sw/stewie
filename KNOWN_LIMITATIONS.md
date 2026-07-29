@@ -3,14 +3,15 @@
 **Artifact ID:** `ART-LIMITATIONS`
 **Producer node:** `ORCH-001`
 **Consumers:** every reviewer, release, and dissertation node
-**Status:** current for baseline `d1056d9d` plus the unreviewed UltraBuild working-tree prototype of
-2026-07-29; update whenever a limitation changes.
+**Status:** current for baseline `d1056d9d` and reviewed UltraBuild source commit `608c6881`; update
+whenever a limitation changes.
 
 ## Research and evidence
 
-- The repository contains component regression probes and one deterministic 18-record UltraBuild
-  golden graph, not the integrated two-domain, multi-robot benchmark or a frozen statistical evidence
-  package.
+- The repository contains component regression probes, deterministic 18-record and 31-record
+  UltraBuild promotion graphs, and a 12-record conflict-retention graph. These are controlled
+  synthetic demonstrations, not the integrated two-domain multi-robot benchmark or a confirmatory
+  statistical evidence package.
 - Existing results use a real Haworth base terrain with controlled simulated excavations, noise,
   biases, delays, coverage, and action-log faults. They are not field validation.
 - The retained UltraBuild evaluation and perturbation reports are a different evidence family: they
@@ -25,8 +26,8 @@
   verification claim is currently admissible.
 - Several S3LI result files cited by an existing write-up are absent; the surviving artifacts do not
   reconstruct that complete claimed package.
-- The focused UltraBuild test suite is producer self-test evidence. No independent reviewer has
-  accepted Barrier 2 or Barrier 3 against the implementation.
+- The focused UltraBuild test suite is implementation evidence, not scientific validation.
+  Barrier 3 has not been accepted against the implementation.
 
 ## Authority-store prototype
 
@@ -45,6 +46,9 @@
   implemented.
 - `verify_integrity()` is explicit. The store does not automatically quarantine a corrupt database on
   startup, distinguish a torn tail from interior corruption, or implement a recovery policy.
+- Integrity now closes indexed record shadows, append receipts, and applied promotion receipts over
+  immutable history. It cannot prove that a failed/stale operation receipt was once present and then
+  removed because failed operations do not create a corresponding immutable world-state record.
 - Append-only behavior is enforced by the Python gateway and checked by hashes; SQLite does not yet
   use immutable-record triggers, restricted database roles, signatures, or an external transparency
   log against direct administrative writes.
@@ -73,6 +77,10 @@
   units, valid time, known-at sequence, and exact result, but current `query_revision` SQL evaluates
   only world/site/branch, revision valid interval, known-at sequence, state kinds, and durable
   supersession/invalidation.
+- Authoritative query verifies the complete current store, not only the requested causal prefix.
+  Corruption in a later or unrelated record can therefore make an otherwise reconstructable
+  historical query unavailable. This is conservative fail-closed behavior, not prefix-scoped
+  availability.
 - Structured provenance closes the golden material-record graph, but legacy `TwinStore`,
   `TerrainMemory`, `TransactionLog`, and route-level audit paths remain incomplete or free-text.
 - Golden provenance uses deterministic placeholder hashes for some calibration and transform
@@ -124,7 +132,9 @@
   response is not physically exact.
 - Localization, illumination, dust, slip, reconstruction, and frame uncertainty are not yet joined to
   the UltraBuild promotion path end to end.
-- No communication-loss or multi-robot map-synchronization workflow uses the authoritative store.
+- A controlled multi-robot promotion and conflict-retention workflow uses the authoritative store,
+  but no communication partition, metadata-first synchronization, or partition-rejoin convergence
+  workflow does.
 
 ## Operations and reproducibility
 
@@ -144,13 +154,14 @@
 - Source-tree commit identity is repository-discovered. `STEWIE_EVIDENCE_COMMIT` values are explicitly
   labelled externally declared, not verified or build-attested. Signed wheel/build provenance is not
   implemented.
-- Performance budgets are targets; no integrated latency, storage-growth, map-scale, robot-scale, or
-  version-scale report exists.
+- Six host-local latency/replay targets have a retained 200-run report and pass. Storage growth,
+  cold-cache, 1,000-version replay, map-scale, robot-scale, version-scale, concurrency, and
+  distributed-sync budgets remain unmeasured.
 - The root package now declares the required `stewie-bodies` distribution. A clean-wheel smoke test
   covers dependency resolution from a local wheelhouse, but publication to an external package index
   and installation on other operating systems remain unverified.
-- The new implementation and documentation are working-tree artifacts until committed, frozen, and
-  independently reproduced.
+- The authority implementation is source-pinned at `608c6881`; the final documentation and evidence
+  registry remain a later orchestration commit outside that reviewed source tree.
 
 Nothing in the current repository supports flight certification, mission readiness, unsupervised
 physical deployment, or broad cross-domain superiority.

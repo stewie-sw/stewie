@@ -1,0 +1,85 @@
+{
+  "schema_version": "stewie.barrier_decision/1.0",
+  "decision_id": "decision.barrier-2.608c6881",
+  "barrier_id": "BARRIER-2",
+  "target_commit": "608c6881e9be5754ac801a7833ee1f8217c238a0",
+  "review_scope": "tree_at_target_commit_excluding_later_pointer_and_decision_records",
+  "decision": "ACCEPT",
+  "reviewed_node_ids": [
+    "ARCH-010",
+    "ARCH-020",
+    "ARCH-030",
+    "WS-010",
+    "WS-020",
+    "WS-030",
+    "WS-040",
+    "WS-050",
+    "PHY-010",
+    "REV-010"
+  ],
+  "reviewer_ids": [
+    "database_reviewer",
+    "adversarial_systems_critic"
+  ],
+  "reviewer_independence_groups": [
+    "database_review",
+    "adversarial_review"
+  ],
+  "evidence_artifacts": [
+    {
+      "artifact_id": "ART-B2-DATABASE-REVIEW",
+      "sha256": "17a5c7a81736b14061381c7c650a66b4255cb242e16ab0f1d6f281c4754bd76c"
+    },
+    {
+      "artifact_id": "ART-B2-SYSTEMS-REVIEW",
+      "sha256": "b64fb57d02473dbe74805d28119b9d5cb718a79d323e706377e017822946d3b4"
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "B2-AUTHORITY-INTEGRITY",
+      "severity": "major",
+      "disposition": "resolved",
+      "evidence_artifact_ids": ["ART-B2-DATABASE-REVIEW", "ART-B2-SYSTEMS-REVIEW"]
+    },
+    {
+      "finding_id": "R-02",
+      "severity": "critical",
+      "disposition": "accepted_limitation",
+      "evidence_artifact_ids": ["ART-B2-DATABASE-REVIEW"]
+    },
+    {
+      "finding_id": "R-04",
+      "severity": "critical",
+      "disposition": "accepted_limitation",
+      "evidence_artifact_ids": ["ART-B2-DATABASE-REVIEW"]
+    },
+    {
+      "finding_id": "R-14",
+      "severity": "critical",
+      "disposition": "accepted_limitation",
+      "evidence_artifact_ids": ["ART-B2-DATABASE-REVIEW", "ART-B2-SYSTEMS-REVIEW"]
+    },
+    {
+      "finding_id": "R-16",
+      "severity": "critical",
+      "disposition": "accepted_limitation",
+      "evidence_artifact_ids": ["ART-B2-DATABASE-REVIEW"]
+    },
+    {
+      "finding_id": "R-23",
+      "severity": "critical",
+      "disposition": "accepted_limitation",
+      "evidence_artifact_ids": ["ART-B2-SYSTEMS-REVIEW"]
+    },
+    {
+      "finding_id": "R-24",
+      "severity": "critical",
+      "disposition": "accepted_limitation",
+      "evidence_artifact_ids": ["ART-B2-DATABASE-REVIEW"]
+    }
+  ],
+  "open_critical_defect_ids": [],
+  "decided_at": "2026-07-29T15:30:00Z",
+  "content_hash": "cc1d2974b42170d2fd03ff67b3f8b3ddfc7c22fd47b698eb512815d84767389e"
+}
