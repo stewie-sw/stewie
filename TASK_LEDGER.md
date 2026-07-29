@@ -27,16 +27,26 @@
 | TL-018 | 2026-07-28 | `ORCH-001` | Reconstructed the foundation environment from the universal hash lock. | A new ignored `.venv` installed all 61 locked packages plus the root and two workspace packages without dependency resolution. | Run the declared foundation and focused regression gates. |
 | TL-019 | 2026-07-28 | `ORCH-001` | Added and hash-locked minimal JSON Schema validation tooling. | `pyproject.toml` and `requirements-dev.lock` include `jsonschema` plus RFC-3339 support; strict smoke reports 61 fully hash-pinned packages and zero drift across 60 applicable pins. | Preserve the universal lock and repeat on CI-supported Python versions. |
 | TL-020 | 2026-07-28 | `ORCH-001` | Ran the clean foundation verification packet. | UltraBuild validator, five artifact tests, Ruff, focused mypy, dependency-lock audit, strict install smoke, and 314 twin regressions passed; requirement trace remains honest at 413 total/320 cited with 20 V!=D audit rows. | Commit the blocked foundation draft without accepting a barrier. |
+| TL-021 | 2026-07-29 | `VERT-010` | Implemented the first UltraBuild authority-boundary prototype without advancing a barrier. | `stewie/ultrabuild/` now contains a SQLite WAL/FULL append gateway, store-owned sequence/time/hash completion, exact idempotency, atomic promotion CAS, rebuildable branch heads, payload CAS, integrity verification, cold snapshot, and golden query/plan/action graph. | Independent database, functional, and provenance review. |
+| TL-022 | 2026-07-29 | `ARCH-020` | Separated untrusted submissions from completed stored records and typed every authority receipt. | Registered `record_submission`, `append_receipt`, `cas_receipt`, `projection_receipt`, and `payload_receipt` schemas; ordinary append rejects promotion bypasses. This supplies implementation evidence for resolving `FND-025` and `FND-026`, subject to independent finding closure. | Re-run Barrier-2 review against the implementation commit. |
+| TL-023 | 2026-07-29 | `WS-020`, `WS-030`, `VERT-010` | Built and self-tested the smallest valid closed world-state and autonomy graph. | The golden fixture has 18 immutable records; 11 focused pytest cases cover cold restore, payload corruption, store ownership, reopen ordering, concurrent promotion, failed-promotion atomicity, historical invalidation, head rebuild, and candidate contract mutation. This supplies prototype evidence for `FND-028` and `FND-030` but is not experimental validation. | Freeze test evidence and obtain independent Barrier-2/3 decisions. |
+| TL-024 | 2026-07-29 | `ARCH-030` | Reconciled the operational graph and architecture records with the implemented authority boundary. | `.venv/bin/python scripts/validate_ultrabuild.py`, `.venv/bin/python scripts/validate_ultrabuild_contracts.py`, and `.venv/bin/python -m pytest -q stewie/ultrabuild/test_store.py` exited successfully; barrier states remain unchanged. | Commit-pin the evidence and assign independent review. |
 
 ## Open orchestration decisions
 
 - `OD-001`: exact minimum operational effect sizes and perturbation levels must be frozen after pilots.
 - `OD-002`: select the terrestrial domain and verify redistribution rights.
-- `OD-003`: choose the Barrier-3 authoritative event-store implementation only after schemas and
-  reference queries are accepted.
 - `OD-004`: remove or restore existing claims whose formal/result artifacts are absent.
-- `OD-005`: decide whether transaction-time indexing starts in SQLite/Postgres or a deterministic
-  file reference implementation; semantics take priority over deployment scale.
+- `OD-006`: choose the post-prototype migration, retention, spatial-projection, and distributed-store
+  strategy only after the SQLite semantic oracle is independently accepted and benchmarked.
+
+## Resolved orchestration decisions
+
+- `OD-003` (2026-07-29): selected `stewie.ultrabuild.store.AuthoritativeStore` as the Barrier-3
+  prototype authority. This does not select a deployment-scale backend.
+- `OD-005` (2026-07-29): transaction ordering starts with a deterministic SQLite sequence and
+  valid-at/known-at revision reference query; Postgres/PostGIS remains a later projection or backend
+  candidate.
 
 Defects and revision outcomes will append to this table; prior entries are not rewritten to make the
 project appear more linear than it was.

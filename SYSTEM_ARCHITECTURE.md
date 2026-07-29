@@ -3,179 +3,212 @@
 **Artifact ID:** `ART-ARCHITECTURE`
 **Producer node:** `ARCH-010`
 **Consumers:** `ARCH-020`, all `WS-*`, `VERT-*`, `EXP-*`, `INT-010`
-**Status:** target architecture grounded in the merged baseline; pending Barrier-2 review.
+**Status:** authoritative-store prototype implemented and self-tested; pending independent
+Barrier-2 and Barrier-3 review.
 
 ## Architectural position
 
-STEWIE remains a modular monorepo. Logical service boundaries are enforced in code and contracts
-before they are split into deployment processes. The authoritative scientific record is an
-append-only event/evidence store; spatial, temporal, GIS, and UI projections are rebuildable views.
+STEWIE remains a modular monorepo. The new `stewie/ultrabuild/` package establishes the first
+executable authority boundary without requiring a premature service split:
 
-“Authority” is scoped:
+- `AuthoritativeStore` is the only immutable-record append gateway;
+- SQLite is the prototype transaction authority, configured for WAL journaling and `FULL`
+  synchronization;
+- callers submit `stewie.record_submission/1.0` records without transaction or content-identity
+  fields;
+- the store assigns the monotonic transaction sequence, receipt timestamp, and final record hash;
+- accepted-head promotion is a single SQLite transaction containing the promotion decision,
+  accepted revision, and compare-and-swap of the rebuildable branch head; and
+- spatial payload bytes live in a separate, immutable filesystem content-addressed store.
 
-- in simulation, the conserved physics state is authoritative for the simulated material transition;
-- observations are authoritative only as immutable evidence that a source reported a value;
-- reconciled state is authoritative for a named policy, world branch, valid-time lens, and transaction
-  time;
-- planned and predicted states are never authoritative descriptions of the physical world; and
-- evaluation reference is authoritative only for scoring, never available to the evaluated system.
+The append log is authoritative. `branch_heads` and projection watermarks are mutable conveniences,
+not independent sources of truth. A head can be reconstructed from immutable branch and accepted
+revision records.
 
-## Existing reusable components
+“Authority” remains scoped:
 
-| Concern | Existing implementation | Honest boundary |
-|---|---|---|
-| Conserved terrain transition | `stewie/physics/`, ADRs 0001–0003 | Simulation/model authority, not physical truth |
-| Accumulated worked terrain | `stewie/twin/terrain_memory.py` | Version history exists; no valid/transaction intervals |
-| Observed patch journal | `stewie/twin/versioned.py` | Provenance is currently a string; patch events lack full bitemporal fields |
-| Linked world transaction | `stewie/twin/envelope.py`, `stewie/server/world_state.py` | Runtime adoption is partial; projection is non-authoritative |
-| Multi-robot action overlap | `stewie/twin/shared_terrain.py` | Possible dependency, not measured covariance |
-| Promotion mechanism | `stewie/twin/promotion.py` | Component path; live resync is not yet gated by it |
-| Comparators and fault probes | `stewie/twin/baselines.py`, `veto_experiment.py`, tests | Mostly injected faults on a real terrain crop |
-| Audit/governance | `stewie/contracts/audit.py`, server governance/routers | Governance evidence is distinct from scientific provenance |
-| Planning/execution | `lode/`, `leap/`, `stewie/server/routers/` | Must begin recording the exact query lens/version |
-| Sensor/perception/localization | `dart/`, `stewie/sensors/`, `stewie/runtime/` | Dense GPU and live-pit tiers remain gated |
-| GIS/operator surfaces | `gis/`, `frontend/`, server web assets | Visualization is a consumer, never authority |
-| Deployment | FastAPI, QGIS Server/QWC2, Docker compose, optional ROS/Godot | Public/runtime claims remain simulation-only |
+- simulation physics is authoritative only for the simulated material transition;
+- an observation record is authoritative only as evidence that a named source reported a value;
+- a reconciled revision is authoritative only for its world, site, branch, policy, valid interval,
+  and known-at sequence;
+- planned and predicted states are never observations of physical truth; and
+- evaluation reference is authoritative only for scoring and is unavailable to the evaluated path.
 
-## Target logical topology
+## Implemented prototype topology
 
 ```text
- Sensors / robot logs / operator imports / simulation
-                         |
-                         v
-                Evidence Ingest Gateway
-       validate frame, units, time, identity, schema
-                         |
-                         v
-              Immutable Evidence + Event Store
-       entities, activities, agents, payload hashes, clocks
-             |                 |                 |
-             v                 v                 v
-      Spatial projection   Temporal index   Artifact catalog
-             \                 |                 /
-              \                |                /
-               v               v               v
-                  Reconciliation Engine
-      admissibility -> observation aggregate -> dependency
-        support -> contestable physics -> promote/reject/
-                 abstain/retain hypotheses
-                         |
-           +-------------+---------------+
-           |                             |
-           v                             v
-  Versioned accepted branch      Unresolved hypothesis set
-           |                             |
-           +-------------+---------------+
-                         |
-                         v
-              World-State Query Service
-       region + valid_time + transaction_time + branch
-                         |
-        +----------------+-------------------+
-        |                |                   |
-        v                v                   v
-    Planner/VOI      Simulation/twin       GIS/operator UI
-        |                |                   |
-        +----------------+-------------------+
-                         |
-              Decision and mutation events
-                         |
-                         +----> immutable store
+ Payload bytes ----------------------> Filesystem SHA-256 CAS
+                                              |
+                                      payload receipt + verification
+                                              |
+ Domain record draft                           v
+        |                             untrusted record submission
+        +--------------------------------------+
+                                               |
+                                               v
+                                  Authoritative SQLite gateway
+                         schema + full record-graph + payload checks
+                         store sequence/time + final canonical hash
+                                  |                     |
+                         ordinary append         atomic promotion CAS
+                                  |                     |
+                                  +----------+----------+
+                                             |
+                              immutable records + typed receipts
+                                             |
+                  +--------------------------+----------------------+
+                  |                          |                      |
+          rebuildable branch head     revision query         integrity/replay
+                  |               valid_at + known_at seq     and cold snapshot
+                  +--------------------------+----------------------+
+                                             |
+                          query request -> query lens -> plan -> action
+                              (each durable record returns through append)
 ```
 
-## Bounded contexts
+The deterministic golden graph contains two branches, observation/action/candidate evidence and
+their required provenance bundles, an atomically promoted revision, an immutable query request and
+resolved lens, a planning decision bound to that lens/revision, and a resulting autonomous action.
+It contains 18 immutable records in one continuous store sequence.
 
-### Evidence and provenance
+## Bounded contexts and ownership
 
-Owns immutable observations, actions, physical predictions, transformations, identities, calibrations,
-and payload hashes. It validates but does not reconcile.
+### Payload authority
 
-### World-state reconciliation
+`ContentAddressedPayloadStore` owns payload-byte identity and durability. It writes a temporary file,
+fsyncs it, atomically replaces the SHA-256 target, fsyncs the containing directory, and returns a
+typed payload receipt. With `require_local_payloads=True`, the SQLite gateway rejects records whose
+referenced payload or coverage bytes are missing, corrupt, or the wrong declared size.
 
-Owns admissibility, temporal filtering, dependency graphs, uncertainty propagation, promotion policy,
-competing hypotheses, and supersession. It does not fabricate sensor data or mutate simulation.
+Payload persistence and SQLite append are separate transactions. A failed record append may leave an
+unreferenced payload, but a committed record cannot reference a missing or corrupt required local
+payload in the enforced prototype configuration.
 
-### Terrain authority and simulation
+### Immutable record authority
 
-Owns conserved simulated material state and counterfactual predictions. It emits evidence with
-model/calibration identity. Its outputs never bypass reconciliation into physical belief.
+`AuthoritativeStore` owns:
 
-### World-state storage and query
+- canonical record completion and hashing;
+- a gap-free monotonic sequence across reopen;
+- exact idempotency-key comparison against the canonical submission hash;
+- immutable record insertion and durable append receipts;
+- full cross-record semantic validation before commit;
+- promotion-operation idempotency and typed CAS receipts; and
+- the branch-head and projection-watermark tables.
 
-Owns event append, transaction ordering, branch/version identity, bitemporal and spatial indexes,
-historical reconstruction, and rebuildable projections.
+Callers cannot submit `transaction_time`, `recorded_at`, or `content_hash`. Ordinary `append` and
+`append_batch` also reject PROMOTE decisions and accepted-state revisions, so those records cannot
+bypass `commit_promotion`.
 
-### Planning and autonomy
+### Reconciliation and promotion
 
-Consumes a complete query lens and records it with each decision. It owns goals, constraints, route,
-construction sequencing, resource policy, and value-of-information decisions.
+Reconciliation owns candidate and decision construction but has no accepted-state mutation
+authority. A candidate binds its spatial contract, valid time, uncertainty, payload, and coverage
+through `state_contract_hash`. Cross-record validation requires the promotion decision and revision
+to preserve that contract.
+
+`commit_promotion` requires an approved or explicitly not-required PROMOTE review, matching
+decision/revision links, matching world/site/branch/policy, the pinned prior head, and a contiguous
+branch revision sequence. A stale or invalid request returns a typed non-applied CAS receipt and
+leaves neither decision nor revision partially appended.
+
+### Query, planning, and action
+
+The implemented revision resolver accepts explicit `world_id`, `site_id`, `branch_id`, `valid_at`,
+`known_at_sequence`, and requested state kinds. Supersession or invalidation affects only queries
+whose known-at sequence includes the durable event. The golden path then stores:
+
+1. the full `QueryRequest`, including region, representation, resolution, frame, units, policy,
+   valid time, and known-at sequence;
+2. the resolved `QueryLens`, including exact revision, state kind, payload, coverage, and projection
+   sequence;
+3. the planner `DecisionRecord`, including exact lens and revision IDs; and
+4. the linked autonomous `ActionEvent`.
+
+The richer spatial lens is therefore durable in the record graph, although the current
+`query_revision` SQL selector does not yet evaluate every request field.
 
 ### Integration and presentation
 
-ROS 2, GIS/QGIS, Godot/Gazebo, API, synchronization, and UI translate contracts. They may cache and
-project state but cannot become an untracked source of authority.
+Legacy ROS 2, GIS/QGIS, Godot/Gazebo, FastAPI, planner, and UI paths remain adapters and consumers.
+They are not yet wired through this gateway and must not be described as sharing the new authority
+boundary. Visualization remains non-authoritative.
 
-## Write path
+## Write protocols
 
-1. Ingest validates schema, frame, units, time source, identity, and payload hash.
-2. The immutable evidence/event record is durably appended before acknowledgement.
-3. Reconciliation queries a pinned prior version and admissible evidence set.
-4. The candidate is produced only from admissible observations.
-5. Dependency, uncertainty, and physics evidence affect the decision.
-6. PROMOTE appends a new accepted claim/version only through compare-and-swap against the pinned
-   `prior_head_revision_id`; a stale head produces ABSTAIN/retry, never overwrite. The revision must
-   name the matching durable promotion decision. ABSTAIN or conflict appends unresolved hypotheses;
-   REJECT appends the decision without mutating accepted state.
-7. Derived-layer and plan invalidations are emitted as events.
-8. Read projections update after the authoritative append; failed projection updates are replayable.
+### Ordinary append
 
-## Read path
+1. Persist referenced payload bytes and retain the typed payload receipt when applicable.
+2. Normalize a domain draft into `record_submission.schema.json`; omit store-owned fields.
+3. Validate the submission schema, selected record schema/version, and record identity.
+4. Within `BEGIN IMMEDIATE`, assign the next sequence and timestamp, calculate the final hash, verify
+   payload prerequisites, and validate the combined durable-plus-staged record graph.
+5. Insert canonical record bytes and the exact-idempotency mapping.
+6. Commit before returning `append_receipt.schema.json`.
 
-All reads specify:
+Provenance and its subject may be submitted in one batch. The full graph is checked before any
+member of that batch becomes durable.
 
-`region, representation, state_kind/branch, valid_at, known_at, resolution, frame, units`.
+### Accepted-head promotion
 
-Defaults are allowed only for operator convenience and are returned explicitly in the response. A
-planner may not use an implicit “latest” lens.
+1. Pin expected revision ID and branch sequence.
+2. Submit exactly one PROMOTE decision and one accepted revision to `commit_promotion`.
+3. Recheck review status, cross-links, state contract, policy, world/site, branch, prior head, and
+   contiguous revision sequence inside the write transaction.
+4. Append both completed records through the same private append primitive.
+5. Update `branch_heads` with a conditional compare-and-swap.
+6. Commit the records, head, append receipts, and operation receipt together.
 
-## Consistency and failure semantics
+Two concurrent store instances targeting one head were tested: exactly one promotion was durable and
+the loser received `stale_head`.
 
-- Append and accepted-version creation are atomic at the event-store boundary.
-- Payload blobs are content-addressed and immutable.
-- Spatial/temporal projections may be eventually consistent but expose their projected transaction
-  head.
-- Unknown frame, time, identity, dependency, or required uncertainty fails closed to REJECT/ABSTAIN.
-- Communication partitions retain local evidence and metadata; synchronization does not use
-  last-write-wins for accepted terrain.
-- Audit/provenance write failure prevents the corresponding authoritative mutation.
-- Corrupt interior history refuses startup/query; a documented tail-recovery policy may recover only
-  a proven incomplete final record.
+## Projection, restore, and integrity semantics
 
-## Integration contracts
+- `branch_heads` is synchronously maintained but derived exclusively from immutable branch and
+  accepted-revision records.
+- `rebuild_projections()` currently rebuilds branch heads and clears projection watermarks; it is not
+  yet a general spatial/temporal/catalog projector.
+- `projection_receipt.schema.json` exposes requested sequence, projected sequence, lag, and freshness
+  status.
+- `snapshot_to()` uses SQLite backup to produce a consistent cold-restorable database.
+- `verify_integrity()` revalidates canonical records, hashes, transaction ordering, full graph
+  semantics, append/CAS receipts, local payloads, sequence metadata, and derived branch heads.
+- Integrity verification is explicit; automatic startup quarantine or recovery after detected
+  corruption is not implemented.
 
-Machine-readable schemas live under `schemas/`. Interfaces must include schema version, content type,
-units, CRS/frame, valid time, transaction receipt time, producer identity, calibration and algorithm
-versions, uncertainty model, payload hash, and prior/version references.
+## Typed integration contracts
 
-The Barrier-2 subset separately contracts branches, evidence claims, action events, possible-
-dependency edges, provenance bundles, state candidates, reconciliation decisions, conflict and
-hypothesis records, world revisions, supersession events, query lenses, and experiment scenarios.
-Cross-record validation enforces common `world_id`/`site_id`, reference type, branch/policy identity,
-and observation-versus-physics roles; JSON Schema alone cannot enforce those joins.
+The authority boundary adds five registered contracts:
 
-ROS REP-103/local robot frames and lunar `IAU_2015:30135` are translated through explicit transforms.
-RFC 7946 GeoJSON export is an interchange representation and does not redefine lunar authority.
+| Contract | Purpose |
+|---|---|
+| `record_submission.schema.json` | Untrusted domain record plus producer and exact idempotency identity; forbids store-owned fields |
+| `append_receipt.schema.json` | Durable immutable-record identity, sequence, hash, and SQLite durability mode |
+| `cas_receipt.schema.json` | Applied, stale, invalid, or replayed accepted-head operation with expected/observed/proposed heads |
+| `projection_receipt.schema.json` | Explicit projection sequence, lag, and freshness |
+| `payload_receipt.schema.json` | SHA-256 payload identity, byte size, location, and fsync result |
 
-## Observability
+The existing domain contracts cover branches, observations, actions, dependencies, provenance,
+candidates, decisions, conflicts, hypotheses, revisions, supersession, query lenses, and experiment
+scenarios. Repository semantic validation enforces joins that JSON Schema cannot express, including
+world/site/reference consistency, ordering, provenance closure, observation-only candidate
+construction, promotion contract preservation, and query/plan/action linkage.
 
-Every request/run carries `trace_id`, `graph_node_id`, `experiment_id` when applicable, code commit,
-configuration digest, and actor. Logs and metrics reference immutable event/claim IDs. A replay
-records whether results are byte-identical, numerically equivalent within a declared tolerance, or
-non-reproducible.
+## Evidence and nonclaims
 
-## Deployment sequence
+`stewie/ultrabuild/test_store.py` currently exercises:
 
-Barrier 3 uses an in-process Python slice and file-backed immutable artifacts to reduce moving parts.
-Postgres/PostGIS or another spatial/temporal projection is introduced only after the semantics and
-reference queries pass. ROS, QGIS, Godot/Gazebo, and distributed synchronization remain adapters to
-that core rather than prerequisites for proving it.
+- a valid 18-record golden graph and cold SQLite restore;
+- payload deduplication and corruption detection;
+- store-owned transaction fields and exact idempotency;
+- monotonic transaction sequence after reopen;
+- concurrent promotion with exactly one winner;
+- no partial records from a pending-review promotion;
+- historical known-at behavior across durable invalidation;
+- deterministic branch-head rebuild after deliberate projection corruption; and
+- rejection of spatial, uncertainty, and valid-time candidate mutations.
+
+These tests support an implemented, self-tested, single-node research prototype. They do not accept
+Barrier 2 or Barrier 3, demonstrate distributed synchronization, validate a live robot path, prove
+full bitemporal query semantics, establish performance budgets, or support a scientific-effectiveness
+claim.

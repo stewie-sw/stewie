@@ -3,7 +3,7 @@ project: STEWIE UltraBuild
 baseline_commit: d1056d9deff4e540557b13c8cb78fc799330410e
 reviewed_artifact_commit: null
 branch: ultrabuild/graph-orchestration-2026-07-28
-generated_on: "2026-07-28"
+generated_on: "2026-07-29"
 producer_node: ORCH-001
 status: active
 
@@ -70,6 +70,21 @@ artifact_schemas:
     required_metadata: [artifact_id, producer_node, inputs, code_commit, status]
   json.performance_budget.v1:
     path: schemas/ultrabuild/performance_budget.schema.json
+    media_type: application/schema+json
+  json.record_submission.v1:
+    path: schemas/ultrabuild/record_submission.schema.json
+    media_type: application/schema+json
+  json.append_receipt.v1:
+    path: schemas/ultrabuild/append_receipt.schema.json
+    media_type: application/schema+json
+  json.cas_receipt.v1:
+    path: schemas/ultrabuild/cas_receipt.schema.json
+    media_type: application/schema+json
+  json.projection_receipt.v1:
+    path: schemas/ultrabuild/projection_receipt.schema.json
+    media_type: application/schema+json
+  json.payload_receipt.v1:
+    path: schemas/ultrabuild/payload_receipt.schema.json
     media_type: application/schema+json
   json.evidence_claim.v1:
     path: schemas/ultrabuild/evidence_claim.schema.json
@@ -143,12 +158,12 @@ artifacts:
   - {id: ART-REQUIREMENTS, path: SYSTEM_REQUIREMENTS.md, producer: ARCH-010, consumers: [all], schema: markdown.v1, status: draft}
   - {id: ART-RQ, path: RESEARCH_QUESTIONS.md, producer: RES-030, consumers: [RES-020, EXP-010, WS-040, WS-050, DISS-010], schema: markdown.v1, status: draft}
   - {id: ART-HYPOTHESES, path: HYPOTHESES.md, producer: RES-030, consumers: [EXP-010, WS-040, WS-050, DISS-010], schema: markdown.v1, status: draft}
-  - {id: ART-ARCHITECTURE, path: SYSTEM_ARCHITECTURE.md, producer: ARCH-010, consumers: [ARCH-020, WS-010, WS-020, WS-030, WS-040, WS-050, PHY-010, VERT-010, EXP-020, EXP-030, INT-010], schema: markdown.v1, status: draft}
+  - {id: ART-ARCHITECTURE, path: SYSTEM_ARCHITECTURE.md, producer: ARCH-010, consumers: [ARCH-020, WS-010, WS-020, WS-030, WS-040, WS-050, PHY-010, VERT-010, EXP-020, EXP-030, INT-010], schema: markdown.v1, status: prototype_implemented_unreviewed}
   - {id: ART-GRAPH, path: GRAPH_MANIFEST.yaml, producer: ORCH-001, consumers: [all], schema: yaml.graph_manifest.v1, status: active}
   - {id: ART-DATA-MODEL, path: DATA_MODEL.md, producer: WS-010, consumers: [ARCH-020, WS-020, WS-030, WS-040, WS-050, VERT-010], schema: markdown.v1, status: draft}
   - {id: ART-ONTOLOGY, path: WORLD_STATE_ONTOLOGY.md, producer: WS-010, consumers: [ARCH-020, WS-020, WS-030, WS-040, WS-050, VERT-010], schema: markdown.v1, status: draft}
-  - {id: ART-PROVENANCE, path: PROVENANCE_MODEL.md, producer: WS-030, consumers: [ARCH-020, WS-040, WS-050, VERT-010, EXP-010, DISS-010], schema: markdown.v1, status: draft}
-  - {id: ART-TEMPORAL, path: TEMPORAL_MODEL.md, producer: WS-020, consumers: [ARCH-020, WS-040, WS-050, VERT-010, EXP-010], schema: markdown.v1, status: draft}
+  - {id: ART-PROVENANCE, path: PROVENANCE_MODEL.md, producer: WS-030, consumers: [ARCH-020, WS-040, WS-050, VERT-010, EXP-010, DISS-010], schema: markdown.v1, status: golden_closure_implemented_unreviewed}
+  - {id: ART-TEMPORAL, path: TEMPORAL_MODEL.md, producer: WS-020, consumers: [ARCH-020, WS-040, WS-050, VERT-010, EXP-010], schema: markdown.v1, status: revision_level_prototype_implemented_unreviewed}
   - {id: ART-EXPERIMENT-DESIGN, path: EXPERIMENTAL_DESIGN.md, producer: EXP-010, consumers: [WS-040, WS-050, PHY-010, VERT-010, EXP-020, EXP-030, PERF-010, DISS-010], schema: markdown.v1, status: draft}
   - {id: ART-QUALITY-RUBRIC, path: QUALITY_RUBRIC.md, producer: ORCH-001, consumers: [all], schema: markdown.v1, status: draft}
   - {id: ART-PERFORMANCE-BUDGET, path: PERFORMANCE_BUDGET.json, producer: PERF-010, consumers: [ARCH-010, WS-040, WS-050, VERT-010, VERT-030, EXP-030, INT-010], schema: json.performance_budget.v1, status: targets_unvalidated}
@@ -162,7 +177,7 @@ artifacts:
   - {id: ART-FOUNDATION-REVIEW, path: FOUNDATION_REVIEW.md, producer: REV-010, consumers: [all], schema: markdown.v1, status: active_blocking_review}
   - {id: ART-NOVELTY, path: NOVELTY_REVIEW.md, producer: RES-020, consumers: [RES-030, EXP-010, EXP-020, DISS-010], schema: markdown.v1, status: active_incomplete}
   - {id: ART-RISK-DISPOSITIONS, path: RISK_DISPOSITIONS.yaml, producer: ORCH-001, consumers: [all], schema: yaml.risk_register.v1, status: active}
-  - {id: ART-RUNTIME-GRAPH, path: RUNTIME_GRAPH.yaml, producer: ARCH-030, consumers: [VERT-010, INT-010, REV-010], schema: yaml.runtime_graph.v1, status: specified}
+  - {id: ART-RUNTIME-GRAPH, path: RUNTIME_GRAPH.yaml, producer: ARCH-030, consumers: [VERT-010, INT-010, REV-010], schema: yaml.runtime_graph.v1, status: implemented_unreviewed}
 
 planned_artifacts:
   - {id: reusable_component_map, producer: INV-001, consumers: [all], schema: report.v1, status: planned}
@@ -172,11 +187,11 @@ planned_artifacts:
   - {id: scenario_manifests, producer: EXP-010, consumers: [EXP-020, EXP-030, PERF-010], schema: json.scenario.v1, status: planned}
   - {id: experiment_calibration_data, producer: EXP-010, consumers: [WS-050], schema: data.artifact.v1, status: planned}
   - {id: schemas/ultrabuild, producer: ARCH-020, consumers: [WS-040, VERT-010, INT-010], schema: data.artifact.v1, status: active_draft}
-  - {id: bitemporal_store, producer: WS-020, consumers: [VERT-010, EXP-020], schema: runtime.component.v1, status: planned}
-  - {id: temporal_query_tests, producer: WS-020, consumers: [REV-010], schema: test.evidence.v1, status: planned}
-  - {id: data_provenance_closure, producer: WS-030, consumers: [EXP-010, VERT-010, DISS-010], schema: report.v1, status: planned}
-  - {id: provenance_store, producer: WS-030, consumers: [VERT-010, EXP-020], schema: runtime.component.v1, status: planned}
-  - {id: lineage_queries, producer: WS-030, consumers: [VERT-010, EXP-020], schema: runtime.component.v1, status: planned}
+  - {id: bitemporal_store, producer: WS-020, consumers: [VERT-010, EXP-020], schema: runtime.component.v1, status: revision_level_prototype_implemented_unreviewed}
+  - {id: temporal_query_tests, producer: WS-020, consumers: [REV-010], schema: test.evidence.v1, status: focused_self_test_passed_evidence_not_frozen}
+  - {id: data_provenance_closure, producer: WS-030, consumers: [EXP-010, VERT-010, DISS-010], schema: report.v1, status: golden_graph_demonstrated_report_pending}
+  - {id: provenance_store, producer: WS-030, consumers: [VERT-010, EXP-020], schema: runtime.component.v1, status: structured_prototype_implemented_unreviewed}
+  - {id: lineage_queries, producer: WS-030, consumers: [VERT-010, EXP-020], schema: runtime.component.v1, status: integrity_traversal_only_indexed_queries_planned}
   - {id: reconciliation_decisions, producer: WS-040, consumers: [VERT-010, EXP-020], schema: json.reconciliation_decision.v1, status: planned}
   - {id: conflict_records, producer: WS-040, consumers: [VERT-010, EXP-020], schema: json.conflict_record.v1, status: planned}
   - {id: accepted_revision_proposals, producer: WS-040, consumers: [VERT-010], schema: json.world_revision.v1, status: planned}
@@ -184,8 +199,8 @@ planned_artifacts:
   - {id: calibration_report, producer: WS-050, consumers: [EXP-020, DISS-010], schema: report.v1, status: planned}
   - {id: physics_evidence_claims, producer: PHY-010, consumers: [WS-040, EXP-020], schema: json.evidence_claim.v1, status: planned}
   - {id: no_physics_and_bias_conditions, producer: PHY-010, consumers: [EXP-020], schema: report.v1, status: planned}
-  - {id: runnable_vertical_slice, producer: VERT-010, consumers: [VERT-020, VERT-030, REV-010], schema: runtime.component.v1, status: planned}
-  - {id: world_revisions, producer: VERT-010, consumers: [VERT-020, VERT-030, EXP-020], schema: json.world_revision.v1, status: planned}
+  - {id: runnable_vertical_slice, producer: VERT-010, consumers: [VERT-020, VERT-030, REV-010], schema: runtime.component.v1, status: golden_prototype_implemented_unreviewed}
+  - {id: world_revisions, producer: VERT-010, consumers: [VERT-020, VERT-030, EXP-020], schema: json.world_revision.v1, status: golden_fixture_self_tested_not_experimentally_validated}
   - {id: conflict_record, producer: VERT-010, consumers: [REV-010], schema: json.conflict_record.v1, status: planned}
   - {id: replication_package, producer: VERT-010, consumers: [EXP-020, EXP-030], schema: data.artifact.v1, status: planned}
   - {id: single_robot_scenario, producer: VERT-020, consumers: [EXP-020, REV-010], schema: json.scenario.v1, status: planned}
@@ -477,16 +492,16 @@ nodes:
   - <<: *node_defaults
     id: ARCH-020
     name: Typed interface and edge contracts
-    purpose: Produce machine-readable schemas for evidence, revisions, decisions, scenarios, clocks, frames, and units.
+    purpose: Produce machine-readable schemas for domain records, untrusted submissions, durable receipts, clocks, frames, and units.
     owning_specialist: graph_contract_engineer
     independent_reviewers: [database_reviewer, functional_reviewer]
     required_inputs: [ART-ARCHITECTURE, ART-DATA-MODEL, ART-ONTOLOGY, ART-TEMPORAL, ART-PROVENANCE]
     expected_outputs: [schemas/ultrabuild]
-    artifact_schemas: [json.evidence_claim.v1, json.reconciliation_decision.v1, json.world_revision.v1, json.scenario.v1]
+    artifact_schemas: [json.evidence_claim.v1, json.reconciliation_decision.v1, json.world_revision.v1, json.scenario.v1, json.record_submission.v1, json.append_receipt.v1, json.cas_receipt.v1, json.projection_receipt.v1, json.payload_receipt.v1]
     upstream_dependencies: [ARCH-010, WS-010, WS-020, WS-030]
     downstream_consumers: [ARCH-030, WS-040, VERT-010, PERF-010]
     known_risks: [R-02, R-13, R-14, R-16]
-    acceptance_tests: [python scripts/validate_ultrabuild.py, invalid frame unit time and state-kind fixtures rejected]
+    acceptance_tests: [python scripts/validate_ultrabuild.py, invalid frame unit time state-kind and caller-owned transaction fixtures rejected, all authority receipts validate]
     scientific_claims_not_supported: [semantic effectiveness]
     lifecycle_state: SPECIFIED
 
@@ -503,10 +518,12 @@ nodes:
     downstream_consumers: [VERT-010, INT-010]
     assumptions: [A-07, A-09]
     known_risks: [R-01, R-13, R-14]
-    acceptance_tests: [runtime graph schema and edge closure, mutation authority review, retry and failure-isolation fault cases]
+    acceptance_tests: [python scripts/validate_ultrabuild.py, runtime graph schema and edge closure, one typed append boundary and promotion CAS review, retry and failure-isolation fault cases]
     evaluation_metrics: [untracked_mutation_count, retry_replay_mismatch_count, fan_in_contract_violations]
     integration_conditions: [Barrier 2 accepted, every runtime mutation maps to one authoritative owner]
-    scientific_claims_not_supported: [runtime correctness before implementation]
+    scientific_claims_supported: [implemented authority-boundary topology description only]
+    scientific_claims_not_supported: [integrated runtime correctness, live adapter coverage, scientific effectiveness]
+    lifecycle_evidence: [ART-RUNTIME-GRAPH]
     lifecycle_state: SPECIFIED
 
   - <<: *node_defaults
@@ -539,11 +556,12 @@ nodes:
     downstream_consumers: [ARCH-020, ARCH-030, WS-040, VERT-010]
     assumptions: [A-07, A-08]
     known_risks: [R-02, R-15, R-24]
-    acceptance_tests: [as_known_at_and_valid_at oracle, out-of-order no-overwrite, correction history retained]
+    acceptance_tests: [.venv/bin/python -m pytest -q stewie/ultrabuild/test_store.py, as_known_at_and_valid_at revision oracle, out-of-order no-overwrite, correction history retained]
     evaluation_metrics: [valid_time_query_accuracy, transaction_time_query_accuracy, stale_overwrite_rate]
     performance_budget: PERFORMANCE_BUDGET.json#/barrier_3_mandatory/bitemporal_query_p95_ms
-    scientific_claims_supported: [RQ1 after integrated experiment]
-    scientific_claims_not_supported: [distributed temporal consistency]
+    scientific_claims_supported: [revision-level valid-at and known-at prototype behavior only]
+    scientific_claims_not_supported: [RQ1 before integrated experiment, full claim-level bitemporality, distributed temporal consistency]
+    lifecycle_evidence: [ART-TEMPORAL]
     lifecycle_state: SPECIFIED
 
   - <<: *node_defaults
@@ -558,11 +576,12 @@ nodes:
     downstream_consumers: [ARCH-020, ARCH-030, WS-040, VERT-010]
     assumptions: [A-02, A-14]
     known_risks: [R-04, R-10, R-14, R-17]
-    acceptance_tests: [complete lineage replay, duplicate identity rejection, invalidation query]
+    acceptance_tests: [.venv/bin/python -m pytest -q stewie/ultrabuild/test_store.py, golden graph lineage replay, duplicate identity rejection, invalidation query]
     evaluation_metrics: [claim_completeness, broken_edge_rate, decision_replay_rate]
     performance_budget: PERFORMANCE_BUDGET.json#/barrier_3_mandatory/provenance_trace_p95_ms
-    scientific_claims_supported: [RQ4 after integrated experiment]
-    scientific_claims_not_supported: [source authenticity without attestation]
+    scientific_claims_supported: [structured golden-graph provenance closure only]
+    scientific_claims_not_supported: [RQ4 before integrated experiment, source authenticity without verified attestation, system-wide lineage completeness]
+    lifecycle_evidence: [ART-PROVENANCE]
     lifecycle_state: SPECIFIED
 
   - <<: *node_defaults
@@ -630,12 +649,12 @@ nodes:
     independent_reviewers: [functional_reviewer, scientific_reviewer, database_reviewer, robotics_simulation_reviewer]
     required_inputs: [json.scenario.v1, schemas/ultrabuild]
     expected_outputs: [runnable_vertical_slice, world_revisions, conflict_record, replication_package]
-    artifact_schemas: [json.evidence_claim.v1, json.reconciliation_decision.v1, json.world_revision.v1, json.scenario.v1]
+    artifact_schemas: [json.evidence_claim.v1, json.reconciliation_decision.v1, json.world_revision.v1, json.scenario.v1, json.record_submission.v1, json.append_receipt.v1, json.cas_receipt.v1, json.projection_receipt.v1, json.payload_receipt.v1]
     upstream_dependencies: [RES-030, ARCH-020, ARCH-030, WS-020, WS-030, WS-040, WS-050, PHY-010]
     downstream_consumers: [VERT-020, VERT-030, EXP-020, EXP-030, INT-010]
     assumptions: [A-06, A-09, A-10, A-11, A-15, A-16]
     known_risks: [R-01, R-07, R-13, R-15, R-16, R-18]
-    acceptance_tests: [cold restore, previous version query, discrepancy detection, complete lineage, no live bypass, planner revision binding]
+    acceptance_tests: [.venv/bin/python -m pytest -q stewie/ultrabuild/test_store.py, cold restore, previous version query, discrepancy detection, complete lineage, no live bypass, planner revision binding]
     evaluation_metrics: [state_accuracy, temporal_correctness, provenance_completeness, reconciliation_latency]
     computational_budget: {cpu_hours: 40, gpu_hours: 0, storage_gib: 20}
     performance_budget: PERFORMANCE_BUDGET.json#/barrier_3_mandatory

@@ -3,16 +3,18 @@
 **Artifact ID:** `ART-LIMITATIONS`
 **Producer node:** `ORCH-001`
 **Consumers:** every reviewer, release, and dissertation node
-**Status:** current at baseline `d1056d9d`; update whenever a limitation changes.
+**Status:** current for baseline `d1056d9d` plus the unreviewed UltraBuild working-tree prototype of
+2026-07-29; update whenever a limitation changes.
 
 ## Research and evidence
 
-- The repository contains component regression probes, not the integrated two-domain, multi-robot
-  benchmark or a frozen statistical evidence package.
+- The repository contains component regression probes and one deterministic 18-record UltraBuild
+  golden graph, not the integrated two-domain, multi-robot benchmark or a frozen statistical evidence
+  package.
 - Existing results use a real Haworth base terrain with controlled simulated excavations, noise,
   biases, delays, coverage, and action-log faults. They are not field validation.
-- No current experiment establishes that reconciliation improvements change downstream autonomous
-  decisions.
+- No current experiment establishes that better persistent state management changes downstream
+  autonomous decisions.
 - `NOVELTY_REVIEW.md` covers an initial set of primary bitemporal, provenance, CRDT, multi-robot,
   scene-graph, and changing-map work, but its named temporal GIS, belief-revision, construction,
   mining, digital-twin, and physics-informed search gaps remain open.
@@ -20,45 +22,89 @@
   verification claim is currently admissible.
 - Several S3LI result files cited by an existing write-up are absent; the surviving artifacts do not
   reconstruct that complete claimed package.
+- The focused UltraBuild test suite is producer self-test evidence. No independent reviewer has
+  accepted Barrier 2 or Barrier 3 against the implementation.
 
-## State semantics
+## Authority-store prototype
 
-- The new UltraBuild schemas, semantic validator, and runtime graph are specifications and adversarial
-  control fixtures, not an implemented authoritative store or proof of Barrier-2 correctness.
-- The draft stored-record schemas require transaction metadata that the temporal model says only the
-  store may assign. Submission-versus-stored contracts and final store-side hashing are unresolved.
-- The runtime graph does not yet route every immutable candidate, decision, conflict, hypothesis, and
-  query record through one typed durable append boundary; its append/projection receipts are not
-  machine-readable contracts.
-- Candidate-to-revision promotion does not yet bind the complete spatial, valid-time, and aggregate
-  uncertainty contract, and the resolver lacks a valid closed golden record graph.
-- The system is versioned but not bitemporal. It lacks first-class transaction-time intervals and
-  valid-time/transaction-time reference queries.
-- `TwinStore` provenance is primarily a string, not the complete structured lineage model.
-- A durable store for competing hypotheses does not exist.
-- `TerrainMemory.revert_to` truncates later retained history; it is unsuitable as the research
+- `stewie/ultrabuild/` is an implemented in-process research prototype, not a production service. It
+  is not wired into legacy FastAPI, ROS 2, GIS/QGIS, Godot/Gazebo, planner, resynchronization, or robot
+  command paths.
+- SQLite is a single-node semantic authority. Concurrency was tested with two connections and threads
+  on one host, not multiple processes, hosts, replicas, communication partitions, or Byzantine
+  sources.
+- WAL plus `synchronous=FULL` and SQLite backup are configured and cold restore is tested, but
+  kill-at-every-instruction crash recovery, disk-full behavior, filesystem-specific durability, and
+  backup rotation are not tested.
+- `snapshot_to()` copies the SQLite database only. A complete recovery package must preserve and
+  verify the payload CAS separately; backup manifesting across both stores is not implemented.
+- `verify_integrity()` is explicit. The store does not automatically quarantine a corrupt database on
+  startup, distinguish a torn tail from interior corruption, or implement a recovery policy.
+- Append-only behavior is enforced by the Python gateway and checked by hashes; SQLite does not yet
+  use immutable-record triggers, restricted database roles, signatures, or an external transparency
+  log against direct administrative writes.
+- Store schema version 1 fails closed when another version is found. There is no forward migration,
+  downgrade, retention, compaction, archival, or schema-evolution procedure.
+- Branch heads rebuild from immutable Branch and accepted WorldRevision records. Spatial, temporal,
+  artifact-catalog, dependency, and GIS projections do not yet have equivalent replay workers.
+- Projection receipts and watermarks are typed, but no asynchronous projector or read-your-write
+  coordination service is implemented.
+- Payload bytes and SQLite records use separate durability transactions. A failed record append may
+  leave an orphan payload or a stale-promotion provenance bundle. There is no garbage collector or
+  abandoned-intent record.
+- Local payload verification is optional at store construction. Deployments that disable
+  `require_local_payloads` do not gain the golden slice's no-dangling-local-reference guarantee.
+- Payload receipts are returned by the filesystem CAS but are not themselves immutable records in
+  the SQLite authority or a replicated catalog.
+
+## Temporal and state semantics
+
+- The prototype assigns store-owned transaction sequence/time and supports revision selection by
+  valid time and known-at sequence. It does not yet implement complete claim-level bitemporal state.
+- There is no transaction wall-clock query, derived transaction interval table, general temporal
+  join, heterogeneous claim-validity resolver, or first-observed/first-verified query service.
+- The immutable QueryRequest and QueryLens bind region, policy, representation, resolution, frame,
+  units, valid time, known-at sequence, and exact result, but current `query_revision` SQL evaluates
+  only world/site/branch, revision valid interval, known-at sequence, state kinds, and durable
+  supersession/invalidation.
+- Structured provenance closes the golden material-record graph, but legacy `TwinStore`,
+  `TerrainMemory`, `TransactionLog`, and route-level audit paths remain incomplete or free-text.
+- Golden provenance uses deterministic placeholder hashes for some calibration and transform
+  artifacts. Structural closure is demonstrated; asset authenticity is not.
+- Attestation key IDs are stored metadata, not verified signatures or hardware roots of trust.
+- Hypothesis and conflict records are appendable through the authority gateway, but no integrated
+  scenario yet demonstrates durable competing-hypothesis evolution and later resolution.
+- `TerrainMemory.revert_to` truncates later retained history; it remains unsuitable as the research
   rollback model.
 - `TerrainMemory` chain metadata does not hash the complete sparse spatial delta; summary-chain
-  verification can survive spatial-history tampering.
+  verification can survive spatial-history tampering. The UltraBuild payload CAS does not
+  retroactively repair that legacy history.
 - `WorldStateService` carries global latest identities; an independent probe linked a nondefault site
-  transaction to the default Haworth observed twin.
-- Simulated run deltas and observed patches can both affect the planner surface without branch-isolated
-  reconciliation.
-- Planning does not consistently record the exact world version and bitemporal query lens it used.
-- Derived-layer and plan invalidation after terrain/state correction are incomplete.
+  transaction to the default Haworth observed twin. That service is not yet isolated behind the new
+  gateway.
+- Simulated run deltas and observed patches can still both affect the legacy planner surface without
+  branch-isolated reconciliation.
+- The golden planner decision records its exact revision and query lens; existing live planners do
+  not consistently do so.
+- Derived-layer and dependent-plan invalidation after terrain correction remain incomplete.
 
 ## Reconciliation
 
-- The theorem-facing promotion rule is not the live `POST /twin/resync` write path.
-- The current accepted observation value is a plain mean; source-specific/per-cell uncertainty and
-  alternative robust aggregates are not integrated.
+- The UltraBuild `commit_promotion` path atomically gates PROMOTE decisions and accepted revisions,
+  but the legacy `POST /twin/resync` path is not wired through it.
+- The golden candidate uses a plain mean of one admissible observation. Source-specific/per-cell
+  uncertainty and alternative robust aggregates are not integrated into a live reconciliation
+  engine.
 - Action-derived edges express possible dependence, not measured covariance.
-- Relabelled duplicate evidence may be indistinguishable and can defeat the rule.
+- Relabelled duplicate evidence may be indistinguishable without verified source attestation.
 - The no-physics regime, miscalibrated sensors, fabricated action overlap, partial coverage, and
   worst-covered-cell behavior have documented failure regions.
-- The mechanism exposes PROMOTE/REJECT/ABSTAIN but does not yet persist competing hypothesis branches.
+- The schemas permit PROMOTE/REJECT/ABSTAIN and durable conflicts/hypotheses, but the golden graph
+  exercises only one successful PROMOTE and a few invalid/stale promotion failures.
 - An older reconciliation contract treats a fresh observation as ground truth and conflicts with the
   newer uncertain/stale-evidence semantics; it must not govern the new path.
+- Physics evidence is represented in contracts but the golden promotion does not provide a
+  physics-gating ablation or validate Barrier 6.
 
 ## Representation and robotics
 
@@ -71,7 +117,8 @@
 - Numerical mass conservation is exact within the implemented model; prediction of real terrain
   response is not physically exact.
 - Localization, illumination, dust, slip, reconstruction, and frame uncertainty are not yet joined to
-  the state-promotion path end to end.
+  the UltraBuild promotion path end to end.
+- No communication-loss or multi-robot map-synchronization workflow uses the authoritative store.
 
 ## Operations and reproducibility
 
@@ -80,14 +127,19 @@
 - Dataset and third-party licenses vary; not every external source is bundled.
 - README requirement counts conflict with the generated requirements manifest/status.
 - The refreshed development lock installs successfully into a new ignored UltraBuild virtual
-  environment. This verifies dependency reconstruction for the foundation checks, not a frozen
-  experiment/container or cross-platform replication.
-- Canonical hashes currently use the Python `json.dumps(sort_keys=True, allow_nan=False)` profile.
-  Cross-language numeric/Unicode/negative-zero equivalence is not claimed; an RFC 8785 (or explicitly
-  equivalent) profile plus ROS/Godot/database test vectors is required before adapter-generated IDs
-  become authoritative.
-- Performance budgets are targets; no integrated scaling report exists.
+  environment. This verifies dependency reconstruction for foundation checks, not a frozen
+  experiment container or cross-platform replication.
+- Canonical hashes use the Python `json.dumps(sort_keys=True, allow_nan=False)` profile.
+  Cross-language numeric, Unicode, and negative-zero equivalence is not claimed; an RFC 8785 or
+  explicitly equivalent profile plus ROS/Godot/database test vectors is required before
+  adapter-generated IDs become authoritative.
+- Receipt timestamps use a supplied process clock; production monotonicity across clock rollback is
+  not guaranteed by the timestamp, although the SQLite sequence remains authoritative.
+- Performance budgets are targets; no integrated latency, storage-growth, map-scale, robot-scale, or
+  version-scale report exists.
 - The root published wheel may omit required workspace packages that CI/Docker install manually.
+- The new implementation and documentation are working-tree artifacts until committed, frozen, and
+  independently reproduced.
 
 Nothing in the current repository supports flight certification, mission readiness, unsupervised
 physical deployment, or broad cross-domain superiority.

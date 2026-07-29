@@ -3,7 +3,8 @@
 **Artifact ID:** `ART-PROVENANCE`
 **Producer node:** `WS-030`
 **Consumers:** `ARCH-020`, `WS-040`, `WS-050`, `VERT-010`, `EXP-010`, `DISS-010`
-**Status:** specified v0.1; current implementation is partial.
+**Status:** structured provenance closure implemented for the UltraBuild golden graph and self-tested;
+system-wide lineage queries and source attestation remain partial.
 
 ## Model
 
@@ -12,93 +13,189 @@ lineage vocabulary. World-state claims and payloads are entities; sensing, trans
 reconciling, verifying, planning, and executing are activities; robots, sensors, software, operators,
 and reviewers are agents.
 
-Hash chains provide tamper evidence and ordering. They do not by themselves provide semantic
-provenance, source authenticity, calibrated uncertainty, or proof that an event happened physically.
+Hashing has four distinct meanings in the implemented authority boundary:
+
+- a payload SHA-256 identifies immutable bytes in the filesystem content-addressed store;
+- `submitted_record_hash` in a provenance subject closes over the domain record before the store adds
+  transaction fields;
+- `submission_hash` in an append receipt closes over the complete untrusted submission envelope; and
+- the stored `content_hash` closes over the completed record, including store-owned transaction time.
+
+These hashes provide content identity, tamper detection, and replay checks. They do not prove source
+authenticity, calibrated truth, or that a reported physical event occurred.
+
+## Implemented structured bundle
+
+`provenance_bundle.schema.json` requires:
+
+- one subject naming the domain record ID, schema, record entity, submitted-record hash, generating
+  activity, and responsible agent;
+- typed agents with qualified attestation, hardware, and firmware fields;
+- activities with kind, agent, algorithm version, code commit, configuration hash, seed where
+  applicable, and start/end times;
+- typed entities with content hash and media type;
+- W3C-PROV-aligned relations;
+- transform records with source/target frames, transform payload hash, and valid time;
+- calibration records with instrument, payload hash, valid time, status, and reason for unknown or
+  out-of-domain state; and
+- optional payload and coverage entities linked by digest.
+
+Unknown identity fields are represented explicitly with a reason code; the schema does not permit a
+silent guessed value.
+
+The repository semantic validator additionally closes a referenced bundle against its subject:
+
+- bundle and subject record IDs and record schemas must match;
+- `submitted_record_hash` must match the subject record's canonical submitted form;
+- world and site must match across the reference;
+- payload and coverage hashes must match;
+- evidence source agent and algorithm version must be represented;
+- required transform-chain identity must be represented; and
+- known calibration identities in source and uncertainty records must be represented.
+
+Reference ordering is enforced by transaction sequence. Provenance may be staged immediately before
+its subject in the same atomic append batch, so the combined record graph is complete before commit.
 
 ## Required claim lineage
 
-Every material state claim records:
+The target lineage for every material state claim includes:
 
 - claim, event, version, world, branch, and region IDs;
 - robot, sensor, source, and submitting identity;
-- source hardware/firmware where applicable;
+- source hardware and firmware where applicable;
 - processing pipeline and algorithm build/version;
 - calibration artifact/version and validity interval;
 - source frame, target frame, transform chain, CRS, axes, units, and resolution;
-- observation/valid time, source clock and uncertainty;
+- observation/valid time, source clock, and uncertainty;
 - receipt/transaction time assigned by the store;
 - payload and coverage-mask content hashes;
-- uncertainty model and parameters;
+- typed uncertainty model and components;
 - input claim/artifact IDs and transformation activity;
 - physical model/configuration if physics evidence participates;
 - reconciliation policy/version, decision, reason codes, and reviewer;
 - human intervention, reason, before/after IDs, and authorization;
 - code commit, environment lock, configuration digest, seed, and experiment ID; and
-- downstream decisions, derived layers, and invalidations.
+- downstream decisions, derived layers, supersessions, and invalidations.
 
-Unknown fields are explicit `unknown` values with reason codes. Required unknowns may force ABSTAIN;
-they are never replaced with guessed metadata.
+The implemented schemas distribute these fields across the provenance bundle and subject record.
+Not every target field is populated by the golden builder, and not every legacy record type has been
+migrated.
 
-## Source identity and authenticity
+## Provenance graph
 
-`source_id` identifies a provenance root, not a caller-provided display name. A source credential
-binds robot/sensor/pipeline identity to submissions. Duplicate IDs are rejected. Relabelled duplicate
-payloads are detected where content hashes or upstream attestations expose them; otherwise they remain
-an explicit source-integrity assumption and fault condition.
-
-## Provenance bundle
-
-A bundle is an immutable graph:
+A material record and its bundle form this shape:
 
 ```text
-sensor-frame Entity
-  --wasGeneratedBy--> observation Activity
-  --wasAttributedTo--> sensor/robot Agent
-  --wasDerivedFrom--> raw payload Entity
-  --wasDerivedFrom--> calibration Entity
-  --wasDerivedFrom--> transform Entity
-  --usedBy--> reconciliation Activity
-  --generated--> candidate/decision/version Entities
+responsible Agent --> generation Activity --> submitted record Entity
+                           ^
+raw payload Entity --used--+
+
+transform/calibration node IDs --bound by provenance subject--+
+coverage Entity and digest ------bound by provenance subject--+--> submitted record Entity
+                                                                  |
+                                                store sequence/time + final content hash
+                                                                  |
+                                                                  v
+                                                         immutable stored record
 ```
 
-Bundles are addressable by canonical serialization hash. Large payloads remain in content-addressed
-storage and are referenced by digest.
+Reconciliation decisions and accepted revisions each have their own bundle. Their domain contracts
+then preserve candidate, evidence, action, policy, and decision links. Query requests and lenses
+preserve the temporal/spatial selector and exact result; planner decisions preserve the lens and
+revision; autonomous actions preserve the planner decision.
 
 ## Mutation protocol
 
-1. Validate identity, schema, time, frame, unit, and hashes.
-2. Append mutation intent and provenance inputs durably.
-3. Perform the authoritative event/version append.
-4. Append result referencing the new version or failure.
-5. Update projections asynchronously/replayably.
+### Ordinary material records
 
-If steps 1–3 cannot be made atomic in one store, use a durable outbox/intent protocol. An audit or
-provenance failure must not leave authoritative state ahead of its record.
+1. Write and verify payload bytes in the content-addressed payload store, if required.
+2. Construct the provenance bundle over the submitted domain record.
+3. Submit bundle and subject in one `append_batch`.
+4. Let the store add transaction sequence/time and final hashes.
+5. Validate the complete durable-plus-staged graph and local payload prerequisites.
+6. Commit both records and exact idempotency receipts or neither.
 
-## Queries
+### Promotion
 
-- trace a claim to raw payload, calibration, transforms, code, and source;
-- list claims derived from an invalid calibration or algorithm version;
-- list decisions that consumed a superseded claim/version;
-- reconstruct the evidence set and policy inputs for a decision;
-- identify all artifacts and seeds used by an experiment result;
-- compute missing-lineage fields by claim/state kind; and
-- verify every content hash and journal chain involved in replay.
+1. Durably append the decision and revision provenance bundles.
+2. Submit the PROMOTE decision and accepted revision together to `commit_promotion`.
+3. Revalidate their bundle closure and full candidate/decision/revision graph inside the transaction.
+4. Atomically append decision and revision and compare-and-swap the accepted branch head.
+5. Return a typed CAS receipt naming the append receipts.
+
+A missing or invalid provenance bundle prevents the authoritative promotion. Because promotion
+bundles are persisted before the CAS transaction, an invalid or stale promotion can leave an
+unconsumed immutable bundle; garbage collection or an explicit abandoned-intent relation is not yet
+implemented.
+
+## Payload provenance
+
+`ContentAddressedPayloadStore` returns `payload_receipt.schema.json`, including digest, media type,
+byte size, relative CAS path, duplicate flag, and file/directory fsync evidence. When local-payload
+enforcement is enabled, the record gateway verifies referenced bytes and declared size before append.
+`verify_integrity()` repeats those checks over durable history.
+
+The payload receipt itself is not currently an immutable domain record in SQLite, and the payload
+write is not transactionally atomic with the record append. Orphan payloads are therefore possible;
+dangling durable record references fail closed in the configured prototype.
+
+## Queries and integrity checks
+
+The current store supports record lookup and schema/known-at enumeration. `verify_integrity()` checks:
+
+- stored record schema and content hash;
+- unique, ordered transaction sequences and nondecreasing receipt timestamps;
+- all cross-record references and provenance closure;
+- append and CAS receipt schemas;
+- payload availability, size, and digest when local enforcement is configured; and
+- rebuildable branch-head equivalence to immutable history.
+
+The target lineage service must additionally support:
+
+- tracing any claim to raw payload, calibration, transforms, code, configuration, and source;
+- listing claims derived from an invalid calibration or algorithm version;
+- listing decisions that consumed a superseded claim or revision;
+- reconstructing every reconciliation evidence set and policy input;
+- identifying all artifacts and seeds used by an experiment result; and
+- reporting missing-lineage fields by claim/state kind.
+
+Those indexed lineage queries are not yet implemented as a service.
 
 ## Completeness metric
 
-Required fields are weighted by state kind. A promoted/authoritative claim has no optional identity,
-time, frame, payload, uncertainty, or policy fields. Completeness is reported as:
+Required fields are weighted by state kind. A promoted claim must not silently omit identity, time,
+frame, payload, uncertainty, policy, or decision lineage. Completeness will be reported as:
 
 - complete claims / material claims;
-- missing required fields by field;
+- missing required fields by field and state kind;
 - broken graph edges;
-- unverifiable payload hashes;
+- missing or unverifiable payload hashes;
 - replayable decisions / decisions; and
 - claims relying on explicit unknowns.
 
-## Current baseline boundary
+The golden graph is a positive closure fixture, not a measured completeness result over STEWIE.
 
-`TwinStore`, `TerrainMemory`, `TransactionLog`, and `AuditLog` provide useful durable hash-chained
-records, but much provenance is a free-text string or route-level metadata. The Barrier-3 work must
-add structured bundles without claiming that existing hash chains already satisfy this model.
+## Implemented evidence
+
+The 18-record golden graph includes structured bundles for the observation, external action,
+candidate, promotion decision, accepted revision, planner decision, and planned autonomous action.
+The authority test revalidates the complete graph before and after cold restore. Candidate mutation
+tests demonstrate that changing its frame, uncertainty components, or valid time breaks the bound
+contract rather than silently preserving promotion eligibility. Payload tests detect post-write byte
+corruption.
+
+This evidence resolves the prototype provenance-closure construction gap. It does not establish
+cryptographic source authenticity, full lineage completeness, experiment reproducibility, or
+independent scientific validation.
+
+## Legacy and remaining boundaries
+
+- `TwinStore`, `TerrainMemory`, `TransactionLog`, and `AuditLog` still contain free-text or
+  route-level provenance and are not transparently migrated.
+- The golden fixture uses deterministic placeholder hashes for some calibration and transform
+  artifacts; structural closure is demonstrated, not authenticity of those assets.
+- Agent attestation key IDs are data fields, not verified signatures or hardware roots of trust.
+- Experiment/environment lock identities and downstream invalidation traversal are not complete
+  across all record types.
+- No indexed W3C-PROV query engine, retention policy, cross-store payload catalog, or distributed
+  provenance synchronization exists.
