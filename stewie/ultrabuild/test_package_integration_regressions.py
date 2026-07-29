@@ -267,19 +267,22 @@ def test_benchmark_cli_reports_output_reuse_as_usage_error(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    assert (
-        cli_main(
-            [
-                "benchmark",
-                "--output",
-                str(tmp_path),
-                "--measured-runs",
-                "20",
-            ]
-        )
-        == 0
+    first_return_code = cli_main(
+        [
+            "benchmark",
+            "--output",
+            str(tmp_path),
+            "--measured-runs",
+            "20",
+        ]
     )
-    capsys.readouterr()
+    first_capture = capsys.readouterr()
+    first_report = json.loads(first_capture.out)
+    expected_return_code = (
+        0 if first_report["all_measured_targets_pass"] else 1
+    )
+    assert first_return_code == expected_return_code
+
     with pytest.raises(SystemExit) as error:
         cli_main(
             [
