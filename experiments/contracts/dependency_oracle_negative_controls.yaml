@@ -1,0 +1,119 @@
+schema_version: stewie.dependency_oracle_design/1.0
+artifact_id: ART-DEPENDENCY-ORACLE-DESIGN
+producer_node: EXP-010
+status: provisional_design_not_executed
+evidence_level: design_only_no_empirical_results
+source_research_commit: b70d9e7566fc68fd00dd0cf3ab9156164202cc9d
+empirical_results: null
+confirmatory_execution_allowed: false
+
+purpose: >
+  Identify whether action-derived overlap is a useful conservative dependency signal without using
+  the same action-report fault to generate both observation errors and the evaluator oracle.
+
+generator:
+  generator_id: evaluator.correlated-error-generator/1.0
+  implementation_path: experiments/contracts/generators/dependency_oracle.py
+  implementation_status: specified_not_implemented
+  code_hash: null
+  configuration:
+    distribution: zero_mean_bivariate_normal
+    marginal_standard_deviation_tau_multiple: 1.0
+    independent_covariance_matrix: [[1.0, 0.0], [0.0, 1.0]]
+    correlated_covariance_matrix: [[1.0, 0.5], [0.5, 1.0]]
+    spatial_support: jointly_observed_cells_only
+    seed_namespace: evaluator-dependency-oracle-v1
+  configuration_hash: null
+  candidate_visible: false
+  estimator_import_allowed: false
+  generated_after_candidate_action_report_freeze: true
+
+oracle:
+  artifact_id: evaluator.dependency-oracle
+  content_hash: null
+  content_hash_status: pending_generation
+  visibility: evaluator_only
+  candidate_mount: absent
+  evaluator_mount: /evaluator/oracles/dependency
+  labels:
+    - true_error_correlation
+    - correlated_component_membership
+    - overlap_condition
+
+candidate_inputs:
+  action_report_manifest: candidate.actions
+  visibility: candidate_only
+  allowed_fields:
+    - action_id
+    - actor_id
+    - reported_spatial_extent
+    - reported_valid_time
+    - report_provenance
+  forbidden_fields:
+    - evaluator_error_correlation
+    - oracle_component_id
+    - generator_seed
+    - covariance_matrix
+
+factorial_cells:
+  - id: NC00
+    candidate_reported_action_overlap: false
+    evaluator_error_correlation: false
+    covariance_matrix: [[1.0, 0.0], [0.0, 1.0]]
+    role: negative_control
+    interpretation: neither overlap nor correlated error
+  - id: NC01
+    candidate_reported_action_overlap: true
+    evaluator_error_correlation: false
+    covariance_matrix: [[1.0, 0.0], [0.0, 1.0]]
+    role: false_positive_control
+    interpretation: overlap must not be presented as measured covariance
+  - id: NC10
+    candidate_reported_action_overlap: false
+    evaluator_error_correlation: true
+    covariance_matrix: [[1.0, 0.5], [0.5, 1.0]]
+    role: false_negative_control
+    interpretation: hidden common error exists without an action-overlap edge
+  - id: NC11
+    candidate_reported_action_overlap: true
+    evaluator_error_correlation: true
+    covariance_matrix: [[1.0, 0.5], [0.5, 1.0]]
+    role: positive_condition
+    interpretation: overlap and correlated error coexist but are generated independently
+
+action_report_perturbations:
+  missing_fraction: [0.0, 0.25]
+  fabricated_fraction: [0.0, 0.25]
+  relabelled_source: [false, true]
+  application_order: after_error_oracle_generation
+
+primary_diagnostics:
+  - support_error_by_factorial_cell
+  - harmful_acceptance_rate_by_factorial_cell
+  - availability_by_factorial_cell
+  - false_dependency_edge_rate
+  - missed_dependency_edge_rate
+
+required_poison_tests:
+  - id: dependency-oracle-values
+    mutation: change evaluator covariance labels only
+    invariant: candidate support and decision bytes remain identical
+  - id: dependency-oracle-identities
+    mutation: relabel evaluator-only component IDs only
+    invariant: candidate support and decision bytes remain identical
+  - id: candidate-action-report
+    mutation: change candidate-visible overlap report only
+    expected_effect: candidate dependency graph may change but evaluator oracle bytes remain identical
+
+freeze_requirements:
+  - generator implementation and configuration hashes are committed
+  - generator and candidate code have no import dependency
+  - evaluator-only mount access is denied to candidate identity
+  - all four factorial cells execute on identical base observations and seeds
+  - poison-test attestations are content-addressed
+
+acceptance_blockers:
+  - generator is not implemented
+  - oracle payload does not exist
+  - no permission or poison attestation exists
+  - no diagnostic result exists

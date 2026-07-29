@@ -1,0 +1,487 @@
+schema_version: stewie.baseline_registry/1.0
+artifact_id: ART-BASELINE-REGISTRY
+producer_node: EXP-010
+status: provisional_pre_pilot
+evidence_level: design_only_no_empirical_results
+source_research_commit: b70d9e7566fc68fd00dd0cf3ab9156164202cc9d
+contract_commit: null
+empirical_results: null
+
+calibration_state:
+  baseline_parameters: specified_not_calibrated
+  implementation_hashes: pending
+  adapter_attestations: pending
+  input_equivalence_attestations: pending
+  confirmatory_execution_allowed: false
+
+input_contract: &input_contract
+  contract_id: candidate-visible-input-equivalence/1.0
+  equal_fields:
+    - terrain_payload_hash
+    - candidate_visible_action_manifest_hash
+    - candidate_visible_evidence_manifest_hash
+    - evidence_order
+    - valid_and_transaction_time_inputs
+    - coverage_masks
+    - frames_and_units
+    - random_seed
+    - task_harm_tolerance
+  forbidden_fields:
+    - withheld_execution_truth
+    - evaluator_dependency_oracle
+    - evaluator_conflict_labels
+    - evaluator_plan_constraint_labels
+  assertion_status: pending_runtime_attestation
+
+compute_profiles:
+  core_cpu: &core_cpu
+    profile_id: compute.core-cpu/1.0
+    cpu_cores: 4
+    memory_mib: 2048
+    gpu_count: 0
+    wall_time_s_per_trial: 60
+    storage_mib_per_trial: 256
+    timeout_outcome: execution_failure
+  external_adapter: &external_adapter_compute
+    profile_id: compute.external-adapter/1.0
+    cpu_cores: 8
+    memory_mib: 8192
+    gpu_count: 1
+    gpu_memory_mib: 12288
+    wall_time_s_per_trial: 300
+    storage_mib_per_trial: 2048
+    timeout_outcome: execution_failure
+
+internal_license: &internal_license
+  expression: LicenseRef-STEWIE-All-Rights-Reserved
+  source: LICENSE
+  redistribution_allowed: false
+  status: verified_repository_governing_license
+
+unresolved_external_license: &unresolved_external_license
+  expression: UNRESOLVED
+  source: null
+  redistribution_allowed: false
+  status: blocking_until_implementation_selected
+
+internal_adapter: &internal_adapter
+  adapter_id: stewie.evidence-result/1.0
+  version: "1.0"
+  status: contract_specified_implementation_pending
+
+external_adapter: &external_adapter
+  adapter_id: stewie.external-evidence-result/1.0
+  version: "1.0"
+  status: blocked_until_external_implementation_selected
+
+systems:
+  - id: B-LWW
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/lww-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.lww/1.0
+      parameters:
+        governing_order: ingestion_sequence
+        conflict_policy: overwrite
+        history_retained: false
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-TS
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/timestamp-only-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.timestamp-only/1.0
+      parameters:
+        governing_order: observed_at
+        tie_breaker: source_id_lexicographic
+        transaction_time_query: unsupported
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-VERSION
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/integer-version-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.integer-version/1.0
+      parameters:
+        governing_order: monotonically_increasing_integer
+        valid_time_query: unsupported
+        transaction_time_query: version_as_of_only
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-REPLACE
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/full-map-replace-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.full-map-replace/1.0
+      parameters:
+        update_scope: full_map
+        history_retained: false
+        conflict_policy: replace
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-BITEMP
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/bitemporal-event-store-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.bitemporal-unconditional/1.0
+      parameters:
+        valid_time: explicit_interval
+        transaction_time: store_assigned_monotonic_sequence
+        history: immutable_append_only
+        promotion_policy: latest_valid_start_then_transaction_sequence
+        stale_admission_gate: false
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-NOPROV
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/provenance-free-fusion-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.no-provenance/1.0
+      parameters:
+        aggregate: inverse_variance
+        lineage_retained: false
+        admission_uses_provenance: false
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-PROV
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/prov-without-gating-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.prov-without-gating/1.0
+      parameters:
+        lineage_model: W3C_PROV_equivalent
+        lineage_retained: true
+        admission_uses_provenance: false
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-SINGLE
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/single-authoritative-map-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.single-authoritative-map/1.0
+      parameters:
+        replicas: 1
+        conflict_policy: last_write_wins
+        competing_hypotheses_retained: false
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-CRDT
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/convergent-event-set-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.convergent-event-set/1.0
+      parameters:
+        replica_type: grow_only_content_addressed_event_set
+        merge: set_union
+        projection: deterministic_lww
+        projection_order: [valid_time_start, transaction_sequence, claim_id]
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-CENTRAL
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/central-sync-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.central-sync/1.0
+      parameters:
+        topology: robot_to_single_base_to_robot
+        conflict_policy: server_sequence_lww
+        payload_policy: eager
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-LOCAL
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/local-only-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.local-only/1.0
+      parameters:
+        shared_state: false
+        inter_robot_exchange: false
+        local_conflict_policy: timestamp_only
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-LIFELONG
+    role: external_baseline
+    owner_node: EXP-010
+    version: UNSELECTED-BLOCKING
+    implementation_status: blocking_external_selection
+    config:
+      config_id: baseline.lifelong-map/pending
+      parameters:
+        required_capabilities:
+          - multi_session_change_management
+          - historical_output_or_documented_absence
+          - controlled_robot_caused_change_input
+      content_hash_status: blocked
+    license: *unresolved_external_license
+    adapter: *external_adapter
+    input_equivalence: *input_contract
+    compute_cap: *external_adapter_compute
+    confirmatory_ready: false
+
+  - id: B-MRMAP
+    role: external_baseline
+    owner_node: EXP-010
+    version: UNSELECTED-BLOCKING
+    implementation_status: blocking_external_selection
+    config:
+      config_id: baseline.multi-robot-map/pending
+      parameters:
+        required_capabilities:
+          - shared_multi_robot_mapping
+          - no_stewie_promotion
+          - matched_candidate_visible_observations
+      content_hash_status: blocked
+    license: *unresolved_external_license
+    adapter: *external_adapter
+    input_equivalence: *input_contract
+    compute_cap: *external_adapter_compute
+    confirmatory_ready: false
+
+  - id: B-IVF
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/physics-pseudomeasurement-ivf-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.physics-ivf/1.0
+      parameters:
+        aggregate: inverse_variance
+        physics_role: pseudo_measurement
+        missing_cell_fill_from_physics: true
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: B-CI
+    role: baseline
+    owner_node: EXP-010
+    version: stewie-baseline/covariance-intersection-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: baseline.covariance-intersection/1.0
+      parameters:
+        objective: minimum_log_determinant
+        weight_grid:
+          minimum: 0.0
+          maximum: 1.0
+          step: 0.01
+        tie_breaker: lowest_weight
+        evaluation_scope: per_cell_joint_coverage
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: A-NOPHYS
+    role: ablation
+    owner_node: EXP-010
+    version: stewie-ablation/no-physics-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: ablation.no-physics/1.0
+      parameters:
+        candidate_aggregate: proposed_observation_only
+        physics_veto: false
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: A-INDEP
+    role: ablation
+    owner_node: EXP-010
+    version: stewie-ablation/independent-sources-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: ablation.independent-sources/1.0
+      parameters:
+        dependency_model: all_sources_independent
+        provenance_gate: true
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: A-GLOBAL
+    role: ablation
+    owner_node: EXP-010
+    version: stewie-ablation/global-overlap-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: ablation.global-overlap/1.0
+      parameters:
+        dependency_model: one_global_overlap_scalar
+        aggregation: maximum_pairwise_overlap
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: A-NOUNC
+    role: ablation
+    owner_node: EXP-010
+    version: stewie-ablation/fixed-uncertainty-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: ablation.fixed-uncertainty/1.0
+      parameters:
+        uncertainty_model: fixed_threshold
+        threshold_tau_fraction: 1.0
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: A-NOPROVGATE
+    role: ablation
+    owner_node: EXP-010
+    version: stewie-ablation/provenance-gate-disabled-contract-1.0
+    implementation_status: specified_not_implemented
+    config:
+      config_id: ablation.no-provenance-gate/1.0
+      parameters:
+        lineage_retained: true
+        admission_uses_provenance: false
+        source_identity_deduplication: false
+      content_hash_status: pending_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+  - id: P-STEWIE
+    role: proposed_system
+    owner_node: WS-040
+    version: stewie-promotion-contract-1.0
+    implementation_status: component_exists_integrated_path_unverified
+    config:
+      config_id: proposed.stewie/1.0
+      parameters:
+        valid_time_gate: true
+        transaction_history: true
+        provenance_gate: true
+        pairwise_dependency_components: true
+        candidate_values: admissible_observations_only
+        physics_role: veto_only
+        competing_hypotheses: retained
+      content_hash_status: pending_integrated_implementation_freeze
+    license: *internal_license
+    adapter: *internal_adapter
+    input_equivalence: *input_contract
+    compute_cap: *core_cpu
+    confirmatory_ready: false
+
+mechanism_cells:
+  - id: P0D0
+    parent_system: P-STEWIE
+    provenance_admission: false
+    pairwise_dependency: false
+  - id: P1D0
+    parent_system: P-STEWIE
+    provenance_admission: true
+    pairwise_dependency: false
+  - id: P0D1
+    parent_system: P-STEWIE
+    provenance_admission: false
+    pairwise_dependency: true
+  - id: P1D1
+    parent_system: P-STEWIE
+    provenance_admission: true
+    pairwise_dependency: true
+
+acceptance_blockers:
+  - all implementation and configuration hashes are pending
+  - no same-input runtime attestation exists
+  - external lifelong and multi-robot implementations and licenses are unselected
+  - no baseline output has been used in a comparative result

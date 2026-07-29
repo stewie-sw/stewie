@@ -13,12 +13,13 @@ each be delayed, incomplete, dependent, or wrong?
 
 ## RQ1 — temporal and historical correctness
 
-Does an explicit valid-time/transaction-time model prevent stale overwrites and enable correct
-reconstruction of past belief more reliably than latest-state, timestamp-only, or version-only
-storage?
+Which correctness properties are provided by explicit valid-time/transaction-time history, and does
+STEWIE's valid-time-aware promotion rule prevent stale overwrites beyond what is obtained by merely
+storing the same records in a credible bitemporal/event-sourced store?
 
-Primary metrics: stale-overwrite rate, valid-time query correctness, transaction-time query
-correctness, historical reconstruction error, and revision-trace completeness.
+Primary empirical endpoint: stale-overwrite rate at the registered promotion threshold. Exact
+valid-time and transaction-time query results are structural conformance gates, not novelty metrics.
+Latest-state, timestamp-only, version-only, and bitemporal/event-sourced comparators are required.
 
 ## RQ2 — action-derived evidence dependency
 
@@ -31,12 +32,16 @@ and retained-support error under overlap, missing action records, and partial co
 
 ## RQ3 — contestable physics
 
-Can an observation-only accepted state with physics used only as veto evidence remain robust to both
-sensor faults and arbitrary physical-model bias more effectively than rules that ignore physics or
-fuse physical predictions into accepted values?
+Across a bounded, registered grid of sensor faults and physical-model mismatch, can an
+observation-only accepted state with physics used only as contestable veto evidence achieve a better
+harm/availability tradeoff than rules that ignore physics or fuse physical predictions into accepted
+values? Separately, does the implementation satisfy the structural invariant that arbitrary changes
+to physics-predicted values cannot change candidate or promoted state bytes when the physics decision
+class is held fixed?
 
-Primary metrics: harmful-acceptance and abstention curves under sensor offset and model bias,
-accepted-state error, false rejection, and time to correction.
+Primary empirical endpoint: worst-condition harmful-acceptance rate at the registered threshold,
+subject to the registered availability non-inferiority margin. The byte-level noninterference check
+is a structural gate; accepted-state error, false rejection, and time to correction are secondary.
 
 ## RQ4 — provenance and conflict preservation
 
@@ -49,12 +54,13 @@ hypothesis-retention quality, explanation fidelity, and replay success.
 
 ## RQ5 — decision effect
 
-Do improvements in state promotion and historical semantics produce measurably better autonomous
-choices, rather than only better map metrics?
+Do improvements in state promotion and historical semantics reduce harmful autonomous plan
+commitments, rather than only improving map metrics?
 
-Primary metrics: unsafe or infeasible plans, plans using stale state, unnecessary rescans,
-construction error/rework, completion rate, and decision regret relative to withheld evaluation
-reference.
+Primary endpoint: harmful-plan-commitment rate, where a committed plan either uses a revision that
+was already superseded under the plan's recorded `(valid_at, known_at)` lens or violates a registered
+simulation constraint under the withheld reference. Rescans, construction error/rework, completion,
+resource cost, and oracle regret are secondary and cannot substitute post hoc for the primary.
 
 ## RQ6 — cost and scaling
 
@@ -65,5 +71,16 @@ operationally useful?
 Primary metrics: p50/p95/p99 update and query latency, throughput, storage growth, peak memory,
 bandwidth, and convergence time.
 
-RQ1–RQ3 define the minimum defensible dissertation core. RQ4–RQ6 are required for the full systems
-claim but must not delay the first Barrier-3 slice.
+## RQ7 — provenance × dependency interaction
+
+When duplicated or relabelled observations overlap action histories, does source-identity provenance
+gating materially change the effect of pairwise action-derived dependency reasoning, rather than the
+two mechanisms acting as interchangeable filters?
+
+Primary endpoint: the preregistered provenance-by-dependency interaction contrast in
+harmful-acceptance rate at the fixed promotion threshold, with availability reported as a mandatory
+co-endpoint.
+
+RQ1–RQ3 define the minimum defensible dissertation core. RQ4–RQ7 are required for the full systems
+claim but must not delay the first Barrier-3 slice. RQ7 is the only confirmatory interaction claim;
+STEWIE does not claim that integration breadth or a four-way mechanism interaction is itself novel.

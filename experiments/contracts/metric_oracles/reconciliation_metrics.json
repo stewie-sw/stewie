@@ -1,0 +1,42 @@
+{
+  "schema_version": "stewie.metric_oracle/1.0",
+  "fixture_id": "metric.reconciliation.harm-availability",
+  "status": "synthetic_oracle_fixture_not_empirical_result",
+  "metric_family": "reconciliation",
+  "harm_tolerance": {
+    "metric": "elevation_absolute_error",
+    "unit": "m",
+    "tau": 0.1,
+    "basis": "provisional_operational_assumption_not_mission_safety_threshold"
+  },
+  "trials": [
+    {"outcome": "PROMOTE", "state_error": 0.05},
+    {"outcome": "PROMOTE", "state_error": 0.15},
+    {"outcome": "PROMOTE", "state_error": 0.20},
+    {"outcome": "PROMOTE", "state_error": 0.08},
+    {"outcome": "PROMOTE", "state_error": 0.01},
+    {"outcome": "PROMOTE", "state_error": 0.09},
+    {"outcome": "ABSTAIN", "state_error": null},
+    {"outcome": "ABSTAIN", "state_error": null},
+    {"outcome": "ABSTAIN", "state_error": null},
+    {"outcome": "EXECUTION_FAILURE", "state_error": null}
+  ],
+  "conflicts": {
+    "true_conflicts": 4,
+    "true_conflicts_retained": 3,
+    "all_retained_conflicts": 5
+  },
+  "overwrites": {
+    "advance_opportunities": 8,
+    "incorrect_advances": 1
+  },
+  "expected": {
+    "harmful_acceptance_rate": 0.2,
+    "availability": 0.6,
+    "abstention_rate": 0.3,
+    "execution_failure_rate": 0.1,
+    "conflict_retention_recall": 0.75,
+    "conflict_retention_precision": 0.6,
+    "incorrect_overwrite_rate": 0.125
+  }
+}

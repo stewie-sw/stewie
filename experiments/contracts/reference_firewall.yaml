@@ -1,0 +1,174 @@
+schema_version: stewie.reference_firewall_design/1.0
+artifact_id: ART-REFERENCE-FIREWALL-DESIGN
+producer_node: EXP-010
+status: provisional_design_not_executed
+evidence_level: design_only_no_empirical_results
+source_research_commit: b70d9e7566fc68fd00dd0cf3ab9156164202cc9d
+empirical_results: null
+confirmatory_execution_allowed: false
+
+processes:
+  candidate:
+    process_id: stewie-candidate
+    identity: uid:22001
+    credential_id: credential.candidate
+    image_digest: null
+    image_status: pending_build
+    network_namespace: candidate-net
+    writable_mounts:
+      - /candidate/output
+    read_only_mounts:
+      - /candidate/input
+    forbidden_mounts:
+      - /evaluator/reference
+      - /evaluator/oracles
+      - /evaluator/private-scenario
+  evaluator:
+    process_id: stewie-evaluator
+    identity: uid:22002
+    credential_id: credential.evaluator
+    image_digest: null
+    image_status: pending_build
+    network_namespace: evaluator-net
+    writable_mounts:
+      - /evaluator/output
+    read_only_mounts:
+      - /candidate/frozen-output
+      - /evaluator/reference
+      - /evaluator/oracles
+      - /evaluator/private-scenario
+
+isolation:
+  mechanism: separate_container_mounts
+  candidate_reference_access: false
+  evaluator_reference_access: true
+  separate_identities: true
+  separate_credentials: true
+  shared_memory: false
+  evaluator_mount_time: after_candidate_exit_and_output_freeze
+  runtime_attestation_status: not_executed
+
+private_scenario:
+  owner: evaluator
+  mount: /evaluator/private-scenario/scenario.json
+  content_hash: null
+  hash_status: pending_materialization
+  contains:
+    - candidate_visible_fields
+    - withheld_execution_truth_manifest_id
+    - evaluator_dependency_oracle_id
+    - evaluator_conflict_labels
+    - evaluator_plan_constraint_labels
+
+candidate_view_projection:
+  projection_id: scenario.candidate-view/1.0
+  implementation_path: experiments/contracts/generators/candidate_view.py
+  implementation_status: specified_not_implemented
+  output_mount: /candidate/input/scenario.json
+  output_hash: null
+  include:
+    - scenario_id
+    - site_id
+    - domain
+    - terrain_base_manifest
+    - robots
+    - candidate_visible_action_manifest
+    - evidence_records_where_available_to_candidate_is_true
+    - system_configuration
+    - task_harm_tolerance
+    - public_seed
+  exclude:
+    - withheld_execution_truth_manifest_id
+    - withheld_execution_truth_content_hash
+    - evaluator_mount_paths
+    - evaluator_dependency_oracle_id
+    - evaluator_dependency_labels
+    - unavailable_claim_ids
+    - unavailable_claim_count
+    - evaluator_conflict_labels
+    - evaluator_plan_constraint_labels
+    - poison_variant_id
+  metadata_noninterference_rule: >
+    Changing an excluded evaluator-only value, identifier, count, ordering field, or payload must not
+    alter the canonical candidate-view bytes.
+
+candidate_output_freeze:
+  protocol_id: candidate-output-freeze/1.0
+  steps:
+    - candidate exits with recorded exit status
+    - canonical output manifest is serialized with sorted keys and finite numeric values
+    - every output payload and manifest receives SHA-256
+    - output directory is fsynced
+    - output directory is remounted read-only for evaluator
+    - evaluator reference mounts become available only after the preceding steps
+  manifest_hash: null
+  attestation_status: not_executed
+
+permission_probes:
+  - id: deny-reference-directory-list
+    actor: candidate
+    target: /evaluator/reference
+    expected: EACCES_or_ENOENT
+  - id: deny-oracle-open
+    actor: candidate
+    target: /evaluator/oracles/dependency
+    expected: EACCES_or_ENOENT
+  - id: deny-private-scenario-open
+    actor: candidate
+    target: /evaluator/private-scenario/scenario.json
+    expected: EACCES_or_ENOENT
+  - id: allow-candidate-input
+    actor: candidate
+    target: /candidate/input/scenario.json
+    expected: read_only_success
+
+poison_tests:
+  - id: poison-reference-terrain
+    mutate_only: withheld_reference_terrain_payload
+    required_invariant:
+      - candidate_view_hash_identical
+      - candidate_output_manifest_hash_identical
+      - candidate_decision_bytes_identical
+  - id: poison-executed-action-truth
+    mutate_only: withheld_executed_action_manifest
+    required_invariant:
+      - candidate_view_hash_identical
+      - candidate_output_manifest_hash_identical
+      - candidate_decision_bytes_identical
+  - id: poison-dependency-oracle
+    mutate_only: evaluator_dependency_oracle_values_and_ids
+    required_invariant:
+      - candidate_view_hash_identical
+      - candidate_output_manifest_hash_identical
+      - candidate_support_bytes_identical
+  - id: poison-withheld-evidence-metadata
+    mutate_only: unavailable_claim_ids_counts_and_order
+    required_invariant:
+      - candidate_view_hash_identical
+      - candidate_output_manifest_hash_identical
+      - candidate_decision_bytes_identical
+
+attestation:
+  artifact_id: ART-REFERENCE-FIREWALL-ATTESTATION
+  status: not_executed
+  command: null
+  candidate_image_digest: null
+  evaluator_image_digest: null
+  permission_probe_results: null
+  poison_test_results: null
+  content_hash: null
+
+freeze_requirements:
+  - candidate-view projection implementation and mutation tests pass
+  - container image digests are frozen
+  - all permission probes have expected results
+  - every poison variant leaves candidate bytes bit-identical
+  - attestation records commands exits identities mounts hashes and environment
+  - independent data-provenance reviewer accepts the attestation
+
+acceptance_blockers:
+  - candidate-view projection is not implemented
+  - container images and digests do not exist
+  - permission probes have not executed
+  - poison tests have not executed
+  - no attestation exists

@@ -1,0 +1,92 @@
+schema_version: stewie.unit_seed_allocation/1.0
+artifact_id: ART-PILOT-ALLOCATION
+producer_node: EXP-010
+phase: pilot
+status: provisional_reserved_not_executed
+evidence_level: design_only_no_empirical_results
+source_research_commit: b70d9e7566fc68fd00dd0cf3ab9156164202cc9d
+allocation_lock: reserved_by_this_contract
+spatial_disjointness_verified: false
+executed: false
+empirical_results: null
+confirmatory_results_eligible: false
+execution_allowed: false
+
+purpose:
+  - estimate paired unit-level variance
+  - verify perturbation feasibility
+  - calibrate minimum effects and sample size without using evaluation units
+
+independent_unit_kind: terrain_action_pair
+resampling_level: terrain_action_pair
+repeated_measures:
+  - system
+  - mechanism_cell
+  - perturbation_cell
+  - observation_realization
+  - seed
+
+terrain_source:
+  source_id: haworth_lola_5m
+  content_hash: null
+  hash_status: pending_crop_materialization
+  candidate_visibility: base_terrain_only
+
+units:
+  - unit_id: pilot.haworth.cal-window-01.cut
+    window_id: haworth.cal-window-01
+    window_geometry_hash: null
+    action_geometry_id: action.calibration-cut/1.0
+    action_geometry_hash: null
+    materialization_status: reserved_not_materialized
+  - unit_id: pilot.haworth.cal-window-02.deposit
+    window_id: haworth.cal-window-02
+    window_geometry_hash: null
+    action_geometry_id: action.calibration-deposit/1.0
+    action_geometry_hash: null
+    materialization_status: reserved_not_materialized
+  - unit_id: pilot.haworth.cal-window-03.grade
+    window_id: haworth.cal-window-03
+    window_geometry_hash: null
+    action_geometry_id: action.calibration-grade/1.0
+    action_geometry_hash: null
+    materialization_status: reserved_not_materialized
+  - unit_id: pilot.haworth.cal-window-04.cut-fill
+    window_id: haworth.cal-window-04
+    window_geometry_hash: null
+    action_geometry_id: action.calibration-cut-fill/1.0
+    action_geometry_hash: null
+    materialization_status: reserved_not_materialized
+
+seeds: [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008]
+unit_count: 4
+seeds_per_unit: 8
+unit_seed_pair_count: 32
+
+disjointness_contract:
+  must_be_disjoint_from: experiments/contracts/evaluation_allocation.yaml
+  dimensions:
+    - unit_id
+    - window_id
+    - seed
+  minimum_window_separation_m: 50
+  geometry_verification_status: pending
+
+freeze_requirements:
+  - terrain source and each window geometry have content hashes
+  - action geometry payloads have content hashes
+  - geospatial check proves pilot windows are mutually disjoint
+  - geospatial check proves minimum separation from all evaluation windows
+  - independent reviewer accepts the pilot/evaluation split
+
+calibration_outputs_expected:
+  - paired unit-level variance by comparison family
+  - perturbation feasibility and failure-rate report
+  - recommended independent-unit count
+  - minimum-effect sensitivity report
+
+acceptance_blockers:
+  - terrain/action payloads are not materialized
+  - spatial disjointness is not verified
+  - pilot has not executed
+  - no calibration output exists

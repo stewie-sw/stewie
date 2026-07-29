@@ -40,7 +40,7 @@
     "research_questions": {
       "type": "array",
       "minItems": 1,
-      "items": {"type": "string", "pattern": "^RQ[1-6]$"},
+      "items": {"type": "string", "pattern": "^RQ[1-7]$"},
       "uniqueItems": true
     },
     "terrain": {

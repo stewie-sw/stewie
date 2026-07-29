@@ -1,0 +1,25 @@
+{
+  "schema_version": "stewie.metric_oracle/1.0",
+  "fixture_id": "metric.interaction.provenance-dependency",
+  "status": "synthetic_oracle_fixture_not_empirical_result",
+  "metric_family": "interaction",
+  "inputs": {
+    "harmful_acceptance_rate": {
+      "P0D0": 0.4,
+      "P1D0": 0.3,
+      "P0D1": 0.35,
+      "P1D1": 0.15
+    },
+    "availability": {
+      "P0D0": 0.8,
+      "P1D0": 0.8,
+      "P0D1": 0.79,
+      "P1D1": 0.78
+    },
+    "availability_max_absolute_decrease": 0.1
+  },
+  "expected": {
+    "normalized_provenance_dependency_interaction": 0.1,
+    "availability_guard_passes": true
+  }
+}

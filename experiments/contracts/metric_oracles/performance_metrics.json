@@ -1,0 +1,32 @@
+{
+  "schema_version": "stewie.metric_oracle/1.0",
+  "fixture_id": "metric.performance.mandatory-budget",
+  "status": "synthetic_oracle_fixture_not_empirical_result",
+  "metric_family": "performance",
+  "inputs": {
+    "budgets": {
+      "reconcile_p95_ms": 500.0,
+      "reconcile_p99_ms": 1000.0,
+      "bitemporal_query_p95_ms": 250.0,
+      "provenance_trace_p95_ms": 250.0,
+      "replay_1000_versions_s": 10.0,
+      "peak_rss_mib": 2048.0,
+      "deterministic_replay_mismatch_count": 0.0
+    },
+    "observed_fixture_values": {
+      "reconcile_p95_ms": 450.0,
+      "reconcile_p99_ms": 950.0,
+      "bitemporal_query_p95_ms": 200.0,
+      "provenance_trace_p95_ms": 225.0,
+      "replay_1000_versions_s": 8.0,
+      "peak_rss_mib": 1800.0,
+      "deterministic_replay_mismatch_count": 0.0
+    },
+    "required_workloads": 7,
+    "completed_workloads": 7
+  },
+  "expected": {
+    "mandatory_budget_violation_count": 0,
+    "required_run_completion_rate": 1.0
+  }
+}

@@ -1,0 +1,384 @@
+schema_version: stewie.hypothesis_contracts/1.0
+artifact_id: ART-HYPOTHESIS-CONTRACTS
+producer_node: RES-030
+status: provisional_pre_pilot
+evidence_level: design_only_no_empirical_results
+source_research_commit: b70d9e7566fc68fd00dd0cf3ab9156164202cc9d
+baseline_registry: BASELINE_REGISTRY.yaml
+pilot_allocation: experiments/contracts/pilot_allocation.yaml
+evaluation_allocation: experiments/contracts/evaluation_allocation.yaml
+empirical_results: null
+confirmatory_execution_allowed: false
+
+value_status:
+  domains: bounded_design_scope
+  comparator_assignments: specified_implementation_attestation_pending
+  minimum_effects: provisional_operational_assumptions_not_calibrated
+  perturbation_bounds: provisional_exact_levels_not_calibrated
+  availability_margins: provisional_operational_assumptions_not_calibrated
+  falsification_rules: specified
+
+common:
+  independent_unit: terrain_action_pair
+  repeated_measures:
+    - system
+    - mechanism_cell
+    - perturbation_cell
+    - observation_realization
+    - seed
+  resampling_level: terrain_action_pair
+  alpha: 0.05
+  target_power: 0.80
+  interval: paired_cluster_bootstrap_95_percent
+  missing_output_policy: score_as_failure_and_report_execution_failure
+  candidate_information_policy: identical_candidate_visible_inputs
+  evaluator_truth_policy: unavailable_until_candidate_output_freeze
+
+hypotheses:
+  - id: H1
+    research_question: RQ1
+    title: bitemporal conformance and valid-time-aware promotion
+    domain:
+      id: lunar_haworth_controlled_temporal
+      body: Moon
+      site: Haworth
+      mode: controlled_simulation_replay
+      generality_claim: false
+    scenario_family: delayed_out_of_order_retroactive_correction
+    candidate_system: P-STEWIE
+    comparators: [B-LWW, B-TS, B-VERSION, B-REPLACE, B-BITEMP]
+    confirmatory_comparators: [B-LWW, B-TS, B-VERSION, B-BITEMP]
+    primary_endpoint:
+      metric: stale_overwrite_rate
+      direction: lower
+      aggregation: paired_unit_mean
+    estimand:
+      id: h1.minimum_paired_absolute_reduction
+      formula: min_c(mean_unit(c_stale_overwrite_rate - P-STEWIE_stale_overwrite_rate)); c in [B-LWW B-TS B-VERSION B-BITEMP]
+      favorable_direction: positive
+    multiplicity: intersection_union_all_confirmatory_contrasts_must_pass
+    minimum_effect:
+      value: 0.10
+      units: absolute_rate_difference
+      basis: provisional_operational_assumption
+      calibration_status: not_calibrated
+    bounds:
+      status: provisional_exact_levels
+      observation_delay_s: [0, 5, 30, 120]
+      source_clock_offset_s: [-2, 0, 2]
+      delivery_order: [causal, adjacent_swap, reverse]
+      retroactive_correction: [false, true]
+    availability:
+      metric: candidate_visible_input_fraction
+      comparator: B-BITEMP
+      max_absolute_decrease: 0.0
+      decision: reject_if_exceeded
+    structural_gates:
+      - P-STEWIE exact-set valid-time query agreement equals 1.0
+      - P-STEWIE exact-set transaction-time query agreement equals 1.0
+      - B-BITEMP exact-set valid-time query agreement equals 1.0
+      - B-BITEMP exact-set transaction-time query agreement equals 1.0
+    falsification:
+      - any structural query gate fails
+      - paired improvement is less than 0.10
+      - paired 95 percent interval includes zero improvement
+      - any comparator receives less candidate-visible information
+
+  - id: H2
+    research_question: RQ2
+    title: dependency-aware effective support
+    domain:
+      id: lunar_haworth_controlled_multi_robot
+      body: Moon
+      site: Haworth
+      mode: controlled_multi_robot_simulation
+      generality_claim: false
+    scenario_family: action_overlap_dependency_and_partial_coverage
+    candidate_system: P-STEWIE
+    comparators: [A-INDEP, A-GLOBAL, A-NOUNC, B-CI]
+    confirmatory_comparators: [A-INDEP, A-GLOBAL]
+    primary_endpoint:
+      metric: harmful_acceptance_rate
+      direction: lower
+      aggregation: paired_unit_mean_at_tau
+    estimand:
+      id: h2.minimum_paired_absolute_reduction
+      formula: min_c(mean_unit(c_harmful_acceptance_rate - P-STEWIE_harmful_acceptance_rate)); c in [A-INDEP A-GLOBAL]
+      favorable_direction: positive
+    multiplicity: intersection_union_all_confirmatory_contrasts_must_pass
+    minimum_effect:
+      value: 0.10
+      units: absolute_rate_difference
+      basis: provisional_operational_assumption
+      calibration_status: not_calibrated
+    bounds:
+      status: provisional_exact_levels
+      robot_count: [2, 4, 8]
+      action_overlap_fraction: [0.0, 0.5, 1.0]
+      jointly_observed_coverage_fraction: [0.25, 0.5, 1.0]
+      missing_action_report_fraction: [0.0, 0.25]
+      fabricated_action_report_fraction: [0.0, 0.25]
+      evaluator_error_correlation: [0.0, 0.5]
+    availability:
+      metric: availability
+      comparator: A-INDEP
+      max_absolute_decrease: 0.10
+      decision: reject_if_exceeded_in_any_required_stratum
+    structural_gates:
+      - evaluator dependency oracle is independently generated
+      - candidate cannot read evaluator dependency labels or generator state
+      - partial and non-overlapping coverage masks remain explicit
+    falsification:
+      - paired improvement is less than 0.10
+      - paired 95 percent interval includes zero improvement
+      - availability decreases by more than 0.10 in any required stratum
+      - improvement disappears in any registered partial-coverage stratum
+      - dependency oracle is derived from candidate-visible action-report faults
+
+  - id: H3
+    research_question: RQ3
+    title: contestable physics veto
+    domain:
+      id: lunar_haworth_controlled_physics_mismatch
+      body: Moon
+      site: Haworth
+      mode: controlled_simulation_with_biased_model
+      generality_claim: false
+    scenario_family: joint_sensor_fault_and_physics_mismatch
+    candidate_system: P-STEWIE
+    comparators: [A-NOPHYS, B-IVF, B-CI, B-LWW]
+    confirmatory_comparators: [A-NOPHYS, B-IVF]
+    primary_endpoint:
+      metric: worst_grid_cell_harmful_acceptance_rate
+      direction: lower
+      aggregation: maximum_over_registered_grid_after_unit_aggregation
+    estimand:
+      id: h3.minimum_worst_condition_absolute_reduction
+      formula: min_c(max_grid(c_unit_mean_harm) - max_grid(P-STEWIE_unit_mean_harm)); c in [A-NOPHYS B-IVF]
+      favorable_direction: positive
+    multiplicity: intersection_union_both_confirmatory_contrasts_must_pass
+    minimum_effect:
+      value: 0.10
+      units: absolute_rate_difference
+      basis: provisional_operational_assumption
+      calibration_status: not_calibrated
+    bounds:
+      status: provisional_exact_levels
+      sensor_offset_tau_multiple: [-2.0, -1.0, 0.0, 1.0, 2.0]
+      physics_model_bias_tau_multiple: [-2.0, -1.0, 0.0, 1.0, 2.0]
+      physics_available: [false, true]
+    availability:
+      metric: availability
+      comparator: A-NOPHYS
+      max_absolute_decrease: 0.10
+      decision: reject_if_exceeded_in_any_required_grid_cell
+    structural_gates:
+      - physics-labelled claims cannot be admitted observations
+      - physics cannot provide candidate values weights missing-cell fills or source selection
+      - changing arbitrary physics-predicted bytes while holding decision class fixed leaves candidate and promoted payload bytes identical
+    falsification:
+      - either physics comparator matches or improves the primary estimand
+      - worst-condition improvement is less than 0.10
+      - availability decreases by more than 0.10 in any required grid cell
+      - any structural noninterference gate fails
+      - candidate output depends on withheld evaluation reference
+
+  - id: H4
+    research_question: RQ4
+    title: provenance-gated reconciliation and conflict retention
+    domain:
+      id: lunar_haworth_controlled_provenance_conflict
+      body: Moon
+      site: Haworth
+      mode: controlled_multi_source_simulation
+      generality_claim: false
+    scenario_family: delayed_duplicate_frame_and_calibration_conflict
+    candidate_system: P-STEWIE
+    comparators: [B-NOPROV, B-PROV, B-SINGLE, A-NOPROVGATE]
+    confirmatory_comparators: [B-NOPROV, B-PROV, B-SINGLE, A-NOPROVGATE]
+    primary_endpoint:
+      metric: incorrect_overwrite_rate
+      direction: lower
+      aggregation: paired_unit_mean
+    estimand:
+      id: h4.minimum_paired_absolute_reduction
+      formula: min_c(mean_unit(c_incorrect_overwrite_rate - P-STEWIE_incorrect_overwrite_rate)); c in [B-NOPROV B-PROV B-SINGLE A-NOPROVGATE]
+      favorable_direction: positive
+    multiplicity: intersection_union_all_confirmatory_contrasts_must_pass
+    minimum_effect:
+      value: 0.10
+      units: absolute_rate_difference
+      basis: provisional_operational_assumption
+      calibration_status: not_calibrated
+    bounds:
+      status: provisional_exact_levels
+      duplicate_mode: [none, exact_duplicate, relabelled_duplicate]
+      contradictory_claim_delay_s: [0, 30, 120]
+      frame_translation_error_m: [0.0, 0.25, 1.0]
+      calibration_invalidated: [false, true]
+    availability:
+      metric: candidate_visible_evidence_fraction
+      comparator: B-PROV
+      max_absolute_decrease: 0.0
+      decision: reject_if_information_differs
+    mandatory_guards:
+      decision_replay_rate_minimum: 0.99
+      explanation_edge_precision_minimum: 0.90
+      explanation_edge_recall_minimum: 0.90
+    falsification:
+      - paired improvement is less than 0.10
+      - paired 95 percent interval includes zero improvement
+      - decision replay rate is below 0.99
+      - explanation-edge precision or recall is below 0.90
+      - a registered true conflict is silently discarded
+
+  - id: H5
+    research_question: RQ5
+    title: downstream decision value
+    domain:
+      id: lunar_haworth_controlled_planning
+      body: Moon
+      site: Haworth
+      mode: controlled_plan_simulate_verify
+      generality_claim: false
+    scenario_family: route_construction_and_verification_decisions
+    candidate_system: P-STEWIE
+    comparators: [B-LWW, B-BITEMP, B-SINGLE]
+    confirmatory_comparators: [B-LWW]
+    primary_endpoint:
+      metric: harmful_plan_commitment_rate
+      direction: lower
+      aggregation: paired_unit_mean
+    estimand:
+      id: h5.paired_absolute_reduction
+      formula: mean_unit(B-LWW_harmful_plan_commitment_rate - P-STEWIE_harmful_plan_commitment_rate)
+      favorable_direction: positive
+    multiplicity: none_single_confirmatory_contrast
+    minimum_effect:
+      value: 0.10
+      units: absolute_rate_difference
+      basis: provisional_operational_assumption
+      calibration_status: not_calibrated
+    bounds:
+      status: provisional_exact_levels
+      decision_type: [route, excavation, deposition, verification_scan]
+      observation_delay_s: [0, 30, 120]
+      state_conflict_present: [false, true]
+      plan_constraint_type: [map_version, slope, collision, work_zone]
+    availability:
+      metric: plan_commit_opportunity_completion
+      comparator: B-LWW
+      max_absolute_decrease: 0.10
+      decision: reject_if_exceeded
+    structural_gates:
+      - every plan records exact accepted revision and query lens
+      - every comparator uses the identical planner and candidate-visible inputs
+    falsification:
+      - paired improvement is less than 0.10
+      - paired 95 percent interval includes zero improvement
+      - plan-opportunity completion decreases by more than 0.10
+      - proposed system receives information unavailable to a comparator
+      - only a secondary endpoint improves
+
+  - id: H6
+    research_question: RQ6
+    title: bounded operational cost
+    domain:
+      id: barrier3_cpu_and_barrier5_sync_workloads
+      body: Moon
+      site: Haworth
+      mode: controlled_performance_benchmark
+      generality_claim: false
+    scenario_family: fixed_performance_and_scaling_grid
+    candidate_system: P-STEWIE
+    comparators: [B-LWW, B-BITEMP, B-CENTRAL, B-CRDT]
+    confirmatory_comparators: [B-LWW, B-BITEMP, B-CENTRAL, B-CRDT]
+    primary_endpoint:
+      metric: mandatory_budget_violation_count
+      direction: lower
+      aggregation: count_over_all_required_workloads
+    estimand:
+      id: h6.budget_violation_count
+      formula: count(required_metric_value > registered_budget)
+      favorable_direction: zero
+    multiplicity: all_mandatory_budgets_and_required_runs_must_pass
+    minimum_effect:
+      value: 0.0
+      units: not_applicable_conformance_hypothesis
+      basis: fixed_budget_contract
+      calibration_status: not_applicable
+    bounds:
+      status: fixed_from_performance_budget
+      terrain_cells: [65536, 262144, 1048576]
+      robot_count: [1, 2, 4, 8]
+      observation_count: [1, 2, 4, 8, 16]
+      version_count: [100, 1000, 10000]
+      conflict_density: [0.0, 0.1, 0.5, 0.9]
+      concurrent_writers: [1, 2, 4, 8]
+    availability:
+      metric: required_run_completion_rate
+      comparator: registered_workload_count
+      max_absolute_decrease: 0.0
+      decision: any_missing_required_run_is_falsification
+    mandatory_budgets:
+      reconcile_p95_ms: 500
+      reconcile_p99_ms: 1000
+      bitemporal_query_p95_ms: 250
+      provenance_trace_p95_ms: 250
+      replay_1000_versions_s: 10
+      peak_rss_mib: 2048
+      deterministic_replay_mismatch_count: 0
+    falsification:
+      - mandatory_budget_violation_count is greater than zero
+      - any required workload is missing
+      - empirical growth exceeds its registered class
+      - result cannot be reproduced in the registered resource envelope
+
+  - id: H7
+    research_question: RQ7
+    title: provenance by dependency interaction
+    domain:
+      id: lunar_haworth_controlled_duplicate_overlap_factorial
+      body: Moon
+      site: Haworth
+      mode: controlled_multi_robot_factorial
+      generality_claim: false
+    scenario_family: duplicate_identity_by_action_overlap
+    candidate_system: P-STEWIE
+    comparators: [P0D0, P1D0, P0D1, P1D1]
+    confirmatory_comparators: [P0D0, P1D0, P0D1, P1D1]
+    primary_endpoint:
+      metric: normalized_provenance_dependency_interaction
+      direction: higher
+      aggregation: paired_difference_in_differences_by_unit
+    estimand:
+      id: h7.normalized_difference_in_differences
+      formula: -((Y_P1D1 - Y_P1D0) - (Y_P0D1 - Y_P0D0))
+      favorable_direction: positive
+    multiplicity: none_single_confirmatory_interaction
+    minimum_effect:
+      value: 0.05
+      units: absolute_interaction_rate_difference
+      basis: provisional_operational_assumption
+      calibration_status: not_calibrated
+    bounds:
+      status: provisional_exact_levels
+      duplicate_mode: [none, exact_duplicate, relabelled_duplicate]
+      action_overlap_fraction: [0.0, 0.5, 1.0]
+      candidate_action_report_quality: [complete, missing_25_percent, fabricated_25_percent]
+      evaluator_error_correlation: [0.0, 0.5]
+    availability:
+      metric: availability
+      comparator: P0D0
+      max_absolute_decrease: 0.10
+      decision: reject_if_exceeded_in_any_factorial_cell
+    structural_gates:
+      - all four mechanism cells receive bit-identical candidate-visible inputs
+      - dependency oracle is evaluator-only and independently generated
+      - provenance identity labels are not derived from evaluator error labels
+    falsification:
+      - normalized interaction is less than 0.05
+      - paired 95 percent interval includes zero interaction
+      - availability decreases by more than 0.10 in any factorial cell
+      - dependency oracle is derived from evaluated action-report faults
+      - any mechanism cell receives unequal candidate-visible inputs

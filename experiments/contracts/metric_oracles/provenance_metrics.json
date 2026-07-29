@@ -1,0 +1,21 @@
+{
+  "schema_version": "stewie.metric_oracle/1.0",
+  "fixture_id": "metric.provenance.edges-replay-correction",
+  "status": "synthetic_oracle_fixture_not_empirical_result",
+  "metric_family": "provenance",
+  "inputs": {
+    "predicted_typed_edges": 5,
+    "oracle_typed_edges": 6,
+    "correct_predicted_typed_edges": 4,
+    "replay_attempts": 100,
+    "successful_replays": 99,
+    "first_corrective_evidence_sequence": 12,
+    "durable_corrected_head_sequence": 16
+  },
+  "expected": {
+    "explanation_edge_precision": 0.8,
+    "explanation_edge_recall": 0.6666666666666666,
+    "decision_replay_rate": 0.99,
+    "automated_correction_latency_sequences": 4
+  }
+}
