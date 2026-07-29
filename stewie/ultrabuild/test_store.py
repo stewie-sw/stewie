@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+import sqlite3
+import struct
 import threading
 
 import pytest
@@ -17,6 +19,7 @@ from stewie.ultrabuild.records import (
     branch_record,
     candidate_record,
     invalidation_event_record,
+    observation_record,
     promoted_revision_record,
     promotion_decision_record,
     provenance_record,
@@ -119,13 +122,13 @@ def test_golden_world_is_integral_and_survives_cold_restore(
     }
     before = [canonical_bytes(record) for record in store.records()]
     head_before = store.branch_head("branch.accepted")
-    snapshot = store.snapshot_to(tmp_path / "cold-restore.sqlite3")
+    snapshot = store.snapshot_to(tmp_path / "cold" / "authority.sqlite3")
     store.close()
 
     with AuthoritativeStore(
         snapshot,
         clock=lambda: "2026-07-29T00:00:01Z",
-        payload_store=ContentAddressedPayloadStore(tmp_path / "payloads"),
+        payload_store=ContentAddressedPayloadStore(tmp_path / "cold" / "payloads"),
         require_local_payloads=True,
     ) as restored:
         assert [canonical_bytes(record) for record in restored.records()] == before
@@ -141,6 +144,136 @@ def test_golden_world_is_integral_and_survives_cold_restore(
         )
         assert revision is not None
         assert revision["revision_id"] == ids["revision_id"]
+
+
+def test_snapshot_database_and_payloads_share_one_exact_cut(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "snapshot"
+    store_a, _ = build_golden_world(source / "authority.sqlite3")
+    assert store_a.payload_store is not None
+    store_b = AuthoritativeStore(
+        source / "authority.sqlite3",
+        payload_store=ContentAddressedPayloadStore(source / "payloads"),
+        require_local_payloads=True,
+        clock=lambda: "2026-07-29T00:00:01Z",
+    )
+    original_snapshot = store_a.payload_store.snapshot_to
+    payload_copy_started = threading.Event()
+    release_payload_copy = threading.Event()
+
+    def paused_payload_snapshot(
+        destination_path: str | Path,
+        content_hashes: object,
+    ) -> ContentAddressedPayloadStore:
+        payload_copy_started.set()
+        if not release_payload_copy.wait(timeout=10):
+            raise RuntimeError("test did not release payload snapshot")
+        return original_snapshot(destination_path, content_hashes)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(store_a.payload_store, "snapshot_to", paused_payload_snapshot)
+    result: list[Path] = []
+    failures: list[BaseException] = []
+
+    def take_snapshot() -> None:
+        try:
+            result.append(
+                store_a.snapshot_to(destination / "authority.sqlite3")
+            )
+        except BaseException as exc:  # pragma: no cover - asserted below
+            failures.append(exc)
+
+    worker = threading.Thread(target=take_snapshot)
+    worker.start()
+    try:
+        assert payload_copy_started.wait(timeout=10)
+        assert store_b.payload_store is not None
+        values = struct.pack("<4d", 5.0, 6.0, 7.0, 8.0)
+        coverage = b"\x01" * 4
+        value_receipt = store_b.payload_store.put(
+            values,
+            media_type="application/x-stewie-raster",
+        )
+        coverage_receipt = store_b.payload_store.put(
+            coverage,
+            media_type="application/x-stewie-coverage",
+        )
+        append_with_provenance(
+            store_b,
+            "evidence_claim.schema.json",
+            observation_record(
+                claim_id="claim.after-snapshot-cut",
+                provenance_bundle_id="provenance.after-snapshot-cut",
+                payload_hash=str(value_receipt["content_hash"]),
+                coverage_hash=str(coverage_receipt["content_hash"]),
+            ),
+            token="after-snapshot-cut",
+        )
+    finally:
+        release_payload_copy.set()
+        worker.join(timeout=10)
+        store_a.close()
+        store_b.close()
+
+    assert not worker.is_alive()
+    assert failures == []
+    assert result == [destination / "authority.sqlite3"]
+    with AuthoritativeStore(
+        result[0],
+        payload_store=ContentAddressedPayloadStore(destination / "payloads"),
+        require_local_payloads=True,
+    ) as restored:
+        report = restored.verify_integrity()
+        assert report["ok"] is True, report["errors"]
+        assert report["record_count"] == 18
+        assert restored.get("claim.after-snapshot-cut") is None
+
+
+def test_integrity_detects_deleted_transaction_sequence(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "authority.sqlite3"
+    store, _ = build_golden_world(database)
+    store.close()
+    with sqlite3.connect(database) as connection:
+        record_id = connection.execute(
+            "SELECT record_id FROM records WHERE sequence=2"
+        ).fetchone()[0]
+        connection.execute(
+            "DELETE FROM idempotency WHERE record_id=?",
+            (record_id,),
+        )
+        connection.execute("DELETE FROM records WHERE sequence=2")
+
+    with AuthoritativeStore(
+        database,
+        payload_store=ContentAddressedPayloadStore(tmp_path / "payloads"),
+        require_local_payloads=True,
+    ) as reopened:
+        report = reopened.verify_integrity()
+    assert report["ok"] is False
+    assert any("transaction sequence gap" in error for error in report["errors"])
+
+
+def test_environment_commit_is_externally_declared_not_verified(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("STEWIE_EVIDENCE_COMMIT", "a" * 40)
+    store, ids = build_golden_world(tmp_path / "authority.sqlite3")
+    try:
+        observation = store.get(ids["observation_id"])
+        assert observation is not None
+        bundle = store.get(str(observation["provenance_bundle_id"]))
+        assert bundle is not None
+        activities = bundle["activities"]
+        assert isinstance(activities, list) and activities
+        assert activities[0]["code_commit"] == "a" * 40
+        assert activities[0]["code_commit_status"] == "externally_declared"
+    finally:
+        store.close()
 
 
 def test_payload_store_is_content_addressed_and_detects_corruption(

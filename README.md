@@ -138,6 +138,21 @@ pip install -e .[server]   # the planner API and cockpit only
 
 Requires Python 3.11 or newer.
 
+**Persistent world-state research prototype:**
+
+```bash
+pip install -e packages/stewie-bodies
+pip install -e '.[ultrabuild]'
+stewie-ultrabuild demo --output /tmp/stewie-demo
+stewie-ultrabuild verify \
+  --database /tmp/stewie-demo/world-state.sqlite3 \
+  --payloads /tmp/stewie-demo/payloads
+```
+
+This UltraBuild path is a controlled, single-host research prototype, not a physical-deployment
+stack. Installation, evidence, limitations, and exact replication commands are indexed in
+[`REPRODUCIBILITY_PACKAGE.md`](REPRODUCIBILITY_PACKAGE.md).
+
 **Planner cockpit** (the `app.stewie.space` stack):
 
 ```bash

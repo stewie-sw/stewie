@@ -31,9 +31,9 @@ authenticity, calibrated truth, or that a reported physical event occurred.
 - one subject naming the domain record ID, schema, record entity, submitted-record hash, generating
   activity, and responsible agent;
 - typed agents with qualified attestation, hardware, and firmware fields;
-- activities with kind, agent, pipeline identity, algorithm version, package version, verified Git
-  commit or explicit unavailability, dirty-state status, configuration hash, seed where applicable,
-  and start/end times;
+- activities with kind, agent, pipeline identity, algorithm version, package version,
+  repository-discovered, build-attested, externally declared, or unavailable Git identity,
+  dirty-state status, configuration hash, seed where applicable, and start/end times;
 - typed entities with content hash and media type;
 - W3C-PROV-aligned relations;
 - transform records with source/target frames, transform payload hash, and valid time;

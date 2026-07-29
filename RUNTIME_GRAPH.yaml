@@ -140,14 +140,14 @@ nodes:
       - json.cas_receipt.v1
       - json.append_receipt.v1
     preconditions:
-      - exactly one PROMOTE decision submission and one accepted revision submission are paired
-      - required provenance bundles and candidate are durable
+      - exactly two provenance bundle submissions one PROMOTE decision submission and one accepted revision submission are paired
+      - candidate and all pre-promotion evidence are durable
       - review is approved or explicitly not required
       - decision revision world site branch policy prior head and state contract match
       - proposed branch sequence is contiguous with the pinned expected sequence
     postconditions:
-      - applied result commits decision revision append receipts operation receipt and one head advance atomically
-      - stale or invalid result commits no decision revision or head change
+      - applied result commits both provenance bundles decision revision append receipts operation receipt and one head advance atomically
+      - stale or invalid result commits no promotion provenance decision revision or head change
     timeout_ms: 100
     retry_policy:
       max_attempts: 1
@@ -157,7 +157,7 @@ nodes:
     evidence_generated:
       - typed CAS receipt with expected observed and proposed revisions decision sequence and append receipt IDs
     permitted_mutations:
-      - atomically append promotion decision and accepted revision
+      - atomically append two promotion provenance bundles promotion decision and accepted revision
       - compare-and-swap rebuildable accepted branch head
       - update promotion operation receipt registry
     idempotency_key_required: true
@@ -307,8 +307,10 @@ edges:
     consumer: RT-PROMOTE
     artifacts:
       - json.record_submission.v1
-    trigger: candidate and provenance are durable and paired decision is PROMOTE
+    trigger: candidate is durable and paired promotion provenance decision and revision submissions are ready
     fan_in:
+      - decision provenance submission
+      - revision provenance submission
       - promotion decision submission
       - accepted revision submission
       - pinned branch snapshot
@@ -348,7 +350,7 @@ edges:
     trigger: promotion applied and accepted head changed
     fan_in:
       - promotion CAS receipt
-      - decision and revision append receipts
+      - both provenance decision and revision append receipts
 
   - id: RTE-PROJECT-QUERY
     producer: RT-PROJECT

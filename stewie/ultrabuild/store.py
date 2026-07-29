@@ -494,11 +494,15 @@ class AuthoritativeStore:
         with self._lock:
             rows = self._connection.execute("SELECT * FROM records ORDER BY sequence").fetchall()
             graph: list[tuple[str, Mapping[str, Any]]] = []
-            for row in rows:
+            for expected_sequence, row in enumerate(rows, start=1):
                 schema_name = str(row["record_schema"])
                 record = json.loads(bytes(row["record_json"]))
                 graph.append((schema_name, record))
                 prefix = f"sequence {row['sequence']} ({row['record_id']})"
+                if int(row["sequence"]) != expected_sequence:
+                    errors.append(
+                        f"{prefix}: transaction sequence gap; expected {expected_sequence}"
+                    )
                 for error in stored_record_errors(schema_name, record):
                     errors.append(f"{prefix}: {error}")
                 if record_id(schema_name, record) != row["record_id"]:
@@ -618,24 +622,18 @@ class AuthoritativeStore:
         """Reconstruct mutable heads only after validating immutable history."""
 
         with self._lock, self._transaction() as connection:
-            graph = self._all_records(connection)
-            history_errors: list[str] = []
-            for schema_name, record in graph:
-                history_errors.extend(stored_record_errors(schema_name, record))
-            history_errors.extend(record_set_errors(graph))
-            for schema_name, record in graph:
-                if schema_name == "state_candidate.schema.json":
-                    history_errors.extend(
-                        candidate_derivation_errors(
-                            graph,
-                            record,
-                            self.payload_store,
-                        )
-                    )
+            integrity = self.verify_integrity()
+            history_errors = [
+                error
+                for error in integrity["errors"]
+                if not error.startswith("branch_heads: projection differs")
+            ]
             if history_errors:
                 raise StoreContractError(
-                    "projection rebuild refused invalid immutable history: " + "; ".join(history_errors)
+                    "projection rebuild refused non-integral immutable history: "
+                    + "; ".join(history_errors)
                 )
+            graph = self._all_records(connection)
             heads = self._derive_branch_heads(graph)
             connection.execute("DELETE FROM branch_heads")
             for head in heads.values():
@@ -667,32 +665,54 @@ class AuthoritativeStore:
         }
 
     def snapshot_to(self, destination: str | Path) -> Path:
-        """Create a SQLite backup plus an independently restorable payload CAS."""
+        """Back up SQLite first, then close payloads over that exact database cut."""
 
         target_path = Path(destination)
         target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_payload_root = target_path.parent / "payloads"
+        if target_path.exists():
+            raise FileExistsError(f"snapshot database already exists: {target_path}")
+        if target_payload_root.exists():
+            raise FileExistsError(
+                f"snapshot payload directory already exists: {target_payload_root}"
+            )
         with self._lock:
-            graph = self._all_records(self._connection)
-            payload_hashes = {
-                content_hash
-                for schema_name, record in graph
-                for content_hash, _ in self._payload_requirements(
-                    schema_name,
-                    record,
-                )
-            }
-            if payload_hashes and self.payload_store is None:
-                raise StoreContractError("snapshot contains payload references but no payload verifier")
-            if self.payload_store is not None:
-                self.payload_store.snapshot_to(
-                    target_path.parent / "payloads",
-                    payload_hashes,
-                )
-            target = sqlite3.connect(target_path)
+            target = sqlite3.connect(target_path, isolation_level=None)
+            target.row_factory = sqlite3.Row
             try:
                 self._connection.backup(target)
+                graph = self._all_records(target)
             finally:
                 target.close()
+        payload_hashes = {
+            content_hash
+            for schema_name, record in graph
+            for content_hash, _ in self._payload_requirements(
+                schema_name,
+                record,
+            )
+        }
+        if payload_hashes and self.payload_store is None:
+            raise StoreContractError(
+                "snapshot contains payload references but no payload verifier"
+            )
+        snapshot_payloads = ContentAddressedPayloadStore(target_payload_root)
+        if self.payload_store is not None:
+            snapshot_payloads = self.payload_store.snapshot_to(
+                target_payload_root,
+                payload_hashes,
+            )
+        with AuthoritativeStore(
+            target_path,
+            payload_store=snapshot_payloads,
+            require_local_payloads=bool(payload_hashes),
+        ) as restored:
+            integrity = restored.verify_integrity()
+        if not integrity["ok"]:
+            raise StoreContractError(
+                "snapshot failed exact-cut integrity verification: "
+                + "; ".join(integrity["errors"])
+            )
         return target_path
 
     def branch_head(self, branch_id: str) -> dict[str, Any] | None:
@@ -930,6 +950,12 @@ class AuthoritativeStore:
         known_at_sequence: int,
         state_kinds: Sequence[str],
     ) -> dict[str, Any] | None:
+        integrity = self.verify_integrity()
+        if not integrity["ok"]:
+            raise StoreContractError(
+                "authoritative query refused non-integral history: "
+                + "; ".join(integrity["errors"])
+            )
         placeholders = ",".join("?" for _ in state_kinds)
         if not placeholders:
             raise ValueError("state_kinds must not be empty")

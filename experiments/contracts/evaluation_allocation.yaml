@@ -87,7 +87,7 @@ analysis_freeze:
   reference_firewall: experiments/contracts/reference_firewall.yaml
   multiplicity_method: fixed_sequence_within_family
   stopping_rule: fixed_count
-  planned_unit_seed_pairs_per_system_per_perturbation_cell: 192
+  planned_unit_seed_pairs_per_system_per_perturbation_cell: 64
 
 freeze_requirements:
   - pilot variance and feasibility report is committed

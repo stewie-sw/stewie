@@ -261,3 +261,37 @@ def test_benchmark_cli_rejects_too_few_measured_runs_as_usage_error(
     assert "measured-runs" in captured.err
     assert "20" in captured.err
     assert not any(tmp_path.iterdir())
+
+
+def test_benchmark_cli_reports_output_reuse_as_usage_error(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert (
+        cli_main(
+            [
+                "benchmark",
+                "--output",
+                str(tmp_path),
+                "--measured-runs",
+                "20",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    with pytest.raises(SystemExit) as error:
+        cli_main(
+            [
+                "benchmark",
+                "--output",
+                str(tmp_path),
+                "--measured-runs",
+                "20",
+            ]
+        )
+    assert error.value.code == 2
+    captured = capsys.readouterr()
+    assert "existing artifacts" in captured.err
+    assert "fresh" in captured.err
+    assert "Traceback" not in captured.err

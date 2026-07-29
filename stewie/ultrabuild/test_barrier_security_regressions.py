@@ -565,3 +565,61 @@ def test_barrier_regression_10_hypothesis_claim_assignments_are_disjoint(
                 ]
             )
         assert store.get(str(hypotheses["hypothesis_set_id"])) is None
+
+
+def test_authoritative_query_rejects_broken_upstream_lineage(
+    tmp_path: Path,
+) -> None:
+    """An intact revision is not authoritative when its admitted source is corrupt."""
+
+    store, report = run_multi_robot_closed_loop(
+        tmp_path / "lineage-query.sqlite3"
+    )
+    try:
+        claim = store.get(str(report["admitted_claim_ids"][0]))
+        assert claim is not None and store.payload_store is not None
+        store.payload_store.path(
+            str(claim["payload"]["content_hash"])
+        ).write_bytes(b"corrupt-upstream-evidence")
+        with pytest.raises(
+            (PayloadIntegrityError, StoreContractError),
+            match=r"(?i)(integr|payload|lineage|history)",
+        ):
+            store.query_revision(
+                world_id="world.lunar",
+                site_id="site.haworth",
+                branch_id="branch.accepted",
+                valid_at=10.0,
+                known_at_sequence=store.latest_sequence(),
+                state_kinds=["reconciled"],
+            )
+    finally:
+        store.close()
+
+
+def test_validator_fails_closed_on_numeric_time_overflow(
+    tmp_path: Path,
+) -> None:
+    """Schema-valid but unbounded integers must not escape the contract boundary."""
+
+    with AuthoritativeStore(
+        tmp_path / "overflow.sqlite3",
+        clock=lambda: RECORDED_AT,
+    ) as store:
+        _append_world_branches(store)
+        claim = observation_record(
+            claim_id="claim.time-overflow",
+            provenance_bundle_id="provenance.time-overflow",
+        )
+        claim["valid_time"]["start"] = 10**400
+        with pytest.raises(
+            StoreContractError,
+            match=r"(?i)(overflow|malformed|validation|graph)",
+        ):
+            append_with_provenance(
+                store,
+                "evidence_claim.schema.json",
+                claim,
+                token="time-overflow",
+            )
+        assert store.get(str(claim["claim_id"])) is None

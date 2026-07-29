@@ -1643,6 +1643,6 @@ def validate_record_set(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
         errors.extend(f"{schema_name}: {error}" for error in record_errors)
     try:
         errors.extend(cross_record_errors(records))
-    except (IndexError, KeyError, TypeError, ValueError) as exc:
+    except (IndexError, KeyError, OverflowError, TypeError, ValueError) as exc:
         errors.append(f"cross-record validation failed closed on malformed input: {type(exc).__name__}: {exc}")
     return errors

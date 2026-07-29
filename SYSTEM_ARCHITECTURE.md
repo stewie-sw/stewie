@@ -17,8 +17,9 @@ executable authority boundary without requiring a premature service split:
 - callers submit `stewie.record_submission/1.0` records without transaction or content-identity
   fields;
 - the store assigns the monotonic transaction sequence, receipt timestamp, and final record hash;
-- accepted-head promotion is a single SQLite transaction containing the promotion decision,
-  accepted revision, and compare-and-swap of the rebuildable branch head; and
+- accepted-head promotion is a single SQLite transaction containing both promotion-provenance
+  bundles, the promotion decision, accepted revision, and compare-and-swap of the rebuildable branch
+  head; and
 - spatial payload bytes live in a separate, immutable filesystem content-addressed store.
 
 The append log is authoritative. `branch_heads` and projection watermarks are mutable conveniences,
@@ -152,10 +153,12 @@ member of that batch becomes durable.
 ### Accepted-head promotion
 
 1. Pin expected revision ID and branch sequence.
-2. Submit exactly one PROMOTE decision and one accepted revision to `commit_promotion`.
-3. Recheck review status, cross-links, state contract, policy, world/site, branch, prior head, and
+2. Submit exactly two provenance bundles, one PROMOTE decision, and one accepted revision to
+   `commit_promotion`.
+3. Recheck provenance closure, review status, cross-links, state contract, policy, world/site,
+   branch, prior head, and
    contiguous revision sequence inside the write transaction.
-4. Append both completed records through the same private append primitive.
+4. Append all four completed records through the same private append primitive.
 5. Update `branch_heads` with a conditional compare-and-swap.
 6. Commit the records, head, append receipts, and operation receipt together.
 
@@ -170,7 +173,9 @@ the loser received `stale_head`.
   yet a general spatial/temporal/catalog projector.
 - `projection_receipt.schema.json` exposes requested sequence, projected sequence, lag, and freshness
   status.
-- `snapshot_to()` uses SQLite backup to produce a consistent cold-restorable database.
+- `snapshot_to()` backs up SQLite first, discovers payload references from that immutable backup,
+  copies exactly those content-addressed objects, and verifies the completed cross-store snapshot
+  before returning it. Concurrent later writes are excluded from both halves of the snapshot.
 - `verify_integrity()` revalidates canonical records, hashes, transaction ordering, full graph
   semantics, append/CAS receipts, local payloads, sequence metadata, and derived branch heads.
 - Integrity verification is explicit; automatic startup quarantine or recovery after detected

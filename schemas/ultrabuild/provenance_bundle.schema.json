@@ -171,7 +171,14 @@
             {"const": "unavailable"}
           ]
         },
-        "code_commit_status": {"enum": ["verified", "unavailable"]},
+        "code_commit_status": {
+          "enum": [
+            "repository_discovered",
+            "build_attested",
+            "externally_declared",
+            "unavailable"
+          ]
+        },
         "package_version": {"type": "string", "minLength": 1},
         "source_dirty": {"type": ["boolean", "null"]},
         "configuration_hash": {"$ref": "#/$defs/sha256"},
@@ -182,11 +189,11 @@
       "allOf": [
         {
           "if": {
-            "properties": {"code_commit_status": {"const": "verified"}},
+            "properties": {"code_commit_status": {"const": "unavailable"}},
             "required": ["code_commit_status"]
           },
-          "then": {"properties": {"code_commit": {"pattern": "^[a-f0-9]{40}$"}}},
-          "else": {"properties": {"code_commit": {"const": "unavailable"}}}
+          "then": {"properties": {"code_commit": {"const": "unavailable"}}},
+          "else": {"properties": {"code_commit": {"pattern": "^[a-f0-9]{40}$"}}}
         }
       ]
     },

@@ -999,11 +999,7 @@ def provenance_record(
     }.get(schema_name, "transform")
     identity = build_identity()
     code_commit = str(identity["code_commit"])
-    code_commit_status = (
-        "verified"
-        if len(code_commit) == 40 and all(character in "0123456789abcdef" for character in code_commit)
-        else "unavailable"
-    )
+    code_commit_status = str(identity["code_commit_status"])
     if code_commit_status == "unavailable":
         code_commit = "unavailable"
 

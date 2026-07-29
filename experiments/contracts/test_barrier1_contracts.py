@@ -18,7 +18,7 @@ def test_closure_packet_is_machine_valid_but_not_acceptance_ready() -> None:
     assert summary["blocking_items"]
 
 
-def test_pilot_and_evaluation_units_windows_and_seeds_are_disjoint() -> None:
+def test_pilot_and_retired_evaluation_identifiers_and_seeds_are_disjoint() -> None:
     pilot = contracts.load_yaml(contracts.CONTRACT_ROOT / "pilot_allocation.yaml")
     evaluation = contracts.load_yaml(contracts.CONTRACT_ROOT / "evaluation_allocation.yaml")
     contracts.validate_allocations(pilot, evaluation)

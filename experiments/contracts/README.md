@@ -23,9 +23,10 @@ No artifact in this packet is labelled experimentally validated.
   provisional MDEs/bounds, availability guards, and falsification rules.
 - `pilot_allocation.yaml`: a provisional reserved unit/window/seed assignment. Geometry and source
   hashes remain pending.
-- `evaluation_allocation.yaml`: the original disjoint evaluation assignment, now irreversibly
-  retired because its seeds and synthetic window design were exposed to the development harness. It
-  is retained as an audit artifact and must never be used as confirmatory evidence.
+- `evaluation_allocation.yaml`: the original identifier/seed-disjoint evaluation assignment, now
+  irreversibly retired because its seeds and synthetic window design were exposed to the development
+  harness. Its geometry was never materialized or proved spatially disjoint. It is retained as an
+  audit artifact and must never be used as confirmatory evidence.
 - `metric_oracles/*.json`: synthetic golden fixtures for temporal, reconciliation, provenance,
   decision, and interaction formulas.
 - `dependency_oracle_negative_controls.yaml`: independent 2x2 overlap/correlation identification

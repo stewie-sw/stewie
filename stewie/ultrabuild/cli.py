@@ -164,14 +164,15 @@ def parser() -> argparse.ArgumentParser:
     faults.add_argument("--output", type=Path, required=True)
     perturbation = commands.add_parser(
         "perturb",
-        help="run the frozen one-factor perturbation grid",
+        help="run the exposed exploratory one-factor perturbation grid",
     )
     perturbation.add_argument("--output", type=Path, required=True)
     return root
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    arguments = parser().parse_args(argv)
+    argument_parser = parser()
+    arguments = argument_parser.parse_args(argv)
     if arguments.command == "demo":
         return _demo(arguments.output)
     if arguments.command == "evaluate":
@@ -183,7 +184,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "verify":
         return _verify(arguments.database, arguments.payloads)
     if arguments.command == "benchmark":
-        return _benchmark(arguments.output, arguments.measured_runs)
+        try:
+            return _benchmark(arguments.output, arguments.measured_runs)
+        except FileExistsError as exc:
+            argument_parser.error(str(exc))
     if arguments.command == "fault-inject":
         return _fault_injection(arguments.output)
     if arguments.command == "perturb":

@@ -13,6 +13,9 @@
   package.
 - Existing results use a real Haworth base terrain with controlled simulated excavations, noise,
   biases, delays, coverage, and action-log faults. They are not field validation.
+- The retained UltraBuild evaluation and perturbation reports are a different evidence family: they
+  use exposed, generated 12×12 development arrays rather than the Haworth data product. They are
+  exploratory diagnostics only and cannot support a real-terrain claim.
 - No current experiment establishes that better persistent state management changes downstream
   autonomous decisions.
 - `NOVELTY_REVIEW.md` covers an initial set of primary bitemporal, provenance, CRDT, multi-robot,
@@ -36,9 +39,10 @@
 - WAL plus `synchronous=FULL` and SQLite backup are configured and cold restore is tested, but
   kill-at-every-instruction crash recovery, disk-full behavior, filesystem-specific durability, and
   backup rotation are not tested.
-- `snapshot_to()` copies the SQLite database and every payload referenced by its immutable history
-  into a sibling content-addressed store. A signed cross-store backup manifest, remote replication,
-  incremental backup, and retention/rotation policy are not implemented.
+- `snapshot_to()` uses a backup-first exact-cut protocol, copies every payload referenced by that
+  backed-up history, and verifies the resulting database/CAS bundle. A signed cross-store backup
+  manifest, remote replication, incremental backup, and retention/rotation policy are not
+  implemented.
 - `verify_integrity()` is explicit. The store does not automatically quarantine a corrupt database on
   startup, distinguish a torn tail from interior corruption, or implement a recovery policy.
 - Append-only behavior is enforced by the Python gateway and checked by hashes; SQLite does not yet
@@ -137,6 +141,9 @@
   adapter-generated IDs become authoritative.
 - Receipt timestamps use a supplied process clock; production monotonicity across clock rollback is
   not guaranteed by the timestamp, although the SQLite sequence remains authoritative.
+- Source-tree commit identity is repository-discovered. `STEWIE_EVIDENCE_COMMIT` values are explicitly
+  labelled externally declared, not verified or build-attested. Signed wheel/build provenance is not
+  implemented.
 - Performance budgets are targets; no integrated latency, storage-growth, map-scale, robot-scale, or
   version-scale report exists.
 - The root package now declares the required `stewie-bodies` distribution. A clean-wheel smoke test
