@@ -13,6 +13,7 @@ from typing import Any, Iterator
 
 from stewie.ultrabuild.canonical import (
     canonical_bytes,
+    record_content_hash,
     sha256_json,
     submission_hash,
     utc_now_text,
@@ -567,7 +568,17 @@ class AuthoritativeStore:
             append_receipts_by_id: dict[str, Mapping[str, Any]] = {}
             append_receipt_counts: dict[str, int] = {}
             for row in self._connection.execute("SELECT * FROM idempotency").fetchall():
-                receipt = json.loads(bytes(row["receipt_json"]))
+                try:
+                    receipt = json.loads(bytes(row["receipt_json"]))
+                except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                    errors.append(
+                        f"append receipt registry: malformed JSON: {type(exc).__name__}"
+                    )
+                    continue
+                if not isinstance(receipt, Mapping):
+                    errors.append("append receipt registry: receipt JSON is not an object")
+                    continue
+                receipt_label = str(receipt.get("receipt_id", "<unknown>"))
                 errors.extend(
                     f"append receipt: {error}" for error in json_schema_errors("append_receipt.schema.json", receipt)
                 )
@@ -579,7 +590,7 @@ class AuthoritativeStore:
                 ):
                     if row[field] != receipt.get(field):
                         errors.append(
-                            f"append receipt {receipt.get('receipt_id', '<unknown>')}: "
+                            f"append receipt {receipt_label}: "
                             f"registry {field} differs from receipt"
                         )
                 receipt_id = receipt.get("receipt_id")
@@ -594,15 +605,21 @@ class AuthoritativeStore:
                     )
                 stored = record_rows.get(str(receipt_record_id))
                 if stored is None or stored["content_hash"] != receipt.get("content_hash"):
-                    errors.append(f"append receipt {receipt['receipt_id']}: durable record/hash is absent")
+                    errors.append(
+                        f"append receipt {receipt_label}: durable record/hash is absent"
+                    )
                     continue
                 stored_record = json.loads(bytes(stored["record_json"]))
                 if receipt.get("record_schema") != stored["record_schema"]:
-                    errors.append(f"append receipt {receipt['receipt_id']}: record schema differs")
+                    errors.append(f"append receipt {receipt_label}: record schema differs")
                 if receipt.get("transaction_time") != stored_record.get("transaction_time"):
-                    errors.append(f"append receipt {receipt['receipt_id']}: transaction time differs")
+                    errors.append(
+                        f"append receipt {receipt_label}: transaction time differs"
+                    )
                 if receipt.get("duplicate") is not False:
-                    errors.append(f"append receipt {receipt['receipt_id']}: durable receipt must be original")
+                    errors.append(
+                        f"append receipt {receipt_label}: durable receipt must be original"
+                    )
 
             for durable_record_id in record_rows:
                 count = append_receipt_counts.get(durable_record_id, 0)
@@ -619,13 +636,23 @@ class AuthoritativeStore:
 
             applied_operations: dict[tuple[str, str], int] = {}
             for row in self._connection.execute("SELECT * FROM operations").fetchall():
-                receipt = json.loads(bytes(row["receipt_json"]))
+                try:
+                    receipt = json.loads(bytes(row["receipt_json"]))
+                except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                    errors.append(
+                        f"CAS receipt registry: malformed JSON: {type(exc).__name__}"
+                    )
+                    continue
+                if not isinstance(receipt, Mapping):
+                    errors.append("CAS receipt registry: receipt JSON is not an object")
+                    continue
+                receipt_label = str(receipt.get("receipt_id", "<unknown>"))
                 errors.extend(
                     f"CAS receipt: {error}" for error in json_schema_errors("cas_receipt.schema.json", receipt)
                 )
                 if row["operation_id"] != receipt.get("operation_id"):
                     errors.append(
-                        f"CAS receipt {receipt.get('receipt_id', '<unknown>')}: "
+                        f"CAS receipt {receipt_label}: "
                         "registry operation_id differs from receipt"
                     )
                 operation_hash = str(row["operation_hash"])
@@ -634,15 +661,25 @@ class AuthoritativeStore:
                     for character in operation_hash
                 ):
                     errors.append(
-                        f"CAS receipt {receipt.get('receipt_id', '<unknown>')}: "
+                        f"CAS receipt {receipt_label}: "
                         "registry operation_hash is malformed"
+                    )
+                if receipt.get("operation_hash") != operation_hash:
+                    errors.append(
+                        f"CAS receipt {receipt_label}: registry operation_hash differs "
+                        "from receipt"
+                    )
+                if receipt.get("content_hash") != record_content_hash(receipt):
+                    errors.append(
+                        f"CAS receipt {receipt_label}: content hash differs from "
+                        "canonical receipt"
                     )
                 append_receipt_ids = receipt.get("append_receipt_ids", [])
                 if isinstance(append_receipt_ids, list):
                     for append_receipt_id in append_receipt_ids:
                         if append_receipt_id not in append_receipts_by_id:
                             errors.append(
-                                f"CAS receipt {receipt.get('receipt_id', '<unknown>')}: "
+                                f"CAS receipt {receipt_label}: "
                                 f"append receipt {append_receipt_id} is absent"
                             )
                 if receipt.get("applied") is not True:
@@ -662,7 +699,7 @@ class AuthoritativeStore:
                     or revision_row["record_schema"] != "world_revision.schema.json"
                 ):
                     errors.append(
-                        f"CAS receipt {receipt['receipt_id']}: promoted revision is absent"
+                        f"CAS receipt {receipt_label}: promoted revision is absent"
                     )
                 if (
                     decision_row is None
@@ -670,7 +707,7 @@ class AuthoritativeStore:
                     != "reconciliation_decision.schema.json"
                 ):
                     errors.append(
-                        f"CAS receipt {receipt['receipt_id']}: promotion decision is absent"
+                        f"CAS receipt {receipt_label}: promotion decision is absent"
                     )
                 required_receipt_ids = {
                     append_receipt_id
@@ -681,7 +718,7 @@ class AuthoritativeStore:
                 }
                 if not required_receipt_ids.issubset(set(append_receipt_ids)):
                     errors.append(
-                        f"CAS receipt {receipt['receipt_id']}: decision/revision append "
+                        f"CAS receipt {receipt_label}: decision/revision append "
                         "receipt closure is incomplete"
                     )
                 if revision_row is not None:
@@ -690,7 +727,7 @@ class AuthoritativeStore:
                         "transaction_time", {}
                     ).get("sequence"):
                         errors.append(
-                            f"CAS receipt {receipt['receipt_id']}: transaction sequence "
+                            f"CAS receipt {receipt_label}: transaction sequence "
                             "differs from promoted revision"
                         )
 
@@ -968,6 +1005,7 @@ class AuthoritativeStore:
             if preliminary_errors:
                 receipt = self._build_cas_receipt(
                     operation_id=operation_id,
+                    operation_hash=operation_hash,
                     head=head,
                     expected_head_revision_id=expected_head_revision_id,
                     observed_revision_id=observed_revision_id,
@@ -987,6 +1025,7 @@ class AuthoritativeStore:
             if observed_revision_id != expected_head_revision_id or observed_sequence != expected_head_sequence:
                 receipt = self._build_cas_receipt(
                     operation_id=operation_id,
+                    operation_hash=operation_hash,
                     head=head,
                     expected_head_revision_id=expected_head_revision_id,
                     observed_revision_id=observed_revision_id,
@@ -1036,6 +1075,7 @@ class AuthoritativeStore:
                 raise PromotionConflict("accepted-head compare-and-swap lost atomicity")
             receipt = self._build_cas_receipt(
                 operation_id=operation_id,
+                operation_hash=operation_hash,
                 head=head,
                 expected_head_revision_id=expected_head_revision_id,
                 observed_revision_id=observed_revision_id,
@@ -1056,6 +1096,7 @@ class AuthoritativeStore:
         self,
         *,
         operation_id: str,
+        operation_hash: str,
         head: sqlite3.Row,
         expected_head_revision_id: str | None,
         observed_revision_id: str | None,
@@ -1071,6 +1112,7 @@ class AuthoritativeStore:
             "receipt_id": f"receipt.cas.{sha256_json([operation_id, reason_code])[:24]}",
             "store_id": self.store_id,
             "operation_id": operation_id,
+            "operation_hash": operation_hash,
             "world_id": head["world_id"],
             "site_id": head["site_id"],
             "branch_id": head["branch_id"],
@@ -1087,6 +1129,7 @@ class AuthoritativeStore:
             },
             "append_receipt_ids": list(append_receipt_ids),
         }
+        receipt["content_hash"] = record_content_hash(receipt)
         errors = json_schema_errors("cas_receipt.schema.json", receipt)
         if errors:
             raise RuntimeError("internal CAS receipt invalid: " + "; ".join(errors))

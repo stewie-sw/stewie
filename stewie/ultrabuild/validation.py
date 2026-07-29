@@ -105,14 +105,14 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
 
     for path, value in _walk(record):
         if isinstance(value, (int, float)) and not isinstance(value, bool):
-            try:
-                finite_value = math.isfinite(float(value))
-            except OverflowError:
-                finite_value = False
-            if not finite_value:
+            if isinstance(value, int) and not -(2**63) <= value <= 2**63 - 1:
                 errors.append(
-                    f"{_path_text(path)}: numeric value must be finite and representable "
-                    "as an IEEE-754 binary64 value"
+                    f"{_path_text(path)}: integer must fit the signed 64-bit "
+                    "authority-storage profile"
+                )
+            elif isinstance(value, float) and not math.isfinite(value):
+                errors.append(
+                    f"{_path_text(path)}: numeric value must be finite"
                 )
         if path and path[-1] in {"valid_time", "planned_valid_time", "executed_valid_time"}:
             if isinstance(value, Mapping) and value.get("end") is not None:

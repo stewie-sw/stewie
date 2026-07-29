@@ -332,6 +332,49 @@ def test_integrity_rejects_missing_required_receipt_registry_rows(
         store.close()
 
 
+def test_integrity_reports_malformed_append_receipt_without_crashing(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "malformed-append-receipt.sqlite3"
+    store, ids = build_golden_world(database)
+    try:
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "UPDATE idempotency SET receipt_json=? WHERE record_id=?",
+                (canonical_bytes({}), ids["observation_id"]),
+            )
+        integrity = store.verify_integrity()
+        assert integrity["ok"] is False
+        assert any("append receipt" in error for error in integrity["errors"])
+        with pytest.raises(StoreContractError, match="append receipt"):
+            store.rebuild_projections()
+    finally:
+        store.close()
+
+
+def test_integrity_rejects_corrupt_operation_hash_shadow(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "corrupt-operation-hash.sqlite3"
+    store, _ = build_golden_world(database)
+    try:
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "UPDATE operations SET operation_hash=? WHERE operation_id=?",
+                ("f" * 64, "operation.promote.golden"),
+            )
+        integrity = store.verify_integrity()
+        assert integrity["ok"] is False
+        assert any(
+            "registry operation_hash differs" in error
+            for error in integrity["errors"]
+        )
+        with pytest.raises(StoreContractError, match="operation_hash differs"):
+            store.rebuild_projections()
+    finally:
+        store.close()
+
+
 def test_environment_commit_is_externally_declared_not_verified(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

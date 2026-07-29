@@ -9,6 +9,7 @@
     "receipt_id",
     "store_id",
     "operation_id",
+    "operation_hash",
     "world_id",
     "site_id",
     "branch_id",
@@ -20,13 +21,15 @@
     "applied",
     "reason_code",
     "transaction_time",
-    "append_receipt_ids"
+    "append_receipt_ids",
+    "content_hash"
   ],
   "properties": {
     "schema_version": {"const": "stewie.cas_receipt/1.0"},
     "receipt_id": {"$ref": "#/$defs/id"},
     "store_id": {"$ref": "#/$defs/id"},
     "operation_id": {"$ref": "#/$defs/id"},
+    "operation_hash": {"$ref": "#/$defs/sha256"},
     "world_id": {"$ref": "#/$defs/id"},
     "site_id": {"$ref": "#/$defs/id"},
     "branch_id": {"$ref": "#/$defs/id"},
@@ -48,7 +51,8 @@
       "type": "array",
       "items": {"$ref": "#/$defs/id"},
       "uniqueItems": true
-    }
+    },
+    "content_hash": {"$ref": "#/$defs/sha256"}
   },
   "allOf": [
     {
@@ -73,6 +77,10 @@
       "minLength": 1,
       "maxLength": 256,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     },
     "transaction_time": {
       "type": "object",
