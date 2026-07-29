@@ -947,6 +947,7 @@ class AuthoritativeStore:
                 receipt = json.loads(bytes(existing_operation["receipt_json"]))
                 if receipt["applied"]:
                     receipt["reason_code"] = "idempotent_replay"
+                    receipt["content_hash"] = record_content_hash(receipt)
                 return receipt
 
             if decision_submission_copy.get("record_schema") != ("reconciliation_decision.schema.json"):

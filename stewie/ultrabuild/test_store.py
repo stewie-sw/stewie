@@ -563,6 +563,40 @@ def test_concurrent_promotions_have_exactly_one_winner(tmp_path: Path) -> None:
     store_a.close()
 
 
+def test_idempotent_promotion_replay_returns_resealed_receipt(
+    tmp_path: Path,
+) -> None:
+    store, ids = build_golden_world(tmp_path / "authority.sqlite3")
+    provenance_submissions, decision, revision = _promotion_alternatives(
+        store,
+        ids,
+    )[0]
+    arguments = {
+        "operation_id": "operation.replay",
+        "expected_head_revision_id": ids["revision_id"],
+        "expected_head_sequence": 1,
+        "provenance_submissions": provenance_submissions,
+        "decision_submission": submission(
+            "reconciliation_decision.schema.json",
+            decision,
+            token="decision.replay",
+        ),
+        "revision_submission": submission(
+            "world_revision.schema.json",
+            revision,
+            token="revision.replay",
+        ),
+    }
+    original = store.commit_promotion(**arguments)
+    replay = store.commit_promotion(**arguments)
+
+    assert original["reason_code"] == "applied"
+    assert replay["reason_code"] == "idempotent_replay"
+    assert replay["content_hash"] == record_content_hash(replay)
+    assert store.verify_integrity()["ok"] is True
+    store.close()
+
+
 def test_pending_review_cannot_promote_or_leave_partial_records(
     tmp_path: Path,
 ) -> None:
