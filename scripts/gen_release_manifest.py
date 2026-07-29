@@ -96,7 +96,8 @@ def _deps_block(root: str) -> dict:
         try:
             lc = check_lock(pyproject, os.path.join(root, lock), extras=extras)
             locks.append({"lock": lock, "extras": extras,
-                          "lock_check": "ok" if not lc.missing else "drift", "missing": lc.missing})
+                          "lock_check": "ok" if not lc.missing else "drift",
+                          "missing": lc.missing, "ignored": lc.ignored})
         except Exception as e:
             locks.append({"lock": lock, "extras": extras, "lock_check": "unavailable", "error": str(e)[:120]})
     return {"locks": locks, "all_ok": all(l.get("lock_check") == "ok" for l in locks)}

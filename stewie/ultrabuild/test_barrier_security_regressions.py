@@ -173,32 +173,31 @@ def test_barrier_regression_01_physics_payload_cannot_write_accepted_state(
                 provenance_bundle_id=("provenance.revision.physics-bytes-as-state"),
                 branch_revision_sequence=2,
             )
-            store.append_batch(
-                [
-                    submission(
-                        "provenance_bundle.schema.json",
-                        provenance_record(
-                            "reconciliation_decision.schema.json",
-                            decision,
-                            bundle_id=str(decision["provenance_bundle_id"]),
-                        ),
-                        token=("decision.physics-bytes-as-state.provenance"),
+            promotion_provenance = [
+                submission(
+                    "provenance_bundle.schema.json",
+                    provenance_record(
+                        "reconciliation_decision.schema.json",
+                        decision,
+                        bundle_id=str(decision["provenance_bundle_id"]),
                     ),
-                    submission(
-                        "provenance_bundle.schema.json",
-                        provenance_record(
-                            "world_revision.schema.json",
-                            revision,
-                            bundle_id=str(revision["provenance_bundle_id"]),
-                        ),
-                        token=("revision.physics-bytes-as-state.provenance"),
+                    token=("decision.physics-bytes-as-state.provenance"),
+                ),
+                submission(
+                    "provenance_bundle.schema.json",
+                    provenance_record(
+                        "world_revision.schema.json",
+                        revision,
+                        bundle_id=str(revision["provenance_bundle_id"]),
                     ),
-                ]
-            )
+                    token=("revision.physics-bytes-as-state.provenance"),
+                ),
+            ]
             receipt = store.commit_promotion(
                 operation_id="operation.physics-bytes-as-state",
                 expected_head_revision_id=str(prior["revision_id"]),
                 expected_head_sequence=1,
+                provenance_submissions=promotion_provenance,
                 decision_submission=submission(
                     "reconciliation_decision.schema.json",
                     decision,

@@ -52,6 +52,7 @@ def test_real_dev_lock_covers_base_plus_dev_extra():
     mod = _load_module()
     result = mod.check_lock(_PYPROJECT, _DEV_LOCK, extras=["dev"])
     assert result.missing == [], f"dev lock missing declared deps: {result.missing}"
+    assert "stewie-bodies" in result.ignored
     assert result.ok
 
 
@@ -59,6 +60,7 @@ def test_real_server_lock_covers_base_plus_server_extra():
     mod = _load_module()
     result = mod.check_lock(_PYPROJECT, _SERVER_LOCK, extras=["server"])
     assert result.missing == [], f"server lock missing declared deps: {result.missing}"
+    assert "stewie-bodies" in result.ignored
     assert result.ok
 
 

@@ -2,19 +2,25 @@ schema_version: stewie.unit_seed_allocation/1.0
 artifact_id: ART-EVALUATION-ALLOCATION
 producer_node: EXP-010
 phase: evaluation
-status: provisional_reserved_not_executed
+status: retired_exposed_development_allocation
 evidence_level: design_only_no_empirical_results
 source_research_commit: b70d9e7566fc68fd00dd0cf3ab9156164202cc9d
-allocation_lock: reserved_by_this_contract
+allocation_lock: retired_never_confirmatory
 spatial_disjointness_verified: false
 executed: false
 empirical_results: null
 confirmatory_results_eligible: false
 execution_allowed: false
+retirement:
+  reason: seeds_and_synthetic_window_design_were_exposed_to_development_harness
+  retired_at: 2026-07-29
+  replacement_required: true
+  reuse_for_confirmatory_evidence_forbidden: true
 
-independent_unit_kind: terrain_action_pair
-resampling_level: terrain_action_pair
+independent_unit_kind: terrain_window
+resampling_level: terrain_window
 repeated_measures:
+  - action_geometry
   - system
   - mechanism_cell
   - perturbation_cell
@@ -56,11 +62,13 @@ units:
   - {unit_id: eval.haworth.window-08.grade, window_id: haworth.eval-window-08, window_geometry_hash: null, action_geometry_id: action.grade/1.0, action_geometry_hash: null, materialization_status: reserved_not_materialized}
 
 seeds: [3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008]
-unit_count: 24
+unit_count: 8
+registered_row_count: 24
 unique_window_count: 8
 action_geometries_per_window: 3
 seeds_per_unit: 8
-unit_seed_pair_count: 192
+unit_seed_pair_count: 64
+registered_row_seed_count: 192
 
 disjointness_contract:
   must_be_disjoint_from: experiments/contracts/pilot_allocation.yaml

@@ -25,6 +25,7 @@ from stewie.ultrabuild.contracts import (
     stored_record_errors,
     submission_errors,
 )
+from stewie.ultrabuild.derivation import candidate_derivation_errors
 from stewie.ultrabuild.payloads import (
     ContentAddressedPayloadStore,
     PayloadIntegrityError,
@@ -69,9 +70,7 @@ class AuthoritativeStore:
         self.payload_store = payload_store
         self.require_local_payloads = require_local_payloads
         if require_local_payloads and payload_store is None:
-            raise ValueError(
-                "require_local_payloads needs a content-addressed payload store"
-            )
+            raise ValueError("require_local_payloads needs a content-addressed payload store")
         self._lock = threading.RLock()
         self._connection = sqlite3.connect(
             self.path,
@@ -153,18 +152,10 @@ class AuthoritativeStore:
                 "INSERT OR IGNORE INTO store_meta(key, value) VALUES('schema_version', ?)",
                 (str(SCHEMA_VERSION),),
             )
-            connection.execute(
-                "INSERT OR IGNORE INTO store_meta(key, value) VALUES('next_sequence', '1')"
-            )
-            version = int(
-                connection.execute(
-                    "SELECT value FROM store_meta WHERE key='schema_version'"
-                ).fetchone()[0]
-            )
+            connection.execute("INSERT OR IGNORE INTO store_meta(key, value) VALUES('next_sequence', '1')")
+            version = int(connection.execute("SELECT value FROM store_meta WHERE key='schema_version'").fetchone()[0])
             if version != SCHEMA_VERSION:
-                raise RuntimeError(
-                    f"store schema {version} is unsupported; expected {SCHEMA_VERSION}"
-                )
+                raise RuntimeError(f"store schema {version} is unsupported; expected {SCHEMA_VERSION}")
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
@@ -188,30 +179,20 @@ class AuthoritativeStore:
         self.close()
 
     def _next_sequence(self, connection: sqlite3.Connection) -> int:
-        row = connection.execute(
-            "SELECT value FROM store_meta WHERE key='next_sequence'"
-        ).fetchone()
-        assert row is not None
+        row = connection.execute("SELECT value FROM store_meta WHERE key='next_sequence'").fetchone()
+        if row is None:
+            raise RuntimeError("store_meta.next_sequence is missing")
         return int(row[0])
 
-    def _set_next_sequence(
-        self, connection: sqlite3.Connection, sequence: int
-    ) -> None:
+    def _set_next_sequence(self, connection: sqlite3.Connection, sequence: int) -> None:
         connection.execute(
             "UPDATE store_meta SET value=? WHERE key='next_sequence'",
             (str(sequence),),
         )
 
-    def _all_records(
-        self, connection: sqlite3.Connection
-    ) -> list[tuple[str, Mapping[str, Any]]]:
-        rows = connection.execute(
-            "SELECT record_schema, record_json FROM records ORDER BY sequence"
-        ).fetchall()
-        return [
-            (str(row["record_schema"]), json.loads(bytes(row["record_json"])))
-            for row in rows
-        ]
+    def _all_records(self, connection: sqlite3.Connection) -> list[tuple[str, Mapping[str, Any]]]:
+        rows = connection.execute("SELECT record_schema, record_json FROM records ORDER BY sequence").fetchall()
+        return [(str(row["record_schema"]), json.loads(bytes(row["record_json"]))) for row in rows]
 
     def append(self, submission: Mapping[str, Any]) -> dict[str, Any]:
         return self.append_batch([submission])[0]
@@ -219,8 +200,6 @@ class AuthoritativeStore:
     def append_batch(
         self,
         submissions: Sequence[Mapping[str, Any]],
-        *,
-        validate_graph: bool = True,
     ) -> list[dict[str, Any]]:
         if not submissions:
             return []
@@ -229,7 +208,6 @@ class AuthoritativeStore:
             return self._append_batch_in_transaction(
                 connection,
                 canonical_submissions,
-                validate_graph=validate_graph,
                 allow_promotion=False,
             )
 
@@ -238,7 +216,6 @@ class AuthoritativeStore:
         connection: sqlite3.Connection,
         canonical_submissions: Sequence[dict[str, Any]],
         *,
-        validate_graph: bool,
         allow_promotion: bool,
     ) -> list[dict[str, Any]]:
         """The sole immutable append primitive; caller owns the SQLite transaction."""
@@ -246,9 +223,7 @@ class AuthoritativeStore:
         for index, submission in enumerate(canonical_submissions):
             errors = submission_errors(submission)
             if errors:
-                raise StoreContractError(
-                    f"submission[{index}] invalid: " + "; ".join(errors)
-                )
+                raise StoreContractError(f"submission[{index}] invalid: " + "; ".join(errors))
         keys = [str(item["idempotency_key"]) for item in canonical_submissions]
         if len(keys) != len(set(keys)):
             raise StoreContractError("idempotency keys must be unique within one batch")
@@ -256,17 +231,11 @@ class AuthoritativeStore:
             for submission in canonical_submissions:
                 schema_name = submission["record_schema"]
                 record = submission["record"]
-                if (
-                    schema_name == "reconciliation_decision.schema.json"
-                    and record.get("decision") == "PROMOTE"
-                ) or (
+                if (schema_name == "reconciliation_decision.schema.json" and record.get("decision") == "PROMOTE") or (
                     schema_name == "world_revision.schema.json"
-                    and record.get("state_kind")
-                    in {"reconciled", "verified", "authoritative"}
+                    and record.get("state_kind") in {"reconciled", "verified", "authoritative"}
                 ):
-                    raise StoreContractError(
-                        "promotion decisions and accepted revisions require commit_promotion()"
-                    )
+                    raise StoreContractError("promotion decisions and accepted revisions require commit_promotion()")
 
         next_sequence = self._next_sequence(connection)
         returned: list[dict[str, Any] | None] = [None] * len(canonical_submissions)
@@ -275,15 +244,13 @@ class AuthoritativeStore:
         for index, submission in enumerate(canonical_submissions):
             digest = submission_hash(submission)
             existing = connection.execute(
-                "SELECT submission_hash, receipt_json FROM idempotency "
-                "WHERE idempotency_key=?",
+                "SELECT submission_hash, receipt_json FROM idempotency WHERE idempotency_key=?",
                 (submission["idempotency_key"],),
             ).fetchone()
             if existing is not None:
                 if existing["submission_hash"] != digest:
                     raise IdempotencyConflict(
-                        f"idempotency key {submission['idempotency_key']} "
-                        "was reused with different canonical input"
+                        f"idempotency key {submission['idempotency_key']} was reused with different canonical input"
                     )
                 receipt = json.loads(bytes(existing["receipt_json"]))
                 receipt["duplicate"] = True
@@ -300,23 +267,27 @@ class AuthoritativeStore:
             )
             errors = stored_record_errors(schema_name, completed)
             if errors:
-                raise StoreContractError(
-                    f"{schema_name} invalid after store normalization: "
-                    + "; ".join(errors)
-                )
+                raise StoreContractError(f"{schema_name} invalid after store normalization: " + "; ".join(errors))
             record_id(schema_name, completed)
             self._verify_payload_references(schema_name, completed)
             staged.append((index, schema_name, completed, submission, digest))
             next_sequence += 1
 
-        if validate_graph and staged:
+        if staged:
             graph = self._all_records(connection)
             graph.extend((schema, record) for _, schema, record, _, _ in staged)
             graph_errors = record_set_errors(graph)
+            for _, schema_name, completed, _, _ in staged:
+                if schema_name == "state_candidate.schema.json":
+                    graph_errors.extend(
+                        candidate_derivation_errors(
+                            graph,
+                            completed,
+                            self.payload_store,
+                        )
+                    )
             if graph_errors:
-                raise StoreContractError(
-                    "record graph invalid: " + "; ".join(graph_errors)
-                )
+                raise StoreContractError("record graph invalid: " + "; ".join(graph_errors))
 
         for index, schema_name, completed, submission, digest in staged:
             identity = record_id(schema_name, completed)
@@ -384,13 +355,9 @@ class AuthoritativeStore:
                 },
                 "duplicate": False,
             }
-            receipt_errors = json_schema_errors(
-                "append_receipt.schema.json", receipt
-            )
+            receipt_errors = json_schema_errors("append_receipt.schema.json", receipt)
             if receipt_errors:
-                raise RuntimeError(
-                    "internal append receipt invalid: " + "; ".join(receipt_errors)
-                )
+                raise RuntimeError("internal append receipt invalid: " + "; ".join(receipt_errors))
             connection.execute(
                 """
                 INSERT INTO idempotency(
@@ -409,7 +376,8 @@ class AuthoritativeStore:
             returned[index] = receipt
 
         self._set_next_sequence(connection, next_sequence)
-        assert all(receipt is not None for receipt in returned)
+        if not all(receipt is not None for receipt in returned):
+            raise RuntimeError("internal append receipt set is incomplete")
         return [dict(receipt) for receipt in returned if receipt is not None]
 
     @staticmethod
@@ -465,19 +433,16 @@ class AuthoritativeStore:
     ) -> None:
         if not self.require_local_payloads:
             return
-        assert self.payload_store is not None
-        for content_hash, expected_size in self._payload_requirements(
-            schema_name, record
-        ):
+        if self.payload_store is None:
+            raise RuntimeError("required payload verifier is unavailable")
+        for content_hash, expected_size in self._payload_requirements(schema_name, record):
             try:
                 self.payload_store.verify(
                     content_hash,
                     expected_size=expected_size,
                 )
             except PayloadIntegrityError as exc:
-                raise StoreContractError(
-                    f"{schema_name}: payload prerequisite failed: {exc}"
-                ) from exc
+                raise StoreContractError(f"{schema_name}: payload prerequisite failed: {exc}") from exc
 
     def get(self, record_id_value: str) -> dict[str, Any] | None:
         with self._lock:
@@ -488,7 +453,8 @@ class AuthoritativeStore:
         if row is None:
             return None
         value = json.loads(bytes(row["record_json"]))
-        assert isinstance(value, dict)
+        if not isinstance(value, dict):
+            raise RuntimeError("durable record JSON is not an object")
         return value
 
     def records(
@@ -515,20 +481,18 @@ class AuthoritativeStore:
 
     def latest_sequence(self) -> int:
         with self._lock:
-            row = self._connection.execute(
-                "SELECT COALESCE(MAX(sequence), 0) FROM records"
-            ).fetchone()
-        assert row is not None
+            row = self._connection.execute("SELECT COALESCE(MAX(sequence), 0) FROM records").fetchone()
+        if row is None:
+            raise RuntimeError("latest-sequence query returned no row")
         return int(row[0])
 
     def verify_integrity(self) -> dict[str, Any]:
         """Re-validate durable bytes, graph semantics, receipts, and projections."""
 
         errors: list[str] = []
+        payload_reference_count = 0
         with self._lock:
-            rows = self._connection.execute(
-                "SELECT * FROM records ORDER BY sequence"
-            ).fetchall()
+            rows = self._connection.execute("SELECT * FROM records ORDER BY sequence").fetchall()
             graph: list[tuple[str, Mapping[str, Any]]] = []
             for row in rows:
                 schema_name = str(row["record_schema"])
@@ -546,10 +510,13 @@ class AuthoritativeStore:
                     errors.append(f"{prefix}: row timestamp differs from record")
                 if record.get("content_hash") != row["content_hash"]:
                     errors.append(f"{prefix}: row hash differs from record")
+                payload_requirements = self._payload_requirements(
+                    schema_name,
+                    record,
+                )
+                payload_reference_count += len(payload_requirements)
                 if self.payload_store is not None:
-                    for content_hash, expected_size in self._payload_requirements(
-                        schema_name, record
-                    ):
+                    for content_hash, expected_size in payload_requirements:
                         try:
                             self.payload_store.verify(
                                 content_hash,
@@ -557,56 +524,49 @@ class AuthoritativeStore:
                             )
                         except PayloadIntegrityError as exc:
                             errors.append(f"{prefix}: {exc}")
+            if payload_reference_count and self.payload_store is None:
+                errors.append(f"payload verification unavailable for {payload_reference_count} durable references")
             errors.extend(f"graph: {error}" for error in record_set_errors(graph))
+            for schema_name, record in graph:
+                if schema_name == "state_candidate.schema.json":
+                    errors.extend(
+                        f"graph: {error}"
+                        for error in candidate_derivation_errors(
+                            graph,
+                            record,
+                            self.payload_store,
+                        )
+                    )
 
             expected_next = (int(rows[-1]["sequence"]) + 1) if rows else 1
             next_sequence = int(
-                self._connection.execute(
-                    "SELECT value FROM store_meta WHERE key='next_sequence'"
-                ).fetchone()[0]
+                self._connection.execute("SELECT value FROM store_meta WHERE key='next_sequence'").fetchone()[0]
             )
             if next_sequence != expected_next:
-                errors.append(
-                    f"store_meta.next_sequence: {next_sequence} != {expected_next}"
-                )
+                errors.append(f"store_meta.next_sequence: {next_sequence} != {expected_next}")
 
-            for row in self._connection.execute(
-                "SELECT receipt_json FROM idempotency"
-            ).fetchall():
+            for row in self._connection.execute("SELECT receipt_json FROM idempotency").fetchall():
                 receipt = json.loads(bytes(row["receipt_json"]))
                 errors.extend(
-                    f"append receipt: {error}"
-                    for error in json_schema_errors(
-                        "append_receipt.schema.json", receipt
-                    )
+                    f"append receipt: {error}" for error in json_schema_errors("append_receipt.schema.json", receipt)
                 )
                 stored = self._connection.execute(
                     "SELECT content_hash FROM records WHERE record_id=?",
                     (receipt["record_id"],),
                 ).fetchone()
                 if stored is None or stored["content_hash"] != receipt["content_hash"]:
-                    errors.append(
-                        f"append receipt {receipt['receipt_id']}: "
-                        "durable record/hash is absent"
-                    )
+                    errors.append(f"append receipt {receipt['receipt_id']}: durable record/hash is absent")
 
-            for row in self._connection.execute(
-                "SELECT receipt_json FROM operations"
-            ).fetchall():
+            for row in self._connection.execute("SELECT receipt_json FROM operations").fetchall():
                 receipt = json.loads(bytes(row["receipt_json"]))
                 errors.extend(
-                    f"CAS receipt: {error}"
-                    for error in json_schema_errors(
-                        "cas_receipt.schema.json", receipt
-                    )
+                    f"CAS receipt: {error}" for error in json_schema_errors("cas_receipt.schema.json", receipt)
                 )
 
             expected_heads = self._derive_branch_heads(graph)
             actual_heads = {
                 str(row["branch_id"]): dict(row)
-                for row in self._connection.execute(
-                    "SELECT * FROM branch_heads"
-                ).fetchall()
+                for row in self._connection.execute("SELECT * FROM branch_heads").fetchall()
             }
             if actual_heads != expected_heads:
                 errors.append("branch_heads: projection differs from immutable history")
@@ -636,11 +596,11 @@ class AuthoritativeStore:
                     "decision_id": None,
                     "updated_transaction_sequence": transaction["sequence"],
                 }
-            elif (
-                schema_name == "world_revision.schema.json"
-                and record.get("state_kind")
-                in {"reconciled", "verified", "authoritative"}
-            ):
+            elif schema_name == "world_revision.schema.json" and record.get("state_kind") in {
+                "reconciled",
+                "verified",
+                "authoritative",
+            }:
                 head = heads.get(str(record.get("branch_id")))
                 if head is None:
                     continue
@@ -650,17 +610,32 @@ class AuthoritativeStore:
                         revision_id=record["revision_id"],
                         revision_sequence=branch_sequence,
                         decision_id=record["reconciliation_decision_id"],
-                        updated_transaction_sequence=record["transaction_time"][
-                            "sequence"
-                        ],
+                        updated_transaction_sequence=record["transaction_time"]["sequence"],
                     )
         return heads
 
     def rebuild_projections(self) -> dict[str, Any]:
-        """Reconstruct mutable heads solely from immutable records."""
+        """Reconstruct mutable heads only after validating immutable history."""
 
         with self._lock, self._transaction() as connection:
             graph = self._all_records(connection)
+            history_errors: list[str] = []
+            for schema_name, record in graph:
+                history_errors.extend(stored_record_errors(schema_name, record))
+            history_errors.extend(record_set_errors(graph))
+            for schema_name, record in graph:
+                if schema_name == "state_candidate.schema.json":
+                    history_errors.extend(
+                        candidate_derivation_errors(
+                            graph,
+                            record,
+                            self.payload_store,
+                        )
+                    )
+            if history_errors:
+                raise StoreContractError(
+                    "projection rebuild refused invalid immutable history: " + "; ".join(history_errors)
+                )
             heads = self._derive_branch_heads(graph)
             connection.execute("DELETE FROM branch_heads")
             for head in heads.values():
@@ -692,11 +667,27 @@ class AuthoritativeStore:
         }
 
     def snapshot_to(self, destination: str | Path) -> Path:
-        """Create a transactionally consistent SQLite backup for cold restore."""
+        """Create a SQLite backup plus an independently restorable payload CAS."""
 
         target_path = Path(destination)
         target_path.parent.mkdir(parents=True, exist_ok=True)
         with self._lock:
+            graph = self._all_records(self._connection)
+            payload_hashes = {
+                content_hash
+                for schema_name, record in graph
+                for content_hash, _ in self._payload_requirements(
+                    schema_name,
+                    record,
+                )
+            }
+            if payload_hashes and self.payload_store is None:
+                raise StoreContractError("snapshot contains payload references but no payload verifier")
+            if self.payload_store is not None:
+                self.payload_store.snapshot_to(
+                    target_path.parent / "payloads",
+                    payload_hashes,
+                )
             target = sqlite3.connect(target_path)
             try:
                 self._connection.backup(target)
@@ -706,9 +697,7 @@ class AuthoritativeStore:
 
     def branch_head(self, branch_id: str) -> dict[str, Any] | None:
         with self._lock:
-            row = self._connection.execute(
-                "SELECT * FROM branch_heads WHERE branch_id=?", (branch_id,)
-            ).fetchone()
+            row = self._connection.execute("SELECT * FROM branch_heads WHERE branch_id=?", (branch_id,)).fetchone()
         return dict(row) if row is not None else None
 
     def commit_promotion(
@@ -717,17 +706,22 @@ class AuthoritativeStore:
         operation_id: str,
         expected_head_revision_id: str | None,
         expected_head_sequence: int,
+        provenance_submissions: Sequence[Mapping[str, Any]],
         decision_submission: Mapping[str, Any],
         revision_submission: Mapping[str, Any],
     ) -> dict[str, Any]:
         """Atomically append a reviewed promotion and compare-and-swap its branch head."""
 
+        if self.payload_store is None:
+            raise StoreContractError("promotion requires a configured payload verifier")
+        provenance_submission_copies = [deepcopy(dict(item)) for item in provenance_submissions]
         decision_submission_copy = deepcopy(dict(decision_submission))
         revision_submission_copy = deepcopy(dict(revision_submission))
         operation_input = {
             "operation_id": operation_id,
             "expected_head_revision_id": expected_head_revision_id,
             "expected_head_sequence": expected_head_sequence,
+            "provenance_submissions": provenance_submission_copies,
             "decision_submission": decision_submission_copy,
             "revision_submission": revision_submission_copy,
         }
@@ -740,31 +734,27 @@ class AuthoritativeStore:
             ).fetchone()
             if existing_operation is not None:
                 if existing_operation["operation_hash"] != operation_hash:
-                    raise IdempotencyConflict(
-                        f"operation {operation_id} was reused with different canonical input"
-                    )
+                    raise IdempotencyConflict(f"operation {operation_id} was reused with different canonical input")
                 receipt = json.loads(bytes(existing_operation["receipt_json"]))
                 if receipt["applied"]:
                     receipt["reason_code"] = "idempotent_replay"
                 return receipt
 
-            if decision_submission_copy.get("record_schema") != (
-                "reconciliation_decision.schema.json"
-            ):
+            if decision_submission_copy.get("record_schema") != ("reconciliation_decision.schema.json"):
                 raise StoreContractError("promotion decision uses the wrong record schema")
-            if revision_submission_copy.get("record_schema") != (
-                "world_revision.schema.json"
-            ):
+            if revision_submission_copy.get("record_schema") != ("world_revision.schema.json"):
                 raise StoreContractError("promotion revision uses the wrong record schema")
+            if len(provenance_submission_copies) != 2 or any(
+                item.get("record_schema") != "provenance_bundle.schema.json" for item in provenance_submission_copies
+            ):
+                raise StoreContractError("promotion requires exactly two provenance-bundle submissions")
 
             decision = decision_submission_copy.get("record", {})
             revision = revision_submission_copy.get("record", {})
             branch_id = revision.get("branch_id")
             if not isinstance(branch_id, str):
                 raise StoreContractError("promotion revision has no branch_id")
-            head = connection.execute(
-                "SELECT * FROM branch_heads WHERE branch_id=?", (branch_id,)
-            ).fetchone()
+            head = connection.execute("SELECT * FROM branch_heads WHERE branch_id=?", (branch_id,)).fetchone()
             if head is None:
                 raise StoreContractError(f"accepted branch is not durable: {branch_id}")
 
@@ -783,9 +773,7 @@ class AuthoritativeStore:
                 preliminary_errors.append("review is pending or rejected")
             if decision.get("resulting_revision_id") != revision.get("revision_id"):
                 preliminary_errors.append("decision/revision cross-link differs")
-            if decision.get("decision_id") != revision.get(
-                "reconciliation_decision_id"
-            ):
+            if decision.get("decision_id") != revision.get("reconciliation_decision_id"):
                 preliminary_errors.append("revision/decision cross-link differs")
             if decision.get("prior_revision_id") != expected_head_revision_id:
                 preliminary_errors.append("decision prior differs from expected head")
@@ -797,13 +785,10 @@ class AuthoritativeStore:
             if (
                 not isinstance(policy, Mapping)
                 or policy.get("policy_id") != head["policy_id"]
-                or revision.get("authority_scope", {}).get("policy_id")
-                != head["policy_id"]
+                or revision.get("authority_scope", {}).get("policy_id") != head["policy_id"]
             ):
                 preliminary_errors.append("promotion policy differs from branch")
-            if revision.get("world_id") != head["world_id"] or revision.get(
-                "site_id"
-            ) != head["site_id"]:
+            if revision.get("world_id") != head["world_id"] or revision.get("site_id") != head["site_id"]:
                 preliminary_errors.append("promotion crosses world/site")
             if revision.get("branch_revision_sequence") != expected_head_sequence + 1:
                 preliminary_errors.append("branch revision sequence is not contiguous")
@@ -822,16 +807,12 @@ class AuthoritativeStore:
                     append_receipt_ids=[],
                 )
                 connection.execute(
-                    "INSERT INTO operations(operation_id, operation_hash, receipt_json) "
-                    "VALUES(?, ?, ?)",
+                    "INSERT INTO operations(operation_id, operation_hash, receipt_json) VALUES(?, ?, ?)",
                     (operation_id, operation_hash, canonical_bytes(receipt)),
                 )
                 return receipt
 
-            if (
-                observed_revision_id != expected_head_revision_id
-                or observed_sequence != expected_head_sequence
-            ):
+            if observed_revision_id != expected_head_revision_id or observed_sequence != expected_head_sequence:
                 receipt = self._build_cas_receipt(
                     operation_id=operation_id,
                     head=head,
@@ -845,23 +826,23 @@ class AuthoritativeStore:
                     append_receipt_ids=[],
                 )
                 connection.execute(
-                    "INSERT INTO operations(operation_id, operation_hash, receipt_json) "
-                    "VALUES(?, ?, ?)",
+                    "INSERT INTO operations(operation_id, operation_hash, receipt_json) VALUES(?, ?, ?)",
                     (operation_id, operation_hash, canonical_bytes(receipt)),
                 )
                 return receipt
 
             append_receipts = self._append_batch_in_transaction(
                 connection,
-                [decision_submission_copy, revision_submission_copy],
-                validate_graph=True,
+                [
+                    *provenance_submission_copies,
+                    decision_submission_copy,
+                    revision_submission_copy,
+                ],
                 allow_promotion=True,
             )
             if any(receipt["duplicate"] for receipt in append_receipts):
-                raise StoreContractError(
-                    "fresh promotion operation encountered independently appended records"
-                )
-            revision_receipt = append_receipts[1]
+                raise StoreContractError("fresh promotion operation encountered independently appended records")
+            revision_receipt = append_receipts[-1]
             connection.execute(
                 """
                 UPDATE branch_heads
@@ -891,14 +872,10 @@ class AuthoritativeStore:
                 applied=True,
                 reason_code="applied",
                 transaction_sequence=revision_receipt["transaction_time"]["sequence"],
-                append_receipt_ids=[
-                    append_receipt["receipt_id"]
-                    for append_receipt in append_receipts
-                ],
+                append_receipt_ids=[append_receipt["receipt_id"] for append_receipt in append_receipts],
             )
             connection.execute(
-                "INSERT INTO operations(operation_id, operation_hash, receipt_json) "
-                "VALUES(?, ?, ?)",
+                "INSERT INTO operations(operation_id, operation_hash, receipt_json) VALUES(?, ?, ?)",
                 (operation_id, operation_hash, canonical_bytes(receipt)),
             )
             return receipt
@@ -1003,12 +980,20 @@ class AuthoritativeStore:
         for row in rows:
             record = json.loads(bytes(row["record_json"]))
             if record["revision_id"] not in superseded:
+                if self.payload_store is None:
+                    raise PayloadIntegrityError("authoritative query requires a configured payload verifier")
+                for content_hash, expected_size in self._payload_requirements(
+                    "world_revision.schema.json",
+                    record,
+                ):
+                    self.payload_store.verify(
+                        content_hash,
+                        expected_size=expected_size,
+                    )
                 return record
         return None
 
-    def projection_receipt(
-        self, projection_id: str, *, requested_sequence: int
-    ) -> dict[str, Any]:
+    def projection_receipt(self, projection_id: str, *, requested_sequence: int) -> dict[str, Any]:
         with self._lock:
             row = self._connection.execute(
                 "SELECT projected_sequence FROM projection_watermarks WHERE projection_id=?",
@@ -1033,9 +1018,7 @@ class AuthoritativeStore:
             raise RuntimeError("internal projection receipt invalid: " + "; ".join(errors))
         return receipt
 
-    def set_projection_watermark(
-        self, projection_id: str, projected_sequence: int
-    ) -> None:
+    def set_projection_watermark(self, projection_id: str, projected_sequence: int) -> None:
         if projected_sequence < 0 or projected_sequence > self.latest_sequence():
             raise ValueError("projection watermark is outside durable record history")
         with self._lock, self._transaction() as connection:

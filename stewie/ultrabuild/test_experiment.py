@@ -35,9 +35,7 @@ def test_candidate_cannot_observe_reference_poison() -> None:
     after = run_candidate(scenario, "stewie")
     assert before["candidate_summary_hash"] == after["candidate_summary_hash"]
     assert before["state_hash"] == after["state_hash"]
-    assert evaluate_candidate(before, reference) != evaluate_candidate(
-        before, poisoned
-    )
+    assert evaluate_candidate(before, reference) != evaluate_candidate(before, poisoned)
 
 
 def test_stale_latest_and_timestamp_baselines_commit_harmful_plan() -> None:
@@ -52,10 +50,7 @@ def test_stale_latest_and_timestamp_baselines_commit_harmful_plan() -> None:
     assert evaluate_candidate(stewie, reference)["harmful_plan"] is False
     assert evaluate_candidate(latest, reference)["harmful_plan"] is True
     assert evaluate_candidate(timestamp, reference)["harmful_plan"] is True
-    assert any(
-        reason == "stale_before_action"
-        for _, reason in stewie["excluded"]
-    )
+    assert any(reason == "stale_before_action" for _, reason in stewie["excluded"])
 
 
 def test_physics_changes_admissibility_but_does_not_override_observation() -> None:
@@ -66,11 +61,7 @@ def test_physics_changes_admissibility_but_does_not_override_observation() -> No
     )
     gated = run_candidate(scenario, "stewie")
     ungated = run_candidate(scenario, "no_physics")
-    physics_exclusions = {
-        claim_id
-        for claim_id, reason in gated["excluded"]
-        if reason == "physics_inconsistent"
-    }
+    physics_exclusions = {claim_id for claim_id, reason in gated["excluded"] if reason == "physics_inconsistent"}
     assert physics_exclusions
     assert physics_exclusions.issubset(set(ungated["admitted_claim_ids"]))
     assert gated["state_hash"] != ungated["state_hash"]
@@ -96,7 +87,6 @@ def test_physics_gate_is_noninterfering_when_all_evidence_is_plausible() -> None
     scenario = type(scenario)(
         unit_id=scenario.unit_id,
         seed=scenario.seed,
-        action_kind=scenario.action_kind,
         prior=scenario.prior,
         planned_change=scenario.planned_change,
         action=scenario.action,
@@ -199,10 +189,7 @@ def test_dependency_group_does_not_gain_support_from_exact_duplicate() -> None:
         known_at_sequence=5,
     )
     assert with_duplicate.state_hash() == without_duplicate.state_hash()
-    assert (
-        with_duplicate.diagnostics["effective_support"]
-        == without_duplicate.diagnostics["effective_support"]
-    )
+    assert with_duplicate.diagnostics["effective_support"] == without_duplicate.diagnostics["effective_support"]
 
 
 def test_controlled_evaluation_is_byte_deterministic(tmp_path: Path) -> None:
@@ -211,12 +198,7 @@ def test_controlled_evaluation_is_byte_deterministic(tmp_path: Path) -> None:
     report_a = run_controlled_evaluation(first)
     report_b = run_controlled_evaluation(second)
     assert report_a == report_b
-    assert (first / "trials.jsonl").read_bytes() == (
-        second / "trials.jsonl"
-    ).read_bytes()
+    assert (first / "trials.jsonl").read_bytes() == (second / "trials.jsonl").read_bytes()
     assert report_a["trial_count"] == 24 * 8 * len(METHODS)
     assert report_a["aggregates"]["stewie"]["harmful_plan_count"] == 0
-    assert (
-        report_a["aggregates"]["latest_overwrite"]["harmful_plan_count"]
-        > 0
-    )
+    assert report_a["aggregates"]["latest_overwrite"]["harmful_plan_count"] > 0

@@ -6,6 +6,7 @@ import hashlib
 import os
 from pathlib import Path
 import tempfile
+from collections.abc import Iterable
 from typing import Any
 
 from stewie.ultrabuild.canonical import utc_now_text
@@ -35,10 +36,7 @@ class ContentAddressedPayloadStore:
 
     @staticmethod
     def _validate_digest(content_hash: str) -> None:
-        if (
-            len(content_hash) != 64
-            or any(character not in "0123456789abcdef" for character in content_hash)
-        ):
+        if len(content_hash) != 64 or any(character not in "0123456789abcdef" for character in content_hash):
             raise ValueError("content_hash must be a lowercase SHA-256 digest")
 
     def relative_path(self, content_hash: str) -> Path:
@@ -102,9 +100,7 @@ class ContentAddressedPayloadStore:
         }
         errors = json_schema_errors("payload_receipt.schema.json", receipt)
         if errors:
-            raise RuntimeError(
-                "internal payload receipt invalid: " + "; ".join(errors)
-            )
+            raise RuntimeError("internal payload receipt invalid: " + "; ".join(errors))
         return receipt
 
     def verify(
@@ -117,18 +113,11 @@ class ContentAddressedPayloadStore:
         try:
             data = target.read_bytes()
         except FileNotFoundError as exc:
-            raise PayloadIntegrityError(
-                f"payload {content_hash} is missing"
-            ) from exc
+            raise PayloadIntegrityError(f"payload {content_hash} is missing") from exc
         if self.digest(data) != content_hash:
-            raise PayloadIntegrityError(
-                f"payload {content_hash} fails digest verification"
-            )
+            raise PayloadIntegrityError(f"payload {content_hash} fails digest verification")
         if expected_size is not None and len(data) != expected_size:
-            raise PayloadIntegrityError(
-                f"payload {content_hash} has {len(data)} bytes; "
-                f"expected {expected_size}"
-            )
+            raise PayloadIntegrityError(f"payload {content_hash} has {len(data)} bytes; expected {expected_size}")
         return len(data)
 
     def get(self, content_hash: str) -> bytes:
@@ -141,3 +130,22 @@ class ContentAddressedPayloadStore:
         except PayloadIntegrityError:
             return False
         return True
+
+    def snapshot_to(
+        self,
+        destination: str | Path,
+        content_hashes: Iterable[str],
+    ) -> ContentAddressedPayloadStore:
+        """Copy a verified, closed payload set into an independent CAS root."""
+
+        target = ContentAddressedPayloadStore(
+            destination,
+            store_id=f"{self.store_id}.snapshot",
+        )
+        for content_hash in sorted(set(content_hashes)):
+            data = self.get(content_hash)
+            target.put(
+                data,
+                media_type="application/octet-stream",
+            )
+        return target

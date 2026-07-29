@@ -49,17 +49,22 @@ def append_with_provenance(
             submission(schema_name, record, token=token),
         ]
     )
-    stored = store.get(str(next(
-        record[key]
-        for key in (
-            "claim_id",
-            "event_id",
-            "candidate_id",
-            "decision_record_id",
+    stored = store.get(
+        str(
+            next(
+                record[key]
+                for key in (
+                    "claim_id",
+                    "event_id",
+                    "candidate_id",
+                    "decision_record_id",
+                )
+                if key in record
+            )
         )
-        if key in record
-    )))
-    assert stored is not None
+    )
+    if stored is None:
+        raise RuntimeError(f"record {token} was not durable after append")
     return stored
 
 
@@ -67,9 +72,7 @@ def build_golden_world(path: str | Path) -> tuple[AuthoritativeStore, dict[str, 
     """Create the smallest complete persistent world-state/autonomy vertical slice."""
 
     database_path = Path(path)
-    payload_store = ContentAddressedPayloadStore(
-        database_path.parent / "payloads"
-    )
+    payload_store = ContentAddressedPayloadStore(database_path.parent / "payloads")
     raster_receipt = payload_store.put(
         struct.pack("<4d", 0.0, -0.5, 0.25, -0.25),
         media_type="application/x-stewie-raster",
@@ -143,32 +146,31 @@ def build_golden_world(path: str | Path) -> tuple[AuthoritativeStore, dict[str, 
         decision,
         event_id=action["event_id"],
     )
-    store.append_batch(
-        [
-            submission(
-                "provenance_bundle.schema.json",
-                provenance_record(
-                    "reconciliation_decision.schema.json",
-                    decision,
-                    bundle_id=decision["provenance_bundle_id"],
-                ),
-                token="decision.promote.provenance",
+    provenance_submissions = [
+        submission(
+            "provenance_bundle.schema.json",
+            provenance_record(
+                "reconciliation_decision.schema.json",
+                decision,
+                bundle_id=decision["provenance_bundle_id"],
             ),
-            submission(
-                "provenance_bundle.schema.json",
-                provenance_record(
-                    "world_revision.schema.json",
-                    revision,
-                    bundle_id=revision["provenance_bundle_id"],
-                ),
-                token="revision.accepted.provenance",
+            token="decision.promote.provenance",
+        ),
+        submission(
+            "provenance_bundle.schema.json",
+            provenance_record(
+                "world_revision.schema.json",
+                revision,
+                bundle_id=revision["provenance_bundle_id"],
             ),
-        ]
-    )
+            token="revision.accepted.provenance",
+        ),
+    ]
     promotion_receipt = store.commit_promotion(
         operation_id="operation.promote.golden",
         expected_head_revision_id=None,
         expected_head_sequence=0,
+        provenance_submissions=provenance_submissions,
         decision_submission=submission(
             "reconciliation_decision.schema.json",
             decision,
@@ -180,9 +182,11 @@ def build_golden_world(path: str | Path) -> tuple[AuthoritativeStore, dict[str, 
             token="revision.accepted",
         ),
     )
-    assert promotion_receipt["applied"] is True
+    if promotion_receipt["applied"] is not True:
+        raise RuntimeError(f"golden promotion failed: {promotion_receipt['reason_code']}")
     stored_revision = store.get(revision["revision_id"])
-    assert stored_revision is not None
+    if stored_revision is None:
+        raise RuntimeError("promoted golden revision is not durable")
 
     request = query_request_record(stored_revision)
     request_receipt = store.append(
@@ -193,7 +197,8 @@ def build_golden_world(path: str | Path) -> tuple[AuthoritativeStore, dict[str, 
         )
     )
     stored_request = store.get(request["request_id"])
-    assert stored_request is not None
+    if stored_request is None:
+        raise RuntimeError("golden query request is not durable")
     resolved_revision = store.query_revision(
         world_id=request["world_id"],
         site_id=request["site_id"],
@@ -202,13 +207,12 @@ def build_golden_world(path: str | Path) -> tuple[AuthoritativeStore, dict[str, 
         known_at_sequence=request["known_at"]["sequence"],
         state_kinds=request["requested_state_kinds"],
     )
-    assert resolved_revision is not None
+    if resolved_revision is None:
+        raise RuntimeError("golden query did not resolve the accepted revision")
     lens = resolved_query_lens_record(
         stored_request,
         resolved_revision,
-        projection_transaction_sequence=request_receipt["transaction_time"][
-            "sequence"
-        ],
+        projection_transaction_sequence=request_receipt["transaction_time"]["sequence"],
     )
     store.append(
         submission(
@@ -218,7 +222,8 @@ def build_golden_world(path: str | Path) -> tuple[AuthoritativeStore, dict[str, 
         )
     )
     stored_lens = store.get(lens["lens_id"])
-    assert stored_lens is not None
+    if stored_lens is None:
+        raise RuntimeError("golden query lens is not durable")
 
     planner_decision = append_with_provenance(
         store,

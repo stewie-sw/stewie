@@ -31,8 +31,9 @@ authenticity, calibrated truth, or that a reported physical event occurred.
 - one subject naming the domain record ID, schema, record entity, submitted-record hash, generating
   activity, and responsible agent;
 - typed agents with qualified attestation, hardware, and firmware fields;
-- activities with kind, agent, algorithm version, code commit, configuration hash, seed where
-  applicable, and start/end times;
+- activities with kind, agent, pipeline identity, algorithm version, package version, verified Git
+  commit or explicit unavailability, dirty-state status, configuration hash, seed where applicable,
+  and start/end times;
 - typed entities with content hash and media type;
 - W3C-PROV-aligned relations;
 - transform records with source/target frames, transform payload hash, and valid time;
@@ -51,7 +52,11 @@ The repository semantic validator additionally closes a referenced bundle agains
 - payload and coverage hashes must match;
 - evidence source agent and algorithm version must be represented;
 - required transform-chain identity must be represented; and
-- known calibration identities in source and uncertainty records must be represented.
+- known calibration identities in source and uncertainty records must be represented;
+- every activity pipeline, transform frame, calibration instrument, and source-agent
+  hardware/firmware identity must close to a typed entity; and
+- provenance must be transactionally earlier than its subject and every bundle subject must link
+  back to exactly that bundle.
 
 Reference ordering is enforced by transaction sequence. Provenance may be staged immediately before
 its subject in the same atomic append batch, so the combined record graph is complete before commit.
@@ -117,23 +122,23 @@ revision; autonomous actions preserve the planner decision.
 
 ### Promotion
 
-1. Durably append the decision and revision provenance bundles.
-2. Submit the PROMOTE decision and accepted revision together to `commit_promotion`.
-3. Revalidate their bundle closure and full candidate/decision/revision graph inside the transaction.
-4. Atomically append decision and revision and compare-and-swap the accepted branch head.
-5. Return a typed CAS receipt naming the append receipts.
+1. Submit the decision provenance bundle, revision provenance bundle, PROMOTE decision, and accepted
+   revision together to `commit_promotion`.
+2. Revalidate their semantic closure and the full candidate/decision/revision graph inside one
+   transaction.
+3. Atomically append all four records and compare-and-swap the accepted branch head.
+4. Return a typed CAS receipt naming the append receipts.
 
-A missing or invalid provenance bundle prevents the authoritative promotion. Because promotion
-bundles are persisted before the CAS transaction, an invalid or stale promotion can leave an
-unconsumed immutable bundle; garbage collection or an explicit abandoned-intent relation is not yet
-implemented.
+A missing, invalid, late, stale, or semantically disconnected provenance bundle prevents the
+authoritative promotion without persisting any of the four records.
 
 ## Payload provenance
 
 `ContentAddressedPayloadStore` returns `payload_receipt.schema.json`, including digest, media type,
-byte size, relative CAS path, duplicate flag, and file/directory fsync evidence. When local-payload
-enforcement is enabled, the record gateway verifies referenced bytes and declared size before append.
-`verify_integrity()` repeats those checks over durable history.
+byte size, relative CAS path, duplicate flag, and file/directory fsync evidence. The record gateway
+verifies referenced bytes and declared size before authoritative promotion and authoritative query.
+`verify_integrity()` repeats those checks over payload-bearing durable history and fails closed when
+no payload verifier is configured.
 
 The payload receipt itself is not currently an immutable domain record in SQLite, and the payload
 write is not transactionally atomic with the record append. Orphan payloads are therefore possible;
@@ -146,8 +151,11 @@ The current store supports record lookup and schema/known-at enumeration. `verif
 - stored record schema and content hash;
 - unique, ordered transaction sequences and nondecreasing receipt timestamps;
 - all cross-record references and provenance closure;
+- activity-to-pipeline, transform-to-frame, calibration-to-instrument, and source-agent semantic
+  closure;
 - append and CAS receipt schemas;
-- payload availability, size, and digest when local enforcement is configured; and
+- payload availability, size, and digest for payload-bearing history;
+- reproducibility of every candidate raster and coverage mask from admitted observation payloads;
 - rebuildable branch-head equivalence to immutable history.
 
 The target lineage service must additionally support:

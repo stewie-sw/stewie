@@ -21,8 +21,11 @@ No artifact in this packet is labelled experimentally validated.
   adapters, input-equivalence rules, and compute caps.
 - `../../research/hypothesis_contracts.yaml`: exact H1-H7 domains, comparisons, endpoints, estimands,
   provisional MDEs/bounds, availability guards, and falsification rules.
-- `pilot_allocation.yaml` and `evaluation_allocation.yaml`: disjoint reserved unit/window/seed
-  assignments. Geometry and source hashes remain pending.
+- `pilot_allocation.yaml`: a provisional reserved unit/window/seed assignment. Geometry and source
+  hashes remain pending.
+- `evaluation_allocation.yaml`: the original disjoint evaluation assignment, now irreversibly
+  retired because its seeds and synthetic window design were exposed to the development harness. It
+  is retained as an audit artifact and must never be used as confirmatory evidence.
 - `metric_oracles/*.json`: synthetic golden fixtures for temporal, reconciliation, provenance,
   decision, and interaction formulas.
 - `dependency_oracle_negative_controls.yaml`: independent 2x2 overlap/correlation identification
@@ -53,7 +56,8 @@ That command intentionally exits nonzero in the current packet.
 ## Required evidence before acceptance
 
 1. Materialize and hash terrain windows, action geometries, system implementations, and configurations.
-2. Prove pilot/evaluation spatial disjointness and run only the pilot allocation.
+2. Replace the retired evaluation allocation under evaluator control, prove pilot/evaluation spatial
+   disjointness, and run only the pilot allocation before that replacement is frozen.
 3. Replace provisional MDEs, bounds, margins, and sample size with the independently reviewed pilot
    decision; retain the earlier values in history.
 4. Execute baseline same-input attestations, dependency-oracle poison tests, and reference-firewall

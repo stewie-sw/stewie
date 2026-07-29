@@ -44,7 +44,7 @@ real artifact, listed under `sources`:
 | `req_trace` | `scripts/req_trace.py` (PRD §7 reconciliation; `reconciles` ⇔ no `v_done_uncited`, no orphan markers) |
 | `autonomy_gate` | `scripts/release_gate.py` (AS-01..17 status) |
 | `sbom` | `scripts/gen_sbom.py` (CycloneDX component count from the pinned lock) |
-| `dependencies` | `scripts/check_deps_lock.py` (pyproject ⇄ lock drift, per lock) |
+| `dependencies` | `scripts/check_deps_lock.py` (pyproject ⇄ lock drift and explicit workspace exclusions, per lock) |
 | `changelog` | `CHANGELOG.md` (documents the version, Keep-a-Changelog + SemVer declared) |
 | `semver_policy` | this file's presence |
 
@@ -63,6 +63,11 @@ python3 scripts/gen_release_manifest.py --full     # release-time: + commit + li
 
 `--check` runs in CI so the committed manifest cannot silently drift from the tools — the same honesty
 gate `scripts/gen_status.py` uses for `STATUS.md`.
+
+`stewie-bodies` is a separately built workspace distribution, so it is explicitly excluded from the
+third-party hash lock and reported under each manifest lock's `ignored` field. Release testing must
+build both wheels and install only the root requirement from that local wheelhouse; the UltraBuild
+package integration regression enforces this dependency-resolution path.
 
 ## Release checklist
 

@@ -21,11 +21,14 @@ from _deps_lock import marker_applies, normalize, parse_lock, parse_pyproject  #
 
 __all__ = ["parse_pyproject_deps", "check_lock", "LockCheck", "DEFAULT_IGNORE", "main"]
 
-# Documented intentional lock exclusions (kept out of the lock on purpose, not drift):
+# Documented intentional lock exclusions (kept out of the third-party lock on purpose, not drift):
 #   pytest-xdist — pyproject [tool.pytest.ini_options] explains it is deliberately excluded from the
 #   hash-pinned CI lock (a default `-n auto` would error in CI installed from the lock). It is in the
 #   `dev` extra for the LOCAL parallel-run speedup only.
-DEFAULT_IGNORE = frozenset({"pytest-xdist"})
+#   stewie-bodies — a separately built workspace distribution under packages/stewie-bodies. It is
+#   installed from that source tree for development and supplied as a wheel in the release
+#   wheelhouse. Adding its unpublished name to a PyPI/hash lock would make reconstruction fail.
+DEFAULT_IGNORE = frozenset({"pytest-xdist", "stewie-bodies"})
 
 
 def parse_pyproject_deps(path: str) -> dict:

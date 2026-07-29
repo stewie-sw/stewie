@@ -12,10 +12,10 @@ from stewie.ultrabuild.canonical import (
     submitted_record_hash,
 )
 from stewie.ultrabuild.contracts import PRIMARY_KEY_BY_SCHEMA
+from stewie.ultrabuild.identity import build_identity
 
 
 ZERO_HASH = "0" * 64
-BASE_COMMIT = "d1056d9deff4e540557b13c8cb78fc799330410e"
 ACTIVITY_TIME = "2026-07-29T00:00:00Z"
 
 
@@ -204,9 +204,7 @@ def observation_record(
             "hardware_version": {"status": "known", "id": "stereo.hw.v1"},
             "firmware_version": {"status": "known", "id": "stereo.fw.v1"},
         },
-        "spatial": deepcopy(
-            evidence_spatial() if spatial is None else dict(spatial)
-        ),
+        "spatial": deepcopy(evidence_spatial() if spatial is None else dict(spatial)),
         "valid_time": valid_time(valid_start, valid_end),
         "payload": {
             "content_hash": payload_hash,
@@ -408,35 +406,17 @@ def candidate_record(
         "branch_id": "branch.accepted",
         "prior_revision_id": prior_revision_id,
         "admitted_observation_ids": (
-            [observation["claim_id"]]
-            if admitted_observation_ids is None
-            else list(admitted_observation_ids)
+            [observation["claim_id"]] if admitted_observation_ids is None else list(admitted_observation_ids)
         ),
-        "excluded_evidence": (
-            [] if excluded_evidence is None else deepcopy(excluded_evidence)
-        ),
-        "spatial": deepcopy(
-            revision_spatial() if spatial is None else dict(spatial)
-        ),
+        "excluded_evidence": ([] if excluded_evidence is None else deepcopy(excluded_evidence)),
+        "spatial": deepcopy(revision_spatial() if spatial is None else dict(spatial)),
         "valid_time": deepcopy(observation["valid_time"]),
         "uncertainty": candidate_uncertainty(),
         "payload": {
-            "content_hash": (
-                observation_payload["content_hash"]
-                if payload_hash is None
-                else payload_hash
-            ),
-            "coverage_hash": (
-                observation_payload["coverage_hash"]
-                if coverage_hash is None
-                else coverage_hash
-            ),
+            "content_hash": (observation_payload["content_hash"] if payload_hash is None else payload_hash),
+            "coverage_hash": (observation_payload["coverage_hash"] if coverage_hash is None else coverage_hash),
             "media_type": observation_payload["media_type"],
-            "byte_size": (
-                observation_payload["byte_size"]
-                if payload_byte_size is None
-                else payload_byte_size
-            ),
+            "byte_size": (observation_payload["byte_size"] if payload_byte_size is None else payload_byte_size),
         },
         "state_contract_hash": "",
         "construction": construction,
@@ -445,14 +425,8 @@ def candidate_record(
             "version": "v1",
             "config_hash": ZERO_HASH,
         },
-        "dependency_edge_ids": (
-            [] if dependency_edge_ids is None else list(dependency_edge_ids)
-        ),
-        "physics_comparison_ids": (
-            []
-            if physics_comparison_ids is None
-            else list(physics_comparison_ids)
-        ),
+        "dependency_edge_ids": ([] if dependency_edge_ids is None else list(dependency_edge_ids)),
+        "physics_comparison_ids": ([] if physics_comparison_ids is None else list(physics_comparison_ids)),
         "provenance_bundle_id": provenance_bundle_id,
     }
     record["state_contract_hash"] = state_contract_hash(record)
@@ -475,14 +449,10 @@ def promotion_decision_record(
         "branch_id": stored_candidate["branch_id"],
         "prior_revision_id": stored_candidate["prior_revision_id"],
         "policy": deepcopy(stored_candidate["policy"]),
-        "admitted_observation_ids": list(
-            stored_candidate["admitted_observation_ids"]
-        ),
+        "admitted_observation_ids": list(stored_candidate["admitted_observation_ids"]),
         "excluded_evidence": deepcopy(stored_candidate["excluded_evidence"]),
         "dependency_edge_ids": list(stored_candidate["dependency_edge_ids"]),
-        "physics_evidence_ids": list(
-            stored_candidate["physics_comparison_ids"]
-        ),
+        "physics_evidence_ids": list(stored_candidate["physics_comparison_ids"]),
         "decision": "PROMOTE",
         "reason_codes": ["admissible.observation"],
         "candidate": {
@@ -523,9 +493,7 @@ def promoted_revision_record(
         "site_id": stored_candidate["site_id"],
         "branch_id": stored_candidate["branch_id"],
         "parent_revision_ids": (
-            [stored_candidate["prior_revision_id"]]
-            if stored_candidate["prior_revision_id"] is not None
-            else []
+            [stored_candidate["prior_revision_id"]] if stored_candidate["prior_revision_id"] is not None else []
         ),
         "state_kind": "reconciled",
         "authority_scope": {
@@ -582,11 +550,7 @@ def query_request_record(
             "uncertainty_s": stored_revision["valid_time"]["uncertainty_s"],
         },
         "known_at": {
-            "sequence": (
-                transaction["sequence"]
-                if known_at_sequence is None
-                else known_at_sequence
-            ),
+            "sequence": (transaction["sequence"] if known_at_sequence is None else known_at_sequence),
             "recorded_at": transaction["recorded_at"],
         },
         "representation": spatial["representation"],
@@ -625,10 +589,7 @@ def resolved_query_lens_record(
         "schema_version": "stewie.query_lens/1.0",
         "lens_id": lens_id,
         "query_request_id": stored_request["request_id"],
-        **{
-            field: deepcopy(stored_request[field])
-            for field in copied_fields
-        },
+        **{field: deepcopy(stored_request[field]) for field in copied_fields},
         "status": "resolved",
         "reason_codes": [],
         "available_claim_ids": list(stored_revision["claim_ids"]),
@@ -719,9 +680,7 @@ def autonomous_action_record(
         "tool_id": "sensor.stereo.golden",
         "command_id": "command.rescan.golden",
         "execution_id": None,
-        "planned_effect_claim_ids": list(
-            stored_decision["expected_outcome_claim_ids"]
-        ),
+        "planned_effect_claim_ids": list(stored_decision["expected_outcome_claim_ids"]),
         "execution_status": "planned",
         "reported_execution_claim_ids": [],
         "observed_effect_claim_ids": [],
@@ -777,10 +736,7 @@ def conflict_record(
     right_bounds = right_claim["spatial"]["bounds"]
     dimensions = len(left_bounds) // 2
     bounds = [
-        *[
-            max(left_bounds[index], right_bounds[index])
-            for index in range(dimensions)
-        ],
+        *[max(left_bounds[index], right_bounds[index]) for index in range(dimensions)],
         *[
             min(
                 left_bounds[index + dimensions],
@@ -791,11 +747,7 @@ def conflict_record(
     ]
     left_valid = left_claim["valid_time"]
     right_valid = right_claim["valid_time"]
-    ends = [
-        value
-        for value in (left_valid["end"], right_valid["end"])
-        if value is not None
-    ]
+    ends = [value for value in (left_valid["end"], right_valid["end"]) if value is not None]
     overlap = {
         "start": max(left_valid["start"], right_valid["start"]),
         "end": min(ends) if ends else None,
@@ -865,11 +817,7 @@ def retention_decision_record(
     provenance_bundle_id: str = "provenance.decision.retain.multi-robot",
 ) -> dict[str, Any]:
     claim_ids = sorted(
-        {
-            claim_id
-            for hypothesis in hypothesis_set["hypotheses"]
-            for claim_id in hypothesis["claim_ids"]
-        }
+        {claim_id for hypothesis in hypothesis_set["hypotheses"] for claim_id in hypothesis["claim_ids"]}
     )
     return {
         "schema_version": "stewie.reconciliation_decision/1.0",
@@ -889,10 +837,7 @@ def retention_decision_record(
         "dependency_edge_ids": [],
         "decision": "RETAIN_HYPOTHESES",
         "reason_codes": ["support.not_decisive"],
-        "retained_hypothesis_ids": [
-            hypothesis["hypothesis_id"]
-            for hypothesis in hypothesis_set["hypotheses"]
-        ],
+        "retained_hypothesis_ids": [hypothesis["hypothesis_id"] for hypothesis in hypothesis_set["hypotheses"]],
         "hypothesis_set_id": hypothesis_set["hypothesis_set_id"],
         "valid_time": valid_time(),
         "provenance_bundle_id": provenance_bundle_id,
@@ -919,9 +864,7 @@ def provenance_record(
     owner_id = str(record[primary_key])
     source = record.get("source", {})
     responsible_agent = (
-        str(source.get("agent_id"))
-        if isinstance(source, Mapping) and source.get("agent_id")
-        else "software.ultrabuild"
+        str(source.get("agent_id")) if isinstance(source, Mapping) and source.get("agent_id") else "software.ultrabuild"
     )
     activity_id = (
         str(source.get("pipeline_id"))
@@ -933,24 +876,17 @@ def provenance_record(
         if isinstance(source, Mapping) and source.get("algorithm_version")
         else "ultrabuild.v1"
     )
+    pipeline_id = (
+        str(source.get("pipeline_id"))
+        if isinstance(source, Mapping) and source.get("pipeline_id")
+        else f"pipeline.ultrabuild.{schema_name.removesuffix('.schema.json')}"
+    )
     record_entity_id = f"entity.record.{owner_id}"
     payload = record.get("payload", {})
-    payload_hash = (
-        payload.get("content_hash")
-        if isinstance(payload, Mapping)
-        else record.get("payload_hash")
-    )
-    coverage_hash = (
-        payload.get("coverage_hash")
-        if isinstance(payload, Mapping)
-        else record.get("coverage_hash")
-    )
-    payload_entity_id = (
-        f"entity.payload.{owner_id}" if isinstance(payload_hash, str) else None
-    )
-    coverage_entity_id = (
-        f"entity.coverage.{owner_id}" if isinstance(coverage_hash, str) else None
-    )
+    payload_hash = payload.get("content_hash") if isinstance(payload, Mapping) else record.get("payload_hash")
+    coverage_hash = payload.get("coverage_hash") if isinstance(payload, Mapping) else record.get("coverage_hash")
+    payload_entity_id = f"entity.payload.{owner_id}" if isinstance(payload_hash, str) else None
+    coverage_entity_id = f"entity.coverage.{owner_id}" if isinstance(coverage_hash, str) else None
     kind_by_schema = {
         "evidence_claim.schema.json": "claim",
         "world_revision.schema.json": "revision",
@@ -986,11 +922,7 @@ def provenance_record(
                 "media_type": (
                     payload.get("media_type", "application/octet-stream")
                     if isinstance(payload, Mapping)
-                    else str(
-                        record.get(
-                            "payload_media_type", "application/octet-stream"
-                        )
-                    )
+                    else str(record.get("payload_media_type", "application/octet-stream"))
                 ),
             }
         )
@@ -1014,11 +946,7 @@ def provenance_record(
     spatial = record.get("spatial", {})
     transform_ids = []
     transforms = []
-    transform_id = (
-        spatial.get("transform_chain_id")
-        if isinstance(spatial, Mapping)
-        else None
-    )
+    transform_id = spatial.get("transform_chain_id") if isinstance(spatial, Mapping) else None
     if isinstance(transform_id, str):
         transform_ids.append(transform_id)
         transforms.append(
@@ -1046,11 +974,7 @@ def provenance_record(
                 calibration_ids.add(str(calibration["id"]))
             elif isinstance(calibration, str):
                 calibration_ids.add(calibration)
-    instrument = (
-        source.get("instrument_id", {})
-        if isinstance(source, Mapping)
-        else {}
-    )
+    instrument = source.get("instrument_id", {}) if isinstance(source, Mapping) else {}
     instrument_id = (
         str(instrument.get("id"))
         if isinstance(instrument, Mapping) and instrument.get("status") == "known"
@@ -1073,6 +997,34 @@ def provenance_record(
         "reconciliation_decision.schema.json": "reconcile",
         "world_revision.schema.json": "reconcile",
     }.get(schema_name, "transform")
+    identity = build_identity()
+    code_commit = str(identity["code_commit"])
+    code_commit_status = (
+        "verified"
+        if len(code_commit) == 40 and all(character in "0123456789abcdef" for character in code_commit)
+        else "unavailable"
+    )
+    if code_commit_status == "unavailable":
+        code_commit = "unavailable"
+
+    def provenance_qualified(
+        field: str,
+        fallback: str,
+    ) -> dict[str, Any]:
+        value = source.get(field) if isinstance(source, Mapping) else None
+        if isinstance(value, Mapping):
+            if value.get("status") == "known" and isinstance(value.get("id"), str):
+                return {"status": "known", "value": value["id"]}
+            if value.get("status") == "unknown" and isinstance(
+                value.get("reason_code"),
+                str,
+            ):
+                return {
+                    "status": "unknown",
+                    "reason_code": value["reason_code"],
+                }
+        return {"status": "known", "value": fallback}
+
     subject: dict[str, Any] = {
         "record_id": owner_id,
         "record_schema": schema_name,
@@ -1099,12 +1051,18 @@ def provenance_record(
             {
                 "agent_id": responsible_agent,
                 "kind": "robot" if responsible_agent.startswith("robot.") else "software",
-                "attestation_key_id": {
-                    "status": "known",
-                    "value": f"key.{responsible_agent}",
-                },
-                "hardware_version": {"status": "known", "value": "hardware.v1"},
-                "firmware_version": {"status": "known", "value": "firmware.v1"},
+                "attestation_key_id": provenance_qualified(
+                    "attestation_key_id",
+                    f"key.{responsible_agent}",
+                ),
+                "hardware_version": provenance_qualified(
+                    "hardware_version",
+                    "hardware.v1",
+                ),
+                "firmware_version": provenance_qualified(
+                    "firmware_version",
+                    "firmware.v1",
+                ),
             }
         ],
         "activities": [
@@ -1112,8 +1070,12 @@ def provenance_record(
                 "activity_id": activity_id,
                 "kind": activity_kind,
                 "agent_id": responsible_agent,
+                "pipeline_id": pipeline_id,
                 "algorithm_version": algorithm_version,
-                "code_commit": BASE_COMMIT,
+                "code_commit": code_commit,
+                "code_commit_status": code_commit_status,
+                "package_version": str(identity["package_version"]),
+                "source_dirty": identity["source_dirty"],
                 "configuration_hash": ZERO_HASH,
                 "seed": 1,
                 "started_at": ACTIVITY_TIME,

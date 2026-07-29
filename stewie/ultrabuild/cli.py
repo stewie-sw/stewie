@@ -22,6 +22,13 @@ from stewie.ultrabuild.scenario_runner import (
 from stewie.ultrabuild.store import AuthoritativeStore
 
 
+def _measured_runs(value: str) -> int:
+    parsed = int(value)
+    if parsed < 20:
+        raise argparse.ArgumentTypeError("--measured-runs must be at least 20")
+    return parsed
+
+
 def _write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(canonical_bytes(value) + b"\n")
@@ -60,9 +67,7 @@ def _evaluate(output: Path) -> int:
 
 def _multi_demo(output: Path) -> int:
     output.mkdir(parents=True, exist_ok=True)
-    store, report = run_multi_robot_closed_loop(
-        output / "world-state.sqlite3"
-    )
+    store, report = run_multi_robot_closed_loop(output / "world-state.sqlite3")
     try:
         _write_json(output / "multi-robot-summary.json", report)
         print(json.dumps(report, indent=2, sort_keys=True))
@@ -73,9 +78,7 @@ def _multi_demo(output: Path) -> int:
 
 def _conflict_demo(output: Path) -> int:
     output.mkdir(parents=True, exist_ok=True)
-    store, report = run_conflict_retention_demo(
-        output / "world-state.sqlite3"
-    )
+    store, report = run_conflict_retention_demo(output / "world-state.sqlite3")
     try:
         _write_json(output / "conflict-summary.json", report)
         print(json.dumps(report, indent=2, sort_keys=True))
@@ -85,13 +88,13 @@ def _conflict_demo(output: Path) -> int:
 
 
 def _verify(database: Path, payloads: Path | None) -> int:
-    payload_store = (
-        ContentAddressedPayloadStore(payloads) if payloads is not None else None
-    )
+    if payloads is None:
+        raise ValueError("complete verification requires --payloads")
+    payload_store = ContentAddressedPayloadStore(payloads)
     with AuthoritativeStore(
         database,
         payload_store=payload_store,
-        require_local_payloads=payload_store is not None,
+        require_local_payloads=True,
     ) as store:
         report = store.verify_integrity()
     print(json.dumps(report, indent=2, sort_keys=True))
@@ -139,7 +142,7 @@ def parser() -> argparse.ArgumentParser:
     conflict_demo.add_argument("--output", type=Path, required=True)
     evaluate = commands.add_parser(
         "evaluate",
-        help="run frozen controlled baseline/ablation trials",
+        help="run exploratory controlled baseline/ablation diagnostics",
     )
     evaluate.add_argument("--output", type=Path, required=True)
     verify = commands.add_parser(
@@ -147,13 +150,13 @@ def parser() -> argparse.ArgumentParser:
         help="verify an existing authority database",
     )
     verify.add_argument("--database", type=Path, required=True)
-    verify.add_argument("--payloads", type=Path)
+    verify.add_argument("--payloads", type=Path, required=True)
     benchmark = commands.add_parser(
         "benchmark",
         help="measure implemented Barrier-3 performance paths",
     )
     benchmark.add_argument("--output", type=Path, required=True)
-    benchmark.add_argument("--measured-runs", type=int, default=200)
+    benchmark.add_argument("--measured-runs", type=_measured_runs, default=200)
     faults = commands.add_parser(
         "fault-inject",
         help="run controlled authority and reconciliation faults",

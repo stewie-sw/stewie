@@ -39,9 +39,7 @@ def _map_evidence(
     )
 
 
-def _localization(
-    scenario: CandidateScenario, cells: int
-) -> CandidateScenario:
+def _localization(scenario: CandidateScenario, cells: int) -> CandidateScenario:
     return _map_evidence(
         scenario,
         lambda item: (
@@ -52,9 +50,7 @@ def _localization(
     )
 
 
-def _noise(
-    scenario: CandidateScenario, standard_deviation_m: float
-) -> CandidateScenario:
+def _noise(scenario: CandidateScenario, standard_deviation_m: float) -> CandidateScenario:
     random = np.random.default_rng(scenario.seed + 991)
 
     def transform(item: RasterEvidence) -> RasterEvidence:
@@ -74,17 +70,13 @@ def _noise(
     return _map_evidence(scenario, transform)
 
 
-def _delay(
-    scenario: CandidateScenario, additional_sequences: int
-) -> CandidateScenario:
+def _delay(scenario: CandidateScenario, additional_sequences: int) -> CandidateScenario:
     return _map_evidence(
         scenario,
         lambda item: (
             replace(
                 item,
-                received_sequence=(
-                    item.received_sequence + additional_sequences
-                ),
+                received_sequence=(item.received_sequence + additional_sequences),
             )
             if item.valid_start >= scenario.action.end
             else item
@@ -92,9 +84,7 @@ def _delay(
     )
 
 
-def _dropout(
-    scenario: CandidateScenario, fraction: float
-) -> CandidateScenario:
+def _dropout(scenario: CandidateScenario, fraction: float) -> CandidateScenario:
     if fraction == 0.0:
         return scenario
     random = np.random.default_rng(scenario.seed + 177)
@@ -108,9 +98,7 @@ def _dropout(
     return _map_evidence(scenario, transform)
 
 
-def _physics_mismatch(
-    scenario: CandidateScenario, envelope_fraction: float
-) -> CandidateScenario:
+def _physics_mismatch(scenario: CandidateScenario, envelope_fraction: float) -> CandidateScenario:
     if envelope_fraction == 1.0:
         return scenario
     envelope = scenario.action.operational_envelope.copy()
@@ -128,9 +116,7 @@ def _physics_mismatch(
     )
 
 
-def _robot_count(
-    scenario: CandidateScenario, robots: int
-) -> CandidateScenario:
+def _robot_count(scenario: CandidateScenario, robots: int) -> CandidateScenario:
     permitted = {
         1: {"robot.a"},
         2: {"robot.a", "robot.b"},
@@ -138,22 +124,14 @@ def _robot_count(
     }[robots]
     return replace(
         scenario,
-        evidence=tuple(
-            item for item in scenario.evidence if item.robot_id in permitted
-        ),
+        evidence=tuple(item for item in scenario.evidence if item.robot_id in permitted),
     )
 
 
-def _clock_error(
-    scenario: CandidateScenario, seconds: float
-) -> CandidateScenario:
+def _clock_error(scenario: CandidateScenario, seconds: float) -> CandidateScenario:
     return _map_evidence(
         scenario,
-        lambda item: (
-            replace(item, source_time=item.source_time + seconds)
-            if item.robot_id == "robot.b"
-            else item
-        ),
+        lambda item: (replace(item, source_time=item.source_time + seconds) if item.robot_id == "robot.b" else item),
     )
 
 
@@ -177,9 +155,7 @@ def run_perturbation_study(output_directory: str | Path) -> dict[str, Any]:
     cells: list[dict[str, Any]] = []
     for factor, (levels, transform) in FACTORS.items():
         for level in levels:
-            observations: dict[Method, list[dict[str, Any]]] = {
-                method: [] for method in METHODS
-            }
+            observations: dict[Method, list[dict[str, Any]]] = {method: [] for method in METHODS}
             for window_index in range(8):
                 for seed in SEEDS:
                     scenario, reference = generate_trial(
@@ -190,19 +166,14 @@ def run_perturbation_study(output_directory: str | Path) -> dict[str, Any]:
                     perturbed = transform(scenario, level)
                     for method in METHODS:
                         candidate = run_candidate(perturbed, method)
-                        observations[method].append(
-                            evaluate_candidate(candidate, reference)
-                        )
+                        observations[method].append(evaluate_candidate(candidate, reference))
             for method, results in observations.items():
                 finite_rmses = [
                     float(result["rmse_m"])
                     for result in results
-                    if result["rmse_m"] is not None
-                    and math.isfinite(float(result["rmse_m"]))
+                    if result["rmse_m"] is not None and math.isfinite(float(result["rmse_m"]))
                 ]
-                available = sum(
-                    int(result["available"]) for result in results
-                )
+                available = sum(int(result["available"]) for result in results)
                 cells.append(
                     {
                         "factor": factor,
@@ -210,17 +181,9 @@ def run_perturbation_study(output_directory: str | Path) -> dict[str, Any]:
                         "method": method,
                         "trials": len(results),
                         "availability_rate": available / len(results),
-                        "harmful_plan_rate": sum(
-                            int(result["harmful_plan"])
-                            for result in results
-                        )
-                        / len(results),
+                        "harmful_plan_rate": sum(int(result["harmful_plan"]) for result in results) / len(results),
                         "finite_rmse_rate": len(finite_rmses) / len(results),
-                        "mean_finite_rmse_m": (
-                            float(np.mean(finite_rmses))
-                            if finite_rmses
-                            else None
-                        ),
+                        "mean_finite_rmse_m": (float(np.mean(finite_rmses)) if finite_rmses else None),
                     }
                 )
     stewie_failures = [
@@ -238,28 +201,22 @@ def run_perturbation_study(output_directory: str | Path) -> dict[str, Any]:
             cell["availability_rate"] < 0.95
             or cell["harmful_plan_rate"] > 0.0
             or cell["finite_rmse_rate"] < 0.95
-            or (
-                cell["mean_finite_rmse_m"] is not None
-                and cell["mean_finite_rmse_m"] > 0.2
-            )
+            or (cell["mean_finite_rmse_m"] is not None and cell["mean_finite_rmse_m"] > 0.2)
         )
     ]
     report: dict[str, Any] = {
         "schema_version": "stewie.perturbation_report/1.0",
-        "status": "controlled_one_factor_evidence",
+        "status": "exploratory_controlled_one_factor_diagnostic",
         "claim_limit": (
             "Factors are synthetic and varied one at a time. Interactions, "
             "physical sensor behavior, network partitions, and generalization "
-            "outside the frozen arrays are not established."
+            "outside the exposed development arrays are not established."
         ),
-        "independent_units": "8 frozen terrain windows",
+        "independent_units": "8 exposed synthetic development windows",
         "seeds_per_unit": len(SEEDS),
         "action_kind": "nominal",
         "methods": list(METHODS),
-        "factor_levels": {
-            factor: list(levels)
-            for factor, (levels, _) in FACTORS.items()
-        },
+        "factor_levels": {factor: list(levels) for factor, (levels, _) in FACTORS.items()},
         "cells": cells,
         "build_identity": build_identity(),
         "registered_stewie_failure_cells": stewie_failures,
@@ -274,7 +231,5 @@ def run_perturbation_study(output_directory: str | Path) -> dict[str, Any]:
         ],
     }
     report["report_content_hash"] = sha256_json(report)
-    (output / "perturbation-report.json").write_bytes(
-        canonical_bytes(report) + b"\n"
-    )
+    (output / "perturbation-report.json").write_bytes(canonical_bytes(report) + b"\n")
     return report

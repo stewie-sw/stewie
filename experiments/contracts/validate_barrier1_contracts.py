@@ -317,7 +317,7 @@ def _allocation_ids(allocation: Mapping[str, Any]) -> tuple[set[str], set[str], 
 
 
 def validate_allocations(pilot: Mapping[str, Any], evaluation: Mapping[str, Any]) -> None:
-    for allocation, expected_phase, expected_units in (
+    for allocation, expected_phase, expected_rows in (
         (pilot, "pilot", 4),
         (evaluation, "evaluation", 24),
     ):
@@ -329,20 +329,59 @@ def validate_allocations(pilot: Mapping[str, Any], evaluation: Mapping[str, Any]
         require(allocation.get("spatial_disjointness_verified") is False, f"{expected_phase}: spatial proof is pending")
         units = allocation.get("units", [])
         seeds = allocation.get("seeds", [])
-        require(allocation.get("unit_count") == expected_units == len(units), f"{expected_phase}: unit count")
+        require(
+            allocation.get("registered_row_count") == expected_rows == len(units),
+            f"{expected_phase}: registered row count",
+        )
+        unique_windows = {unit.get("window_id") for unit in units if isinstance(unit, Mapping)}
+        require(
+            allocation.get("unit_count") == len(unique_windows),
+            f"{expected_phase}: independent terrain-window count",
+        )
+        require(
+            allocation.get("independent_unit_kind") == "terrain_window"
+            and allocation.get("resampling_level") == "terrain_window",
+            f"{expected_phase}: action geometry must remain a within-window repeated measure",
+        )
         require(allocation.get("seeds_per_unit") == len(seeds), f"{expected_phase}: seeds per unit")
         require(
-            allocation.get("unit_seed_pair_count") == len(units) * len(seeds),
+            allocation.get("unit_seed_pair_count") == len(unique_windows) * len(seeds),
             f"{expected_phase}: unit-seed pair count",
         )
+        require(
+            allocation.get("registered_row_seed_count") == len(units) * len(seeds),
+            f"{expected_phase}: registered row-seed count",
+        )
         _allocation_ids(allocation)
+
+    require(
+        evaluation.get("status") == "retired_exposed_development_allocation",
+        "evaluation allocation must remain visibly retired after development exposure",
+    )
+    require(
+        evaluation.get("allocation_lock") == "retired_never_confirmatory",
+        "retired evaluation allocation cannot be relocked for confirmation",
+    )
+    retirement = evaluation.get("retirement")
+    require(isinstance(retirement, Mapping), "evaluation retirement record missing")
+    require(
+        retirement.get("reuse_for_confirmatory_evidence_forbidden") is True
+        and retirement.get("replacement_required") is True,
+        "evaluation retirement must forbid confirmatory reuse and require replacement",
+    )
 
     pilot_units, pilot_windows, pilot_seeds = _allocation_ids(pilot)
     eval_units, eval_windows, eval_seeds = _allocation_ids(evaluation)
     require(not (pilot_units & eval_units), "pilot/evaluation unit IDs overlap")
     require(not (pilot_windows & eval_windows), "pilot/evaluation window IDs overlap")
     require(not (pilot_seeds & eval_seeds), "pilot/evaluation seeds overlap")
-    require(evaluation.get("unique_window_count") == len(eval_windows) == 8, "evaluation window count")
+    require(
+        evaluation.get("unique_window_count")
+        == evaluation.get("unit_count")
+        == len(eval_windows)
+        == 8,
+        "evaluation window count",
+    )
     window_action_counts = Counter(
         unit["window_id"] for unit in evaluation["units"] if isinstance(unit, Mapping)
     )
@@ -533,6 +572,7 @@ def validate_all() -> dict[str, Any]:
     validate_metric_oracles()
     blockers = [
         "minimum effects and perturbation bounds are provisional and not pilot-calibrated",
+        "the exposed development evaluation allocation is retired and has not been replaced",
         "terrain windows and action geometries lack content hashes and spatial-disjointness proof",
         "baseline implementations/configuration hashes and external selections are pending",
         "dependency generator/oracle and poison attestations are not implemented",

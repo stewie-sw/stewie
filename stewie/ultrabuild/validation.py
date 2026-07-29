@@ -29,28 +29,12 @@ from stewie.ultrabuild.canonical import (
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_SCHEMA_ROOT = SOURCE_ROOT / "schemas" / "ultrabuild"
-INSTALLED_SCHEMA_ROOT = (
-    Path(sysconfig.get_path("data"))
-    / "share"
-    / "stewie"
-    / "schemas"
-    / "ultrabuild"
-)
-TARGET_INSTALL_SCHEMA_ROOT = (
-    Path(__file__).resolve().parents[2]
-    / "share"
-    / "stewie"
-    / "schemas"
-    / "ultrabuild"
-)
+INSTALLED_SCHEMA_ROOT = Path(sysconfig.get_path("data")) / "share" / "stewie" / "schemas" / "ultrabuild"
+TARGET_INSTALL_SCHEMA_ROOT = Path(__file__).resolve().parents[2] / "share" / "stewie" / "schemas" / "ultrabuild"
 SCHEMA_ROOT = (
     SOURCE_SCHEMA_ROOT
     if SOURCE_SCHEMA_ROOT.is_dir()
-    else (
-        TARGET_INSTALL_SCHEMA_ROOT
-        if TARGET_INSTALL_SCHEMA_ROOT.is_dir()
-        else INSTALLED_SCHEMA_ROOT
-    )
+    else (TARGET_INSTALL_SCHEMA_ROOT if TARGET_INSTALL_SCHEMA_ROOT.is_dir() else INSTALLED_SCHEMA_ROOT)
 )
 FORMAT_CHECKER = FormatChecker()
 
@@ -184,9 +168,7 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
                 if not isinstance(value, str):
                     continue
                 if value in local_ids:
-                    errors.append(
-                        f"{collection}: identifier {value} is reused across bundle node classes"
-                    )
+                    errors.append(f"{collection}: identifier {value} is reused across bundle node classes")
                 local_ids.add(value)
                 id_kinds[value] = collection
         for index, activity in enumerate(record.get("activities", [])):
@@ -223,36 +205,23 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
             }
             expected = permitted_endpoint_kinds.get(str(relation_kind))
             if expected is not None and (subject_kind, object_kind) != expected:
-                errors.append(
-                    f"relations.{index}: {relation_kind} requires "
-                    f"{expected[0]} -> {expected[1]}"
-                )
+                errors.append(f"relations.{index}: {relation_kind} requires {expected[0]} -> {expected[1]}")
         subject = record.get("subject", {})
         if isinstance(subject, Mapping):
             entity_by_id = {
-                entity.get("entity_id"): entity
-                for entity in record.get("entities", [])
-                if isinstance(entity, Mapping)
+                entity.get("entity_id"): entity for entity in record.get("entities", []) if isinstance(entity, Mapping)
             }
             activity_by_id = {
                 activity.get("activity_id"): activity
                 for activity in record.get("activities", [])
                 if isinstance(activity, Mapping)
             }
-            agent_ids = {
-                agent.get("agent_id")
-                for agent in record.get("agents", [])
-                if isinstance(agent, Mapping)
-            }
+            agent_ids = {agent.get("agent_id") for agent in record.get("agents", []) if isinstance(agent, Mapping)}
             record_entity = entity_by_id.get(subject.get("record_entity_id"))
             if not isinstance(record_entity, Mapping):
                 errors.append("subject.record_entity_id: matching entity is absent")
-            elif record_entity.get("content_hash") != subject.get(
-                "submitted_record_hash"
-            ):
-                errors.append(
-                    "subject.record_entity_id: entity hash differs from submitted record hash"
-                )
+            elif record_entity.get("content_hash") != subject.get("submitted_record_hash"):
+                errors.append("subject.record_entity_id: entity hash differs from submitted record hash")
             payload_entity_id = subject.get("payload_entity_id")
             if isinstance(payload_entity_id, str):
                 payload_entity = entity_by_id.get(payload_entity_id)
@@ -261,9 +230,7 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
                     or payload_entity.get("kind") != "payload"
                     or payload_entity.get("content_hash") != subject.get("payload_hash")
                 ):
-                    errors.append(
-                        "subject.payload_entity_id: payload entity/hash is absent or mismatched"
-                    )
+                    errors.append("subject.payload_entity_id: payload entity/hash is absent or mismatched")
             coverage_entity_id = subject.get("coverage_entity_id")
             if isinstance(coverage_entity_id, str):
                 coverage_entity = entity_by_id.get(coverage_entity_id)
@@ -272,18 +239,14 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
                     or coverage_entity.get("kind") != "payload"
                     or coverage_entity.get("content_hash") != subject.get("coverage_hash")
                 ):
-                    errors.append(
-                        "subject.coverage_entity_id: coverage entity/hash is absent or mismatched"
-                    )
+                    errors.append("subject.coverage_entity_id: coverage entity/hash is absent or mismatched")
             activity_id = subject.get("generating_activity_id")
             agent_id = subject.get("responsible_agent_id")
             activity = activity_by_id.get(activity_id)
             if not isinstance(activity, Mapping):
                 errors.append("subject.generating_activity_id: activity is absent")
             elif activity.get("agent_id") != agent_id:
-                errors.append(
-                    "subject.generating_activity_id: activity uses another responsible agent"
-                )
+                errors.append("subject.generating_activity_id: activity uses another responsible agent")
             if agent_id not in agent_ids:
                 errors.append("subject.responsible_agent_id: agent is absent")
             relation_triples = {
@@ -303,9 +266,7 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
                 required_relations.add(("used", activity_id, payload_entity_id))
             missing_relations = required_relations - relation_triples
             if missing_relations:
-                errors.append(
-                    f"relations: missing subject closure edges {sorted(missing_relations)}"
-                )
+                errors.append(f"relations: missing subject closure edges {sorted(missing_relations)}")
             transform_ids = {
                 transform.get("transform_id")
                 for transform in record.get("transforms", [])
@@ -318,9 +279,7 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
                 for calibration in record.get("calibrations", [])
                 if isinstance(calibration, Mapping)
             }
-            if not set(subject.get("calibration_ids", [])).issubset(
-                calibration_ids
-            ):
+            if not set(subject.get("calibration_ids", [])).issubset(calibration_ids):
                 errors.append("subject.calibration_ids: calibration nodes are missing")
 
     if schema_name == "world_revision.schema.json":
@@ -346,11 +305,7 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
 
     if schema_name in {"state_candidate.schema.json", "reconciliation_decision.schema.json"}:
         admitted = record.get("admitted_observation_ids", [])
-        excluded = [
-            item.get("claim_id")
-            for item in record.get("excluded_evidence", [])
-            if isinstance(item, Mapping)
-        ]
+        excluded = [item.get("claim_id") for item in record.get("excluded_evidence", []) if isinstance(item, Mapping)]
         if len(excluded) != len(set(excluded)):
             errors.append("excluded_evidence: a claim may be excluded only once")
         overlap = sorted(set(admitted) & set(excluded))
@@ -359,17 +314,11 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
 
     if schema_name in {"state_candidate.schema.json", "world_revision.schema.json"}:
         if record.get("state_contract_hash") != state_contract_hash(record):
-            errors.append(
-                "state_contract_hash: does not bind spatial, valid-time, uncertainty, payload, and coverage"
-            )
+            errors.append("state_contract_hash: does not bind spatial, valid-time, uncertainty, payload, and coverage")
         uncertainty = record.get("uncertainty", {})
         if isinstance(uncertainty, Mapping):
             components = uncertainty.get("components", [])
-            kinds = [
-                item.get("kind")
-                for item in components
-                if isinstance(item, Mapping)
-            ]
+            kinds = [item.get("kind") for item in components if isinstance(item, Mapping)]
             required_kinds = {
                 "sensor",
                 "localization",
@@ -381,16 +330,10 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
                 "inter_robot",
             }
             if len(kinds) != len(set(kinds)) or set(kinds) != required_kinds:
-                errors.append(
-                    "uncertainty.components: every uncertainty class must appear exactly once"
-                )
+                errors.append("uncertainty.components: every uncertainty class must appear exactly once")
 
     if schema_name == "barrier_decision.schema.json":
-        findings = [
-            finding
-            for finding in record.get("findings", [])
-            if isinstance(finding, Mapping)
-        ]
+        findings = [finding for finding in record.get("findings", []) if isinstance(finding, Mapping)]
         derived_open_critical = {
             finding.get("finding_id")
             for finding in findings
@@ -400,16 +343,12 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
         if declared_open_critical != derived_open_critical:
             errors.append("open_critical_defect_ids: differs from open critical findings")
         top_evidence = {
-            item.get("artifact_id")
-            for item in record.get("evidence_artifacts", [])
-            if isinstance(item, Mapping)
+            item.get("artifact_id") for item in record.get("evidence_artifacts", []) if isinstance(item, Mapping)
         }
         for finding in findings:
             missing = set(finding.get("evidence_artifact_ids", [])) - top_evidence
             if missing:
-                errors.append(
-                    f"findings.{finding.get('finding_id')}: evidence absent from hashed evidence_artifacts"
-                )
+                errors.append(f"findings.{finding.get('finding_id')}: evidence absent from hashed evidence_artifacts")
         if record.get("decision") == "ACCEPT" and derived_open_critical:
             errors.append("decision: ACCEPT is forbidden with open critical findings")
 
@@ -428,16 +367,8 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
             if candidate.get("mount") == reference.get("evaluator_mount"):
                 errors.append("reference_firewall: candidate and reference mounts must be distinct")
         evidence_sequence = record.get("evidence_sequence", [])
-        evidence_claims = [
-            item.get("claim_id")
-            for item in evidence_sequence
-            if isinstance(item, Mapping)
-        ]
-        evidence_orders = [
-            item.get("sequence")
-            for item in evidence_sequence
-            if isinstance(item, Mapping)
-        ]
+        evidence_claims = [item.get("claim_id") for item in evidence_sequence if isinstance(item, Mapping)]
+        evidence_orders = [item.get("sequence") for item in evidence_sequence if isinstance(item, Mapping)]
         if len(evidence_claims) != len(set(evidence_claims)):
             errors.append("evidence_sequence: claim IDs must be unique")
         if len(evidence_orders) != len(set(evidence_orders)):
@@ -521,8 +452,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
         if isinstance(sequence, int):
             if sequence in sequence_owners:
                 errors.append(
-                    f"transaction_time.sequence: {sequence} reused by "
-                    f"{sequence_owners[sequence]} and {identity}"
+                    f"transaction_time.sequence: {sequence} reused by {sequence_owners[sequence]} and {identity}"
                 )
             sequence_owners[sequence] = identity
             if isinstance(recorded_at, str):
@@ -534,9 +464,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
         except ValueError:
             continue
         if prior_time is not None and instant < prior_time:
-            errors.append(
-                f"transaction_time.recorded_at: decreases at {identity}"
-            )
+            errors.append(f"transaction_time.recorded_at: decreases at {identity}")
         prior_time = instant
 
     def resolve(
@@ -571,11 +499,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
     ) -> None:
         earlier_sequence = transaction_sequence(earlier)
         later_sequence = transaction_sequence(later)
-        if (
-            earlier_sequence is not None
-            and later_sequence is not None
-            and earlier_sequence >= later_sequence
-        ):
+        if earlier_sequence is not None and later_sequence is not None and earlier_sequence >= later_sequence:
             errors.append(f"{field}: referenced record is not transactionally earlier")
 
     def valid_at(record: Mapping[str, Any], instant: float, clock_id: str) -> bool:
@@ -602,105 +526,152 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 "provenance_bundle_id",
             )
             if bundle is not None:
+                require_earlier(bundle, record, "provenance_bundle_id")
                 subject = bundle.get("subject", {})
                 if isinstance(subject, Mapping):
                     owner_id = _record_id(schema_name, record)
                     if subject.get("record_id") != owner_id:
-                        errors.append(
-                            "provenance_bundle_id: bundle subject names another record"
-                        )
+                        errors.append("provenance_bundle_id: bundle subject names another record")
                     if subject.get("record_schema") != schema_name:
-                        errors.append(
-                            "provenance_bundle_id: bundle subject names another schema"
-                        )
-                    if subject.get("submitted_record_hash") != submitted_record_hash(
-                        record
-                    ):
-                        errors.append(
-                            "provenance_bundle_id: submitted record hash does not close"
-                        )
+                        errors.append("provenance_bundle_id: bundle subject names another schema")
+                    if subject.get("submitted_record_hash") != submitted_record_hash(record):
+                        errors.append("provenance_bundle_id: submitted record hash does not close")
                     payload = record.get("payload", {})
                     payload_hash = (
-                        payload.get("content_hash")
-                        if isinstance(payload, Mapping)
-                        else record.get("payload_hash")
+                        payload.get("content_hash") if isinstance(payload, Mapping) else record.get("payload_hash")
                     )
                     coverage_hash = (
-                        payload.get("coverage_hash")
-                        if isinstance(payload, Mapping)
-                        else record.get("coverage_hash")
+                        payload.get("coverage_hash") if isinstance(payload, Mapping) else record.get("coverage_hash")
                     )
-                    if payload_hash is not None and subject.get(
-                        "payload_hash"
-                    ) != payload_hash:
-                        errors.append(
-                            "provenance_bundle_id: payload hash does not close"
-                        )
-                    if coverage_hash is not None and subject.get(
-                        "coverage_hash"
-                    ) != coverage_hash:
-                        errors.append(
-                            "provenance_bundle_id: coverage hash does not close"
-                        )
+                    if payload_hash is not None and subject.get("payload_hash") != payload_hash:
+                        errors.append("provenance_bundle_id: payload hash does not close")
+                    if coverage_hash is not None and subject.get("coverage_hash") != coverage_hash:
+                        errors.append("provenance_bundle_id: coverage hash does not close")
                     if schema_name == "evidence_claim.schema.json":
                         source = record.get("source", {})
                         if isinstance(source, Mapping):
-                            if subject.get("responsible_agent_id") != source.get(
-                                "agent_id"
-                            ):
-                                errors.append(
-                                    "provenance_bundle_id: source agent does not close"
-                                )
+                            if subject.get("responsible_agent_id") != source.get("agent_id"):
+                                errors.append("provenance_bundle_id: source agent does not close")
                             activity = next(
                                 (
                                     item
                                     for item in bundle.get("activities", [])
                                     if isinstance(item, Mapping)
-                                    and item.get("activity_id")
-                                    == subject.get("generating_activity_id")
+                                    and item.get("activity_id") == subject.get("generating_activity_id")
                                 ),
                                 None,
                             )
                             if (
                                 not isinstance(activity, Mapping)
-                                or activity.get("algorithm_version")
-                                != source.get("algorithm_version")
+                                or activity.get("algorithm_version") != source.get("algorithm_version")
+                                or activity.get("pipeline_id") != source.get("pipeline_id")
+                                or activity.get("kind") != "observe"
                             ):
                                 errors.append(
-                                    "provenance_bundle_id: processing activity/version does not close"
+                                    "provenance_bundle_id: processing activity/version does not close "
+                                    "(pipeline identity included)"
                                 )
-                            required_transforms = {
-                                record.get("spatial", {}).get(
-                                    "transform_chain_id"
-                                )
+                            required_transforms = {record.get("spatial", {}).get("transform_chain_id")}
+                            if not required_transforms.issubset(set(subject.get("transform_ids", []))):
+                                errors.append("provenance_bundle_id: transform chain does not close")
+                            transform_by_id = {
+                                item.get("transform_id"): item
+                                for item in bundle.get("transforms", [])
+                                if isinstance(item, Mapping)
                             }
-                            if not required_transforms.issubset(
-                                set(subject.get("transform_ids", []))
+                            spatial = record.get("spatial", {})
+                            transform_id = spatial.get("transform_chain_id") if isinstance(spatial, Mapping) else None
+                            transform = transform_by_id.get(transform_id)
+                            if not isinstance(transform, Mapping) or transform.get("target_frame") != (
+                                spatial.get("frame_id") if isinstance(spatial, Mapping) else None
                             ):
-                                errors.append(
-                                    "provenance_bundle_id: transform chain does not close"
-                                )
+                                errors.append("provenance_bundle_id: transform target frame does not close")
                             required_calibrations = {
                                 value.get("id")
                                 for value in (
                                     source.get("calibration_id"),
                                     *[
                                         component.get("calibration_id")
-                                        for component in record.get(
-                                            "uncertainty", {}
-                                        ).get("components", [])
+                                        for component in record.get("uncertainty", {}).get("components", [])
                                         if isinstance(component, Mapping)
                                     ],
                                 )
-                                if isinstance(value, Mapping)
-                                and value.get("status") == "known"
+                                if isinstance(value, Mapping) and value.get("status") == "known"
                             }
-                            if not required_calibrations.issubset(
-                                set(subject.get("calibration_ids", []))
+                            if not required_calibrations.issubset(set(subject.get("calibration_ids", []))):
+                                errors.append("provenance_bundle_id: calibration chain does not close")
+                            source_instrument = source.get("instrument_id")
+                            known_instrument = (
+                                source_instrument.get("id")
+                                if isinstance(source_instrument, Mapping) and source_instrument.get("status") == "known"
+                                else None
+                            )
+                            calibration_by_id = {
+                                item.get("calibration_id"): item
+                                for item in bundle.get("calibrations", [])
+                                if isinstance(item, Mapping)
+                            }
+                            if known_instrument is not None and any(
+                                not isinstance(
+                                    calibration_by_id.get(calibration_id),
+                                    Mapping,
+                                )
+                                or calibration_by_id[calibration_id].get("instrument_id") != known_instrument
+                                for calibration_id in required_calibrations
+                            ):
+                                errors.append("provenance_bundle_id: calibration instrument does not close")
+                            agents = {
+                                item.get("agent_id"): item
+                                for item in bundle.get("agents", [])
+                                if isinstance(item, Mapping)
+                            }
+                            responsible_agent = agents.get(source.get("agent_id"))
+
+                            def qualified_matches(
+                                source_value: Any,
+                                provenance_value: Any,
+                            ) -> bool:
+                                if not isinstance(source_value, Mapping) or not isinstance(provenance_value, Mapping):
+                                    return False
+                                if source_value.get("status") != provenance_value.get("status"):
+                                    return False
+                                if source_value.get("status") == "known":
+                                    return source_value.get("id") == provenance_value.get("value")
+                                return source_value.get("reason_code") == provenance_value.get("reason_code")
+
+                            if not isinstance(responsible_agent, Mapping) or any(
+                                not qualified_matches(
+                                    source.get(source_field),
+                                    responsible_agent.get(agent_field),
+                                )
+                                for source_field, agent_field in (
+                                    ("attestation_key_id", "attestation_key_id"),
+                                    ("hardware_version", "hardware_version"),
+                                    ("firmware_version", "firmware_version"),
+                                )
                             ):
                                 errors.append(
-                                    "provenance_bundle_id: calibration chain does not close"
+                                    "provenance_bundle_id: source hardware/firmware/attestation does not close"
                                 )
+        if schema_name == "provenance_bundle.schema.json":
+            subject = record.get("subject", {})
+            if isinstance(subject, Mapping):
+                subject_record_id = subject.get("record_id")
+                subject_schema = subject.get("record_schema")
+                if isinstance(subject_record_id, str) and isinstance(
+                    subject_schema,
+                    str,
+                ):
+                    target = resolve(
+                        record,
+                        subject_record_id,
+                        {subject_schema},
+                        "subject.record_id",
+                    )
+                    if target is not None:
+                        if target.get("provenance_bundle_id") != record.get("bundle_id"):
+                            errors.append("subject.record_id: subject does not link back to bundle")
+                        require_earlier(record, target, "subject.record_id")
         if schema_name == "branch.schema.json":
             parent_branch = None
             parent_branch_id = record.get("parent_branch_id")
@@ -770,26 +741,19 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     require_earlier(claim, record, "admitted_observation_ids")
                     candidate_valid = record.get("valid_time", {})
                     claim_valid = claim.get("valid_time", {})
-                    if (
-                        isinstance(candidate_valid, Mapping)
-                        and isinstance(claim_valid, Mapping)
-                    ):
+                    if isinstance(candidate_valid, Mapping) and isinstance(claim_valid, Mapping):
                         candidate_start = candidate_valid.get("start")
                         candidate_end = candidate_valid.get("end")
                         claim_start = claim_valid.get("start")
                         claim_end = claim_valid.get("end")
                         if candidate_valid.get("clock_id") != claim_valid.get("clock_id"):
-                            errors.append(
-                                f"admitted_observation_ids: {claim_id} uses another valid-time clock"
-                            )
+                            errors.append(f"admitted_observation_ids: {claim_id} uses another valid-time clock")
                         if (
                             isinstance(candidate_start, (int, float))
                             and isinstance(claim_start, (int, float))
                             and candidate_start < claim_start
                         ):
-                            errors.append(
-                                f"valid_time: candidate begins before admitted claim {claim_id}"
-                            )
+                            errors.append(f"valid_time: candidate begins before admitted claim {claim_id}")
                         if claim_end is not None and (
                             candidate_end is None
                             or (
@@ -798,15 +762,10 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                                 and candidate_end > claim_end
                             )
                         ):
-                            errors.append(
-                                f"valid_time: candidate extends beyond admitted claim {claim_id}"
-                            )
+                            errors.append(f"valid_time: candidate extends beyond admitted claim {claim_id}")
                     candidate_spatial = record.get("spatial", {})
                     claim_spatial = claim.get("spatial", {})
-                    if (
-                        isinstance(candidate_spatial, Mapping)
-                        and isinstance(claim_spatial, Mapping)
-                    ):
+                    if isinstance(candidate_spatial, Mapping) and isinstance(claim_spatial, Mapping):
                         exact_pairs = {
                             "representation": "representation",
                             "crs": "crs",
@@ -819,17 +778,10 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                         }
                         for candidate_field, claim_field in exact_pairs.items():
                             if candidate_spatial.get(candidate_field) != claim_spatial.get(claim_field):
-                                errors.append(
-                                    f"spatial.{candidate_field}: differs from admitted claim {claim_id}"
-                                )
+                                errors.append(f"spatial.{candidate_field}: differs from admitted claim {claim_id}")
                         units = candidate_spatial.get("units", {})
-                        if (
-                            not isinstance(units, Mapping)
-                            or units.get("value") != claim_spatial.get("value_unit")
-                        ):
-                            errors.append(
-                                f"spatial.units.value: differs from admitted claim {claim_id}"
-                            )
+                        if not isinstance(units, Mapping) or units.get("value") != claim_spatial.get("value_unit"):
+                            errors.append(f"spatial.units.value: differs from admitted claim {claim_id}")
             for excluded in record.get("excluded_evidence", []):
                 if isinstance(excluded, Mapping) and isinstance(excluded.get("claim_id"), str):
                     excluded_claim = resolve(
@@ -839,13 +791,9 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                         "excluded_evidence.claim_id",
                     )
                     if excluded_claim is not None:
-                        require_earlier(
-                            excluded_claim, record, "excluded_evidence.claim_id"
-                        )
+                        require_earlier(excluded_claim, record, "excluded_evidence.claim_id")
             admitted_and_excluded = set(record.get("admitted_observation_ids", [])) | {
-                item.get("claim_id")
-                for item in record.get("excluded_evidence", [])
-                if isinstance(item, Mapping)
+                item.get("claim_id") for item in record.get("excluded_evidence", []) if isinstance(item, Mapping)
             }
             for edge_id in record.get("dependency_edge_ids", []):
                 edge = resolve(
@@ -859,13 +807,8 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     edge.get("right_claim_id"),
                 }.issubset(admitted_and_excluded):
                     errors.append(f"dependency_edge_ids: {edge_id} refers outside the evidence partition")
-                if (
-                    edge is not None
-                    and edge.get("evaluation_visibility") != "system_visible"
-                ):
-                    errors.append(
-                        f"dependency_edge_ids: {edge_id} is evaluator-only evidence"
-                    )
+                if edge is not None and edge.get("evaluation_visibility") != "system_visible":
+                    errors.append(f"dependency_edge_ids: {edge_id} is evaluator-only evidence")
                 if edge is not None:
                     require_earlier(edge, record, "dependency_edge_ids")
             for claim_id in record.get("physics_comparison_ids", []):
@@ -910,9 +853,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                         "excluded_evidence.claim_id",
                     )
                     if excluded_claim is not None:
-                        require_earlier(
-                            excluded_claim, record, "excluded_evidence.claim_id"
-                        )
+                        require_earlier(excluded_claim, record, "excluded_evidence.claim_id")
             candidate_summary = record.get("candidate")
             if isinstance(candidate_summary, Mapping):
                 candidate_id = candidate_summary.get("candidate_id")
@@ -936,9 +877,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                             errors.append("candidate: valid-time contract differs from decision")
                         if candidate.get("excluded_evidence") != record.get("excluded_evidence"):
                             errors.append("candidate: evidence exclusions differ from decision")
-                        if set(candidate.get("dependency_edge_ids", [])) != set(
-                            record.get("dependency_edge_ids", [])
-                        ):
+                        if set(candidate.get("dependency_edge_ids", [])) != set(record.get("dependency_edge_ids", [])):
                             errors.append("candidate: dependency edges differ from decision")
                         if set(candidate.get("physics_comparison_ids", [])) != set(
                             record.get("physics_evidence_ids", [])
@@ -946,13 +885,10 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                             errors.append("candidate: physics comparisons differ from decision")
                         payload = candidate.get("payload", {})
                         if isinstance(payload, Mapping) and (
-                            candidate_summary.get("candidate_record_hash")
-                            != candidate.get("content_hash")
-                            or candidate_summary.get("payload_hash")
-                            != payload.get("content_hash")
+                            candidate_summary.get("candidate_record_hash") != candidate.get("content_hash")
+                            or candidate_summary.get("payload_hash") != payload.get("content_hash")
                             or candidate_summary.get("coverage_hash") != payload.get("coverage_hash")
-                            or candidate_summary.get("state_contract_hash")
-                            != candidate.get("state_contract_hash")
+                            or candidate_summary.get("state_contract_hash") != candidate.get("state_contract_hash")
                             or candidate_summary.get("construction") != candidate.get("construction")
                         ):
                             errors.append("candidate: bound summary differs from durable candidate")
@@ -1002,15 +938,9 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                         for hypothesis in hypothesis_set.get("hypotheses", [])
                         if isinstance(hypothesis, Mapping)
                     }
-                    if not set(record.get("retained_hypothesis_ids", [])).issubset(
-                        durable_hypothesis_ids
-                    ):
-                        errors.append(
-                            "retained_hypothesis_ids: absent from the durable hypothesis set"
-                        )
-                    require_earlier(
-                        hypothesis_set, record, "hypothesis_set_id"
-                    )
+                    if not set(record.get("retained_hypothesis_ids", [])).issubset(durable_hypothesis_ids):
+                        errors.append("retained_hypothesis_ids: absent from the durable hypothesis set")
+                    require_earlier(hypothesis_set, record, "hypothesis_set_id")
             resulting_revision_id = record.get("resulting_revision_id")
             if isinstance(resulting_revision_id, str):
                 resulting_revision = resolve(
@@ -1020,8 +950,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     "resulting_revision_id",
                 )
                 if resulting_revision is not None and (
-                    resulting_revision.get("reconciliation_decision_id")
-                    != record.get("decision_id")
+                    resulting_revision.get("reconciliation_decision_id") != record.get("decision_id")
                 ):
                     errors.append("resulting_revision_id: revision does not link back to decision")
         elif schema_name == "world_revision.schema.json":
@@ -1040,15 +969,11 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 ):
                     errors.append("reconciliation_decision_id: decision is not the matching PROMOTE")
                 if decision is not None:
-                    require_earlier(
-                        decision, record, "reconciliation_decision_id"
-                    )
+                    require_earlier(decision, record, "reconciliation_decision_id")
             candidate = None
             if isinstance(decision, Mapping):
                 candidate_summary = decision.get("candidate", {})
-                if isinstance(candidate_summary, Mapping) and isinstance(
-                    candidate_summary.get("candidate_id"), str
-                ):
+                if isinstance(candidate_summary, Mapping) and isinstance(candidate_summary.get("candidate_id"), str):
                     candidate = resolve(
                         record,
                         candidate_summary["candidate_id"],
@@ -1064,9 +989,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     or record.get("payload_byte_size") != payload.get("byte_size")
                 ):
                     errors.append("payload contract: differs from promoted candidate")
-                if set(candidate.get("admitted_observation_ids", [])) != set(
-                    record.get("claim_ids", [])
-                ):
+                if set(candidate.get("admitted_observation_ids", [])) != set(record.get("claim_ids", [])):
                     errors.append("claim_ids: differ from exact promoted observations")
                 if record.get("candidate_id") != candidate.get("candidate_id"):
                     errors.append("candidate_id: differs from promoted candidate")
@@ -1087,18 +1010,10 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 if isinstance(candidate_summary, Mapping):
                     if record.get("candidate_id") != candidate_summary.get("candidate_id"):
                         errors.append("candidate_id: differs from promotion decision")
-                    if record.get("candidate_record_hash") != candidate_summary.get(
-                        "candidate_record_hash"
-                    ):
-                        errors.append(
-                            "candidate_record_hash: differs from promotion decision"
-                        )
-                    if record.get("state_contract_hash") != candidate_summary.get(
-                        "state_contract_hash"
-                    ):
-                        errors.append(
-                            "state_contract_hash: differs from promotion decision"
-                        )
+                    if record.get("candidate_record_hash") != candidate_summary.get("candidate_record_hash"):
+                        errors.append("candidate_record_hash: differs from promotion decision")
+                    if record.get("state_contract_hash") != candidate_summary.get("state_contract_hash"):
+                        errors.append("state_contract_hash: differs from promotion decision")
                 authority = record.get("authority_scope", {})
                 decision_policy = decision.get("policy", {})
                 if (
@@ -1156,9 +1071,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     errors.append(f"claim_ids: {claim_id} is not system-visible observation evidence")
                 elif not promoted_state and record.get("state_kind") in natural_claim_roles:
                     if claim_role not in natural_claim_roles[record["state_kind"]]:
-                        errors.append(
-                            f"claim_ids: {claim_id} is incompatible with {record['state_kind']} revision"
-                        )
+                        errors.append(f"claim_ids: {claim_id} is incompatible with {record['state_kind']} revision")
             for event_id in record.get("event_ids", []):
                 event = resolve(
                     record,
@@ -1182,12 +1095,9 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     if (
                         parent_id == record.get("prior_head_revision_id")
                         and isinstance(parent.get("branch_revision_sequence"), int)
-                        and record.get("branch_revision_sequence")
-                        != parent["branch_revision_sequence"] + 1
+                        and record.get("branch_revision_sequence") != parent["branch_revision_sequence"] + 1
                     ):
-                        errors.append(
-                            "branch_revision_sequence: is not contiguous from prior head"
-                        )
+                        errors.append("branch_revision_sequence: is not contiguous from prior head")
             for superseded_id in record.get("supersedes_revision_ids", []):
                 superseded = resolve(
                     record,
@@ -1203,18 +1113,11 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 branch = resolve(record, branch_id, {"branch.schema.json"}, "branch_id")
                 if branch is not None:
                     if record.get("state_kind") not in branch.get("permitted_state_kinds", []):
-                        errors.append(
-                            "branch_id: evidence state_kind is not permitted on the target branch"
-                        )
+                        errors.append("branch_id: evidence state_kind is not permitted on the target branch")
                     if record.get("branch_kind") != branch.get("branch_kind"):
                         errors.append("branch_kind: differs from referenced branch")
-                    if (
-                        record.get("evaluation_visibility")
-                        != branch.get("evaluation_visibility")
-                    ):
-                        errors.append(
-                            "evaluation_visibility: differs from referenced branch"
-                        )
+                    if record.get("evaluation_visibility") != branch.get("evaluation_visibility"):
+                        errors.append("evaluation_visibility: differs from referenced branch")
             for predecessor_id in record.get("predecessor_claim_ids", []):
                 predecessor = resolve(
                     record,
@@ -1235,9 +1138,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     edge.get("left_claim_id"),
                     edge.get("right_claim_id"),
                 }:
-                    errors.append(
-                        f"dependency_edge_ids: {edge_id} does not name this claim"
-                    )
+                    errors.append(f"dependency_edge_ids: {edge_id} does not name this claim")
         elif schema_name == "dependency_edge.schema.json":
             left = resolve(
                 record,
@@ -1257,13 +1158,9 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 left_visibility = left.get("evaluation_visibility")
                 right_visibility = right.get("evaluation_visibility")
                 if left_visibility != right_visibility:
-                    errors.append(
-                        "left_claim_id/right_claim_id: dependency crosses evaluation visibility"
-                    )
+                    errors.append("left_claim_id/right_claim_id: dependency crosses evaluation visibility")
                 if record.get("evaluation_visibility") != left_visibility:
-                    errors.append(
-                        "evaluation_visibility: differs from dependency endpoints"
-                    )
+                    errors.append("evaluation_visibility: differs from dependency endpoints")
         elif schema_name == "action_event.schema.json":
             decision_record_id = record.get("decision_record_id")
             if isinstance(decision_record_id, str):
@@ -1275,15 +1172,11 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 )
                 if decision_record is not None:
                     if record.get("action_id") != decision_record.get("selected_action_id"):
-                        errors.append(
-                            "action_id: differs from planning decision selected action"
-                        )
+                        errors.append("action_id: differs from planning decision selected action")
                     if set(record.get("planned_effect_claim_ids", [])) != set(
                         decision_record.get("expected_outcome_claim_ids", [])
                     ):
-                        errors.append(
-                            "planned_effect_claim_ids: differ from planning decision"
-                        )
+                        errors.append("planned_effect_claim_ids: differ from planning decision")
                     require_earlier(decision_record, record, "decision_record_id")
             for field in (
                 "planned_effect_claim_ids",
@@ -1303,8 +1196,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     if claim.get("evaluation_visibility") != "system_visible":
                         errors.append(f"{field}: {claim_id} is withheld reference evidence")
                     if field == "observed_effect_claim_ids" and (
-                        claim.get("source_kind") != "observation"
-                        or claim.get("state_kind") != "observed"
+                        claim.get("source_kind") != "observation" or claim.get("state_kind") != "observed"
                     ):
                         errors.append(f"{field}: {claim_id} is not observed evidence")
         elif schema_name == "supersession_event.schema.json":
@@ -1322,6 +1214,8 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 )
                 if target is not None:
                     require_earlier(target, record, "target_record_id")
+                    if target.get("branch_id") != record.get("branch_id"):
+                        errors.append("target_record_id: target is on another branch")
             successor_record_id = record.get("successor_record_id")
             if isinstance(successor_record_id, str):
                 if successor_record_id == target_record_id:
@@ -1337,12 +1231,8 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 )
                 if successor is not None:
                     require_earlier(successor, record, "successor_record_id")
-                    if target is not None and (
-                        successor.get("branch_id") != target.get("branch_id")
-                    ):
-                        errors.append(
-                            "successor_record_id: successor is on another branch"
-                        )
+                    if target is not None and (successor.get("branch_id") != target.get("branch_id")):
+                        errors.append("successor_record_id: successor is on another branch")
             for evidence_id in record.get("evidence_ids", []):
                 evidence = resolve(
                     record,
@@ -1369,9 +1259,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     conflict_claims.append(claim)
             if len(conflict_claims) >= 2:
                 spatial_values = [
-                    claim.get("spatial", {})
-                    for claim in conflict_claims
-                    if isinstance(claim.get("spatial"), Mapping)
+                    claim.get("spatial", {}) for claim in conflict_claims if isinstance(claim.get("spatial"), Mapping)
                 ]
                 spatial_identity_fields = (
                     "representation",
@@ -1383,30 +1271,21 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 )
                 for field in spatial_identity_fields:
                     if len({json.dumps(value.get(field), sort_keys=True) for value in spatial_values}) != 1:
-                        errors.append(
-                            f"claim_ids: conflict claims differ in spatial {field}"
-                        )
+                        errors.append(f"claim_ids: conflict claims differ in spatial {field}")
                 bounds_values = [value.get("bounds", []) for value in spatial_values]
                 common_bounds: list[float] = []
                 if bounds_values and all(
-                    isinstance(bounds, Sequence)
-                    and len(bounds) == len(bounds_values[0])
-                    and len(bounds) % 2 == 0
+                    isinstance(bounds, Sequence) and len(bounds) == len(bounds_values[0]) and len(bounds) % 2 == 0
                     for bounds in bounds_values
                 ):
                     dimensions = len(bounds_values[0]) // 2
-                    lowers = [
-                        max(float(bounds[index]) for bounds in bounds_values)
-                        for index in range(dimensions)
-                    ]
+                    lowers = [max(float(bounds[index]) for bounds in bounds_values) for index in range(dimensions)]
                     uppers = [
                         min(float(bounds[index + dimensions]) for bounds in bounds_values)
                         for index in range(dimensions)
                     ]
                     if any(lower >= upper for lower, upper in zip(lowers, uppers)):
-                        errors.append(
-                            "claim_ids: conflict claims have no common spatial overlap"
-                        )
+                        errors.append("claim_ids: conflict claims have no common spatial overlap")
                     common_bounds = [*lowers, *uppers]
                 valid_values = [
                     claim.get("valid_time", {})
@@ -1415,32 +1294,19 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 ]
                 clock_ids = {value.get("clock_id") for value in valid_values}
                 if len(clock_ids) != 1:
-                    errors.append(
-                        "claim_ids: conflict claims use different valid-time clocks"
-                    )
-                overlap_start = max(
-                    float(value.get("start")) for value in valid_values
-                )
-                finite_ends = [
-                    float(value.get("end"))
-                    for value in valid_values
-                    if value.get("end") is not None
-                ]
+                    errors.append("claim_ids: conflict claims use different valid-time clocks")
+                overlap_start = max(float(value.get("start")) for value in valid_values)
+                finite_ends = [float(value.get("end")) for value in valid_values if value.get("end") is not None]
                 overlap_end = min(finite_ends) if finite_ends else None
                 if overlap_end is not None and overlap_start >= overlap_end:
-                    errors.append(
-                        "claim_ids: conflict claims have no common valid-time overlap"
-                    )
+                    errors.append("claim_ids: conflict claims have no common valid-time overlap")
                 declared_valid = record.get("valid_time", {})
                 if isinstance(declared_valid, Mapping) and (
                     declared_valid.get("start") != overlap_start
                     or declared_valid.get("end") != overlap_end
-                    or declared_valid.get("clock_id")
-                    != next(iter(clock_ids), None)
+                    or declared_valid.get("clock_id") != next(iter(clock_ids), None)
                 ):
-                    errors.append(
-                        "valid_time: does not equal the conflict overlap interval"
-                    )
+                    errors.append("valid_time: does not equal the conflict overlap interval")
                 expected_overlap_hash = sha256_json(
                     {
                         "claim_ids": sorted(record.get("claim_ids", [])),
@@ -1453,9 +1319,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     }
                 )
                 if record.get("spatial_overlap_hash") != expected_overlap_hash:
-                    errors.append(
-                        "spatial_overlap_hash: does not bind the computed overlap"
-                    )
+                    errors.append("spatial_overlap_hash: does not bind the computed overlap")
             hypothesis_set_id = record.get("hypothesis_set_id")
             if isinstance(hypothesis_set_id, str):
                 hypothesis_set = resolve(
@@ -1464,10 +1328,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     {"hypothesis_set.schema.json"},
                     "hypothesis_set_id",
                 )
-                if (
-                    hypothesis_set is not None
-                    and hypothesis_set.get("conflict_id") != record.get("conflict_id")
-                ):
+                if hypothesis_set is not None and hypothesis_set.get("conflict_id") != record.get("conflict_id"):
                     errors.append("hypothesis_set_id: does not link back to conflict")
             resolution_decision_id = record.get("resolution_decision_id")
             if isinstance(resolution_decision_id, str):
@@ -1478,13 +1339,9 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     "resolution_decision_id",
                 )
                 if resolution is not None:
-                    require_earlier(
-                        resolution, record, "resolution_decision_id"
-                    )
+                    require_earlier(resolution, record, "resolution_decision_id")
                     if resolution.get("decision") not in {"PROMOTE", "REJECT"}:
-                        errors.append(
-                            "resolution_decision_id: ABSTAIN/retention cannot resolve a conflict"
-                        )
+                        errors.append("resolution_decision_id: ABSTAIN/retention cannot resolve a conflict")
         elif schema_name == "hypothesis_set.schema.json":
             branch_id = record.get("branch_id")
             if isinstance(branch_id, str):
@@ -1498,37 +1355,26 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     {"conflict_record.schema.json"},
                     "conflict_id",
                 )
-                if (
-                    conflict is not None
-                    and conflict.get("hypothesis_set_id") != record.get("hypothesis_set_id")
-                ):
+                if conflict is not None and conflict.get("hypothesis_set_id") != record.get("hypothesis_set_id"):
                     errors.append("conflict_id: does not link back to hypothesis set")
-            hypotheses = [
-                hypothesis
-                for hypothesis in record.get("hypotheses", [])
-                if isinstance(hypothesis, Mapping)
-            ]
-            hypothesis_ids = [
-                hypothesis.get("hypothesis_id") for hypothesis in hypotheses
-            ]
+            hypotheses = [hypothesis for hypothesis in record.get("hypotheses", []) if isinstance(hypothesis, Mapping)]
+            hypothesis_ids = [hypothesis.get("hypothesis_id") for hypothesis in hypotheses]
             if len(hypothesis_ids) != len(set(hypothesis_ids)):
                 errors.append("hypotheses: hypothesis IDs must be unique")
-            hypothesis_claim_sets = [
-                frozenset(hypothesis.get("claim_ids", []))
-                for hypothesis in hypotheses
-            ]
+            hypothesis_claim_sets = [frozenset(hypothesis.get("claim_ids", [])) for hypothesis in hypotheses]
             if len(hypothesis_claim_sets) != len(set(hypothesis_claim_sets)):
                 errors.append("hypotheses: duplicate claim assignments are forbidden")
-            conflict_claim_ids = (
-                set(conflict.get("claim_ids", []))
-                if isinstance(conflict, Mapping)
-                else set()
-            )
+            claim_assignment_counts: dict[str, int] = {}
+            for claim_set in hypothesis_claim_sets:
+                for claim_id in claim_set:
+                    claim_assignment_counts[str(claim_id)] = claim_assignment_counts.get(str(claim_id), 0) + 1
+            overlapping_claims = sorted(claim_id for claim_id, count in claim_assignment_counts.items() if count > 1)
+            if overlapping_claims:
+                errors.append(f"hypotheses.claim_ids: assignments must be disjoint; overlap={overlapping_claims}")
+            conflict_claim_ids = set(conflict.get("claim_ids", [])) if isinstance(conflict, Mapping) else set()
             covered_claim_ids = set().union(*hypothesis_claim_sets) if hypothesis_claim_sets else set()
             if conflict_claim_ids and covered_claim_ids != conflict_claim_ids:
-                errors.append(
-                    "hypotheses.claim_ids: do not cover exactly all conflicted claims"
-                )
+                errors.append("hypotheses.claim_ids: do not cover exactly all conflicted claims")
             for hypothesis in hypotheses:
                 if not isinstance(hypothesis, Mapping):
                     continue
@@ -1540,9 +1386,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                         "hypotheses.claim_ids",
                     )
                     if claim is not None:
-                        require_earlier(
-                            claim, record, "hypotheses.claim_ids"
-                        )
+                        require_earlier(claim, record, "hypotheses.claim_ids")
                 for evidence_id in hypothesis.get("supporting_evidence_ids", []):
                     evidence = resolve(
                         record,
@@ -1555,9 +1399,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                         "hypotheses.supporting_evidence_ids",
                     )
                     if evidence is not None:
-                        require_earlier(
-                            evidence, record, "hypotheses.supporting_evidence_ids"
-                        )
+                        require_earlier(evidence, record, "hypotheses.supporting_evidence_ids")
             resolution_decision_id = record.get("resolution_decision_id")
             if isinstance(resolution_decision_id, str):
                 resolution = resolve(
@@ -1570,9 +1412,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     "PROMOTE",
                     "REJECT",
                 }:
-                    errors.append(
-                        "resolution_decision_id: ABSTAIN/retention cannot resolve hypotheses"
-                    )
+                    errors.append("resolution_decision_id: ABSTAIN/retention cannot resolve hypotheses")
         elif schema_name == "query_lens.schema.json":
             query_request = None
             query_request_id = record.get("query_request_id")
@@ -1584,9 +1424,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     "query_request_id",
                 )
                 if query_request is not None:
-                    require_earlier(
-                        query_request, record, "query_request_id"
-                    )
+                    require_earlier(query_request, record, "query_request_id")
             if query_request is not None:
                 for field in (
                     "world_id",
@@ -1619,16 +1457,10 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     "resolved_revision_id",
                 )
                 if revision is not None:
-                    require_earlier(
-                        revision, record, "resolved_revision_id"
-                    )
+                    require_earlier(revision, record, "resolved_revision_id")
             if branch is not None and record.get("policy_id") != branch.get("policy_id"):
                 errors.append("policy_id: lens policy differs from branch policy")
-            if (
-                record.get("status") == "resolved"
-                and revision is not None
-                and branch is not None
-            ):
+            if record.get("status") == "resolved" and revision is not None and branch is not None:
                 if revision.get("branch_id") != branch.get("branch_id"):
                     errors.append("resolved_revision_id: revision is not on the lens branch")
                 if record.get("resolved_state_kind") != revision.get("state_kind"):
@@ -1655,18 +1487,14 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                         continue
                     supersession_sequence = transaction_sequence(supersession)
                     if (
-                        supersession.get("target_record_id")
-                        == revision.get("revision_id")
-                        and supersession.get("event_kind")
-                        in {"supersede", "invalidate"}
+                        supersession.get("target_record_id") == revision.get("revision_id")
+                        and supersession.get("event_kind") in {"supersede", "invalidate"}
                         and isinstance(supersession_sequence, int)
                         and isinstance(known_at, Mapping)
                         and isinstance(known_at.get("sequence"), int)
                         and supersession_sequence <= known_at["sequence"]
                     ):
-                        errors.append(
-                            "resolved_revision_id: revision was superseded at known_at"
-                        )
+                        errors.append("resolved_revision_id: revision was superseded at known_at")
                 if (
                     isinstance(known_at, Mapping)
                     and isinstance(record.get("projection_transaction_sequence"), int)
@@ -1693,14 +1521,10 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     }
                     for lens_field, revision_field in spatial_pairs.items():
                         if record.get(lens_field) != revision_spatial.get(revision_field):
-                            errors.append(
-                                f"{lens_field}: differs from resolved revision spatial contract"
-                            )
+                            errors.append(f"{lens_field}: differs from resolved revision spatial contract")
                 revision_claim_ids = set(revision.get("claim_ids", []))
                 if set(record.get("available_claim_ids", [])) != revision_claim_ids:
-                    errors.append(
-                        "available_claim_ids: differ from resolved revision evidence"
-                    )
+                    errors.append("available_claim_ids: differ from resolved revision evidence")
             for claim_id in record.get("available_claim_ids", []):
                 claim = resolve(
                     record,
@@ -1729,9 +1553,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                         and isinstance(clock_id, str)
                         and not valid_at(claim, instant, clock_id)
                     ):
-                        errors.append(
-                            f"available_claim_ids: {claim_id} is not valid at valid_at"
-                        )
+                        errors.append(f"available_claim_ids: {claim_id} is not valid at valid_at")
         elif schema_name == "decision_record.schema.json":
             lens = None
             revision = None
@@ -1749,9 +1571,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     "world_revision_id",
                 )
                 if revision is not None:
-                    require_earlier(
-                        revision, record, "world_revision_id"
-                    )
+                    require_earlier(revision, record, "world_revision_id")
             if lens is not None and revision is not None:
                 if lens.get("status") != "resolved":
                     errors.append("query_lens_id: planning requires a resolved query lens")
@@ -1760,9 +1580,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                 if lens.get("resolved_state_kind") == "reference":
                     errors.append("query_lens_id: autonomy decisions cannot consume withheld reference state")
             alternatives = {
-                item.get("action_id")
-                for item in record.get("alternatives", [])
-                if isinstance(item, Mapping)
+                item.get("action_id") for item in record.get("alternatives", []) if isinstance(item, Mapping)
             }
             if record.get("selected_action_id") not in alternatives:
                 errors.append("selected_action_id: absent from alternatives")
@@ -1774,9 +1592,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
                     "expected_outcome_claim_ids",
                 )
                 if claim is not None:
-                    require_earlier(
-                        claim, record, "expected_outcome_claim_ids"
-                    )
+                    require_earlier(claim, record, "expected_outcome_claim_ids")
 
     effective_successors: dict[tuple[str, str], str] = {}
     successor_graph: dict[str, str] = {}
@@ -1791,9 +1607,7 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
         key = (branch_id, target_id)
         previous = effective_successors.get(key)
         if previous is not None and previous != successor_id:
-            errors.append(
-                f"target_record_id: {target_id} has multiple effective successors"
-            )
+            errors.append(f"target_record_id: {target_id} has multiple effective successors")
         effective_successors[key] = successor_id
         successor_graph[target_id] = successor_id
         target_entry = by_id.get(target_id)
@@ -1802,24 +1616,13 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
             target_schema, target = target_entry
             successor_schema, successor = successor_entry
             if target_schema != successor_schema:
-                errors.append(
-                    f"successor_record_id: {successor_id} changes record type"
-                )
+                errors.append(f"successor_record_id: {successor_id} changes record type")
             if target.get("world_id") != successor.get("world_id"):
-                errors.append(
-                    f"successor_record_id: {successor_id} crosses world_id"
-                )
+                errors.append(f"successor_record_id: {successor_id} crosses world_id")
             if target.get("site_id") != successor.get("site_id"):
-                errors.append(
-                    f"successor_record_id: {successor_id} crosses site_id"
-                )
-            if (
-                target_schema == "world_revision.schema.json"
-                and target.get("spatial") != successor.get("spatial")
-            ):
-                errors.append(
-                    f"successor_record_id: {successor_id} changes spatial contract"
-                )
+                errors.append(f"successor_record_id: {successor_id} crosses site_id")
+            if target_schema == "world_revision.schema.json" and target.get("spatial") != successor.get("spatial"):
+                errors.append(f"successor_record_id: {successor_id} changes spatial contract")
     for start in successor_graph:
         visited: set[str] = set()
         current = start
@@ -1836,6 +1639,10 @@ def cross_record_errors(records: Sequence[tuple[str, Mapping[str, Any]]]) -> lis
 def validate_record_set(records: Sequence[tuple[str, Mapping[str, Any]]]) -> list[str]:
     errors: list[str] = []
     for schema_name, record in records:
-        errors.extend(f"{schema_name}: {error}" for error in validate_record(schema_name, record))
-    errors.extend(cross_record_errors(records))
+        record_errors = validate_record(schema_name, record)
+        errors.extend(f"{schema_name}: {error}" for error in record_errors)
+    try:
+        errors.extend(cross_record_errors(records))
+    except (IndexError, KeyError, TypeError, ValueError) as exc:
+        errors.append(f"cross-record validation failed closed on malformed input: {type(exc).__name__}: {exc}")
     return errors

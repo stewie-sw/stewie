@@ -147,8 +147,12 @@
         "activity_id",
         "kind",
         "agent_id",
+        "pipeline_id",
         "algorithm_version",
         "code_commit",
+        "code_commit_status",
+        "package_version",
+        "source_dirty",
         "configuration_hash",
         "started_at",
         "ended_at"
@@ -159,13 +163,32 @@
           "enum": ["observe", "transform", "calibrate", "reconcile", "verify", "plan", "execute", "review", "archive"]
         },
         "agent_id": {"$ref": "#/$defs/id"},
+        "pipeline_id": {"$ref": "#/$defs/id"},
         "algorithm_version": {"$ref": "#/$defs/id"},
-        "code_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "code_commit": {
+          "oneOf": [
+            {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+            {"const": "unavailable"}
+          ]
+        },
+        "code_commit_status": {"enum": ["verified", "unavailable"]},
+        "package_version": {"type": "string", "minLength": 1},
+        "source_dirty": {"type": ["boolean", "null"]},
         "configuration_hash": {"$ref": "#/$defs/sha256"},
         "seed": {"type": ["integer", "null"], "minimum": 0},
         "started_at": {"type": "string", "format": "date-time"},
         "ended_at": {"type": "string", "format": "date-time"}
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"code_commit_status": {"const": "verified"}},
+            "required": ["code_commit_status"]
+          },
+          "then": {"properties": {"code_commit": {"pattern": "^[a-f0-9]{40}$"}}},
+          "else": {"properties": {"code_commit": {"const": "unavailable"}}}
+        }
+      ]
     },
     "entity": {
       "type": "object",

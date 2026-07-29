@@ -121,9 +121,7 @@ def run_multi_robot_closed_loop(
     candidate_result = run_candidate(scenario, "stewie")
     if candidate_result["decision"] != "PROMOTE":
         store.close()
-        raise RuntimeError(
-            "closed-loop scenario did not produce a promotable candidate"
-        )
+        raise RuntimeError("closed-loop scenario did not produce a promotable candidate")
 
     spatial = _spatial_contract(scenario.prior.shape)
     coverage_receipt = payloads.put(
@@ -231,10 +229,7 @@ def run_multi_robot_closed_loop(
         media_type="application/x-stewie-raster",
         generated_at="2026-07-29T00:00:00Z",
     )
-    excluded = [
-        {"claim_id": claim_id, "reason_code": reason}
-        for claim_id, reason in candidate_result["excluded"]
-    ]
+    excluded = [{"claim_id": claim_id, "reason_code": reason} for claim_id, reason in candidate_result["excluded"]]
     candidate = candidate_record(
         stored_claims[first_admitted_id],
         candidate_id="candidate.multi-robot",
@@ -266,21 +261,10 @@ def run_multi_robot_closed_loop(
         provenance_bundle_id="provenance.decision.promote.multi-robot",
     )
     decision["metrics"].update(
-        effective_support=float(
-            candidate_result["diagnostics"]["effective_support"]
-        ),
+        effective_support=float(candidate_result["diagnostics"]["effective_support"]),
         observed_cells=int(np.isfinite(fused_state).sum()),
         residual_rms_m=float(
-            np.sqrt(
-                np.mean(
-                    np.square(
-                        fused_state
-                        - np.asarray(
-                            evidence_by_id[first_admitted_id].values
-                        )
-                    )
-                )
-            )
+            np.sqrt(np.mean(np.square(fused_state - np.asarray(evidence_by_id[first_admitted_id].values))))
         ),
     )
     revision = promoted_revision_record(
@@ -289,32 +273,31 @@ def run_multi_robot_closed_loop(
         event_id=action["event_id"],
         provenance_bundle_id="provenance.revision.accepted.multi-robot",
     )
-    store.append_batch(
-        [
-            submission(
-                "provenance_bundle.schema.json",
-                provenance_record(
-                    "reconciliation_decision.schema.json",
-                    decision,
-                    bundle_id=decision["provenance_bundle_id"],
-                ),
-                token="decision.promote.multi-robot.provenance",
+    promotion_provenance = [
+        submission(
+            "provenance_bundle.schema.json",
+            provenance_record(
+                "reconciliation_decision.schema.json",
+                decision,
+                bundle_id=decision["provenance_bundle_id"],
             ),
-            submission(
-                "provenance_bundle.schema.json",
-                provenance_record(
-                    "world_revision.schema.json",
-                    revision,
-                    bundle_id=revision["provenance_bundle_id"],
-                ),
-                token="revision.accepted.multi-robot.provenance",
+            token="decision.promote.multi-robot.provenance",
+        ),
+        submission(
+            "provenance_bundle.schema.json",
+            provenance_record(
+                "world_revision.schema.json",
+                revision,
+                bundle_id=revision["provenance_bundle_id"],
             ),
-        ]
-    )
+            token="revision.accepted.multi-robot.provenance",
+        ),
+    ]
     cas_receipt = store.commit_promotion(
         operation_id="operation.promote.multi-robot",
         expected_head_revision_id=None,
         expected_head_sequence=0,
+        provenance_submissions=promotion_provenance,
         decision_submission=submission(
             "reconciliation_decision.schema.json",
             decision,
@@ -330,7 +313,9 @@ def run_multi_robot_closed_loop(
         store.close()
         raise RuntimeError(f"promotion failed: {cas_receipt['reason_code']}")
     stored_revision = store.get(revision["revision_id"])
-    assert stored_revision is not None
+    if stored_revision is None:
+        store.close()
+        raise RuntimeError("promoted multi-robot revision is not durable")
 
     request = query_request_record(
         stored_revision,
@@ -344,7 +329,9 @@ def run_multi_robot_closed_loop(
         )
     )
     stored_request = store.get(request["request_id"])
-    assert stored_request is not None
+    if stored_request is None:
+        store.close()
+        raise RuntimeError("multi-robot query request is not durable")
     resolved = store.query_revision(
         world_id=request["world_id"],
         site_id=request["site_id"],
@@ -353,14 +340,14 @@ def run_multi_robot_closed_loop(
         known_at_sequence=request["known_at"]["sequence"],
         state_kinds=request["requested_state_kinds"],
     )
-    assert resolved is not None
+    if resolved is None:
+        store.close()
+        raise RuntimeError("multi-robot query did not resolve accepted state")
     lens = resolved_query_lens_record(
         stored_request,
         resolved,
         lens_id="lens.multi-robot",
-        projection_transaction_sequence=request_receipt["transaction_time"][
-            "sequence"
-        ],
+        projection_transaction_sequence=request_receipt["transaction_time"]["sequence"],
     )
     store.append(
         submission(
@@ -370,7 +357,9 @@ def run_multi_robot_closed_loop(
         )
     )
     stored_lens = store.get(lens["lens_id"])
-    assert stored_lens is not None
+    if stored_lens is None:
+        store.close()
+        raise RuntimeError("multi-robot query lens is not durable")
     planner_decision = append_with_provenance(
         store,
         "decision_record.schema.json",
@@ -397,11 +386,10 @@ def run_multi_robot_closed_loop(
         "status": "complete",
         "evidence_level": "controlled_synthetic_demonstration",
         "unit_id": scenario.unit_id,
+        "action_kind": action_kind,
         "seed": seed,
         "reference_hash": reference.content_hash,
-        "candidate_summary_hash": candidate_result[
-            "candidate_summary_hash"
-        ],
+        "candidate_summary_hash": candidate_result["candidate_summary_hash"],
         "admitted_claim_ids": candidate_result["admitted_claim_ids"],
         "excluded_evidence": candidate_result["excluded"],
         "physics_evidence_ids": [stored_physics_claim["claim_id"]],
@@ -602,7 +590,9 @@ def run_conflict_retention_demo(
         ]
     )
     stored_decision = store.get(decision["decision_id"])
-    assert stored_decision is not None
+    if stored_decision is None:
+        store.close()
+        raise RuntimeError("conflict-retention decision is not durable")
     report = {
         "schema_version": "stewie.conflict_retention_demo/1.0",
         "status": "complete",

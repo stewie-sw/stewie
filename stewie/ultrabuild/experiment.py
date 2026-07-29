@@ -21,7 +21,7 @@ from stewie.ultrabuild.reconciliation import (
 
 
 SHAPE = (12, 12)
-EVALUATION_SEEDS = tuple(range(3001, 3009))
+DEVELOPMENT_SEEDS = tuple(range(3001, 3009))
 ACTION_KINDS = ("nominal", "partial", "failed")
 METHODS: tuple[Method, ...] = (
     "stewie",
@@ -50,7 +50,6 @@ WINDOW_ORIGINS = (
 class CandidateScenario:
     unit_id: str
     seed: int
-    action_kind: str
     prior: np.ndarray
     planned_change: np.ndarray
     action: ActionContext
@@ -70,9 +69,7 @@ def _reference_hash(terrain: np.ndarray) -> str:
         {
             "shape": list(terrain.shape),
             "dtype": "<f8",
-            "bytes_sha256": hashlib.sha256(
-                np.asarray(terrain, dtype="<f8").tobytes(order="C")
-            ).hexdigest(),
+            "bytes_sha256": hashlib.sha256(np.asarray(terrain, dtype="<f8").tobytes(order="C")).hexdigest(),
         }
     )
 
@@ -114,7 +111,7 @@ def generate_trial(
     planned_change[fill] += 1.0
     envelope = cut | fill
     action = ActionContext(
-        action_id=f"action.{action_kind}.window-{window_index:02d}",
+        action_id=f"action.excavate.window-{window_index:02d}",
         start=9.0,
         end=10.0,
         operational_envelope=envelope,
@@ -129,14 +126,10 @@ def generate_trial(
 
     artifact = truth + random.normal(0.0, 0.015, SHAPE)
     outside_indices = np.argwhere(~envelope)
-    chosen = outside_indices[
-        (seed + window_index) % len(outside_indices)
-    ]
+    chosen = outside_indices[(seed + window_index) % len(outside_indices)]
     artifact[tuple(chosen)] += 0.30
     inside_indices = np.argwhere(envelope)
-    compensation = inside_indices[
-        (seed + 3 * window_index) % len(inside_indices)
-    ]
+    compensation = inside_indices[(seed + 3 * window_index) % len(inside_indices)]
     artifact[tuple(compensation)] -= 0.30
     artifact2 = artifact + random.normal(0.0, 0.004, SHAPE)
     artifact_provenance = seed % 2 == 0
@@ -208,9 +201,9 @@ def generate_trial(
             dependency_group=f"pipeline.robot-b.{window_index}.{seed}",
         ),
     )
-    unit_id = f"unit.window-{window_index:02d}.{action_kind}"
+    unit_id = f"development.window-{window_index:02d}"
     reference = EvaluationReference(
-        reference_id=f"reference.{unit_id}.{seed}",
+        reference_id=f"reference.{unit_id}.{action_kind}.{seed}",
         terrain=truth,
         cut_mask=cut,
         content_hash=_reference_hash(truth),
@@ -219,7 +212,6 @@ def generate_trial(
         CandidateScenario(
             unit_id=unit_id,
             seed=seed,
-            action_kind=action_kind,
             prior=prior,
             planned_change=planned_change,
             action=action,
@@ -243,7 +235,6 @@ def run_candidate(
     return {
         "unit_id": scenario.unit_id,
         "seed": scenario.seed,
-        "action_kind": scenario.action_kind,
         "method": method,
         "decision": result.decision,
         "state": result.state,
@@ -252,9 +243,7 @@ def run_candidate(
         "excluded": [list(item) for item in result.excluded],
         "hypotheses": [list(item) for item in result.hypotheses],
         "diagnostics": result.diagnostics,
-        "candidate_summary_hash": hashlib.sha256(
-            result.canonical_summary()
-        ).hexdigest(),
+        "candidate_summary_hash": hashlib.sha256(result.canonical_summary()).hexdigest(),
     }
 
 
@@ -263,30 +252,17 @@ def evaluate_candidate(
     reference: EvaluationReference,
 ) -> dict[str, Any]:
     state = candidate["state"]
-    available = state is not None
+    output_present = state is not None
+    output_finite = bool(output_present and np.all(np.isfinite(np.asarray(state))))
+    available = output_present and output_finite
     if available:
-        finite = np.isfinite(state)
-        if not np.all(finite):
-            rmse = float("inf")
-        else:
-            rmse = float(
-                np.sqrt(
-                    np.mean(
-                        np.square(
-                            np.asarray(state, dtype=np.float64)
-                            - reference.terrain
-                        )
-                    )
-                )
-            )
+        rmse = float(np.sqrt(np.mean(np.square(np.asarray(state, dtype=np.float64) - reference.terrain))))
         predicted_cut_min = float(np.min(np.asarray(state)[reference.cut_mask]))
     else:
         rmse = None
         predicted_cut_min = None
     true_cut_min = float(np.min(reference.terrain[reference.cut_mask]))
-    committed_traverse = (
-        predicted_cut_min is not None and predicted_cut_min > -0.4
-    )
+    committed_traverse = predicted_cut_min is not None and predicted_cut_min > -0.4
     true_hazard = true_cut_min < -0.4
     harmful_plan = bool(committed_traverse and true_hazard)
     stale_claim_fragment = "robot-b-stale"
@@ -298,6 +274,7 @@ def evaluate_candidate(
         "reference_id": reference.reference_id,
         "reference_hash": reference.content_hash,
         "available": available,
+        "invalid_output": output_present and not output_finite,
         "rmse_m": rmse,
         "incorrect_state": bool(rmse is not None and rmse > 0.2),
         "committed_traverse": committed_traverse,
@@ -314,7 +291,7 @@ def trial_records(
     records: list[dict[str, Any]] = []
     for window_index in range(len(WINDOW_ORIGINS)):
         for action_kind in ACTION_KINDS:
-            for seed in EVALUATION_SEEDS:
+            for seed in DEVELOPMENT_SEEDS:
                 scenario, reference = generate_trial(
                     window_index=window_index,
                     action_kind=action_kind,
@@ -328,6 +305,7 @@ def trial_records(
                     records.append(
                         {
                             **candidate_without_state,
+                            "action_kind": action_kind,
                             **evaluation,
                         }
                     )
@@ -344,27 +322,12 @@ def _aggregate(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             "trials": len(selected),
             "available_trials": len(available),
             "availability_rate": len(available) / len(selected),
-            "harmful_plan_count": sum(
-                int(record["harmful_plan"]) for record in selected
-            ),
-            "harmful_plan_rate": sum(
-                int(record["harmful_plan"]) for record in selected
-            )
-            / len(selected),
-            "incorrect_state_count": sum(
-                int(record["incorrect_state"]) for record in selected
-            ),
-            "mean_rmse_m_available": (
-                float(np.mean(rmses)) if rmses else None
-            ),
-            "stale_rejection_rate": sum(
-                int(record["stale_rejected"]) for record in selected
-            )
-            / len(selected),
-            "retained_hypothesis_count": sum(
-                record["decision"] == "RETAIN_HYPOTHESES"
-                for record in selected
-            ),
+            "harmful_plan_count": sum(int(record["harmful_plan"]) for record in selected),
+            "harmful_plan_rate": sum(int(record["harmful_plan"]) for record in selected) / len(selected),
+            "incorrect_state_count": sum(int(record["incorrect_state"]) for record in selected),
+            "mean_rmse_m_available": (float(np.mean(rmses)) if rmses else None),
+            "stale_rejection_rate": sum(int(record["stale_rejected"]) for record in selected) / len(selected),
+            "retained_hypothesis_count": sum(record["decision"] == "RETAIN_HYPOTHESES" for record in selected),
         }
     return aggregates
 
@@ -381,14 +344,10 @@ def _paired_unit_bootstrap(
     unit_differences = []
     for unit_id in unit_ids:
         left_values = [
-            float(record[endpoint])
-            for record in records
-            if record["unit_id"] == unit_id and record["method"] == left
+            float(record[endpoint]) for record in records if record["unit_id"] == unit_id and record["method"] == left
         ]
         right_values = [
-            float(record[endpoint])
-            for record in records
-            if record["unit_id"] == unit_id and record["method"] == right
+            float(record[endpoint]) for record in records if record["unit_id"] == unit_id and record["method"] == right
         ]
         unit_differences.append(float(np.mean(left_values) - np.mean(right_values)))
     random = np.random.default_rng(1729)
@@ -401,7 +360,8 @@ def _paired_unit_bootstrap(
         "left": left,
         "right": right,
         "endpoint": endpoint,
-        "estimand": "paired independent-unit mean difference",
+        "favorable_direction": "lower",
+        "estimand": ("paired synthetic-window mean difference averaged over action and seed"),
         "independent_units": len(values),
         "estimate": float(np.mean(values)),
         "bootstrap_seed": 1729,
@@ -423,14 +383,16 @@ def run_controlled_evaluation(output_directory: str | Path) -> dict[str, Any]:
             stream.write(canonical_bytes(record) + b"\n")
     report: dict[str, Any] = {
         "schema_version": "stewie.controlled_evaluation/1.0",
-        "status": "controlled_synthetic_evidence",
+        "status": "exploratory_controlled_synthetic_diagnostic",
         "claim_limit": (
-            "This validates executable mechanisms on frozen controlled arrays; "
-            "it is not physical-mission validation."
+            "These development arrays and seeds are already exposed to implementation "
+            "and tests. Results are exploratory engineering diagnostics, not "
+            "confirmatory or physical-mission validation."
         ),
-        "independent_unit_definition": "terrain_window_x_action_kind",
-        "independent_units": len(WINDOW_ORIGINS) * len(ACTION_KINDS),
-        "seeds_per_unit": len(EVALUATION_SEEDS),
+        "independent_unit_definition": "synthetic_terrain_window",
+        "independent_units": len(WINDOW_ORIGINS),
+        "repeated_measures": ["action_kind", "seed", "method"],
+        "seeds_per_unit_action": len(DEVELOPMENT_SEEDS),
         "methods": list(METHODS),
         "trial_count": len(records),
         "build_identity": build_identity(),
@@ -450,9 +412,7 @@ def run_controlled_evaluation(output_directory: str | Path) -> dict[str, Any]:
             ),
         ],
     }
-    report["trial_file_sha256"] = hashlib.sha256(
-        trial_path.read_bytes()
-    ).hexdigest()
+    report["trial_file_sha256"] = hashlib.sha256(trial_path.read_bytes()).hexdigest()
     report["report_content_hash"] = sha256_json(report)
     report_path = output / "evaluation_report.json"
     report_path.write_bytes(canonical_bytes(report) + b"\n")

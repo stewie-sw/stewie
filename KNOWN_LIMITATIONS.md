@@ -36,8 +36,9 @@
 - WAL plus `synchronous=FULL` and SQLite backup are configured and cold restore is tested, but
   kill-at-every-instruction crash recovery, disk-full behavior, filesystem-specific durability, and
   backup rotation are not tested.
-- `snapshot_to()` copies the SQLite database only. A complete recovery package must preserve and
-  verify the payload CAS separately; backup manifesting across both stores is not implemented.
+- `snapshot_to()` copies the SQLite database and every payload referenced by its immutable history
+  into a sibling content-addressed store. A signed cross-store backup manifest, remote replication,
+  incremental backup, and retention/rotation policy are not implemented.
 - `verify_integrity()` is explicit. The store does not automatically quarantine a corrupt database on
   startup, distinguish a torn tail from interior corruption, or implement a recovery policy.
 - Append-only behavior is enforced by the Python gateway and checked by hashes; SQLite does not yet
@@ -50,10 +51,11 @@
 - Projection receipts and watermarks are typed, but no asynchronous projector or read-your-write
   coordination service is implemented.
 - Payload bytes and SQLite records use separate durability transactions. A failed record append may
-  leave an orphan payload or a stale-promotion provenance bundle. There is no garbage collector or
-  abandoned-intent record.
-- Local payload verification is optional at store construction. Deployments that disable
-  `require_local_payloads` do not gain the golden slice's no-dangling-local-reference guarantee.
+  leave an orphan payload. Promotion provenance, decision, revision, and branch-head CAS now share
+  one SQLite transaction, so stale or invalid promotions do not leave provenance records.
+- A store may ingest non-authoritative payload-bearing material without a configured local payload
+  verifier for synchronization use, but integrity verification, promotion, and authoritative query
+  fail closed until the verifier is present.
 - Payload receipts are returned by the filesystem CAS but are not themselves immutable records in
   the SQLite authority or a replicated catalog.
 
@@ -137,7 +139,9 @@
   not guaranteed by the timestamp, although the SQLite sequence remains authoritative.
 - Performance budgets are targets; no integrated latency, storage-growth, map-scale, robot-scale, or
   version-scale report exists.
-- The root published wheel may omit required workspace packages that CI/Docker install manually.
+- The root package now declares the required `stewie-bodies` distribution. A clean-wheel smoke test
+  covers dependency resolution from a local wheelhouse, but publication to an external package index
+  and installation on other operating systems remain unverified.
 - The new implementation and documentation are working-tree artifacts until committed, frozen, and
   independently reproduced.
 

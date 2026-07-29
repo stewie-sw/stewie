@@ -73,30 +73,28 @@ def run_fault_injection(output_directory: str | Path) -> dict[str, Any]:
     payload_root = output / "payload-corruption"
     payload_store, _ = build_golden_world(payload_root / "world.sqlite3")
     observation = payload_store.get("claim.observation.golden")
-    assert observation is not None
+    if observation is None:
+        payload_store.close()
+        raise RuntimeError("fault fixture observation is not durable")
     payload_hash = observation["payload"]["content_hash"]
-    assert payload_store.payload_store is not None
+    if payload_store.payload_store is None:
+        payload_store.close()
+        raise RuntimeError("fault fixture payload verifier is unavailable")
     payload_store.payload_store.path(payload_hash).write_bytes(b"corrupt")
     corrupt_report = payload_store.verify_integrity()
     results.append(
         {
             "fault_id": "payload_bitrot",
             "expected": "integrity failure",
-            "observed": (
-                not corrupt_report["ok"]
-                and any(payload_hash in error for error in corrupt_report["errors"])
-            ),
+            "observed": (not corrupt_report["ok"] and any(payload_hash in error for error in corrupt_report["errors"])),
         }
     )
     payload_store.close()
 
     projection_root = output / "projection-corruption"
-    projection_store, _ = build_golden_world(
-        projection_root / "world.sqlite3"
-    )
+    projection_store, _ = build_golden_world(projection_root / "world.sqlite3")
     projection_store._connection.execute(
-        "UPDATE branch_heads SET revision_id=NULL, revision_sequence=0 "
-        "WHERE branch_id='branch.accepted'"
+        "UPDATE branch_heads SET revision_id=NULL, revision_sequence=0 WHERE branch_id='branch.accepted'"
     )
     detected = not projection_store.verify_integrity()["ok"]
     projection_store.rebuild_projections()
@@ -121,8 +119,7 @@ def run_fault_injection(output_directory: str | Path) -> dict[str, Any]:
             "fault_id": "delayed_stale_observation",
             "expected": "exclude as stale_before_action",
             "observed": any(
-                "robot-b-stale" in claim_id
-                and reason == "stale_before_action"
+                "robot-b-stale" in claim_id and reason == "stale_before_action"
                 for claim_id, reason in delayed_result["excluded"]
             ),
         }
@@ -157,16 +154,11 @@ def run_fault_injection(output_directory: str | Path) -> dict[str, Any]:
         {
             "fault_id": "reference_truth_poison",
             "expected": "candidate bytes unchanged",
-            "observed": (
-                candidate_before["candidate_summary_hash"]
-                == candidate_after["candidate_summary_hash"]
-            ),
+            "observed": (candidate_before["candidate_summary_hash"] == candidate_after["candidate_summary_hash"]),
         }
     )
 
-    conflict_store, conflict_report = run_conflict_retention_demo(
-        output / "conflict" / "world.sqlite3"
-    )
+    conflict_store, conflict_report = run_conflict_retention_demo(output / "conflict" / "world.sqlite3")
     results.append(
         {
             "fault_id": "equal_support_conflicting_observations",
@@ -201,7 +193,5 @@ def run_fault_injection(output_directory: str | Path) -> dict[str, Any]:
         ],
     }
     report["report_content_hash"] = sha256_json(report)
-    (output / "fault-injection-report.json").write_bytes(
-        canonical_bytes(report) + b"\n"
-    )
+    (output / "fault-injection-report.json").write_bytes(canonical_bytes(report) + b"\n")
     return report

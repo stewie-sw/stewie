@@ -62,8 +62,7 @@ def _assert_error(
 ) -> None:
     errors = _safe_errors(graph)
     assert any(expected_fragment in error for error in errors), (
-        f"missing semantic error fragment {expected_fragment!r}; "
-        f"validator returned {errors!r}"
+        f"missing semantic error fragment {expected_fragment!r}; validator returned {errors!r}"
     )
 
 
@@ -72,10 +71,7 @@ def _golden_graph(
 ) -> tuple[list[tuple[str, dict[str, Any]]], dict[str, str]]:
     store, ids = build_golden_world(tmp_path / "authority.sqlite3")
     try:
-        graph = [
-            (SCHEMA_BY_VERSION[str(record["schema_version"])], deepcopy(record))
-            for record in store.records()
-        ]
+        graph = [(SCHEMA_BY_VERSION[str(record["schema_version"])], deepcopy(record)) for record in store.records()]
     finally:
         store.close()
     assert _safe_errors(graph) == []
@@ -407,33 +403,32 @@ def test_rejected_review_cannot_leave_partial_promotion_records(
             provenance_bundle_id="provenance.revision.rejected-review",
             branch_revision_sequence=2,
         )
-        store.append_batch(
-            [
-                submission(
-                    "provenance_bundle.schema.json",
-                    provenance_record(
-                        "reconciliation_decision.schema.json",
-                        decision,
-                        bundle_id=str(decision["provenance_bundle_id"]),
-                    ),
-                    token="decision.rejected-review.provenance",
+        provenance_submissions = [
+            submission(
+                "provenance_bundle.schema.json",
+                provenance_record(
+                    "reconciliation_decision.schema.json",
+                    decision,
+                    bundle_id=str(decision["provenance_bundle_id"]),
                 ),
-                submission(
-                    "provenance_bundle.schema.json",
-                    provenance_record(
-                        "world_revision.schema.json",
-                        revision,
-                        bundle_id=str(revision["provenance_bundle_id"]),
-                    ),
-                    token="revision.rejected-review.provenance",
+                token="decision.rejected-review.provenance",
+            ),
+            submission(
+                "provenance_bundle.schema.json",
+                provenance_record(
+                    "world_revision.schema.json",
+                    revision,
+                    bundle_id=str(revision["provenance_bundle_id"]),
                 ),
-            ]
-        )
+                token="revision.rejected-review.provenance",
+            ),
+        ]
         before = store.latest_sequence()
         receipt = store.commit_promotion(
             operation_id="operation.rejected-review",
             expected_head_revision_id=ids["revision_id"],
             expected_head_sequence=1,
+            provenance_submissions=provenance_submissions,
             decision_submission=submission(
                 "reconciliation_decision.schema.json",
                 decision,
@@ -565,8 +560,7 @@ def test_target_cannot_have_two_effective_successors(
     )
     _assert_error(
         graph,
-        f"target_record_id: {ids['external_action_id']} "
-        "has multiple effective successors",
+        f"target_record_id: {ids['external_action_id']} has multiple effective successors",
     )
 
 

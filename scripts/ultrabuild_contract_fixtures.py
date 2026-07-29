@@ -191,15 +191,15 @@ def scenario() -> dict[str, Any]:
         },
         "seeds": [1, 2],
         "experimental_units": {
-            "unit_kind": "terrain_action_pair",
+            "unit_kind": "terrain_window",
             "unit_ids": ["unit.1", "unit.2"],
-            "resampling_level": "terrain_action_pair",
+            "resampling_level": "terrain_window",
         },
         "primary_endpoint": {
             "metric": "harmful_acceptance_rate",
             "direction": "lower",
             "decision_threshold": 0.05,
-            "aggregation": "mean_by_terrain_action_pair",
+            "aggregation": "mean_by_terrain_window",
         },
         "minimum_effect": {
             "metric": "harmful_acceptance_rate",

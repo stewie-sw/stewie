@@ -31,9 +31,9 @@ CPU reference environment:
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/pip install --require-hashes -r requirements-dev.lock
-.venv/bin/pip install -e . --no-deps
 .venv/bin/pip install -e packages/stewie-bodies --no-deps
 .venv/bin/pip install -e packages/stewie-forge --no-deps
+.venv/bin/pip install -e . --no-deps
 ```
 
 The published reproduction path will use either the exact lock plus OS manifest or a digest-pinned
@@ -80,6 +80,11 @@ Each scenario directory contains:
 - reviewer decision.
 
 Scenario IDs are hashes of canonical scenario content. Changing a parameter creates a new ID.
+
+The controlled synthetic evaluator and perturbation harness are exposed development diagnostics.
+Their arrays, seeds, and design are not a confirmatory holdout. The original evaluation allocation
+using seeds `3001..3008` is retained as a retired audit artifact; an independently controlled
+replacement allocation is required before Barrier 1 can pass or confirmatory execution can begin.
 
 ## Determinism
 

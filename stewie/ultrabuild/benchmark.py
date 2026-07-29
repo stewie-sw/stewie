@@ -62,6 +62,15 @@ def run_benchmarks(
         raise ValueError("measured_runs must be at least 20")
     output = Path(output_directory)
     output.mkdir(parents=True, exist_ok=True)
+    owned_artifacts = (
+        "append-benchmark.sqlite3",
+        "query-benchmark.sqlite3",
+        "performance-report.json",
+        "environment.json",
+    )
+    existing = [name for name in owned_artifacts if (output / name).exists()]
+    if existing:
+        raise FileExistsError("benchmark output must be fresh; existing artifacts: " + ", ".join(existing))
     warmup = 5
 
     validation_counter = 0
@@ -131,17 +140,11 @@ def run_benchmarks(
     )
     tile_count = 256 * 256
     repeats = int(np.ceil(tile_count / small_scenario.prior.size))
-    prior = np.tile(small_scenario.prior.ravel(), repeats)[:tile_count].reshape(
-        (256, 256)
-    )
-    envelope = np.tile(
-        small_scenario.action.operational_envelope.ravel(), repeats
-    )[:tile_count].reshape((256, 256))
+    prior = np.tile(small_scenario.prior.ravel(), repeats)[:tile_count].reshape((256, 256))
+    envelope = np.tile(small_scenario.action.operational_envelope.ravel(), repeats)[:tile_count].reshape((256, 256))
     large_evidence = []
     for item in small_scenario.evidence[:4]:
-        values = np.tile(item.values.ravel(), repeats)[:tile_count].reshape(
-            (256, 256)
-        )
+        values = np.tile(item.values.ravel(), repeats)[:tile_count].reshape((256, 256))
         coverage = np.ones((256, 256), dtype=bool)
         large_evidence.append(
             type(item)(
@@ -164,9 +167,7 @@ def run_benchmarks(
         end=small_scenario.action.end,
         operational_envelope=envelope,
         volume_tolerance_cells=200.0,
-        outside_envelope_tolerance_m=(
-            small_scenario.action.outside_envelope_tolerance_m
-        ),
+        outside_envelope_tolerance_m=(small_scenario.action.outside_envelope_tolerance_m),
     )
     replay_hashes: set[str | None] = set()
 
@@ -186,11 +187,11 @@ def run_benchmarks(
         measured_runs=measured_runs,
     )
 
-    query_store, multi_report = run_multi_robot_closed_loop(
-        output / "query-benchmark.sqlite3"
-    )
+    query_store, multi_report = run_multi_robot_closed_loop(output / "query-benchmark.sqlite3")
     revision = query_store.get(multi_report["revision_id"])
-    assert revision is not None
+    if revision is None:
+        query_store.close()
+        raise RuntimeError("benchmark revision was not durable")
 
     def query_one() -> None:
         result = query_store.query_revision(
@@ -226,9 +227,7 @@ def run_benchmarks(
         "reconcile_p95_ms": reconcile["p95_ms"],
         "reconcile_p99_ms": reconcile["p99_ms"],
         "current_state_query_p95_ms": current_query["p95_ms"],
-        "deterministic_replay_mismatch_count": max(
-            0, len(replay_hashes) - 1
-        ),
+        "deterministic_replay_mismatch_count": max(0, len(replay_hashes) - 1),
     }
     budget_results = {
         name: {
@@ -264,9 +263,7 @@ def run_benchmarks(
             "python": sys.version,
             "numpy": np.__version__,
             "cpu_count": os.cpu_count(),
-            "peak_rss_raw": resource.getrusage(
-                resource.RUSAGE_SELF
-            ).ru_maxrss,
+            "peak_rss_raw": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
         },
         "build_identity": build_identity(),
         "measurements": {
@@ -276,9 +273,7 @@ def run_benchmarks(
             "current_bitemporal_query": current_query,
         },
         "budget_results": budget_results,
-        "all_measured_targets_pass": all(
-            item["pass"] for item in budget_results.values()
-        ),
+        "all_measured_targets_pass": all(item["pass"] for item in budget_results.values()),
         "integrity": {
             "append_store": append_integrity,
             "query_store": query_integrity,
@@ -295,9 +290,7 @@ def run_benchmarks(
         ],
     }
     report["report_content_hash"] = sha256_json(report)
-    (output / "performance-report.json").write_bytes(
-        canonical_bytes(report) + b"\n"
-    )
+    (output / "performance-report.json").write_bytes(canonical_bytes(report) + b"\n")
     (output / "environment.json").write_text(
         json.dumps(report["environment"], indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

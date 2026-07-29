@@ -14,8 +14,8 @@ pilot/freeze packet is independently accepted.
 - `N_promoted` contains only valid durable promotions. A crash or invalid output is not an abstention.
 - A `true conflict`, `stale claim`, `harmful state`, and `harmful plan` are labelled only by the
   evaluator process from withheld reference inputs after candidate-output freeze.
-- Unit-level estimates are computed first. Confidence intervals resample
-  `terrain_action_pair` units; cells, sources, and seeds are nested repeated measures.
+- Terrain-window estimates are computed first. Confidence intervals resample `terrain_window`
+  units; actions, cells, sources, and seeds are nested repeated measures.
 - Missing required output is scored as failure for correctness/replay metrics and reported separately
   as an execution-failure rate. It is never silently excluded.
 

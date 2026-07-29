@@ -36,7 +36,13 @@ def _reseal(record: dict[str, object]) -> None:
 def _promotion_alternatives(
     store: AuthoritativeStore,
     ids: dict[str, str],
-) -> list[tuple[dict[str, object], dict[str, object]]]:
+) -> list[
+    tuple[
+        list[dict[str, object]],
+        dict[str, object],
+        dict[str, object],
+    ]
+]:
     observation = store.get(ids["observation_id"])
     prior = store.get(ids["revision_id"])
     assert observation is not None and prior is not None
@@ -51,8 +57,13 @@ def _promotion_alternatives(
         ),
         token="candidate.race",
     )
-    alternatives: list[tuple[dict[str, object], dict[str, object]]] = []
-    provenance_submissions: list[dict[str, object]] = []
+    alternatives: list[
+        tuple[
+            list[dict[str, object]],
+            dict[str, object],
+            dict[str, object],
+        ]
+    ] = []
     for suffix in ("a", "b"):
         decision = promotion_decision_record(
             candidate,
@@ -67,7 +78,7 @@ def _promotion_alternatives(
             provenance_bundle_id=f"provenance.revision.race.{suffix}",
             branch_revision_sequence=2,
         )
-        alternatives.append((decision, revision))
+        provenance_submissions: list[dict[str, object]] = []
         for schema_name, record, token in (
             (
                 "reconciliation_decision.schema.json",
@@ -91,7 +102,7 @@ def _promotion_alternatives(
                     token=token,
                 )
             )
-    store.append_batch(provenance_submissions)
+        alternatives.append((provenance_submissions, decision, revision))
     return alternatives
 
 
@@ -217,16 +228,18 @@ def test_sequence_is_monotonic_after_restart(tmp_path: Path) -> None:
                 token="branch.two",
             )
         )
-        assert second["transaction_time"]["sequence"] == (
-            first["transaction_time"]["sequence"] + 1
-        )
+        assert second["transaction_time"]["sequence"] == (first["transaction_time"]["sequence"] + 1)
 
 
 def test_concurrent_promotions_have_exactly_one_winner(tmp_path: Path) -> None:
     path = tmp_path / "authority.sqlite3"
     store_a, ids = build_golden_world(path)
     alternatives = _promotion_alternatives(store_a, ids)
-    store_b = AuthoritativeStore(path)
+    store_b = AuthoritativeStore(
+        path,
+        payload_store=ContentAddressedPayloadStore(tmp_path / "payloads"),
+        require_local_payloads=True,
+    )
     barrier = threading.Barrier(2)
     receipts: list[dict[str, object]] = []
     failures: list[BaseException] = []
@@ -234,6 +247,7 @@ def test_concurrent_promotions_have_exactly_one_winner(tmp_path: Path) -> None:
     def promote(
         store: AuthoritativeStore,
         suffix: str,
+        provenance_submissions: list[dict[str, object]],
         decision: dict[str, object],
         revision: dict[str, object],
     ) -> None:
@@ -244,6 +258,7 @@ def test_concurrent_promotions_have_exactly_one_winner(tmp_path: Path) -> None:
                     operation_id=f"operation.race.{suffix}",
                     expected_head_revision_id=ids["revision_id"],
                     expected_head_sequence=1,
+                    provenance_submissions=provenance_submissions,
                     decision_submission=submission(
                         "reconciliation_decision.schema.json",
                         decision,
@@ -282,16 +297,12 @@ def test_concurrent_promotions_have_exactly_one_winner(tmp_path: Path) -> None:
     }
     durable_race_revisions = [
         record
-        for record in store_a.records(
-            record_schema="world_revision.schema.json"
-        )
+        for record in store_a.records(record_schema="world_revision.schema.json")
         if str(record["revision_id"]).startswith("revision.race.")
     ]
     durable_race_decisions = [
         record
-        for record in store_a.records(
-            record_schema="reconciliation_decision.schema.json"
-        )
+        for record in store_a.records(record_schema="reconciliation_decision.schema.json")
         if str(record["decision_id"]).startswith("decision.race.")
     ]
     assert len(durable_race_revisions) == 1
@@ -305,7 +316,10 @@ def test_pending_review_cannot_promote_or_leave_partial_records(
     tmp_path: Path,
 ) -> None:
     store, ids = build_golden_world(tmp_path / "authority.sqlite3")
-    decision, revision = _promotion_alternatives(store, ids)[0]
+    provenance_submissions, decision, revision = _promotion_alternatives(
+        store,
+        ids,
+    )[0]
     decision["review"] = {
         "status": "pending",
         "reviewer_id": "reviewer.independent",
@@ -315,6 +329,7 @@ def test_pending_review_cannot_promote_or_leave_partial_records(
         operation_id="operation.pending-review",
         expected_head_revision_id=ids["revision_id"],
         expected_head_sequence=1,
+        provenance_submissions=provenance_submissions,
         decision_submission=submission(
             "reconciliation_decision.schema.json",
             decision,
@@ -379,16 +394,13 @@ def test_historical_query_changes_only_after_durable_invalidation(
 def test_projection_can_be_rebuilt_from_immutable_history(tmp_path: Path) -> None:
     store, _ = build_golden_world(tmp_path / "authority.sqlite3")
     store._connection.execute(  # deliberate fault injection into a projection
-        "UPDATE branch_heads SET revision_id=NULL, revision_sequence=0 "
-        "WHERE branch_id='branch.accepted'"
+        "UPDATE branch_heads SET revision_id=NULL, revision_sequence=0 WHERE branch_id='branch.accepted'"
     )
     assert store.verify_integrity()["ok"] is False
     receipt = store.rebuild_projections()
     assert receipt["status"] == "rebuilt"
     assert store.verify_integrity()["ok"] is True
-    assert store.branch_head("branch.accepted")["revision_id"] == (
-        "revision.accepted.golden"
-    )
+    assert store.branch_head("branch.accepted")["revision_id"] == ("revision.accepted.golden")
     store.close()
 
 
@@ -396,9 +408,7 @@ def test_projection_can_be_rebuilt_from_immutable_history(tmp_path: Path) -> Non
     ("mutation", "expected_fragment"),
     [
         (
-            lambda candidate: candidate["spatial"].update(
-                {"frame_id": "frame.wrong"}
-            ),
+            lambda candidate: candidate["spatial"].update({"frame_id": "frame.wrong"}),
             "state_contract_hash",
         ),
         (
@@ -424,9 +434,7 @@ def test_candidate_contract_mutations_are_rejected(
         "stewie.evidence_claim/1.0": "evidence_claim.schema.json",
         "stewie.action_event/1.0": "action_event.schema.json",
         "stewie.state_candidate/1.0": "state_candidate.schema.json",
-        "stewie.reconciliation_decision/1.0": (
-            "reconciliation_decision.schema.json"
-        ),
+        "stewie.reconciliation_decision/1.0": ("reconciliation_decision.schema.json"),
         "stewie.world_revision/1.0": "world_revision.schema.json",
         "stewie.query_request/1.0": "query_request.schema.json",
         "stewie.query_lens/1.0": "query_lens.schema.json",
@@ -435,9 +443,7 @@ def test_candidate_contract_mutations_are_rejected(
     for record in store.records():
         schema_name = schema_by_version[str(record["schema_version"])]
         graph.append((schema_name, record))
-    candidate = next(
-        record for _, record in graph if record.get("candidate_id") == ids["candidate_id"]
-    )
+    candidate = next(record for _, record in graph if record.get("candidate_id") == ids["candidate_id"])
     assert callable(mutation)
     mutation(candidate)
     _reseal(candidate)

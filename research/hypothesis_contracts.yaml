@@ -19,14 +19,15 @@ value_status:
   falsification_rules: specified
 
 common:
-  independent_unit: terrain_action_pair
+  independent_unit: terrain_window
   repeated_measures:
+    - action_geometry
     - system
     - mechanism_cell
     - perturbation_cell
     - observation_realization
     - seed
-  resampling_level: terrain_action_pair
+  resampling_level: terrain_window
   alpha: 0.05
   target_power: 0.80
   interval: paired_cluster_bootstrap_95_percent

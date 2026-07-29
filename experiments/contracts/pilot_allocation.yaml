@@ -17,9 +17,10 @@ purpose:
   - verify perturbation feasibility
   - calibrate minimum effects and sample size without using evaluation units
 
-independent_unit_kind: terrain_action_pair
-resampling_level: terrain_action_pair
+independent_unit_kind: terrain_window
+resampling_level: terrain_window
 repeated_measures:
+  - action_geometry
   - system
   - mechanism_cell
   - perturbation_cell
@@ -60,8 +61,10 @@ units:
 
 seeds: [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008]
 unit_count: 4
+registered_row_count: 4
 seeds_per_unit: 8
 unit_seed_pair_count: 32
+registered_row_seed_count: 32
 
 disjointness_contract:
   must_be_disjoint_from: experiments/contracts/evaluation_allocation.yaml

@@ -13,7 +13,7 @@ def test_closure_packet_is_machine_valid_but_not_acceptance_ready() -> None:
     assert summary["acceptance_ready"] is False
     assert summary["hypotheses"] == 7
     assert summary["pilot_units"] == 4
-    assert summary["evaluation_units"] == 24
+    assert summary["evaluation_units"] == 8
     assert summary["metric_oracles"] == 6
     assert summary["blocking_items"]
 
@@ -28,6 +28,8 @@ def test_pilot_and_evaluation_units_windows_and_seeds_are_disjoint() -> None:
     assert pilot_units.isdisjoint(eval_units)
     assert pilot_windows.isdisjoint(eval_windows)
     assert pilot_seeds.isdisjoint(eval_seeds)
+    assert evaluation["status"] == "retired_exposed_development_allocation"
+    assert evaluation["retirement"]["reuse_for_confirmatory_evidence_forbidden"] is True
 
 
 def test_registry_rejects_a_missing_required_baseline() -> None:

@@ -8,18 +8,18 @@
 
 ## Experimental unit and repeated measures
 
-The independent experimental unit is a `terrain_action_pair`: one non-overlapping terrain window and
-one action geometry generated without using any candidate output. System, mechanism cell, fault
-level, observation realization, and seed are repeated measures within that unit. Cells, observations,
-and reruns are never counted as independent units. Rerunning identical input is replay evidence, not
-a new trial.
+The independent experimental unit is a non-overlapping `terrain_window`. Action geometry, system,
+mechanism cell, fault level, observation realization, and seed are repeated measures within that
+window. Cells, actions on the same base terrain, observations, and reruns are never counted as
+independent terrain evidence. Rerunning identical input is replay evidence, not a new trial.
 
-The evaluation design uses 24 units formed from eight disjoint Haworth windows crossed with three
-registered action geometries. Eight evaluation seeds are repeated within each unit. Four disjoint
-terrain/action units and seeds `1001..1008` are reserved for calibration only; evaluation uses seeds
-`3001..3008`. Calibration outputs cannot enter confirmatory estimates. These values become frozen
-only when the content-addressed scenario manifests and pilot report are committed and independently
-accepted.
+The original evaluation design registered 24 terrain/action rows formed from eight Haworth windows
+crossed with three action geometries. Its claim that these were 24 independent units was invalid:
+the correct independent-unit count is eight. Its seeds `3001..3008` and synthetic windows were also
+exposed to development. That allocation is therefore retired from confirmatory use. Four disjoint
+pilot windows and seeds `1001..1008` remain design-only; a replacement evaluator-controlled
+allocation, sample size, and resampling plan must be frozen after pilot calibration and independent
+review.
 
 ## Reference firewall
 
@@ -152,9 +152,11 @@ four-way synergy or novelty claim is inferred from this experiment.
 | E7/H7 | normalized provenance × dependency interaction | higher | 0.05 absolute | availability no more than 0.10 lower in any cell |
 
 The minimum effects are operational assumptions for the controlled research artifact, not sourced
-mission-safety thresholds. Calibration must show that 24 independent units can resolve the stated
-effect under a paired design; otherwise the design is revised before freeze or the hypothesis remains
-underpowered and unsupported. Secondary endpoints cannot rescue a failed primary endpoint.
+mission-safety thresholds. Calibration must determine how many independent terrain windows are
+needed to resolve the stated effect under a clustered paired design; the current eight exposed
+development windows are not a power justification. If the replacement design cannot support that
+count, the hypothesis remains underpowered and unsupported. Secondary endpoints cannot rescue a
+failed primary endpoint.
 
 ## Ablations
 
@@ -181,7 +183,7 @@ run.
 - Block by terrain crop, operation, and fault level.
 - Use common random numbers across systems for paired comparisons.
 - Randomize system evaluation order within a block.
-- Keep calibration/pilot seeds disjoint from evaluation seeds.
+- Keep calibration/pilot windows and seeds disjoint from a new evaluator-controlled allocation.
 - Record deterministic seeds and library/runtime versions.
 
 ## Statistical treatment
@@ -192,8 +194,8 @@ run.
 - Predeclare the minimum operationally relevant effect for each hypothesis.
 - Report null and negative results and all excluded trials with reasons.
 - Distinguish statistical significance from operational relevance.
-- Bootstrap and permutation resampling operate at the `terrain_action_pair` level; per-cell and
-  per-seed rows remain nested repeated measures.
+- Bootstrap and permutation resampling operate at the `terrain_window` level; per-action, per-cell,
+  and per-seed rows remain nested repeated measures.
 
 ## Exclusions and stopping
 
