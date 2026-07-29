@@ -1,7 +1,7 @@
 """[REQ:GW-04] Asset Library router (ARCH-3): browse / search / inspect / export / recover the durable
 assets, SEPARATE from the visible map layers. The reads are PUBLIC map-data reads (like /world/layer-
 catalog + /world/layer-manifest) so the keyless public /ide/ can render the library; the recover MUTATION
-is operator-gated (it restores shared/live state) and audit-logged. Reuses the existing persistence via
+is director-gated (it restores shared/live state) and audit-logged. Reuses the existing persistence via
 server.asset_library -- no new store. Auth from server.deps; audit from server.services (no app import)."""
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, Response
 
 from stewie.server import asset_library as AL
-from stewie.server.deps import require_role
+from stewie.server.deps import require_director
 from stewie.server.services import log_event
 
 router = APIRouter()
@@ -57,11 +57,13 @@ def library_export(atype: str, aid: str):
 
 
 @router.post("/library/{atype}/{aid}/recover")
-def library_recover(atype: str, aid: str, identity: str = Depends(require_role("operator"))):
-    """Recover (restore) a soft-deleted durable asset from its .trash, in place. Operator+ (it restores
-    shared/live state). Reuses server.objects.restore for missions/structures; a report/twin reports the
-    honest recovery path rather than pretending. Audit-logged."""
-    out = AL.recover_asset(atype, aid)
+def library_recover(atype: str, aid: str, identity: str = Depends(require_director)):
+    """Recover shared/live state as a director, refusing an occupied destination."""
+    try:
+        out = AL.recover_asset(atype, aid, actor=identity, is_director=True)
+    except FileExistsError as e:
+        return JSONResponse(status_code=409, content={
+            "ok": False, "restored": False, "error": str(e)})
     if out.get("restored"):
         log_event(identity, "asset.recover", f"{atype}:{aid}")
     return out

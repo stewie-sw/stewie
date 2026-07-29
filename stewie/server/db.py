@@ -186,6 +186,27 @@ class ReleaseRevisionRow(Base):
 Index("ix_release_revision_created", ReleaseRevisionRow.created_at)
 
 
+def release_revision_mission_id(artifact: dict) -> str:
+    """Return the mission identity carried by a frozen release, failing closed on ambiguity.
+
+    Older rows may have an empty top-level ``mission_id`` even though the signed intent contains it.
+    The signed intent is therefore the compatibility source of truth; when both copies exist they must
+    agree. Callers must never substitute a request-controlled mission for a missing or contradictory
+    release identity.
+    """
+    top = str(artifact.get("mission_id") or "").strip()
+    signed = artifact.get("signed_revision")
+    intent = signed.get("intent") if isinstance(signed, dict) else None
+    nested = str(intent.get("mission_id") or "").strip() if isinstance(intent, dict) else ""
+    if top and nested and top != nested:
+        raise ValueError(
+            f"released revision mission identity mismatch: row={top!r}, signed_intent={nested!r}")
+    mission_id = nested or top
+    if not mission_id:
+        raise ValueError("released revision has no signed mission identity")
+    return mission_id
+
+
 # ---- the dedicated background event loop (sync facade over the async engine) ----------------------
 _loop: Optional[asyncio.AbstractEventLoop] = None
 _loop_lock = threading.Lock()

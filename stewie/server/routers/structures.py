@@ -18,12 +18,22 @@ def structure_save(name: str, doc: dict, _auth: str = Depends(require_role("oper
     # #294 (AG-07): a custom structure is saved into the SHARED LIVE template library (save_structure
     # namespace="live") and expands into ANY operator's plan, so WRITING it is operator+ -- a guest/trainee
     # (below operator on the AG-01 ladder) must not pollute the shared pool. Reads stay any-auth (S-06).
+    # SR-01: operator+ was necessary but not sufficient -- being AN operator let you overwrite ANOTHER
+    # operator's template, which then expands into everyone's plans. Same gate as the sibling DELETE.
+    from stewie.server import auth as AUTH
     try:
-        out = OBJ.save_structure(name, doc, owner=_auth)      # AG-05: stamp the creating operator
-        log_event(_auth, "structure.save", out["name"])
-        return {"ok": True, **out}
+        out = OBJ.save_structure_authorized(
+            name, doc, actor=_auth, is_director=AUTH.role_of(_auth) == "director")
+    except PermissionError:
+        return JSONResponse(status_code=403, content={
+            "ok": False,
+            "error": f"structure {name!r} belongs to another operator; only its owner or a director "
+                     "may overwrite it"})
     except ValueError as e:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
+    else:
+        log_event(_auth, "structure.save", out["name"])
+        return {"ok": True, **out}
 
 
 @router.get("/structures/custom")
@@ -45,11 +55,11 @@ def structure_delete(name: str, identity: str = Depends(require_auth)):
     """AG-06: recoverable soft-delete with ownership escalation -- delete your OWN template;
     another operator's (or an unowned) template requires a director."""
     from stewie.server import auth as AUTH
-    owner = OBJ.owner_of("structures", name)
-    # BP-05: a custom structure template is a shared LIVE artifact -> deletion is director-only.
-    if not OBJ.deletion_allowed(owner, identity, AUTH.role_of(identity) == "director", namespace="live"):
+    try:
+        ok = OBJ.delete_authorized(
+            "structures", name, actor=identity, is_director=AUTH.role_of(identity) == "director")
+    except PermissionError:
         return JSONResponse(status_code=403, content={
             "ok": False, "error": "deleting a shared (live) structure template requires a director"})
-    ok = OBJ.delete_structure(name)
     log_event(identity, "structure.delete", f"{name} ns=live")
     return {"ok": ok, "recoverable": True}

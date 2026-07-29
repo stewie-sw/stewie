@@ -36,11 +36,20 @@ def test_list_exposes_owner(obj):
 
 
 def test_resave_preserves_the_original_creator(obj):
+    """The STORE never launders `created_by` on a re-save.
+
+    SR-01 caveat: this asserts the metadata rule ONLY, not authority. `save_mission` is the storage
+    primitive and deliberately performs no authorization -- exactly like `soft_delete`, whose policy
+    (`deletion_allowed`) is likewise enforced by the route. Read literally, preserving Alice's name on
+    Bob's orders is *worse* than a plain overwrite: it launders provenance. Whether Bob may write here
+    at all is `write_allowed`, enforced at the route and covered by test_write_authorization.py.
+    """
     OBJ, _ = obj
     OBJ.save_mission("Pad A", {"body": "moon", "orders": []}, owner="alice@x.com")
     OBJ.save_mission("Pad A", {"body": "moon", "orders": [{"x": 1}]}, owner="bob@x.com")
     d = OBJ.load_mission("Pad A")
-    assert d["created_by"] == "alice@x.com"           # bob re-saved but did NOT steal ownership
+    assert d["created_by"] == "alice@x.com"           # the creator field is never reassigned by a re-save
+    assert OBJ.write_allowed("alice@x.com", "bob@x.com", False, namespace="live") is False
 
 
 def test_existing_unowned_reads_as_unknown(obj):

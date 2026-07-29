@@ -148,3 +148,23 @@ def test_store_is_immutable_first_write_wins(monkeypatch, tmp_path):  # [dispatc
     assert got["mission_id"] == "M" and got["evidence"]["plan_id"] == "p1"   # the ORIGINAL, unmutated
     assert db.read_release_revision("f" * 64) is None                        # unknown hash -> None
     db.reset_store()
+
+
+def test_release_mission_identity_uses_signed_intent_for_legacy_row():
+    """A blank legacy column is recoverable from signed content, never from a caller request."""
+    from stewie.server import db
+    artifact = {"mission_id": "", "signed_revision": {"intent": {"mission_id": "Mission A"}}}
+    assert db.release_revision_mission_id(artifact) == "Mission A"
+
+
+def test_release_mission_identity_rejects_contradictory_copies():
+    """A retargeted top-level row cannot override the mission inside the frozen signed intent."""
+    import pytest
+
+    from stewie.server import db
+    artifact = {
+        "mission_id": "Mission B",
+        "signed_revision": {"intent": {"mission_id": "Mission A"}},
+    }
+    with pytest.raises(ValueError, match="identity mismatch"):
+        db.release_revision_mission_id(artifact)

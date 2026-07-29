@@ -48,18 +48,27 @@ def client(monkeypatch, tmp_path):
     importlib.reload(srv)
 
 
-def _release_and_run(c, key):
-    """Release a real plan (-> content_hash) and run it bound (-> a real, content_hash-bound live_token)."""
+def _release_and_run(c, key, mission_id="Live Pad", depth_m=0.2):
+    """Release a real plan for ``mission_id`` (-> content_hash) and run it bound (-> a real,
+    content_hash-bound live_token).
+
+    SR-02: the released mission is now the SAME identity the command targets. Previously this released
+    ``M-r3b``, ran without a ``mission_id`` (so the token was minted for the ``"cockpit-run"`` default),
+    and then commanded ``"Live Pad"`` -- three different mission identities, asserted to succeed. The
+    token is only meaningful when the released, minted and commanded mission are one identity.
+    """
     rel = c.post("/executive/release-plan", headers={"X-API-Key": key}, json={
-        "body": "moon", "mission_id": "M-r3b", "orders": [
-            {"action": "Pad cut", "kind": "cut", "x": 10.0, "y": 5.0, "footprint_m2": 9.0, "depth_m": 0.2}]})
+        "body": "moon", "mission_id": mission_id, "orders": [
+            {"action": "Pad cut", "kind": "cut", "x": 10.0, "y": 5.0, "footprint_m2": 9.0,
+             "depth_m": depth_m}]})
     assert rel.status_code == 200, rel.text
     ch = rel.json()["signed_revision"]["content_hash"]
     run = c.post("/executive/run", headers={"X-API-Key": key},
-                 json={"revision_hash": ch, "site": "haworth"})
+                 json={"revision_hash": ch, "site": "haworth", "mission_id": mission_id})
     assert run.status_code == 200, run.text
     tok = run.json()["live_token"]
     assert tok["issued"] is True, tok
+    assert tok["mission_id"] == mission_id, f"token minted for {tok['mission_id']!r}, not the released mission"
     return ch, tok
 
 
@@ -86,6 +95,46 @@ def test_valid_presented_token_is_accepted(client):  # [dispatch-audit R3b]
     assert r.json()["accepted"] == "goto"
 
 
+def test_bound_run_derives_mission_from_signed_revision(client):
+    """The request default is not an identity: a bound run must inherit the frozen signed mission."""
+    c, key = client
+    rel = c.post("/executive/release-plan", headers={"X-API-Key": key}, json={
+        "body": "moon", "mission_id": "Live Pad", "orders": [
+            {"action": "Pad cut", "kind": "cut", "x": 10.0, "y": 5.0,
+             "footprint_m2": 9.0, "depth_m": 0.2}]})
+    assert rel.status_code == 200, rel.text
+    ch = rel.json()["signed_revision"]["content_hash"]
+
+    run = c.post("/executive/run", headers={"X-API-Key": key},
+                 json={"revision_hash": ch, "site": "haworth"})
+    assert run.status_code == 200, run.text
+    assert run.json()["mission_id"] == "Live Pad"
+    assert run.json()["live_token"]["mission_id"] == "Live Pad"
+
+
+@pytest.mark.parametrize("retarget", ["Other Pad", "cockpit-run"])
+def test_bound_run_rejects_request_mission_retarget_before_execution(client, monkeypatch, retarget):
+    """A caller cannot label Mission A's frozen plan/run/token as Mission B."""
+    c, key = client
+    rel = c.post("/executive/release-plan", headers={"X-API-Key": key}, json={
+        "body": "moon", "mission_id": "Live Pad", "orders": [
+            {"action": "Pad cut", "kind": "cut", "x": 10.0, "y": 5.0,
+             "footprint_m2": 9.0, "depth_m": 0.2}]})
+    assert rel.status_code == 200, rel.text
+    ch = rel.json()["signed_revision"]["content_hash"]
+
+    from lode import autonomy as AUT
+
+    def unexpected_execution(*_args, **_kwargs):
+        raise AssertionError("retargeted bound run reached simulation")
+
+    monkeypatch.setattr(AUT, "run_closed_loop", unexpected_execution)
+    run = c.post("/executive/run", headers={"X-API-Key": key}, json={
+        "revision_hash": ch, "site": "haworth", "mission_id": retarget})
+    assert run.status_code == 409, run.text
+    assert "released for mission" in run.text
+
+
 def test_forged_token_is_refused(client):  # [dispatch-audit R3b]
     c, key = client
     ch, tok = _release_and_run(c, key)
@@ -101,7 +150,7 @@ def test_expired_token_is_refused(client):  # [dispatch-audit R3b]
     ch, _tok = _release_and_run(c, key)
     # mint a validly-signed token (same in-process secret) that is already expired.
     from stewie.contracts.live_gate import LivePreconditions, issue_live_token
-    exp = issue_live_token("M-r3b", ch, LivePreconditions(True, True, True, True, True, True),
+    exp = issue_live_token("Live Pad", ch, LivePreconditions(True, True, True, True, True, True),
                            now=1.0, ttl_s=1.0)
     tok_d = {"mission_id": exp.mission_id, "revision_id": exp.revision_id,
              "issued_at": exp.issued_at, "ttl_s": exp.ttl_s, "signature": exp.signature}
@@ -111,12 +160,44 @@ def test_expired_token_is_refused(client):  # [dispatch-audit R3b]
     assert "expired" in r.text.lower()
 
 
-def test_token_bound_to_a_different_revision_is_refused(client):  # [dispatch-audit R3b]
+def test_unknown_revision_hash_is_refused(client):  # [dispatch-audit R3b]
+    """A hash that was never released is refused by the existence guard, before any token comparison."""
     c, key = client
-    ch, tok = _release_and_run(c, key)
+    _ch, tok = _release_and_run(c, key)
     r = c.post("/rc/command", headers={"X-API-Key": key},
                json=_goto(live_token=tok, revision_hash="0" * 64))   # unknown released revision
     assert r.status_code == 403, r.text
+
+
+def test_token_bound_to_a_different_revision_is_refused(client):  # [dispatch-audit R3b]
+    """SR-02: this previously passed ``"0"*64`` -- an UNKNOWN hash, refused by the released-revision
+    existence guard at rc.py before the token's revision binding was ever compared. It therefore proved
+    only that an unknown hash 403s, never that revision binding works. Bind against a genuinely released
+    SECOND revision so the revision comparison itself is what refuses."""
+    c, key = client
+    ch1, tok1 = _release_and_run(c, key, depth_m=0.2)
+    ch2, _tok2 = _release_and_run(c, key, depth_m=0.4)      # a real, DIFFERENT released revision
+    assert ch2 != ch1, "the two releases must differ for this to exercise revision binding"
+    _fresh_link()
+    r = c.post("/rc/command", headers={"X-API-Key": key},
+               json=_goto(live_token=tok1, revision_hash=ch2))
+    assert r.status_code == 403, r.text
+
+
+def test_a_token_for_another_mission_is_refused(client):  # [dispatch-audit R3b]
+    """SR-02 / AR-001, the core: the redemption check compared the token's mission against the TOKEN'S
+    OWN ``mission_id`` (``require_live_token(token, token.mission_id, ...)``), a value compared with
+    itself -- so it could never fail. A token attesting one released mission must not authorize a
+    command against a DIFFERENT live mission."""
+    c, key = client
+    from stewie.server import objects as OBJ
+    OBJ.save_mission("Other Pad", {"body": "moon", "orders": []}, owner="op@x.com", namespace="live")
+    ch, tok = _release_and_run(c, key, mission_id="Live Pad")
+    _fresh_link()
+    r = c.post("/rc/command", headers={"X-API-Key": key},
+               json=_goto(mission="Other Pad", live_token=tok, revision_hash=ch))
+    assert r.status_code == 403, r.text
+    assert "mission" in r.text.lower()
 
 
 def test_gate_on_requires_a_token_for_a_mission_bound_goto(client, monkeypatch):  # [dispatch-audit R3b]

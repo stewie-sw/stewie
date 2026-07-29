@@ -71,6 +71,69 @@ def test_eg07_release_plan_audit_records_the_signed_content_hash(monkeypatch, tm
         f"(got {recs[-1]['evidence']!r}, expected {ch!r})")
 
 
+def test_release_refuses_persistence_when_audit_intent_cannot_append(monkeypatch, tmp_path):
+    """No durable release may be created without a durable audit intent."""
+    c = _client(monkeypatch, tmp_path)
+    from stewie.server import audit_log
+    from stewie.server.routers import executive
+    persisted = []
+
+    def unavailable(*_args, **_kwargs):
+        raise OSError("audit disk unavailable")
+
+    def persist_spy(*_args, **_kwargs):
+        persisted.append(True)
+        return True
+
+    monkeypatch.setattr(audit_log, "record_action", unavailable)
+    monkeypatch.setattr(executive, "_persist_released_revision", persist_spy)
+    r = c.post("/executive/release-plan", json={"orders": _ORDERS})
+    assert r.status_code == 503, r.text
+    assert persisted == [], "release persistence ran without a durable audit intent"
+
+
+def test_release_result_failure_leaves_ordered_durable_intent(monkeypatch, tmp_path):
+    """A post-persist audit failure is detectable as intent-without-result, not an unaudited mutation."""
+    c = _client(monkeypatch, tmp_path)
+    from stewie.server import audit_log
+    from stewie.server.routers import executive
+    events = []
+
+    def audit_spy(_actor, action, **_kwargs):
+        events.append(action)
+        if action == "executive.release_plan":
+            raise OSError("result append failed")
+        return None
+
+    def persist_spy(*_args, **_kwargs):
+        events.append("persist")
+        return True
+
+    monkeypatch.setattr(audit_log, "record_action", audit_spy)
+    monkeypatch.setattr(executive, "_persist_released_revision", persist_spy)
+    r = c.post("/executive/release-plan", json={"orders": _ORDERS})
+    assert r.status_code == 503, r.text
+    assert events == ["executive.release_plan.intent", "persist", "executive.release_plan"]
+    assert r.json()["revision_persisted"] is True
+
+
+def test_run_refuses_all_durable_mutation_when_audit_intent_fails(monkeypatch, tmp_path):
+    """Simulation may compute, but no world transaction or run artifact commits without its intent."""
+    c = _client(monkeypatch, tmp_path)
+    from stewie.server import audit_log
+    from stewie.server import state
+    before = state.world_state_service().transaction_count()
+
+    def unavailable(*_args, **_kwargs):
+        raise OSError("audit disk unavailable")
+
+    monkeypatch.setattr(audit_log, "record_action", unavailable)
+    r = c.post("/executive/run", json={"orders": _ORDERS, "site": "haworth"})
+    assert r.status_code == 503, r.text
+    assert state.world_state_service().transaction_count() == before
+    assert not list(tmp_path.glob("runs/**/*.json"))
+
+
 def test_eg08_executive_run_reports_the_energy_reconciliation(monkeypatch, tmp_path):  # [REQ:EG-08]
     # the run reconciles predicted (budgeted) vs observed (slip-truth) energy -> EG-08 proposals.
     c = _client(monkeypatch, tmp_path)
