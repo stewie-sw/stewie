@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/graph_manifest.schema.json",
+  "title": "STEWIE UltraBuild graph manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "baseline_commit",
+    "reviewed_artifact_commit",
+    "branch",
+    "generated_on",
+    "producer_node",
+    "status",
+    "lifecycle",
+    "state_policy",
+    "roles",
+    "artifact_schemas",
+    "artifacts",
+    "planned_artifacts",
+    "external_inputs",
+    "edge_contracts",
+    "node_defaults",
+    "nodes",
+    "barriers"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.graph_manifest/1.0"},
+    "project": {"type": "string", "minLength": 1},
+    "baseline_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "reviewed_artifact_commit": {
+      "oneOf": [
+        {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        {"type": "null"}
+      ]
+    },
+    "branch": {"type": "string", "minLength": 1},
+    "generated_on": {"type": "string"},
+    "producer_node": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "minLength": 1},
+    "lifecycle": {
+      "const": [
+        "UNPLANNED",
+        "SPECIFIED",
+        "READY",
+        "ACTIVE",
+        "SELF_TEST",
+        "INDEPENDENT_REVIEW",
+        "REWORK",
+        "ACCEPTED",
+        "INTEGRATED",
+        "REGRESSION_VERIFIED",
+        "EXPERIMENTALLY_VALIDATED"
+      ]
+    },
+    "state_policy": {"type": "object"},
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "independence_group", "nodes"]
+      }
+    },
+    "artifact_schemas": {"type": "object", "minProperties": 1},
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "producer", "consumers", "schema", "status"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "producer": {"type": "string", "minLength": 1},
+          "consumers": {"type": "array", "minItems": 1},
+          "schema": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "planned_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "producer", "consumers", "schema", "status"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "producer": {"type": "string", "minLength": 1},
+          "consumers": {"type": "array", "minItems": 1},
+          "schema": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "external_inputs": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "edge_contracts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "producer", "consumers", "acceptance"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "producer": {"type": "string", "minLength": 1},
+          "consumers": {"type": "array", "minItems": 1},
+          "payloads": {"type": "array"},
+          "schema": {"type": "string", "minLength": 1},
+          "acceptance": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "node_defaults": {"type": "object"},
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/node"}
+    },
+    "barriers": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "status", "required_nodes", "evidence_artifact_ids"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "name": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "minLength": 1},
+          "required_nodes": {"type": "array", "minItems": 1},
+          "evidence_artifact_ids": {"type": "array"},
+          "acceptance": {"type": "array"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "purpose",
+        "owning_specialist",
+        "independent_reviewers",
+        "required_inputs",
+        "expected_outputs",
+        "artifact_schemas",
+        "upstream_dependencies",
+        "downstream_consumers",
+        "assumptions",
+        "known_risks",
+        "acceptance_tests",
+        "evaluation_metrics",
+        "computational_budget",
+        "performance_budget",
+        "max_local_revision_cycles",
+        "integration_conditions",
+        "scientific_claims_supported",
+        "scientific_claims_not_supported",
+        "lifecycle_evidence",
+        "lifecycle_state"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "purpose": {"type": "string", "minLength": 1},
+        "owning_specialist": {"type": "string", "minLength": 1},
+        "independent_reviewers": {"type": "array", "minItems": 1},
+        "required_inputs": {"type": "array"},
+        "expected_outputs": {"type": "array"},
+        "artifact_schemas": {"type": "array"},
+        "upstream_dependencies": {"type": "array"},
+        "downstream_consumers": {"type": "array"},
+        "assumptions": {"type": "array"},
+        "known_risks": {"type": "array"},
+        "acceptance_tests": {"type": "array"},
+        "evaluation_metrics": {"type": "array"},
+        "computational_budget": {"type": "object"},
+        "performance_budget": {},
+        "max_local_revision_cycles": {"type": "integer", "minimum": 1},
+        "integration_conditions": {"type": "array"},
+        "scientific_claims_supported": {"type": "array"},
+        "scientific_claims_not_supported": {"type": "array"},
+        "lifecycle_evidence": {"type": "array", "uniqueItems": true},
+        "lifecycle_state": {
+          "enum": [
+            "UNPLANNED",
+            "SPECIFIED",
+            "READY",
+            "ACTIVE",
+            "SELF_TEST",
+            "INDEPENDENT_REVIEW",
+            "REWORK",
+            "ACCEPTED",
+            "INTEGRATED",
+            "REGRESSION_VERIFIED",
+            "EXPERIMENTALLY_VALIDATED"
+          ]
+        }
+      }
+    }
+  }
+}

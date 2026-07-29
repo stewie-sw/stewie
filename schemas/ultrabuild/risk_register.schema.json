@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/risk_register.schema.json",
+  "title": "STEWIE machine-readable risk dispositions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_id", "producer_node", "status", "risks"],
+  "properties": {
+    "schema_version": {"const": "stewie.risk_register/1.0"},
+    "artifact_id": {"const": "ART-RISK-DISPOSITIONS"},
+    "producer_node": {"const": "ORCH-001"},
+    "status": {"const": "active"},
+    "risks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "impact",
+          "status",
+          "owner_node",
+          "barrier_ids",
+          "evidence_artifact_ids",
+          "residual_risk",
+          "acceptance_authority",
+          "acceptance_decision_artifact_id"
+        ],
+        "properties": {
+          "id": {"type": "string", "pattern": "^R-(0[1-9]|1[0-9]|2[0-9])$"},
+          "impact": {"enum": ["Critical", "High", "Medium", "Low"]},
+          "status": {"enum": ["open", "mitigated", "accepted_limitation", "closed"]},
+          "owner_node": {"type": "string", "minLength": 1},
+          "barrier_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "pattern": "^BARRIER-[1-8]$"},
+            "uniqueItems": true
+          },
+          "evidence_artifact_ids": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "residual_risk": {"type": "string", "minLength": 1},
+          "acceptance_authority": {"const": "independent_barrier_review"},
+          "acceptance_decision_artifact_id": {
+            "oneOf": [
+              {"type": "string", "minLength": 1},
+              {"type": "null"}
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {"status": {"const": "accepted_limitation"}},
+              "required": ["status"]
+            },
+            "then": {
+              "properties": {
+                "acceptance_decision_artifact_id": {"type": "string", "minLength": 1}
+              }
+            },
+            "else": {
+              "properties": {
+                "acceptance_decision_artifact_id": {"type": "null"}
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

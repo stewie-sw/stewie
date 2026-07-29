@@ -1,0 +1,145 @@
+schema_version: stewie.runtime_graph/1.0
+artifact_id: ART-RUNTIME-GRAPH
+producer_node: ARCH-030
+status: specified
+authoritative_store: immutable evidence-event-version store; every projection is rebuildable
+internal_contracts: [durable_append_receipt, projection_head_receipt, mission_task_request]
+known_defects:
+  - FND-025 submission and stored-record transaction metadata are not separated
+  - FND-026 not every immutable record uses one typed append gateway and receipts are untyped
+  - FND-028 candidate promotion does not bind the full spatial temporal uncertainty contract
+  - FND-030 no valid closed record graph demonstrates simultaneous join satisfiability
+
+nodes:
+  - id: RT-INGEST
+    name: Validate and normalize submitted evidence
+    owner: evidence_ingest
+    input_contracts: [json.evidence_claim.v1, json.provenance_bundle.v1, json.action_event.v1, json.supersession_event.v1]
+    output_contracts: [json.evidence_claim.v1, json.provenance_bundle.v1, json.action_event.v1, json.supersession_event.v1]
+    preconditions: [authenticated source identity, declared world site branch frame units and clocks]
+    postconditions: [canonical hashes verified, no authority head changed]
+    timeout_ms: 100
+    retry_policy: {max_attempts: 1, backoff: none, retryable_failures: []}
+    failure_isolation: reject the submission before any authoritative append
+    evidence_generated: [schema and semantic validation result]
+    permitted_mutations: []
+    idempotency_key_required: true
+
+  - id: RT-APPEND
+    name: Append an immutable validated record and provenance
+    owner: authoritative_store
+    input_contracts: [json.evidence_claim.v1, json.provenance_bundle.v1, json.action_event.v1, json.supersession_event.v1]
+    output_contracts: [durable_append_receipt]
+    preconditions: [RT-INGEST accepted identical canonical bytes, idempotency key unused or byte-identical]
+    postconditions: [record and audit intent durable before acknowledgement, transaction sequence assigned by store]
+    timeout_ms: 100
+    retry_policy: {max_attempts: 3, backoff: bounded_exponential, retryable_failures: [transient_store_unavailable]}
+    failure_isolation: fail closed without advancing any branch head or projection head
+    evidence_generated: [append intent result sequence content hash and durability mode]
+    permitted_mutations: [append evidence record, append event record, append provenance record, append audit result]
+    idempotency_key_required: true
+
+  - id: RT-RECONCILE
+    name: Build observation-only candidate and decision
+    owner: reconciliation_engine
+    input_contracts: [durable_append_receipt, json.evidence_claim.v1, json.dependency_edge.v1, json.world_revision.v1]
+    output_contracts: [json.state_candidate.v1, json.reconciliation_decision.v1, json.conflict_record.v1, json.hypothesis_set.v1, json.world_revision.v1]
+    preconditions: [pinned prior revision and query lens, admitted claims durable and same world site]
+    postconditions: [candidate bytes derive only from observations, every exclusion and physics comparison recorded]
+    timeout_ms: 500
+    retry_policy: {max_attempts: 2, backoff: bounded_exponential, retryable_failures: [projection_not_caught_up]}
+    failure_isolation: append ABSTAIN or failure decision; never mutate accepted head
+    evidence_generated: [candidate decision support exclusions residuals and reason codes]
+    permitted_mutations: [append candidate, append decision, append conflict and hypothesis records]
+    idempotency_key_required: true
+
+  - id: RT-PROMOTE
+    name: Compare-and-swap accepted branch head
+    owner: authoritative_store
+    input_contracts: [json.reconciliation_decision.v1, json.world_revision.v1, json.branch.v1]
+    output_contracts: [json.world_revision.v1, json.branch.v1, durable_append_receipt]
+    preconditions: [matching durable PROMOTE, prior head equals branch head, all references same world site]
+    postconditions: [new revision durable before one atomic head advance, decision and revision cross-link]
+    timeout_ms: 100
+    retry_policy: {max_attempts: 1, backoff: none, retryable_failures: []}
+    failure_isolation: stale compare-and-swap returns conflict for fresh reconciliation; no overwrite
+    evidence_generated: [prior and resulting head sequence decision and transaction receipt]
+    permitted_mutations: [append accepted revision, compare-and-swap accepted branch head]
+    idempotency_key_required: true
+
+  - id: RT-PROJECT
+    name: Update rebuildable spatial temporal and catalog projections
+    owner: projection_service
+    input_contracts: [durable_append_receipt, json.supersession_event.v1, json.world_revision.v1, json.branch.v1]
+    output_contracts: [projection_head_receipt]
+    preconditions: [authoritative transaction sequence exists]
+    postconditions: [projection head identifies last applied transaction, replay remains deterministic]
+    timeout_ms: 1000
+    retry_policy: {max_attempts: 5, backoff: bounded_exponential, retryable_failures: [projection_store_unavailable]}
+    failure_isolation: mark projection stale and continue authoritative service from store
+    evidence_generated: [projection lag replay count and result hash]
+    permitted_mutations: [update rebuildable projection]
+    idempotency_key_required: true
+
+  - id: RT-QUERY
+    name: Resolve an explicit bitemporal spatial lens
+    owner: world_state_query
+    input_contracts: [projection_head_receipt, json.query_request.v1, json.branch.v1]
+    output_contracts: [json.query_lens.v1]
+    preconditions: [explicit valid_at known_at branch policy region representation frame units]
+    postconditions: [result status is explicit; resolved results bind revision state kind payload coverage and projection head]
+    timeout_ms: 250
+    retry_policy: {max_attempts: 2, backoff: bounded_exponential, retryable_failures: [projection_not_caught_up]}
+    failure_isolation: return explicit unavailable stale-projection or partial-coverage status
+    evidence_generated: [canonical query lens and resolution trace]
+    permitted_mutations: []
+    idempotency_key_required: false
+
+  - id: RT-PLAN
+    name: Select an action using one immutable query lens
+    owner: mission_planner
+    input_contracts: [json.query_lens.v1, mission_task_request]
+    output_contracts: [json.decision_record.v1]
+    preconditions: [query lens status is resolved and revision and requested state kind meet task freshness uncertainty and conflict policy]
+    postconditions: [alternatives VOI constraints approval and exact lens recorded]
+    timeout_ms: 1000
+    retry_policy: {max_attempts: 1, backoff: none, retryable_failures: []}
+    failure_isolation: defer rescan request data or human review without dispatch
+    evidence_generated: [decision record alternatives costs and reason codes]
+    permitted_mutations: [append decision record]
+    idempotency_key_required: true
+
+  - id: RT-EXECUTE
+    name: Dispatch an authorized action and record execution
+    owner: execution_gateway
+    input_contracts: [json.decision_record.v1]
+    output_contracts: [json.action_event.v1]
+    preconditions: [mode and role authorize dispatch, approved decision revision remains policy-fresh]
+    postconditions: [action event links the immutable planning decision and separates planned reported and observed effects]
+    timeout_ms: 1000
+    retry_policy: {max_attempts: 1, backoff: none, retryable_failures: []}
+    failure_isolation: cancel or inhibit command; never infer physical success from dispatch
+    evidence_generated: [command receipt execution report and observed-effect references]
+    permitted_mutations: [dispatch command only through governance gateway]
+    idempotency_key_required: true
+
+edges:
+  - {id: RTE-INGEST-APPEND, producer: RT-INGEST, consumer: RT-APPEND, artifacts: [json.evidence_claim.v1, json.provenance_bundle.v1, json.action_event.v1, json.supersession_event.v1], trigger: validation accepted, fan_in: [submitted record, referenced provenance]}
+  - {id: RTE-APPEND-RECONCILE, producer: RT-APPEND, consumer: RT-RECONCILE, artifacts: [durable_append_receipt], trigger: evidence set or action dependency changed, fan_in: [pinned prior revision, admissible evidence]}
+  - {id: RTE-RECONCILE-PROMOTE, producer: RT-RECONCILE, consumer: RT-PROMOTE, artifacts: [json.reconciliation_decision.v1, json.world_revision.v1], trigger: PROMOTE only, fan_in: [decision, proposed revision, prior head]}
+  - {id: RTE-APPEND-PROJECT, producer: RT-APPEND, consumer: RT-PROJECT, artifacts: [durable_append_receipt], trigger: authoritative append committed, fan_in: []}
+  - {id: RTE-PROMOTE-PROJECT, producer: RT-PROMOTE, consumer: RT-PROJECT, artifacts: [json.world_revision.v1, json.branch.v1], trigger: accepted head changed, fan_in: []}
+  - {id: RTE-PROJECT-QUERY, producer: RT-PROJECT, consumer: RT-QUERY, artifacts: [projection_head_receipt], trigger: query or projection catch-up, fan_in: [authoritative store head, projection head]}
+  - {id: RTE-QUERY-PLAN, producer: RT-QUERY, consumer: RT-PLAN, artifacts: [json.query_lens.v1], trigger: mission task ready or state invalidated, fan_in: [goal, lens, constraints]}
+  - {id: RTE-PLAN-EXECUTE, producer: RT-PLAN, consumer: RT-EXECUTE, artifacts: [json.decision_record.v1], trigger: decision approved and policy-fresh, fan_in: [decision, governance authority]}
+  - id: RTE-EXECUTE-INGEST
+    producer: RT-EXECUTE
+    consumer: RT-INGEST
+    artifacts: [json.action_event.v1]
+    trigger: planned reported observed or failed execution event requires validation before append
+    fan_in: []
+    loop_policy:
+      loop_id: mission_closed_loop
+      maximum_iterations_source: mission task policy
+      termination_conditions: [construction goal met, mission cancelled, fail-safe entered, resource limit reached]
+      improvement_metric: task completion error or registered value-of-information

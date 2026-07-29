@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/branch.schema.json",
+  "title": "STEWIE world-state branch",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "branch_id",
+    "world_id",
+    "site_id",
+    "branch_kind",
+    "environment_mode",
+    "evaluation_visibility",
+    "base_revision_id",
+    "head_revision_id",
+    "head_sequence",
+    "policy_id",
+    "permitted_state_kinds",
+    "content_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.branch/1.0"},
+    "branch_id": {"$ref": "#/$defs/id"},
+    "world_id": {"$ref": "#/$defs/id"},
+    "site_id": {"$ref": "#/$defs/id"},
+    "branch_kind": {
+      "enum": ["plan", "prediction", "simulation", "evidence", "belief", "accepted", "evaluation_reference", "archive"]
+    },
+    "environment_mode": {
+      "enum": ["dev", "training", "rehearsal", "live", "replay", "archive"]
+    },
+    "evaluation_visibility": {"enum": ["system_visible", "withheld_reference"]},
+    "parent_branch_id": {"$ref": "#/$defs/id"},
+    "base_revision_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+    "head_revision_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+    "head_sequence": {"type": "integer", "minimum": 0},
+    "policy_id": {"$ref": "#/$defs/id"},
+    "permitted_state_kinds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "planned",
+          "predicted",
+          "simulated",
+          "observed",
+          "proposed",
+          "reconciled",
+          "verified",
+          "authoritative",
+          "superseded",
+          "archived",
+          "reference"
+        ]
+      }
+    },
+    "content_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"branch_kind": {"const": "plan"}}, "required": ["branch_kind"]},
+      "then": {
+        "properties": {
+          "evaluation_visibility": {"const": "system_visible"},
+          "permitted_state_kinds": {"items": {"enum": ["planned", "proposed"]}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"branch_kind": {"const": "prediction"}}, "required": ["branch_kind"]},
+      "then": {
+        "properties": {
+          "evaluation_visibility": {"const": "system_visible"},
+          "permitted_state_kinds": {"items": {"const": "predicted"}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"branch_kind": {"const": "evidence"}}, "required": ["branch_kind"]},
+      "then": {
+        "properties": {
+          "evaluation_visibility": {"const": "system_visible"},
+          "permitted_state_kinds": {"items": {"const": "observed"}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"branch_kind": {"const": "belief"}}, "required": ["branch_kind"]},
+      "then": {
+        "properties": {
+          "evaluation_visibility": {"const": "system_visible"},
+          "permitted_state_kinds": {
+            "items": {"enum": ["proposed", "reconciled", "verified", "superseded"]}
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"branch_kind": {"const": "accepted"}}, "required": ["branch_kind"]},
+      "then": {
+        "properties": {
+          "evaluation_visibility": {"const": "system_visible"},
+          "permitted_state_kinds": {
+            "items": {"enum": ["reconciled", "verified", "authoritative", "superseded", "archived"]}
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"branch_kind": {"const": "simulation"}}, "required": ["branch_kind"]},
+      "then": {
+        "properties": {
+          "environment_mode": {"enum": ["dev", "training", "rehearsal", "replay"]},
+          "evaluation_visibility": {"const": "system_visible"},
+          "permitted_state_kinds": {"items": {"const": "simulated"}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"branch_kind": {"const": "archive"}}, "required": ["branch_kind"]},
+      "then": {
+        "properties": {
+          "environment_mode": {"const": "archive"},
+          "evaluation_visibility": {"const": "system_visible"},
+          "permitted_state_kinds": {
+            "items": {"enum": ["verified", "authoritative", "superseded", "archived"]}
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"branch_kind": {"const": "evaluation_reference"}},
+        "required": ["branch_kind"]
+      },
+      "then": {
+        "properties": {
+          "environment_mode": {"const": "replay"},
+          "evaluation_visibility": {"const": "withheld_reference"},
+          "permitted_state_kinds": {"items": {"const": "reference"}}
+        }
+      },
+      "else": {"properties": {"evaluation_visibility": {"const": "system_visible"}}}
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

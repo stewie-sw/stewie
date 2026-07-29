@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/action_event.schema.json",
+  "title": "STEWIE immutable action event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "world_id",
+    "site_id",
+    "origin",
+    "decision_record_id",
+    "action_id",
+    "actor_id",
+    "tool_id",
+    "command_id",
+    "execution_id",
+    "planned_effect_claim_ids",
+    "execution_status",
+    "reported_execution_claim_ids",
+    "observed_effect_claim_ids",
+    "planned_valid_time",
+    "executed_valid_time",
+    "spatial_extent_hash",
+    "planned_material_transfer",
+    "reported_material_transfer",
+    "provenance_bundle_id",
+    "transaction_time",
+    "evaluation_visibility",
+    "content_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.action_event/1.0"},
+    "event_id": {"$ref": "#/$defs/id"},
+    "world_id": {"$ref": "#/$defs/id"},
+    "site_id": {"$ref": "#/$defs/id"},
+    "origin": {"enum": ["autonomous_decision", "external_actor", "imported_history"]},
+    "decision_record_id": {
+      "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
+    },
+    "action_id": {"$ref": "#/$defs/id"},
+    "actor_id": {"$ref": "#/$defs/id"},
+    "tool_id": {"$ref": "#/$defs/id"},
+    "command_id": {"$ref": "#/$defs/id"},
+    "execution_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+    "planned_effect_claim_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "execution_status": {"enum": ["planned", "reported", "observed", "verified", "failed", "unknown"]},
+    "reported_execution_claim_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "observed_effect_claim_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "planned_valid_time": {"$ref": "#/$defs/valid_time"},
+    "executed_valid_time": {
+      "oneOf": [{"$ref": "#/$defs/valid_time"}, {"type": "null"}]
+    },
+    "spatial_extent_hash": {"$ref": "#/$defs/sha256"},
+    "planned_material_transfer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_id", "removed_volume_m3", "deposited_volume_m3", "uncertainty_m3"],
+      "properties": {
+        "model_id": {"$ref": "#/$defs/id"},
+        "removed_volume_m3": {"type": "number", "minimum": 0},
+        "deposited_volume_m3": {"type": "number", "minimum": 0},
+        "uncertainty_m3": {"type": "number", "minimum": 0}
+      }
+    },
+    "reported_material_transfer": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["model_id", "removed_volume_m3", "deposited_volume_m3", "uncertainty_m3"],
+          "properties": {
+            "model_id": {"$ref": "#/$defs/id"},
+            "removed_volume_m3": {"type": "number", "minimum": 0},
+            "deposited_volume_m3": {"type": "number", "minimum": 0},
+            "uncertainty_m3": {"type": "number", "minimum": 0}
+          }
+        },
+        {"type": "null"}
+      ]
+    },
+    "status_reason_code": {"$ref": "#/$defs/id"},
+    "provenance_bundle_id": {"$ref": "#/$defs/id"},
+    "transaction_time": {"$ref": "#/$defs/transaction_time"},
+    "evaluation_visibility": {"enum": ["system_visible", "withheld_reference"]},
+    "content_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"origin": {"const": "autonomous_decision"}},
+        "required": ["origin"]
+      },
+      "then": {
+        "properties": {"decision_record_id": {"$ref": "#/$defs/id"}}
+      },
+      "else": {
+        "properties": {"decision_record_id": {"type": "null"}}
+      }
+    },
+    {
+      "if": {"properties": {"execution_status": {"const": "planned"}}, "required": ["execution_status"]},
+      "then": {
+        "properties": {
+          "execution_id": {"type": "null"},
+          "executed_valid_time": {"type": "null"},
+          "reported_execution_claim_ids": {"maxItems": 0},
+          "observed_effect_claim_ids": {"maxItems": 0},
+          "reported_material_transfer": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"execution_status": {"const": "reported"}}, "required": ["execution_status"]},
+      "then": {
+        "properties": {
+          "execution_id": {"$ref": "#/$defs/id"},
+          "executed_valid_time": {"$ref": "#/$defs/valid_time"},
+          "reported_execution_claim_ids": {"minItems": 1}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"execution_status": {"enum": ["observed", "verified"]}},
+        "required": ["execution_status"]
+      },
+      "then": {
+        "properties": {
+          "execution_id": {"$ref": "#/$defs/id"},
+          "executed_valid_time": {"$ref": "#/$defs/valid_time"},
+          "observed_effect_claim_ids": {"minItems": 1}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"execution_status": {"const": "unknown"}}, "required": ["execution_status"]},
+      "then": {"required": ["status_reason_code"]}
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "valid_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "clock_id", "uncertainty_s"],
+      "properties": {
+        "start": {"type": "number"},
+        "end": {"type": ["number", "null"]},
+        "clock_id": {"$ref": "#/$defs/id"},
+        "uncertainty_s": {"type": "number", "minimum": 0}
+      }
+    },
+    "transaction_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "recorded_at"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

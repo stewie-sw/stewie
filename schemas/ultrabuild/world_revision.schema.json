@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/world_revision.schema.json",
+  "title": "STEWIE immutable world-state revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "revision_id",
+    "world_id",
+    "site_id",
+    "branch_id",
+    "parent_revision_ids",
+    "state_kind",
+    "authority_scope",
+    "spatial",
+    "valid_time",
+    "transaction_time",
+    "payload_hash",
+    "coverage_hash",
+    "claim_ids",
+    "event_ids",
+    "provenance_bundle_id",
+    "content_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.world_revision/1.0"},
+    "revision_id": {"$ref": "#/$defs/id"},
+    "world_id": {"$ref": "#/$defs/id"},
+    "site_id": {"$ref": "#/$defs/id"},
+    "branch_id": {"$ref": "#/$defs/id"},
+    "parent_revision_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "state_kind": {
+      "enum": [
+        "planned",
+        "predicted",
+        "simulated",
+        "observed",
+        "proposed",
+        "reconciled",
+        "verified",
+        "authoritative",
+        "superseded",
+        "archived",
+        "reference"
+      ]
+    },
+    "authority_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment_mode", "branch_kind", "policy_id", "evaluation_visibility"],
+      "properties": {
+        "environment_mode": {
+          "enum": ["dev", "training", "rehearsal", "live", "replay", "archive"]
+        },
+        "branch_kind": {
+          "enum": ["plan", "prediction", "simulation", "evidence", "belief", "accepted", "evaluation_reference", "archive"]
+        },
+        "policy_id": {"$ref": "#/$defs/id"},
+        "evaluation_visibility": {"enum": ["system_visible", "withheld_reference"]}
+      }
+    },
+    "spatial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id", "representation", "resolution", "crs", "frame_id", "units", "extent_hash"],
+      "properties": {
+        "region_id": {"$ref": "#/$defs/id"},
+        "representation": {
+          "enum": ["raster_2_5d", "point_set", "mesh", "voxel", "object", "region"]
+        },
+        "resolution": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "number", "exclusiveMinimum": 0}
+        },
+        "crs": {"type": "string", "minLength": 1},
+        "frame_id": {"$ref": "#/$defs/id"},
+        "units": {"type": "object", "minProperties": 1},
+        "extent_hash": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "valid_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "clock_id", "uncertainty_s"],
+      "properties": {
+        "start": {"type": "number"},
+        "end": {"type": ["number", "null"]},
+        "clock_id": {"$ref": "#/$defs/id"},
+        "uncertainty_s": {"type": "number", "minimum": 0}
+      }
+    },
+    "transaction_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "recorded_at"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "payload_hash": {"$ref": "#/$defs/sha256"},
+    "coverage_hash": {"$ref": "#/$defs/sha256"},
+    "claim_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "event_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "provenance_bundle_id": {"$ref": "#/$defs/id"},
+    "reconciliation_decision_id": {"$ref": "#/$defs/id"},
+    "prior_head_revision_id": {"$ref": "#/$defs/id"},
+    "branch_revision_sequence": {"type": "integer", "minimum": 0},
+    "supersedes_revision_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true,
+      "default": []
+    },
+    "invalidated_artifact_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true,
+      "default": []
+    },
+    "content_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state_kind": {
+            "enum": ["reconciled", "verified", "authoritative"]
+          }
+        },
+        "required": ["state_kind"]
+      },
+      "then": {
+        "required": [
+          "reconciliation_decision_id",
+          "prior_head_revision_id",
+          "branch_revision_sequence"
+        ],
+        "properties": {
+          "authority_scope": {
+            "properties": {"branch_kind": {"enum": ["belief", "accepted"]}}
+          },
+          "claim_ids": {"minItems": 1},
+          "event_ids": {"minItems": 1}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"state_kind": {"const": "simulated"}},
+        "required": ["state_kind"]
+      },
+      "then": {
+        "properties": {
+          "authority_scope": {
+            "properties": {
+              "branch_kind": {"const": "simulation"},
+              "environment_mode": {"not": {"const": "live"}},
+              "evaluation_visibility": {"const": "system_visible"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "authority_scope": {
+            "properties": {"evaluation_visibility": {"const": "withheld_reference"}},
+            "required": ["evaluation_visibility"]
+          }
+        },
+        "required": ["authority_scope"]
+      },
+      "then": {
+        "properties": {
+          "state_kind": {"const": "reference"},
+          "authority_scope": {
+            "properties": {
+              "branch_kind": {"const": "evaluation_reference"},
+              "environment_mode": {"const": "replay"}
+            }
+          }
+        }
+      },
+      "else": {
+        "not": {"properties": {"state_kind": {"const": "reference"}}, "required": ["state_kind"]}
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

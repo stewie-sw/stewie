@@ -1,0 +1,92 @@
+{
+  "schema_version": "stewie.performance_budget/1.0",
+  "artifact_id": "ART-PERFORMANCE-BUDGET",
+  "producer_node": "PERF-010",
+  "consumers": [
+    "ARCH-010",
+    "WS-040",
+    "WS-050",
+    "VERT-010",
+    "VERT-030",
+    "EXP-030",
+    "INT-010"
+  ],
+  "status": "targets_unvalidated",
+  "baseline_commit": "d1056d9deff4e540557b13c8cb78fc799330410e",
+  "measurement_protocol": {
+    "warmup_runs": 5,
+    "measured_runs_min": 200,
+    "report_percentiles": [50, 95, 99],
+    "percentile_interval_method": "stratified_bootstrap_by_scenario",
+    "monotonic_clock_required": true,
+    "fsync_policy_recorded": true,
+    "cache_reset_protocol": "cold_restart_and_os_cache_state_recorded",
+    "concurrency_levels": [1, 2, 4],
+    "thread_pool_limits_recorded": true,
+    "hardware_and_software_manifest_required": true,
+    "cold_and_warm_cache_reported_separately": true
+  },
+  "barrier_3_workload": {
+    "terrain_cells": 65536,
+    "terrain_shape": [256, 256],
+    "region_fraction": 0.25,
+    "value_dtype": "float64",
+    "coverage_dtype": "bool",
+    "compression": "none_reference",
+    "observation_payload_bytes": 589824,
+    "revision_output_bytes_max": 1048576,
+    "observation_sources_max": 4,
+    "dependency_edges_max": 6,
+    "versions_max": 1000,
+    "payload_storage": "local_nvme",
+    "processes": 2,
+    "concurrent_writers": 2,
+    "durability_mode": "fsync_before_ack"
+  },
+  "barrier_3_mandatory": {
+    "evidence_validate_p95_ms": 100,
+    "durable_event_append_p95_ms": 100,
+    "reconcile_p95_ms": 500,
+    "reconcile_p99_ms": 1000,
+    "current_state_query_p95_ms": 100,
+    "bitemporal_query_p95_ms": 250,
+    "provenance_trace_p95_ms": 250,
+    "replay_1000_versions_s": 10,
+    "peak_rss_mib": 2048,
+    "authoritative_metadata_per_claim_kib": 32,
+    "deterministic_replay_mismatch_count": 0
+  },
+  "scaling_workload": {
+    "terrain_cells_levels": [65536, 262144, 1048576],
+    "robot_levels": [1, 2, 4, 8],
+    "observation_levels": [1, 2, 4, 8, 16],
+    "version_levels": [100, 1000, 10000],
+    "conflict_density_levels": [0.0, 0.1, 0.5, 0.9],
+    "payload_byte_levels": [1048576, 16777216, 268435456],
+    "concurrent_writer_levels": [1, 2, 4, 8],
+    "projection_backlog_levels": [0, 100, 1000, 10000]
+  },
+  "growth_targets": {
+    "append_latency_vs_versions": "O(1) amortized excluding payload IO",
+    "current_patch_query_vs_patch_cells": "O(patch_cells)",
+    "historical_reconstruction_vs_replayed_events": "O(events_to_replay) before snapshots",
+    "dependency_support_vs_sources_and_cells": "O(cells * (sources + edges))",
+    "metadata_storage_vs_claims": "O(claims)",
+    "payload_storage_vs_unique_content": "O(unique_payload_bytes)"
+  },
+  "barrier_5_goals": {
+    "robots": 8,
+    "partition_duration_levels_s": [0, 10, 60, 300],
+    "bandwidth_levels_mbps": [0.1, 1.0, 10.0, 100.0],
+    "queued_metadata_records_max": 10000,
+    "packet_loss_levels": [0.0, 0.01, 0.1],
+    "metadata_first_sync_p95_ms": 1000,
+    "convergence_after_partition_p95_s": 30,
+    "unresolved_conflict_loss_count": 0
+  },
+  "failure_policy": {
+    "mandatory_budget_exceeded": "block_barrier_and_open_performance_defect",
+    "goal_exceeded": "report_and_reprofile_without_suppressing_result",
+    "two_optimizations_without_material_improvement": "escalate_architecture_review"
+  }
+}

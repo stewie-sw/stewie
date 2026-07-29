@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/performance_budget.schema.json",
+  "title": "STEWIE performance budget",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "producer_node",
+    "consumers",
+    "status",
+    "baseline_commit",
+    "measurement_protocol",
+    "barrier_3_workload",
+    "barrier_3_mandatory",
+    "scaling_workload",
+    "growth_targets",
+    "barrier_5_goals",
+    "failure_policy"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.performance_budget/1.0"},
+    "artifact_id": {"const": "ART-PERFORMANCE-BUDGET"},
+    "producer_node": {"const": "PERF-010"},
+    "consumers": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "status": {"enum": ["targets_unvalidated", "measured", "superseded"]},
+    "baseline_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "measurement_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "warmup_runs",
+        "measured_runs_min",
+        "report_percentiles",
+        "percentile_interval_method",
+        "monotonic_clock_required",
+        "fsync_policy_recorded",
+        "cache_reset_protocol",
+        "concurrency_levels",
+        "thread_pool_limits_recorded",
+        "hardware_and_software_manifest_required",
+        "cold_and_warm_cache_reported_separately"
+      ],
+      "properties": {
+        "warmup_runs": {"type": "integer", "minimum": 0},
+        "measured_runs_min": {"type": "integer", "minimum": 2},
+        "report_percentiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "minimum": 1, "maximum": 99},
+          "uniqueItems": true
+        },
+        "percentile_interval_method": {"const": "stratified_bootstrap_by_scenario"},
+        "monotonic_clock_required": {"const": true},
+        "fsync_policy_recorded": {"const": true},
+        "cache_reset_protocol": {"type": "string", "minLength": 1},
+        "concurrency_levels": {"$ref": "#/$defs/positive_integer_levels"},
+        "thread_pool_limits_recorded": {"const": true},
+        "hardware_and_software_manifest_required": {"const": true},
+        "cold_and_warm_cache_reported_separately": {"const": true}
+      }
+    },
+    "barrier_3_workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "terrain_cells",
+        "terrain_shape",
+        "region_fraction",
+        "value_dtype",
+        "coverage_dtype",
+        "compression",
+        "observation_payload_bytes",
+        "revision_output_bytes_max",
+        "observation_sources_max",
+        "dependency_edges_max",
+        "versions_max",
+        "payload_storage",
+        "processes",
+        "concurrent_writers",
+        "durability_mode"
+      ],
+      "properties": {
+        "terrain_cells": {"type": "integer", "minimum": 1},
+        "terrain_shape": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"type": "integer", "minimum": 1}
+        },
+        "region_fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "value_dtype": {"enum": ["float32", "float64"]},
+        "coverage_dtype": {"const": "bool"},
+        "compression": {"type": "string", "minLength": 1},
+        "observation_payload_bytes": {"type": "integer", "minimum": 1},
+        "revision_output_bytes_max": {"type": "integer", "minimum": 1},
+        "observation_sources_max": {"type": "integer", "minimum": 1},
+        "dependency_edges_max": {"type": "integer", "minimum": 0},
+        "versions_max": {"type": "integer", "minimum": 1},
+        "payload_storage": {"enum": ["local_nvme", "network_block", "object_store"]},
+        "processes": {"type": "integer", "minimum": 2},
+        "concurrent_writers": {"type": "integer", "minimum": 2},
+        "durability_mode": {"const": "fsync_before_ack"}
+      }
+    },
+    "barrier_3_mandatory": {
+      "type": "object",
+      "required": [
+        "evidence_validate_p95_ms",
+        "durable_event_append_p95_ms",
+        "reconcile_p95_ms",
+        "reconcile_p99_ms",
+        "current_state_query_p95_ms",
+        "bitemporal_query_p95_ms",
+        "provenance_trace_p95_ms",
+        "replay_1000_versions_s",
+        "peak_rss_mib",
+        "authoritative_metadata_per_claim_kib",
+        "deterministic_replay_mismatch_count"
+      ],
+      "properties": {
+        "evidence_validate_p95_ms": {"type": "number", "exclusiveMinimum": 0},
+        "durable_event_append_p95_ms": {"type": "number", "exclusiveMinimum": 0},
+        "reconcile_p95_ms": {"type": "number", "exclusiveMinimum": 0},
+        "reconcile_p99_ms": {"type": "number", "exclusiveMinimum": 0},
+        "current_state_query_p95_ms": {"type": "number", "exclusiveMinimum": 0},
+        "bitemporal_query_p95_ms": {"type": "number", "exclusiveMinimum": 0},
+        "provenance_trace_p95_ms": {"type": "number", "exclusiveMinimum": 0},
+        "replay_1000_versions_s": {"type": "number", "exclusiveMinimum": 0},
+        "peak_rss_mib": {"type": "number", "exclusiveMinimum": 0},
+        "authoritative_metadata_per_claim_kib": {"type": "number", "exclusiveMinimum": 0},
+        "deterministic_replay_mismatch_count": {"const": 0}
+      },
+      "additionalProperties": false
+    },
+    "scaling_workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "terrain_cells_levels",
+        "robot_levels",
+        "observation_levels",
+        "version_levels",
+        "conflict_density_levels",
+        "payload_byte_levels",
+        "concurrent_writer_levels",
+        "projection_backlog_levels"
+      ],
+      "properties": {
+        "terrain_cells_levels": {"$ref": "#/$defs/positive_integer_levels"},
+        "robot_levels": {"$ref": "#/$defs/positive_integer_levels"},
+        "observation_levels": {"$ref": "#/$defs/positive_integer_levels"},
+        "version_levels": {"$ref": "#/$defs/positive_integer_levels"},
+        "conflict_density_levels": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "number", "minimum": 0, "maximum": 1},
+          "uniqueItems": true
+        },
+        "payload_byte_levels": {"$ref": "#/$defs/positive_integer_levels"},
+        "concurrent_writer_levels": {"$ref": "#/$defs/positive_integer_levels"},
+        "projection_backlog_levels": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "integer", "minimum": 0},
+          "uniqueItems": true
+        }
+      }
+    },
+    "growth_targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "append_latency_vs_versions",
+        "current_patch_query_vs_patch_cells",
+        "historical_reconstruction_vs_replayed_events",
+        "dependency_support_vs_sources_and_cells",
+        "metadata_storage_vs_claims",
+        "payload_storage_vs_unique_content"
+      ],
+      "properties": {
+        "append_latency_vs_versions": {"type": "string", "minLength": 1},
+        "current_patch_query_vs_patch_cells": {"type": "string", "minLength": 1},
+        "historical_reconstruction_vs_replayed_events": {"type": "string", "minLength": 1},
+        "dependency_support_vs_sources_and_cells": {"type": "string", "minLength": 1},
+        "metadata_storage_vs_claims": {"type": "string", "minLength": 1},
+        "payload_storage_vs_unique_content": {"type": "string", "minLength": 1}
+      }
+    },
+    "barrier_5_goals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "robots",
+        "partition_duration_levels_s",
+        "bandwidth_levels_mbps",
+        "queued_metadata_records_max",
+        "packet_loss_levels",
+        "metadata_first_sync_p95_ms",
+        "convergence_after_partition_p95_s",
+        "unresolved_conflict_loss_count"
+      ],
+      "properties": {
+        "robots": {"type": "integer", "minimum": 2},
+        "partition_duration_levels_s": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "number", "minimum": 0},
+          "uniqueItems": true
+        },
+        "bandwidth_levels_mbps": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "number", "exclusiveMinimum": 0},
+          "uniqueItems": true
+        },
+        "queued_metadata_records_max": {"type": "integer", "minimum": 1},
+        "packet_loss_levels": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "number", "minimum": 0, "maximum": 1},
+          "uniqueItems": true
+        },
+        "metadata_first_sync_p95_ms": {"type": "number", "exclusiveMinimum": 0},
+        "convergence_after_partition_p95_s": {"type": "number", "exclusiveMinimum": 0},
+        "unresolved_conflict_loss_count": {"const": 0}
+      }
+    },
+    "failure_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mandatory_budget_exceeded",
+        "goal_exceeded",
+        "two_optimizations_without_material_improvement"
+      ],
+      "properties": {
+        "mandatory_budget_exceeded": {"const": "block_barrier_and_open_performance_defect"},
+        "goal_exceeded": {"const": "report_and_reprofile_without_suppressing_result"},
+        "two_optimizations_without_material_improvement": {"const": "escalate_architecture_review"}
+      }
+    }
+  },
+  "$defs": {
+    "positive_integer_levels": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"type": "integer", "minimum": 1},
+      "uniqueItems": true
+    }
+  }
+}

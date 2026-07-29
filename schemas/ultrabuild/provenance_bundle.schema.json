@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/provenance_bundle.schema.json",
+  "title": "STEWIE W3C-PROV-aligned immutable provenance bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "world_id",
+    "site_id",
+    "agents",
+    "activities",
+    "entities",
+    "relations",
+    "transforms",
+    "calibrations",
+    "transaction_time",
+    "content_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.provenance_bundle/1.0"},
+    "bundle_id": {"$ref": "#/$defs/id"},
+    "world_id": {"$ref": "#/$defs/id"},
+    "site_id": {"$ref": "#/$defs/id"},
+    "agents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/agent"}
+    },
+    "activities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/activity"}
+    },
+    "entities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/entity"}
+    },
+    "relations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/relation"}
+    },
+    "transforms": {"type": "array", "items": {"$ref": "#/$defs/transform"}},
+    "calibrations": {"type": "array", "items": {"$ref": "#/$defs/calibration"}},
+    "transaction_time": {"$ref": "#/$defs/transaction_time"},
+    "content_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "qualified": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "value"],
+          "properties": {
+            "status": {"const": "known"},
+            "value": {"type": "string", "minLength": 1}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "reason_code"],
+          "properties": {
+            "status": {"const": "unknown"},
+            "reason_code": {"$ref": "#/$defs/id"}
+          }
+        }
+      ]
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_id", "kind", "attestation_key_id", "hardware_version", "firmware_version"],
+      "properties": {
+        "agent_id": {"$ref": "#/$defs/id"},
+        "kind": {"enum": ["robot", "sensor", "software", "operator", "reviewer", "organization"]},
+        "attestation_key_id": {"$ref": "#/$defs/qualified"},
+        "hardware_version": {"$ref": "#/$defs/qualified"},
+        "firmware_version": {"$ref": "#/$defs/qualified"}
+      }
+    },
+    "activity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity_id",
+        "kind",
+        "agent_id",
+        "algorithm_version",
+        "code_commit",
+        "configuration_hash",
+        "started_at",
+        "ended_at"
+      ],
+      "properties": {
+        "activity_id": {"$ref": "#/$defs/id"},
+        "kind": {
+          "enum": ["observe", "transform", "calibrate", "reconcile", "verify", "plan", "execute", "review", "archive"]
+        },
+        "agent_id": {"$ref": "#/$defs/id"},
+        "algorithm_version": {"$ref": "#/$defs/id"},
+        "code_commit": {"pattern": "^[a-f0-9]{40}$"},
+        "configuration_hash": {"$ref": "#/$defs/sha256"},
+        "seed": {"type": ["integer", "null"], "minimum": 0},
+        "started_at": {"type": "string", "format": "date-time"},
+        "ended_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entity_id", "kind", "content_hash", "media_type"],
+      "properties": {
+        "entity_id": {"$ref": "#/$defs/id"},
+        "kind": {
+          "enum": ["claim", "payload", "calibration", "transform", "policy", "revision", "decision", "artifact"]
+        },
+        "content_hash": {"$ref": "#/$defs/sha256"},
+        "media_type": {"type": "string", "minLength": 1}
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "subject_id", "object_id"],
+      "properties": {
+        "kind": {
+          "enum": ["wasGeneratedBy", "wasAttributedTo", "used", "wasDerivedFrom", "supersedes", "invalidates"]
+        },
+        "subject_id": {"$ref": "#/$defs/id"},
+        "object_id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transform_id", "source_frame", "target_frame", "payload_hash", "valid_time"],
+      "properties": {
+        "transform_id": {"$ref": "#/$defs/id"},
+        "source_frame": {"$ref": "#/$defs/id"},
+        "target_frame": {"$ref": "#/$defs/id"},
+        "payload_hash": {"$ref": "#/$defs/sha256"},
+        "valid_time": {"$ref": "#/$defs/valid_time"}
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calibration_id", "instrument_id", "payload_hash", "valid_time", "status"],
+      "properties": {
+        "calibration_id": {"$ref": "#/$defs/id"},
+        "instrument_id": {"$ref": "#/$defs/id"},
+        "payload_hash": {"$ref": "#/$defs/sha256"},
+        "valid_time": {"$ref": "#/$defs/valid_time"},
+        "status": {"enum": ["calibrated", "assumed", "unknown", "out_of_domain"]},
+        "reason_code": {"$ref": "#/$defs/id"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"enum": ["unknown", "out_of_domain"]}},
+            "required": ["status"]
+          },
+          "then": {"required": ["reason_code"]}
+        }
+      ]
+    },
+    "valid_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "clock_id", "uncertainty_s"],
+      "properties": {
+        "start": {"type": "number"},
+        "end": {"type": ["number", "null"]},
+        "clock_id": {"$ref": "#/$defs/id"},
+        "uncertainty_s": {"type": "number", "minimum": 0}
+      }
+    },
+    "transaction_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "recorded_at"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

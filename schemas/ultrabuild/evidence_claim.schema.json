@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/evidence_claim.schema.json",
+  "title": "STEWIE immutable evidence claim",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "claim_id",
+    "world_id",
+    "site_id",
+    "branch_id",
+    "branch_kind",
+    "evaluation_visibility",
+    "source_kind",
+    "state_kind",
+    "source",
+    "spatial",
+    "valid_time",
+    "transaction_time",
+    "payload",
+    "uncertainty",
+    "provenance_bundle_id",
+    "content_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.evidence_claim/1.0"},
+    "claim_id": {"$ref": "#/$defs/id"},
+    "world_id": {"$ref": "#/$defs/id"},
+    "site_id": {"$ref": "#/$defs/id"},
+    "branch_id": {"$ref": "#/$defs/id"},
+    "branch_kind": {
+      "enum": ["plan", "prediction", "simulation", "evidence", "belief", "accepted", "evaluation_reference", "archive"]
+    },
+    "evaluation_visibility": {"enum": ["system_visible", "withheld_reference"]},
+    "source_kind": {
+      "enum": ["observation", "physics_prediction", "plan", "simulation_result", "human_assertion"]
+    },
+    "state_kind": {
+      "enum": ["planned", "predicted", "simulated", "observed", "proposed", "reference"]
+    },
+    "source": {"$ref": "#/$defs/source"},
+    "spatial": {"$ref": "#/$defs/spatial"},
+    "valid_time": {"$ref": "#/$defs/valid_time"},
+    "transaction_time": {"$ref": "#/$defs/transaction_time"},
+    "payload": {"$ref": "#/$defs/payload"},
+    "uncertainty": {"$ref": "#/$defs/uncertainty"},
+    "provenance_bundle_id": {"$ref": "#/$defs/id"},
+    "content_hash": {"$ref": "#/$defs/sha256"},
+    "predecessor_claim_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true,
+      "default": []
+    },
+    "dependency_edge_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true,
+      "default": []
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source_kind": {"const": "plan"},
+          "evaluation_visibility": {"const": "system_visible"}
+        },
+        "required": ["source_kind", "evaluation_visibility"]
+      },
+      "then": {"properties": {"state_kind": {"const": "planned"}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "source_kind": {"const": "simulation_result"},
+          "evaluation_visibility": {"const": "system_visible"}
+        },
+        "required": ["source_kind", "evaluation_visibility"]
+      },
+      "then": {"properties": {"state_kind": {"const": "simulated"}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "source_kind": {"const": "observation"},
+          "evaluation_visibility": {"const": "system_visible"}
+        },
+        "required": ["source_kind", "evaluation_visibility"]
+      },
+      "then": {"properties": {"state_kind": {"const": "observed"}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "source_kind": {"const": "physics_prediction"},
+          "evaluation_visibility": {"const": "system_visible"}
+        },
+        "required": ["source_kind", "evaluation_visibility"]
+      },
+      "then": {"properties": {"state_kind": {"const": "predicted"}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "source_kind": {"const": "human_assertion"},
+          "evaluation_visibility": {"const": "system_visible"}
+        },
+        "required": ["source_kind", "evaluation_visibility"]
+      },
+      "then": {"properties": {"state_kind": {"const": "proposed"}}}
+    },
+    {
+      "if": {
+        "properties": {"evaluation_visibility": {"const": "withheld_reference"}},
+        "required": ["evaluation_visibility"]
+      },
+      "then": {
+        "properties": {
+          "branch_kind": {"const": "evaluation_reference"},
+          "state_kind": {"const": "reference"}
+        }
+      },
+      "else": {
+        "not": {"properties": {"state_kind": {"const": "reference"}}, "required": ["state_kind"]}
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "agent_id",
+        "instrument_id",
+        "pipeline_id",
+        "algorithm_version",
+        "calibration_id",
+        "attestation_key_id",
+        "hardware_version",
+        "firmware_version"
+      ],
+      "properties": {
+        "source_id": {"$ref": "#/$defs/id"},
+        "agent_id": {"$ref": "#/$defs/id"},
+        "instrument_id": {"$ref": "#/$defs/qualified_id"},
+        "pipeline_id": {"$ref": "#/$defs/id"},
+        "algorithm_version": {"$ref": "#/$defs/id"},
+        "calibration_id": {"$ref": "#/$defs/qualified_id"},
+        "attestation_key_id": {"$ref": "#/$defs/qualified_id"},
+        "hardware_version": {"$ref": "#/$defs/qualified_id"},
+        "firmware_version": {"$ref": "#/$defs/qualified_id"}
+      }
+    },
+    "spatial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "representation",
+        "crs",
+        "frame_id",
+        "transform_chain_id",
+        "axis_order",
+        "value_unit",
+        "bounds",
+        "shape",
+        "resolution"
+      ],
+      "properties": {
+        "representation": {
+          "enum": ["raster_2_5d", "point_set", "mesh", "voxel", "object", "region"]
+        },
+        "crs": {"type": "string", "minLength": 1},
+        "frame_id": {"$ref": "#/$defs/id"},
+        "transform_chain_id": {"$ref": "#/$defs/id"},
+        "axis_order": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "string"}
+        },
+        "value_unit": {"type": "string", "minLength": 1},
+        "bounds": {
+          "type": "array",
+          "minItems": 4,
+          "items": {"type": "number"}
+        },
+        "shape": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "minimum": 1}
+        },
+        "resolution": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "number", "exclusiveMinimum": 0}
+        }
+      }
+    },
+    "valid_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "clock_id", "uncertainty_s"],
+      "properties": {
+        "start": {"type": "number"},
+        "end": {"type": ["number", "null"]},
+        "clock_id": {"$ref": "#/$defs/id"},
+        "uncertainty_s": {"type": "number", "minimum": 0}
+      }
+    },
+    "transaction_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "recorded_at"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content_hash", "coverage_hash", "media_type", "byte_size"],
+      "properties": {
+        "content_hash": {"$ref": "#/$defs/sha256"},
+        "coverage_hash": {"$ref": "#/$defs/sha256"},
+        "media_type": {"type": "string", "minLength": 1},
+        "byte_size": {"type": "integer", "minimum": 0},
+        "uri": {"type": ["string", "null"]}
+      }
+    },
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "components", "calibration_status"],
+      "properties": {
+        "model": {"type": "string", "minLength": 1},
+        "components": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/uncertainty_component"}
+        },
+        "calibration_status": {
+          "enum": ["calibrated", "assumed", "unknown", "out_of_domain"]
+        }
+      }
+    },
+    "qualified_id": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "id"],
+          "properties": {
+            "status": {"const": "known"},
+            "id": {"$ref": "#/$defs/id"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "reason_code"],
+          "properties": {
+            "status": {"const": "unknown"},
+            "reason_code": {"$ref": "#/$defs/id"}
+          }
+        }
+      ]
+    },
+    "uncertainty_component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "status", "unit", "calibration_id"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "sensor",
+            "localization",
+            "geometry",
+            "time",
+            "material",
+            "model",
+            "dependency"
+          ]
+        },
+        "status": {"enum": ["known", "unknown", "out_of_domain"]},
+        "unit": {"type": "string", "minLength": 1},
+        "value": {"type": "number"},
+        "payload_hash": {"$ref": "#/$defs/sha256"},
+        "reason_code": {"$ref": "#/$defs/id"},
+        "calibration_id": {"$ref": "#/$defs/qualified_id"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "known"}}, "required": ["status"]},
+          "then": {"oneOf": [{"required": ["value"]}, {"required": ["payload_hash"]}]}
+        },
+        {
+          "if": {
+            "properties": {"status": {"enum": ["unknown", "out_of_domain"]}},
+            "required": ["status"]
+          },
+          "then": {"required": ["reason_code"]}
+        }
+      ]
+    }
+  }
+}

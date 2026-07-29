@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/barrier_decision.schema.json",
+  "title": "STEWIE independent barrier decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "barrier_id",
+    "target_commit",
+    "review_scope",
+    "decision",
+    "reviewed_node_ids",
+    "reviewer_ids",
+    "reviewer_independence_groups",
+    "evidence_artifacts",
+    "findings",
+    "open_critical_defect_ids",
+    "decided_at",
+    "content_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.barrier_decision/1.0"},
+    "decision_id": {"$ref": "#/$defs/id"},
+    "barrier_id": {"type": "string", "pattern": "^BARRIER-[1-8]$"},
+    "target_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "review_scope": {
+      "const": "tree_at_target_commit_excluding_later_pointer_and_decision_records"
+    },
+    "decision": {"enum": ["ACCEPT", "REWORK", "BLOCK"]},
+    "reviewed_node_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "reviewer_ids": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "reviewer_independence_groups": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "evidence_artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifact_id", "sha256"],
+        "properties": {
+          "artifact_id": {"$ref": "#/$defs/id"},
+          "sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding_id", "severity", "disposition", "evidence_artifact_ids"],
+        "properties": {
+          "finding_id": {"$ref": "#/$defs/id"},
+          "severity": {"enum": ["critical", "major", "minor", "note"]},
+          "disposition": {"enum": ["open", "accepted_limitation", "resolved", "not_applicable"]},
+          "evidence_artifact_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/id"},
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "open_critical_defect_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "decided_at": {"type": "string", "format": "date-time"},
+    "content_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"decision": {"const": "ACCEPT"}}, "required": ["decision"]},
+      "then": {"properties": {"open_critical_defect_ids": {"maxItems": 0}}}
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/dependency_edge.schema.json",
+  "title": "STEWIE immutable possible-dependency edge",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "edge_id",
+    "world_id",
+    "site_id",
+    "left_claim_id",
+    "right_claim_id",
+    "evaluation_visibility",
+    "basis",
+    "coverage_hash",
+    "valid_time",
+    "derivation_activity_id",
+    "uncertainty",
+    "status",
+    "transaction_time",
+    "content_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.dependency_edge/1.0"},
+    "edge_id": {"$ref": "#/$defs/id"},
+    "world_id": {"$ref": "#/$defs/id"},
+    "site_id": {"$ref": "#/$defs/id"},
+    "left_claim_id": {"$ref": "#/$defs/id"},
+    "right_claim_id": {"$ref": "#/$defs/id"},
+    "evaluation_visibility": {"enum": ["system_visible", "withheld_reference"]},
+    "basis": {
+      "enum": [
+        "shared_action_extent",
+        "shared_pipeline",
+        "shared_calibration",
+        "shared_localization",
+        "communication_copy",
+        "independent_error_oracle",
+        "unknown"
+      ]
+    },
+    "coverage_hash": {"$ref": "#/$defs/sha256"},
+    "valid_time": {"$ref": "#/$defs/valid_time"},
+    "derivation_activity_id": {"$ref": "#/$defs/id"},
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "model", "unit"],
+      "properties": {
+        "status": {"enum": ["known", "unknown", "out_of_domain"]},
+        "model": {"type": "string", "minLength": 1},
+        "unit": {"type": "string", "minLength": 1},
+        "value": {"type": "number"},
+        "reason_code": {"$ref": "#/$defs/id"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "known"}}, "required": ["status"]},
+          "then": {"required": ["value"]}
+        },
+        {
+          "if": {
+            "properties": {"status": {"enum": ["unknown", "out_of_domain"]}},
+            "required": ["status"]
+          },
+          "then": {"required": ["reason_code"]}
+        }
+      ]
+    },
+    "status": {"enum": ["possible", "measured", "invalidated"]},
+    "transaction_time": {"$ref": "#/$defs/transaction_time"},
+    "content_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"basis": {"const": "independent_error_oracle"}},
+        "required": ["basis"]
+      },
+      "then": {
+        "properties": {"evaluation_visibility": {"const": "withheld_reference"}}
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "valid_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "clock_id", "uncertainty_s"],
+      "properties": {
+        "start": {"type": "number"},
+        "end": {"type": ["number", "null"]},
+        "clock_id": {"$ref": "#/$defs/id"},
+        "uncertainty_s": {"type": "number", "minimum": 0}
+      }
+    },
+    "transaction_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "recorded_at"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

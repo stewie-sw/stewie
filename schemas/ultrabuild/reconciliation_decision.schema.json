@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/reconciliation_decision.schema.json",
+  "title": "STEWIE reconciliation decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "world_id",
+    "site_id",
+    "branch_id",
+    "prior_revision_id",
+    "policy",
+    "admitted_observation_ids",
+    "excluded_evidence",
+    "decision",
+    "reason_codes",
+    "metrics",
+    "valid_time",
+    "transaction_time",
+    "provenance_bundle_id",
+    "review",
+    "content_hash",
+    "recorded_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.reconciliation_decision/1.0"},
+    "decision_id": {"$ref": "#/$defs/id"},
+    "world_id": {"$ref": "#/$defs/id"},
+    "site_id": {"$ref": "#/$defs/id"},
+    "branch_id": {"$ref": "#/$defs/id"},
+    "prior_revision_id": {"$ref": "#/$defs/id"},
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_id", "version", "config_hash"],
+      "properties": {
+        "policy_id": {"$ref": "#/$defs/id"},
+        "version": {"$ref": "#/$defs/id"},
+        "config_hash": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "admitted_observation_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "excluded_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim_id", "reason_code"],
+        "properties": {
+          "claim_id": {"$ref": "#/$defs/id"},
+          "reason_code": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "physics_evidence_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true,
+      "default": []
+    },
+    "decision": {
+      "enum": ["PROMOTE", "REJECT", "ABSTAIN", "RETAIN_HYPOTHESES"]
+    },
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "content_hash", "coverage_hash", "construction"],
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/id"},
+        "content_hash": {"$ref": "#/$defs/sha256"},
+        "coverage_hash": {"$ref": "#/$defs/sha256"},
+        "construction": {"const": "plain_mean_of_admissible_observations"}
+      }
+    },
+    "resulting_revision_id": {"$ref": "#/$defs/id"},
+    "retained_hypothesis_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true,
+      "default": []
+    },
+    "hypothesis_set_id": {"$ref": "#/$defs/id"},
+    "valid_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "clock_id", "uncertainty_s"],
+      "properties": {
+        "start": {"type": "number"},
+        "end": {"type": ["number", "null"]},
+        "clock_id": {"$ref": "#/$defs/id"},
+        "uncertainty_s": {"type": "number", "minimum": 0}
+      }
+    },
+    "transaction_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "recorded_at"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "provenance_bundle_id": {"$ref": "#/$defs/id"},
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reviewer_id"],
+      "properties": {
+        "status": {"enum": ["not_required", "pending", "approved", "rejected"]},
+        "reviewer_id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "content_hash": {"$ref": "#/$defs/sha256"},
+    "metrics": {
+      "type": "object",
+      "required": ["effective_support", "observed_cells"],
+      "properties": {
+        "effective_support": {"type": "number", "minimum": 0},
+        "observed_cells": {"type": "integer", "minimum": 0},
+        "residual_rms_m": {"type": "number", "minimum": 0},
+        "variance_bound_m2_hash": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "recorded_at": {"type": "string", "format": "date-time"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"decision": {"const": "PROMOTE"}},
+        "required": ["decision"]
+      },
+      "then": {
+        "required": ["candidate", "resulting_revision_id"],
+        "properties": {
+          "admitted_observation_ids": {"minItems": 1},
+          "metrics": {
+            "properties": {"observed_cells": {"minimum": 1}}
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"decision": {"const": "RETAIN_HYPOTHESES"}},
+        "required": ["decision"]
+      },
+      "then": {
+        "not": {"required": ["resulting_revision_id"]},
+        "required": ["hypothesis_set_id", "retained_hypothesis_ids"],
+        "properties": {
+          "retained_hypothesis_ids": {"minItems": 2}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"decision": {"enum": ["REJECT", "ABSTAIN"]}},
+        "required": ["decision"]
+      },
+      "then": {
+        "not": {"required": ["resulting_revision_id"]}
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

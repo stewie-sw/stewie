@@ -1,0 +1,863 @@
+schema_version: stewie.graph_manifest/1.0
+project: STEWIE UltraBuild
+baseline_commit: d1056d9deff4e540557b13c8cb78fc799330410e
+reviewed_artifact_commit: null
+branch: ultrabuild/graph-orchestration-2026-07-28
+generated_on: "2026-07-28"
+producer_node: ORCH-001
+status: active
+
+lifecycle:
+  - UNPLANNED
+  - SPECIFIED
+  - READY
+  - ACTIVE
+  - SELF_TEST
+  - INDEPENDENT_REVIEW
+  - REWORK
+  - ACCEPTED
+  - INTEGRATED
+  - REGRESSION_VERIFIED
+  - EXPERIMENTALLY_VALIDATED
+
+state_policy:
+  advancement_requires_contract_evidence: true
+  self_acceptance_forbidden: true
+  skipped_state_requires_reason: true
+  failed_review_creates_rework_edge: true
+  max_consecutive_nonimproving_revisions: 2
+  reviewed_artifact_commit_semantics: commit containing the frozen reviewed artifacts; a later pointer or decision commit is outside that reviewed tree
+
+roles:
+  - {id: orchestrator, independence_group: orchestration, nodes: [ORCH-001]}
+  - {id: research_director, independence_group: research, nodes: [RES-010, DISS-010]}
+  - {id: adversarial_novelty_reviewer, independence_group: novelty_review, nodes: [RES-020]}
+  - {id: experimental_methodologist, independence_group: method, nodes: [EXP-010, EXP-020, EXP-030]}
+  - {id: systems_architect, independence_group: architecture, nodes: [ARCH-010]}
+  - {id: graph_contract_engineer, independence_group: contracts, nodes: [ARCH-020]}
+  - {id: runtime_graph_engineer, independence_group: runtime_graph, nodes: [ARCH-030]}
+  - {id: world_state_modeler, independence_group: world_state, nodes: [WS-010]}
+  - {id: temporal_database_specialist, independence_group: temporal, nodes: [WS-020]}
+  - {id: provenance_specialist, independence_group: provenance, nodes: [WS-030]}
+  - {id: reconciliation_specialist, independence_group: reconciliation, nodes: [WS-040]}
+  - {id: uncertainty_specialist, independence_group: uncertainty, nodes: [WS-050]}
+  - {id: physics_evidence_specialist, independence_group: physics, nodes: [PHY-010]}
+  - {id: vertical_slice_integrator, independence_group: implementation, nodes: [VERT-010, VERT-020, VERT-030]}
+  - {id: performance_engineer, independence_group: performance, nodes: [PERF-010]}
+  - {id: integration_engineer, independence_group: integration, nodes: [INT-010]}
+  - {id: functional_reviewer, independence_group: functional_review, nodes: [REV-010]}
+  - {id: scientific_reviewer, independence_group: scientific_review, nodes: [REV-010]}
+  - {id: data_provenance_reviewer, independence_group: data_review, nodes: [REV-010]}
+  - {id: robotics_simulation_reviewer, independence_group: robotics_review, nodes: [REV-010]}
+  - {id: database_reviewer, independence_group: database_review, nodes: [REV-010]}
+  - {id: adversarial_systems_critic, independence_group: adversarial_review, nodes: [REV-010]}
+
+artifact_schemas:
+  markdown.v1:
+    media_type: text/markdown
+    required_metadata: [artifact_id, producer_node, consumers, status]
+  runtime.component.v1:
+    media_type: application/vnd.stewie.runtime-component
+    required_metadata: [artifact_id, producer_node, code_commit, contract_version, status]
+  test.evidence.v1:
+    media_type: application/vnd.stewie.test-evidence+json
+    required_metadata: [artifact_id, producer_node, code_commit, command, result, content_hash]
+  data.artifact.v1:
+    media_type: application/vnd.stewie.data-artifact
+    required_metadata: [artifact_id, producer_node, content_hash, provenance_bundle_id, status]
+  report.v1:
+    media_type: application/vnd.stewie.report
+    required_metadata: [artifact_id, producer_node, inputs, code_commit, status]
+  json.performance_budget.v1:
+    path: schemas/ultrabuild/performance_budget.schema.json
+    media_type: application/schema+json
+  json.evidence_claim.v1:
+    path: schemas/ultrabuild/evidence_claim.schema.json
+    media_type: application/schema+json
+  json.branch.v1:
+    path: schemas/ultrabuild/branch.schema.json
+    media_type: application/schema+json
+  json.dependency_edge.v1:
+    path: schemas/ultrabuild/dependency_edge.schema.json
+    media_type: application/schema+json
+  json.provenance_bundle.v1:
+    path: schemas/ultrabuild/provenance_bundle.schema.json
+    media_type: application/schema+json
+  json.action_event.v1:
+    path: schemas/ultrabuild/action_event.schema.json
+    media_type: application/schema+json
+  json.state_candidate.v1:
+    path: schemas/ultrabuild/state_candidate.schema.json
+    media_type: application/schema+json
+  json.hypothesis_set.v1:
+    path: schemas/ultrabuild/hypothesis_set.schema.json
+    media_type: application/schema+json
+  json.conflict_record.v1:
+    path: schemas/ultrabuild/conflict_record.schema.json
+    media_type: application/schema+json
+  json.query_lens.v1:
+    path: schemas/ultrabuild/query_lens.schema.json
+    media_type: application/schema+json
+  json.query_request.v1:
+    path: schemas/ultrabuild/query_request.schema.json
+    media_type: application/schema+json
+  json.supersession_event.v1:
+    path: schemas/ultrabuild/supersession_event.schema.json
+    media_type: application/schema+json
+  json.barrier_decision.v1:
+    path: schemas/ultrabuild/barrier_decision.schema.json
+    media_type: application/schema+json
+  json.decision_record.v1:
+    path: schemas/ultrabuild/decision_record.schema.json
+    media_type: application/schema+json
+  yaml.risk_register.v1:
+    path: schemas/ultrabuild/risk_register.schema.json
+    media_type: application/schema+json
+  yaml.runtime_graph.v1:
+    path: schemas/ultrabuild/runtime_graph.schema.json
+    media_type: application/schema+json
+  json.reconciliation_decision.v1:
+    path: schemas/ultrabuild/reconciliation_decision.schema.json
+    media_type: application/schema+json
+  json.world_revision.v1:
+    path: schemas/ultrabuild/world_revision.schema.json
+    media_type: application/schema+json
+  json.scenario.v1:
+    path: schemas/ultrabuild/scenario.schema.json
+    media_type: application/schema+json
+  yaml.graph_manifest.v1:
+    path: schemas/ultrabuild/graph_manifest.schema.json
+    media_type: application/schema+json
+
+external_inputs:
+  - user_prompt
+  - baseline_commit
+  - baseline_physics_model
+
+artifacts:
+  - {id: ART-INVENTORY, path: REPOSITORY_INVENTORY.md, producer: INV-001, consumers: [RES-010, ARCH-010, WS-010, EXP-010, ORCH-001], schema: markdown.v1, status: independently_inspected}
+  - {id: ART-EXECUTION, path: STEWIE_ULTRABUILD_EXECUTION.md, producer: ORCH-001, consumers: [all], schema: markdown.v1, status: draft}
+  - {id: ART-CHARTER, path: PROJECT_CHARTER.md, producer: ORCH-001, consumers: [RES-010, ARCH-010, EXP-010, INT-010, DISS-010], schema: markdown.v1, status: draft}
+  - {id: ART-DISSERTATION-ALIGNMENT, path: DISSERTATION_ALIGNMENT.md, producer: RES-010, consumers: [RES-020, EXP-010, DISS-010], schema: markdown.v1, status: draft}
+  - {id: ART-PROBLEM, path: PROBLEM_DEFINITION.md, producer: RES-010, consumers: [RES-020, RES-030, ARCH-010, WS-010, EXP-010], schema: markdown.v1, status: draft}
+  - {id: ART-REQUIREMENTS, path: SYSTEM_REQUIREMENTS.md, producer: ARCH-010, consumers: [all], schema: markdown.v1, status: draft}
+  - {id: ART-RQ, path: RESEARCH_QUESTIONS.md, producer: RES-030, consumers: [RES-020, EXP-010, WS-040, WS-050, DISS-010], schema: markdown.v1, status: draft}
+  - {id: ART-HYPOTHESES, path: HYPOTHESES.md, producer: RES-030, consumers: [EXP-010, WS-040, WS-050, DISS-010], schema: markdown.v1, status: draft}
+  - {id: ART-ARCHITECTURE, path: SYSTEM_ARCHITECTURE.md, producer: ARCH-010, consumers: [ARCH-020, WS-010, WS-020, WS-030, WS-040, WS-050, PHY-010, VERT-010, EXP-020, EXP-030, INT-010], schema: markdown.v1, status: draft}
+  - {id: ART-GRAPH, path: GRAPH_MANIFEST.yaml, producer: ORCH-001, consumers: [all], schema: yaml.graph_manifest.v1, status: active}
+  - {id: ART-DATA-MODEL, path: DATA_MODEL.md, producer: WS-010, consumers: [ARCH-020, WS-020, WS-030, WS-040, WS-050, VERT-010], schema: markdown.v1, status: draft}
+  - {id: ART-ONTOLOGY, path: WORLD_STATE_ONTOLOGY.md, producer: WS-010, consumers: [ARCH-020, WS-020, WS-030, WS-040, WS-050, VERT-010], schema: markdown.v1, status: draft}
+  - {id: ART-PROVENANCE, path: PROVENANCE_MODEL.md, producer: WS-030, consumers: [ARCH-020, WS-040, WS-050, VERT-010, EXP-010, DISS-010], schema: markdown.v1, status: draft}
+  - {id: ART-TEMPORAL, path: TEMPORAL_MODEL.md, producer: WS-020, consumers: [ARCH-020, WS-040, WS-050, VERT-010, EXP-010], schema: markdown.v1, status: draft}
+  - {id: ART-EXPERIMENT-DESIGN, path: EXPERIMENTAL_DESIGN.md, producer: EXP-010, consumers: [WS-040, WS-050, PHY-010, VERT-010, EXP-020, EXP-030, PERF-010, DISS-010], schema: markdown.v1, status: draft}
+  - {id: ART-QUALITY-RUBRIC, path: QUALITY_RUBRIC.md, producer: ORCH-001, consumers: [all], schema: markdown.v1, status: draft}
+  - {id: ART-PERFORMANCE-BUDGET, path: PERFORMANCE_BUDGET.json, producer: PERF-010, consumers: [ARCH-010, WS-040, WS-050, VERT-010, VERT-030, EXP-030, INT-010], schema: json.performance_budget.v1, status: targets_unvalidated}
+  - {id: ART-METRICS, path: EVALUATION_METRICS.md, producer: EXP-010, consumers: [all], schema: markdown.v1, status: draft}
+  - {id: ART-RISKS, path: RISK_REGISTER.md, producer: ORCH-001, consumers: [all], schema: markdown.v1, status: active}
+  - {id: ART-TASK-LEDGER, path: TASK_LEDGER.md, producer: ORCH-001, consumers: [all], schema: markdown.v1, status: active}
+  - {id: ART-ASSUMPTIONS, path: ASSUMPTION_REGISTER.md, producer: ORCH-001, consumers: [all], schema: markdown.v1, status: active}
+  - {id: ART-LIMITATIONS, path: KNOWN_LIMITATIONS.md, producer: ORCH-001, consumers: [all], schema: markdown.v1, status: active}
+  - {id: ART-REPRODUCIBILITY, path: REPRODUCIBILITY_PLAN.md, producer: ORCH-001, consumers: [VERT-010, EXP-020, PERF-010, INT-010, DISS-010], schema: markdown.v1, status: draft}
+  - {id: ART-DATA-PROVENANCE, path: DATA_AND_ASSET_PROVENANCE.md, producer: INV-001, consumers: [EXP-010, VERT-010, EXP-020, EXP-030, DISS-010], schema: markdown.v1, status: active_inventory}
+  - {id: ART-FOUNDATION-REVIEW, path: FOUNDATION_REVIEW.md, producer: REV-010, consumers: [all], schema: markdown.v1, status: active_blocking_review}
+  - {id: ART-NOVELTY, path: NOVELTY_REVIEW.md, producer: RES-020, consumers: [RES-030, EXP-010, EXP-020, DISS-010], schema: markdown.v1, status: active_incomplete}
+  - {id: ART-RISK-DISPOSITIONS, path: RISK_DISPOSITIONS.yaml, producer: ORCH-001, consumers: [all], schema: yaml.risk_register.v1, status: active}
+  - {id: ART-RUNTIME-GRAPH, path: RUNTIME_GRAPH.yaml, producer: ARCH-030, consumers: [VERT-010, INT-010, REV-010], schema: yaml.runtime_graph.v1, status: specified}
+
+planned_artifacts:
+  - {id: reusable_component_map, producer: INV-001, consumers: [all], schema: report.v1, status: planned}
+  - {id: blocker_map, producer: INV-001, consumers: [all], schema: report.v1, status: planned}
+  - {id: unsupported_claims, producer: RES-020, consumers: [EXP-010, DISS-010], schema: report.v1, status: active}
+  - {id: nearest_baseline_requirements, producer: RES-020, consumers: [EXP-010], schema: report.v1, status: active}
+  - {id: scenario_manifests, producer: EXP-010, consumers: [EXP-020, EXP-030, PERF-010], schema: json.scenario.v1, status: planned}
+  - {id: experiment_calibration_data, producer: EXP-010, consumers: [WS-050], schema: data.artifact.v1, status: planned}
+  - {id: schemas/ultrabuild, producer: ARCH-020, consumers: [WS-040, VERT-010, INT-010], schema: data.artifact.v1, status: active_draft}
+  - {id: bitemporal_store, producer: WS-020, consumers: [VERT-010, EXP-020], schema: runtime.component.v1, status: planned}
+  - {id: temporal_query_tests, producer: WS-020, consumers: [REV-010], schema: test.evidence.v1, status: planned}
+  - {id: data_provenance_closure, producer: WS-030, consumers: [EXP-010, VERT-010, DISS-010], schema: report.v1, status: planned}
+  - {id: provenance_store, producer: WS-030, consumers: [VERT-010, EXP-020], schema: runtime.component.v1, status: planned}
+  - {id: lineage_queries, producer: WS-030, consumers: [VERT-010, EXP-020], schema: runtime.component.v1, status: planned}
+  - {id: reconciliation_decisions, producer: WS-040, consumers: [VERT-010, EXP-020], schema: json.reconciliation_decision.v1, status: planned}
+  - {id: conflict_records, producer: WS-040, consumers: [VERT-010, EXP-020], schema: json.conflict_record.v1, status: planned}
+  - {id: accepted_revision_proposals, producer: WS-040, consumers: [VERT-010], schema: json.world_revision.v1, status: planned}
+  - {id: uncertainty_contract, producer: WS-050, consumers: [WS-040, VERT-010], schema: report.v1, status: planned}
+  - {id: calibration_report, producer: WS-050, consumers: [EXP-020, DISS-010], schema: report.v1, status: planned}
+  - {id: physics_evidence_claims, producer: PHY-010, consumers: [WS-040, EXP-020], schema: json.evidence_claim.v1, status: planned}
+  - {id: no_physics_and_bias_conditions, producer: PHY-010, consumers: [EXP-020], schema: report.v1, status: planned}
+  - {id: runnable_vertical_slice, producer: VERT-010, consumers: [VERT-020, VERT-030, REV-010], schema: runtime.component.v1, status: planned}
+  - {id: world_revisions, producer: VERT-010, consumers: [VERT-020, VERT-030, EXP-020], schema: json.world_revision.v1, status: planned}
+  - {id: conflict_record, producer: VERT-010, consumers: [REV-010], schema: json.conflict_record.v1, status: planned}
+  - {id: replication_package, producer: VERT-010, consumers: [EXP-020, EXP-030], schema: data.artifact.v1, status: planned}
+  - {id: single_robot_scenario, producer: VERT-020, consumers: [EXP-020, REV-010], schema: json.scenario.v1, status: planned}
+  - {id: replay, producer: VERT-020, consumers: [REV-010], schema: test.evidence.v1, status: planned}
+  - {id: decision_effect, producer: VERT-020, consumers: [EXP-020, DISS-010], schema: report.v1, status: planned}
+  - {id: multi_robot_scenarios, producer: VERT-030, consumers: [EXP-020, REV-010], schema: json.scenario.v1, status: planned}
+  - {id: synchronization_report, producer: VERT-030, consumers: [EXP-020, DISS-010], schema: report.v1, status: planned}
+  - {id: trial_jsonl, producer: EXP-020, consumers: [EXP-030, DISS-010], schema: data.artifact.v1, status: planned}
+  - {id: aggregate_tables, producer: EXP-020, consumers: [DISS-010], schema: report.v1, status: planned}
+  - {id: confidence_intervals, producer: EXP-020, consumers: [DISS-010], schema: report.v1, status: planned}
+  - {id: negative_results, producer: EXP-020, consumers: [DISS-010], schema: report.v1, status: planned}
+  - {id: fault_report, producer: EXP-030, consumers: [DISS-010], schema: report.v1, status: planned}
+  - {id: scaling_report, producer: EXP-030, consumers: [DISS-010], schema: report.v1, status: planned}
+  - {id: reproduction_attestation, producer: EXP-030, consumers: [DISS-010], schema: test.evidence.v1, status: planned}
+  - {id: performance_harness, producer: PERF-010, consumers: [EXP-030, REV-010], schema: runtime.component.v1, status: planned}
+  - {id: performance_report, producer: PERF-010, consumers: [DISS-010], schema: report.v1, status: planned}
+  - {id: integration_report, producer: INT-010, consumers: [REV-010, DISS-010], schema: report.v1, status: planned}
+  - {id: regression_report, producer: INT-010, consumers: [REV-010, DISS-010], schema: test.evidence.v1, status: planned}
+  - {id: observability_report, producer: INT-010, consumers: [REV-010, DISS-010], schema: report.v1, status: planned}
+  - {id: safety_report, producer: INT-010, consumers: [REV-010, DISS-010], schema: report.v1, status: planned}
+  - {id: review_findings, producer: REV-010, consumers: [ORCH-001, DISS-010], schema: report.v1, status: active}
+  - {id: scores, producer: REV-010, consumers: [ORCH-001, DISS-010], schema: report.v1, status: planned}
+  - {id: defect_history, producer: REV-010, consumers: [ORCH-001, DISS-010], schema: report.v1, status: active}
+  - {id: barrier_decisions, producer: REV-010, consumers: [ORCH-001, DISS-010], schema: report.v1, status: active}
+  - {id: review_packets, producer: ORCH-001, consumers: [REV-010], schema: data.artifact.v1, status: active}
+  - {id: claim_evidence_matrix, producer: DISS-010, consumers: [all], schema: report.v1, status: planned}
+  - {id: final_readiness_assessment, producer: DISS-010, consumers: [all], schema: report.v1, status: planned}
+  - {id: defense_figures_tables, producer: DISS-010, consumers: [all], schema: data.artifact.v1, status: planned}
+
+edge_contracts:
+  - id: EDGE-ORCHESTRATION
+    producer: ORCH-001
+    consumers: [INV-001, REV-010]
+    payloads: [ART-EXECUTION, ART-GRAPH, ART-CHARTER, review_packets]
+    acceptance: clean baseline, bounded jobs, registered artifacts, and review packet identities
+  - id: EDGE-INVENTORY
+    producer: INV-001
+    consumers: [RES-010, ARCH-010, WS-010]
+    payloads: [ART-INVENTORY, ART-DATA-PROVENANCE, reusable_component_map, blocker_map]
+    acceptance: commit-pinned evidence-cited inventory with reusable and blocking findings
+  - id: EDGE-RESEARCH-FRAMING
+    producer: RES-010
+    consumers: [RES-020, RES-030, ARCH-010, WS-010]
+    payloads: [ART-PROBLEM, ART-DISSERTATION-ALIGNMENT]
+    acceptance: one thesis center, falsifiable contribution boundary, and explicit nonclaims
+  - id: EDGE-NOVELTY
+    producer: RES-020
+    consumers: [RES-030, EXP-010, EXP-020, DISS-010]
+    payloads: [ART-NOVELTY, unsupported_claims, nearest_baseline_requirements]
+    acceptance: primary-source nearest-work matrix and credible baseline obligations independently reviewed
+  - id: EDGE-RESEARCH-CONTRACT
+    producer: RES-030
+    consumers: [EXP-010, VERT-010]
+    payloads: [ART-RQ, ART-HYPOTHESES]
+    acceptance: every hypothesis names baseline, endpoint, domain, and falsification rule
+  - id: EDGE-EXPERIMENT-CONTRACT
+    producer: EXP-010
+    consumers: [WS-050, PHY-010, EXP-020, EXP-030, PERF-010]
+    payloads: [ART-EXPERIMENT-DESIGN, ART-METRICS, scenario_manifests, experiment_calibration_data]
+    acceptance: frozen independent units, endpoints, comparisons, perturbations, statistics, and reference isolation
+  - id: EDGE-ARCHITECTURE
+    producer: ARCH-010
+    consumers: [ARCH-020, ARCH-030]
+    payloads: [ART-ARCHITECTURE, ART-REQUIREMENTS]
+    acceptance: authority, state ownership, write paths, errors, units, frames, and clocks are explicit
+  - id: EDGE-TYPED-CONTRACTS
+    producer: ARCH-020
+    consumers: [ARCH-030, WS-040, VERT-010, PERF-010]
+    payloads: [schemas/ultrabuild]
+    acceptance: meta-schema valid contracts and positive/negative semantic fixtures fail closed
+  - id: EDGE-WORLD-SEMANTICS
+    producer: WS-010
+    consumers: [ARCH-020, ARCH-030, WS-020, WS-030, WS-050, PHY-010]
+    payloads: [ART-DATA-MODEL, ART-ONTOLOGY]
+    acceptance: state kinds, branches, authority scopes, frames, units, and conflicts are unambiguous
+  - id: EDGE-TEMPORAL
+    producer: WS-020
+    consumers: [ARCH-020, ARCH-030, WS-040, VERT-010]
+    payloads: [ART-TEMPORAL, bitemporal_store, temporal_query_tests]
+    acceptance: append-only correction preserves both valid-time and known-at query results
+  - id: EDGE-PROVENANCE
+    producer: WS-030
+    consumers: [ARCH-020, ARCH-030, WS-040, VERT-010]
+    payloads: [ART-PROVENANCE, data_provenance_closure, provenance_store, lineage_queries]
+    acceptance: structured lineage resolves inputs, identities, transforms, calibration, code, and invalidations
+  - id: EDGE-RECONCILIATION
+    producer: WS-040
+    consumers: [ARCH-030, VERT-010, VERT-030]
+    payloads: [reconciliation_decisions, conflict_records, accepted_revision_proposals]
+    acceptance: observation-only candidates, matching promotion, durable conflict retention, and no latest overwrite
+  - id: EDGE-RUNTIME-GRAPH
+    producer: ARCH-030
+    consumers: [VERT-010, INT-010]
+    payloads: [ART-RUNTIME-GRAPH]
+    acceptance: every runtime job has typed I/O pre/postconditions timeout retry isolation evidence and mutation scope
+  - id: EDGE-UNCERTAINTY
+    producer: WS-050
+    consumers: [WS-040, VERT-010]
+    payloads: [uncertainty_contract, calibration_report]
+    acceptance: typed applicable uncertainty and explicit unknown/out-of-domain handling
+  - id: EDGE-PHYSICS-EVIDENCE
+    producer: PHY-010
+    consumers: [WS-040, VERT-010]
+    payloads: [physics_evidence_claims, no_physics_and_bias_conditions]
+    acceptance: versioned contestable physics affects decisions but never constructs accepted values
+  - id: EDGE-VERTICAL-SLICE
+    producer: VERT-010
+    consumers: [VERT-020, VERT-030, EXP-020, EXP-030, INT-010]
+    payloads: [runnable_vertical_slice, world_revisions, conflict_record, replication_package]
+    acceptance: cold-restorable Barrier-3 scenario with history, provenance, discrepancy, and no bypass
+  - id: EDGE-SINGLE-ROBOT
+    producer: VERT-020
+    consumers: [INT-010]
+    payloads: [single_robot_scenario, replay, decision_effect]
+    acceptance: reproducible closed loop with exact query lens on every decision
+  - id: EDGE-MULTI-ROBOT
+    producer: VERT-030
+    consumers: [INT-010]
+    payloads: [multi_robot_scenarios, synchronization_report]
+    acceptance: partition/rejoin preserves evidence and converges or retains explicit disagreement
+  - id: EDGE-EXPERIMENT-RESULTS
+    producer: EXP-020
+    consumers: [DISS-010]
+    payloads: [trial_jsonl, aggregate_tables, confidence_intervals, negative_results]
+    acceptance: preregistered normalized trials include all runs costs uncertainty and negative results
+  - id: EDGE-REPRODUCTION
+    producer: EXP-030
+    consumers: [DISS-010]
+    payloads: [fault_report, scaling_report, reproduction_attestation]
+    acceptance: clean independent reproduction and declared fault/scaling regions
+  - id: EDGE-PERFORMANCE
+    producer: PERF-010
+    consumers: [EXP-030]
+    payloads: [ART-PERFORMANCE-BUDGET, performance_harness, performance_report]
+    acceptance: repeated cold/warm percentiles and scaling costs without semantic weakening
+  - id: EDGE-INTEGRATION
+    producer: INT-010
+    consumers: [DISS-010]
+    payloads: [integration_report, regression_report, observability_report, safety_report]
+    acceptance: integration regression observability and containment evidence has no unresolved critical defect
+  - id: EDGE-REVIEW
+    producer: REV-010
+    consumers: [DISS-010]
+    payloads: [ART-FOUNDATION-REVIEW, review_findings, scores, defect_history, barrier_decisions]
+    acceptance: independent findings and typed barrier decisions bind the reviewed commit and evidence
+
+node_defaults: &node_defaults
+  required_inputs: []
+  expected_outputs: []
+  artifact_schemas: []
+  upstream_dependencies: []
+  downstream_consumers: []
+  assumptions: []
+  known_risks: []
+  acceptance_tests: []
+  evaluation_metrics: []
+  computational_budget: {cpu_hours: 1, gpu_hours: 0, storage_gib: 1}
+  performance_budget: not_applicable
+  max_local_revision_cycles: 3
+  integration_conditions: []
+  scientific_claims_supported: []
+  scientific_claims_not_supported: []
+  lifecycle_evidence: []
+
+nodes:
+  - <<: *node_defaults
+    id: ORCH-001
+    name: UltraBuild orchestrator and artifact registry
+    purpose: Coordinate the graph, barriers, evidence, rework, and claim discipline.
+    owning_specialist: orchestrator
+    independent_reviewers: [adversarial_systems_critic]
+    required_inputs: [user_prompt, baseline_commit]
+    expected_outputs: [ART-EXECUTION, ART-CHARTER, ART-GRAPH, ART-RISKS, ART-RISK-DISPOSITIONS, ART-TASK-LEDGER, ART-ASSUMPTIONS, ART-LIMITATIONS, ART-QUALITY-RUBRIC, ART-REPRODUCIBILITY, review_packets]
+    artifact_schemas: [markdown.v1, yaml.graph_manifest.v1]
+    downstream_consumers: [INV-001, REV-010]
+    known_risks: [R-09, R-10, R-17, R-21, R-22]
+    acceptance_tests: [python scripts/validate_ultrabuild.py]
+    integration_conditions: [all required artifacts registered, no node self-reviews]
+    scientific_claims_not_supported: [any subsystem correctness or dissertation conclusion]
+    lifecycle_evidence: [ART-GRAPH]
+    lifecycle_state: ACTIVE
+
+  - <<: *node_defaults
+    id: INV-001
+    name: Repository and environment inventory
+    purpose: Establish reusable code, contradictions, assets, tests, and compute without mutation.
+    owning_specialist: systems_architect
+    independent_reviewers: [research_director, world_state_modeler]
+    required_inputs: [baseline_commit]
+    expected_outputs: [ART-INVENTORY, ART-DATA-PROVENANCE, reusable_component_map, blocker_map]
+    upstream_dependencies: [ORCH-001]
+    downstream_consumers: [RES-010, ARCH-010, WS-010]
+    known_risks: [R-10, R-18, R-21]
+    acceptance_tests: [git status --short, evidence-cited inventory review]
+    scientific_claims_supported: [implementation baseline description only]
+    scientific_claims_not_supported: [validation, novelty, mission readiness]
+    lifecycle_evidence: [ART-INVENTORY, ART-FOUNDATION-REVIEW]
+    lifecycle_state: ACCEPTED
+
+  - <<: *node_defaults
+    id: RES-010
+    name: Research definition and dissertation alignment
+    purpose: Select one thesis center and define problem, RQs, hypotheses, and nonclaims.
+    owning_specialist: research_director
+    independent_reviewers: [adversarial_novelty_reviewer, scientific_reviewer]
+    required_inputs: [ART-CHARTER, ART-INVENTORY]
+    expected_outputs: [ART-PROBLEM, ART-DISSERTATION-ALIGNMENT]
+    artifact_schemas: [markdown.v1]
+    upstream_dependencies: [INV-001]
+    downstream_consumers: [RES-020, RES-030, ARCH-010, WS-010]
+    assumptions: [A-06, A-09, A-10]
+    known_risks: [R-06, R-09, R-20, R-22]
+    acceptance_tests: [each hypothesis has a falsification criterion, nonclaims are explicit]
+    evaluation_metrics: [construct_validity, falsifiability, claim_scope]
+    scientific_claims_supported: [research framing only]
+    scientific_claims_not_supported: [hypothesis truth]
+    lifecycle_evidence: [ART-FOUNDATION-REVIEW]
+    lifecycle_state: REWORK
+
+  - <<: *node_defaults
+    id: RES-020
+    name: Adversarial novelty review
+    purpose: Compare each contribution with the nearest database, GIS, robotics, provenance, and distributed-systems work.
+    owning_specialist: adversarial_novelty_reviewer
+    independent_reviewers: [research_director, scientific_reviewer]
+    required_inputs: [ART-DISSERTATION-ALIGNMENT, ART-RQ, ART-HYPOTHESES]
+    expected_outputs: [ART-NOVELTY, unsupported_claims, nearest_baseline_requirements]
+    upstream_dependencies: [RES-010]
+    downstream_consumers: [RES-030, EXP-010, EXP-020, DISS-010]
+    known_risks: [R-10, R-11]
+    acceptance_tests: [primary sources cover every named overlap field, each claim classified]
+    computational_budget: {cpu_hours: 12, gpu_hours: 0, storage_gib: 2}
+    scientific_claims_supported: [novelty boundary after independent acceptance]
+    scientific_claims_not_supported: [experimental effectiveness]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: RES-030
+    name: Research-question and hypothesis contract
+    purpose: Maintain the falsifiable question-to-metric-to-experiment mapping.
+    owning_specialist: research_director
+    independent_reviewers: [experimental_methodologist]
+    required_inputs: [ART-PROBLEM, ART-NOVELTY]
+    expected_outputs: [ART-RQ, ART-HYPOTHESES]
+    upstream_dependencies: [RES-010, RES-020]
+    downstream_consumers: [EXP-010, VERT-010]
+    known_risks: [R-06, R-12]
+    acceptance_tests: [no hypothesis lacks a baseline metric and falsification rule]
+    scientific_claims_not_supported: [hypothesis truth]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: EXP-010
+    name: Experimental methodology and preregistration
+    purpose: Freeze scenarios, baselines, ablations, perturbations, statistics, and reference firewall.
+    owning_specialist: experimental_methodologist
+    independent_reviewers: [scientific_reviewer, data_provenance_reviewer]
+    required_inputs: [ART-RQ, ART-HYPOTHESES, ART-NOVELTY, ART-DATA-PROVENANCE]
+    expected_outputs: [ART-EXPERIMENT-DESIGN, ART-METRICS, scenario_manifests, experiment_calibration_data]
+    artifact_schemas: [markdown.v1, json.scenario.v1]
+    upstream_dependencies: [RES-020, RES-030]
+    downstream_consumers: [WS-050, PHY-010, EXP-020, EXP-030, PERF-010]
+    assumptions: [A-03, A-04, A-06, A-10, A-11, A-17]
+    known_risks: [R-06, R-07, R-08, R-12, R-17]
+    acceptance_tests: [reference displacement attestation, baseline input equivalence, preregistration review]
+    evaluation_metrics: [construct_validity, reference_leakage, baseline_strength]
+    scientific_claims_supported: [method validity after review]
+    scientific_claims_not_supported: [comparative result]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: ARCH-010
+    name: System architecture and authority boundaries
+    purpose: Define bounded contexts, state ownership, error boundaries, and runtime topology.
+    owning_specialist: systems_architect
+    independent_reviewers: [database_reviewer, robotics_simulation_reviewer, adversarial_systems_critic]
+    required_inputs: [ART-INVENTORY, ART-PROBLEM]
+    expected_outputs: [ART-ARCHITECTURE, ART-REQUIREMENTS]
+    artifact_schemas: [markdown.v1]
+    upstream_dependencies: [INV-001, RES-010]
+    downstream_consumers: [ARCH-020, ARCH-030]
+    assumptions: [A-07, A-09, A-15]
+    known_risks: [R-01, R-02, R-13, R-14, R-19, R-23, R-25]
+    acceptance_tests: [authority scope review, write-path failure analysis, adapter nonauthority tests specified]
+    scientific_claims_supported: [architecture description]
+    scientific_claims_not_supported: [runtime correctness, performance]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: ARCH-020
+    name: Typed interface and edge contracts
+    purpose: Produce machine-readable schemas for evidence, revisions, decisions, scenarios, clocks, frames, and units.
+    owning_specialist: graph_contract_engineer
+    independent_reviewers: [database_reviewer, functional_reviewer]
+    required_inputs: [ART-ARCHITECTURE, ART-DATA-MODEL, ART-ONTOLOGY, ART-TEMPORAL, ART-PROVENANCE]
+    expected_outputs: [schemas/ultrabuild]
+    artifact_schemas: [json.evidence_claim.v1, json.reconciliation_decision.v1, json.world_revision.v1, json.scenario.v1]
+    upstream_dependencies: [ARCH-010, WS-010, WS-020, WS-030]
+    downstream_consumers: [ARCH-030, WS-040, VERT-010, PERF-010]
+    known_risks: [R-02, R-13, R-14, R-16]
+    acceptance_tests: [python scripts/validate_ultrabuild.py, invalid frame unit time and state-kind fixtures rejected]
+    scientific_claims_not_supported: [semantic effectiveness]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: ARCH-030
+    name: Runtime operational graph contracts
+    purpose: Specify mission and evidence-flow jobs, fan-in, retries, isolation, evidence, and mutation authority.
+    owning_specialist: runtime_graph_engineer
+    independent_reviewers: [functional_reviewer, robotics_simulation_reviewer, database_reviewer]
+    required_inputs: [ART-ARCHITECTURE, schemas/ultrabuild, ART-DATA-MODEL, ART-TEMPORAL, ART-PROVENANCE]
+    expected_outputs: [ART-RUNTIME-GRAPH]
+    artifact_schemas: [yaml.runtime_graph.v1]
+    upstream_dependencies: [ARCH-010, ARCH-020, WS-010, WS-020, WS-030, WS-040]
+    downstream_consumers: [VERT-010, INT-010]
+    assumptions: [A-07, A-09]
+    known_risks: [R-01, R-13, R-14]
+    acceptance_tests: [runtime graph schema and edge closure, mutation authority review, retry and failure-isolation fault cases]
+    evaluation_metrics: [untracked_mutation_count, retry_replay_mismatch_count, fan_in_contract_violations]
+    integration_conditions: [Barrier 2 accepted, every runtime mutation maps to one authoritative owner]
+    scientific_claims_not_supported: [runtime correctness before implementation]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: WS-010
+    name: World-state representation and ontology
+    purpose: Define claims, state kinds, authority scopes, representations, branches, and conflict semantics.
+    owning_specialist: world_state_modeler
+    independent_reviewers: [database_reviewer, robotics_simulation_reviewer]
+    required_inputs: [ART-PROBLEM, ART-INVENTORY]
+    expected_outputs: [ART-DATA-MODEL, ART-ONTOLOGY]
+    artifact_schemas: [markdown.v1]
+    upstream_dependencies: [INV-001, RES-010]
+    downstream_consumers: [ARCH-020, ARCH-030, WS-020, WS-030, WS-050, PHY-010]
+    assumptions: [A-09]
+    known_risks: [R-08, R-13, R-16]
+    acceptance_tests: [all state roles distinguishable, conflict does not imply overwrite]
+    scientific_claims_supported: [representation definition]
+    scientific_claims_not_supported: [representation superiority]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: WS-020
+    name: Temporal and bitemporal semantics
+    purpose: Implement valid/transaction time, correction, supersession, and reference queries.
+    owning_specialist: temporal_database_specialist
+    independent_reviewers: [database_reviewer, data_provenance_reviewer]
+    required_inputs: [ART-DATA-MODEL, ART-ONTOLOGY]
+    expected_outputs: [ART-TEMPORAL, bitemporal_store, temporal_query_tests]
+    upstream_dependencies: [WS-010]
+    downstream_consumers: [ARCH-020, ARCH-030, WS-040, VERT-010]
+    assumptions: [A-07, A-08]
+    known_risks: [R-02, R-15, R-24]
+    acceptance_tests: [as_known_at_and_valid_at oracle, out-of-order no-overwrite, correction history retained]
+    evaluation_metrics: [valid_time_query_accuracy, transaction_time_query_accuracy, stale_overwrite_rate]
+    performance_budget: PERFORMANCE_BUDGET.json#/barrier_3_mandatory/bitemporal_query_p95_ms
+    scientific_claims_supported: [RQ1 after integrated experiment]
+    scientific_claims_not_supported: [distributed temporal consistency]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: WS-030
+    name: Structured provenance and artifact lineage
+    purpose: Implement queryable W3C-PROV-aligned lineage and source identity.
+    owning_specialist: provenance_specialist
+    independent_reviewers: [data_provenance_reviewer, functional_reviewer]
+    required_inputs: [ART-DATA-MODEL, ART-ONTOLOGY, ART-DATA-PROVENANCE]
+    expected_outputs: [ART-PROVENANCE, data_provenance_closure, provenance_store, lineage_queries]
+    upstream_dependencies: [WS-010]
+    downstream_consumers: [ARCH-020, ARCH-030, WS-040, VERT-010]
+    assumptions: [A-02, A-14]
+    known_risks: [R-04, R-10, R-14, R-17]
+    acceptance_tests: [complete lineage replay, duplicate identity rejection, invalidation query]
+    evaluation_metrics: [claim_completeness, broken_edge_rate, decision_replay_rate]
+    performance_budget: PERFORMANCE_BUDGET.json#/barrier_3_mandatory/provenance_trace_p95_ms
+    scientific_claims_supported: [RQ4 after integrated experiment]
+    scientific_claims_not_supported: [source authenticity without attestation]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: WS-040
+    name: Dependency-aware state promotion
+    purpose: Integrate admissibility, observation-only aggregate, dependency support, conflict retention, and decision persistence.
+    owning_specialist: reconciliation_specialist
+    independent_reviewers: [scientific_reviewer, functional_reviewer, data_provenance_reviewer]
+    required_inputs: [json.evidence_claim.v1, ART-TEMPORAL, ART-PROVENANCE, ART-HYPOTHESES]
+    expected_outputs: [reconciliation_decisions, conflict_records, accepted_revision_proposals]
+    artifact_schemas: [json.evidence_claim.v1, json.reconciliation_decision.v1]
+    upstream_dependencies: [ARCH-020, WS-020, WS-030, WS-050, PHY-010]
+    downstream_consumers: [ARCH-030, VERT-010, VERT-030]
+    assumptions: [A-01, A-02, A-03, A-04, A-12, A-13]
+    known_risks: [R-01, R-03, R-04, R-05, R-06, R-16]
+    acceptance_tests: [R1 noninterference mutation, stale removal ordering, partial coverage, durable competing hypotheses]
+    evaluation_metrics: [harmful_acceptance_rate, abstention_rate, accepted_state_error, false_merge_rate]
+    performance_budget: PERFORMANCE_BUDGET.json#/barrier_3_mandatory/reconcile_p95_ms
+    computational_budget: {cpu_hours: 20, gpu_hours: 0, storage_gib: 10}
+    scientific_claims_supported: [RQ2 and RQ3 after experiments]
+    scientific_claims_not_supported: [physical safety, unmodelled source authenticity]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: WS-050
+    name: Typed uncertainty and belief
+    purpose: Separate and propagate sensor, localization, geometry, time, material, model, and dependency uncertainty.
+    owning_specialist: uncertainty_specialist
+    independent_reviewers: [scientific_reviewer, robotics_simulation_reviewer]
+    required_inputs: [ART-DATA-MODEL, experiment_calibration_data]
+    expected_outputs: [uncertainty_contract, calibration_report]
+    upstream_dependencies: [WS-010, EXP-010]
+    downstream_consumers: [WS-040, VERT-010]
+    assumptions: [A-03, A-04, A-13]
+    known_risks: [R-05, R-12]
+    acceptance_tests: [miscalibration sweep, per-component unknown handling, calibration curve]
+    evaluation_metrics: [coverage, calibration_error, sharpness]
+    scientific_claims_supported: [calibration claims after experiment]
+    scientific_claims_not_supported: [one global confidence as complete uncertainty]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: PHY-010
+    name: Contestable physics evidence
+    purpose: Package conservation, reachability, volume, transport, and ordering checks as versioned evidence.
+    owning_specialist: physics_evidence_specialist
+    independent_reviewers: [robotics_simulation_reviewer, scientific_reviewer]
+    required_inputs: [ART-ONTOLOGY, ART-HYPOTHESES, baseline_physics_model]
+    expected_outputs: [physics_evidence_claims, no_physics_and_bias_conditions]
+    upstream_dependencies: [WS-010, EXP-010]
+    downstream_consumers: [WS-040, VERT-010]
+    assumptions: [A-05, A-11, A-12]
+    known_risks: [R-03, R-08, R-22]
+    acceptance_tests: [physics cannot write accepted values, conservation evidence, absent and biased model probes]
+    evaluation_metrics: [harmful_acceptance_rate, abstention_rate, model_bias_sensitivity]
+    scientific_claims_supported: [RQ3 after ablation]
+    scientific_claims_not_supported: [physics as physical truth]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: VERT-010
+    name: Barrier-3 persistent world-state vertical slice
+    purpose: Join real terrain, one conserved action, asynchronous observations, bitemporal provenance, promotion, history, and discrepancy.
+    owning_specialist: vertical_slice_integrator
+    independent_reviewers: [functional_reviewer, scientific_reviewer, database_reviewer, robotics_simulation_reviewer]
+    required_inputs: [json.scenario.v1, schemas/ultrabuild]
+    expected_outputs: [runnable_vertical_slice, world_revisions, conflict_record, replication_package]
+    artifact_schemas: [json.evidence_claim.v1, json.reconciliation_decision.v1, json.world_revision.v1, json.scenario.v1]
+    upstream_dependencies: [RES-030, ARCH-020, ARCH-030, WS-020, WS-030, WS-040, WS-050, PHY-010]
+    downstream_consumers: [VERT-020, VERT-030, EXP-020, EXP-030, INT-010]
+    assumptions: [A-06, A-09, A-10, A-11, A-15, A-16]
+    known_risks: [R-01, R-07, R-13, R-15, R-16, R-18]
+    acceptance_tests: [cold restore, previous version query, discrepancy detection, complete lineage, no live bypass, planner revision binding]
+    evaluation_metrics: [state_accuracy, temporal_correctness, provenance_completeness, reconciliation_latency]
+    computational_budget: {cpu_hours: 40, gpu_hours: 0, storage_gib: 20}
+    performance_budget: PERFORMANCE_BUDGET.json#/barrier_3_mandatory
+    integration_conditions: [Barrier 1 accepted, Barrier 2 accepted, no unresolved critical defect]
+    scientific_claims_supported: [controlled integrated demonstration only]
+    scientific_claims_not_supported: [multi-robot convergence, generality, physical deployment]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: VERT-020
+    name: Single-robot closed loop
+    purpose: Execute PLAN-SIMULATE-EXECUTE-OBSERVE-UPDATE-VERIFY-REPLAN reproducibly.
+    owning_specialist: vertical_slice_integrator
+    independent_reviewers: [functional_reviewer, robotics_simulation_reviewer]
+    required_inputs: [runnable_vertical_slice]
+    expected_outputs: [single_robot_scenario, replay, decision_effect]
+    upstream_dependencies: [VERT-010]
+    downstream_consumers: [INT-010]
+    known_risks: [R-08, R-13, R-20]
+    acceptance_tests: [closed-loop replay, map version on every decision, dependent invalidation]
+    evaluation_metrics: [stale_plan_rate, construction_error, unnecessary_rescans]
+    computational_budget: {cpu_hours: 40, gpu_hours: 4, storage_gib: 50}
+    scientific_claims_supported: [single-robot decision effect after experiment]
+    scientific_claims_not_supported: [multi-robot or physical deployment]
+    lifecycle_state: UNPLANNED
+
+  - <<: *node_defaults
+    id: VERT-030
+    name: Multi-robot conflict and synchronization
+    purpose: Preserve delayed local claims, dependencies, conflicts, and convergence or explicit disagreement.
+    owning_specialist: vertical_slice_integrator
+    independent_reviewers: [database_reviewer, robotics_simulation_reviewer, scientific_reviewer]
+    required_inputs: [runnable_vertical_slice, reconciliation_decisions]
+    expected_outputs: [multi_robot_scenarios, synchronization_report]
+    upstream_dependencies: [VERT-010, WS-040]
+    downstream_consumers: [INT-010]
+    assumptions: [A-01, A-02, A-07, A-08, A-12]
+    known_risks: [R-03, R-04, R-14, R-19]
+    acceptance_tests: [partition and rejoin, conflict retention, metadata-first sync, no hypothesis loss]
+    evaluation_metrics: [false_merge_rate, convergence_time, bandwidth, unresolved_conflict_precision]
+    computational_budget: {cpu_hours: 80, gpu_hours: 8, storage_gib: 100}
+    performance_budget: PERFORMANCE_BUDGET.json#/barrier_5_goals
+    scientific_claims_supported: [RQ2 and RQ4 multi-robot scope after experiment]
+    scientific_claims_not_supported: [unbounded robot scale]
+    lifecycle_state: UNPLANNED
+
+  - <<: *node_defaults
+    id: EXP-020
+    name: Baselines, ablations, and decision experiments
+    purpose: Run normalized comparative evaluation and measure mechanism and decision effects.
+    owning_specialist: experimental_methodologist
+    independent_reviewers: [scientific_reviewer, adversarial_systems_critic]
+    required_inputs: [runnable_vertical_slice, ART-EXPERIMENT-DESIGN, nearest_baseline_requirements]
+    expected_outputs: [trial_jsonl, aggregate_tables, confidence_intervals, negative_results]
+    upstream_dependencies: [VERT-010, EXP-010, RES-020]
+    downstream_consumers: [DISS-010]
+    assumptions: [A-03, A-04, A-06, A-10, A-11, A-17]
+    known_risks: [R-06, R-07, R-08, R-11, R-12, R-20]
+    acceptance_tests: [same input attestation, all preregistered runs accounted for, statistical script review]
+    evaluation_metrics: [all ART-METRICS metrics relevant to RQ1-RQ5]
+    computational_budget: {cpu_hours: 500, gpu_hours: 80, storage_gib: 500}
+    scientific_claims_supported: [H1 through H5 only where results and intervals support them]
+    scientific_claims_not_supported: [unrun domain or perturbation conditions]
+    lifecycle_state: UNPLANNED
+
+  - <<: *node_defaults
+    id: EXP-030
+    name: Fault injection, scaling, and reproducibility
+    purpose: Execute perturbations, performance scaling, replay, and independent package reproduction.
+    owning_specialist: experimental_methodologist
+    independent_reviewers: [performance_engineer, data_provenance_reviewer, functional_reviewer]
+    required_inputs: [ART-EXPERIMENT-DESIGN, ART-REPRODUCIBILITY, replication_package]
+    expected_outputs: [fault_report, scaling_report, reproduction_attestation]
+    upstream_dependencies: [EXP-010, VERT-010, PERF-010]
+    downstream_consumers: [DISS-010]
+    known_risks: [R-07, R-18, R-19]
+    acceptance_tests: [clean-worktree reproduction, all declared fault axes, deterministic or tolerance-qualified replay]
+    evaluation_metrics: [failure_regions, latency, memory, storage, bandwidth, replay_rate]
+    computational_budget: {cpu_hours: 500, gpu_hours: 100, storage_gib: 500}
+    scientific_claims_supported: [H6 and robustness scope after experiment]
+    scientific_claims_not_supported: [untested scales]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: PERF-010
+    name: Performance budget and benchmark
+    purpose: Measure latency, throughput, resources, and empirical growth without weakening semantics.
+    owning_specialist: performance_engineer
+    independent_reviewers: [database_reviewer, adversarial_systems_critic]
+    required_inputs: [ART-REQUIREMENTS, schemas/ultrabuild]
+    expected_outputs: [ART-PERFORMANCE-BUDGET, performance_harness, performance_report]
+    upstream_dependencies: [ARCH-020, EXP-010]
+    downstream_consumers: [EXP-030]
+    known_risks: [R-18, R-19]
+    acceptance_tests: [repeated percentile benchmark, cold and warm cache separation, growth fit]
+    evaluation_metrics: [ART-METRICS computational performance]
+    computational_budget: {cpu_hours: 120, gpu_hours: 20, storage_gib: 100}
+    performance_budget: PERFORMANCE_BUDGET.json
+    scientific_claims_supported: [H6 after measured scaling]
+    scientific_claims_not_supported: [performance outside tested hardware and range]
+    lifecycle_state: SPECIFIED
+
+  - <<: *node_defaults
+    id: INT-010
+    name: Integration, regression, observability, and safety containment
+    purpose: Prevent locally correct components from creating a globally incoherent or unsafe system.
+    owning_specialist: integration_engineer
+    independent_reviewers: [functional_reviewer, robotics_simulation_reviewer, adversarial_systems_critic]
+    required_inputs: [runnable_vertical_slice, single_robot_scenario, multi_robot_scenarios, ART-ARCHITECTURE, ART-REQUIREMENTS]
+    expected_outputs: [integration_report, regression_report, observability_report, safety_report]
+    upstream_dependencies: [ARCH-030, VERT-010, VERT-020, VERT-030]
+    downstream_consumers: [DISS-010]
+    known_risks: [R-01, R-13, R-14, R-18, R-21, R-25]
+    acceptance_tests: [full CI, delayed/conflicting evidence, audit failure, rollback, command isolation]
+    evaluation_metrics: [integration_defects, replay_rate, unsafe_mutation_count, regression_count]
+    computational_budget: {cpu_hours: 200, gpu_hours: 40, storage_gib: 200}
+    scientific_claims_supported: [integrated engineering correctness]
+    scientific_claims_not_supported: [scientific effectiveness without EXP-020]
+    lifecycle_state: UNPLANNED
+
+  - <<: *node_defaults
+    id: REV-010
+    name: Independent review swarm and barrier decisions
+    purpose: Review functional, scientific, data, robotics, database, simulation, performance, and systems evidence.
+    owning_specialist: functional_reviewer
+    independent_reviewers: [scientific_reviewer, data_provenance_reviewer, robotics_simulation_reviewer, database_reviewer, adversarial_systems_critic]
+    required_inputs: [review_packets, ART-QUALITY-RUBRIC]
+    expected_outputs: [ART-FOUNDATION-REVIEW, review_findings, scores, defect_history, barrier_decisions]
+    upstream_dependencies: [ORCH-001]
+    downstream_consumers: [DISS-010]
+    known_risks: [R-06, R-08, R-09, R-11, R-22]
+    acceptance_tests: [reviewer independence check, five architecture and scientific weaknesses, five defense objections]
+    evaluation_metrics: [defect_escape_rate, review_agreement, unresolved_critical_defects]
+    scientific_claims_supported: [review outcome only]
+    scientific_claims_not_supported: [producer self-certification]
+    lifecycle_evidence: [ART-FOUNDATION-REVIEW]
+    lifecycle_state: ACTIVE
+
+  - <<: *node_defaults
+    id: DISS-010
+    name: Dissertation claim-evidence lock
+    purpose: Admit only traceable, reproducible, uncertainty-qualified claims to conclusions.
+    owning_specialist: research_director
+    independent_reviewers: [scientific_reviewer, adversarial_novelty_reviewer, adversarial_systems_critic]
+    required_inputs: [aggregate_tables, confidence_intervals, negative_results, reproduction_attestation, integration_report, barrier_decisions]
+    expected_outputs: [claim_evidence_matrix, final_readiness_assessment, defense_figures_tables]
+    upstream_dependencies: [RES-020, EXP-020, EXP-030, INT-010, REV-010]
+    downstream_consumers: []
+    known_risks: [R-08, R-09, R-10, R-11, R-17, R-20, R-22]
+    acceptance_tests: [every conclusion claim has result uncertainty threat artifact and replication command]
+    evaluation_metrics: [claim_coverage, unsupported_claim_count, independent_replication_rate]
+    scientific_claims_supported: [only claims present in the accepted matrix]
+    scientific_claims_not_supported: [all absent or unsupported claims]
+    lifecycle_state: UNPLANNED
+
+barriers:
+  - id: BARRIER-1
+    name: Research definition
+    status: pending
+    evidence_artifact_ids: []
+    required_nodes: [INV-001, RES-010, RES-020, RES-030, EXP-010, REV-010]
+    acceptance:
+      - problem, RQs, hypotheses, novelty boundary, falsification, baselines, and metrics independently approved
+      - no critical research-scope or method defect open
+  - id: BARRIER-2
+    name: Architecture and contracts
+    status: pending
+    evidence_artifact_ids: []
+    required_nodes: [ARCH-010, ARCH-020, ARCH-030, WS-010, WS-020, WS-030, WS-040, WS-050, PHY-010, REV-010]
+    acceptance:
+      - ontology, bitemporal/provenance models, schemas, graph, frames, units, clocks, and failure semantics approved
+      - invalid payload fixtures fail closed
+  - id: BARRIER-3
+    name: Minimal persistent world-state prototype
+    status: blocked_by_barrier_1_and_2
+    evidence_artifact_ids: []
+    required_nodes: [VERT-010, REV-010]
+    acceptance:
+      - real terrain ingest, observation, physical modification, immutable new version, prior query, lineage, and discrepancy
+      - simulated and observed candidates cannot bypass accepted-state reconciliation
+  - id: BARRIER-4
+    name: Single-robot closed loop
+    status: blocked_by_barrier_3
+    evidence_artifact_ids: []
+    required_nodes: [VERT-020, REV-010]
+    acceptance:
+      - reproducible PLAN-SIMULATE-EXECUTE-OBSERVE-UPDATE-VERIFY-REPLAN loop
+      - every decision records exact world revision and query lens
+      - dependent layers and plans are invalidated after terrain change
+  - id: BARRIER-5
+    name: Multi-robot state reconciliation
+    status: blocked_by_barrier_3
+    evidence_artifact_ids: []
+    required_nodes: [VERT-030, INT-010, REV-010]
+    acceptance:
+      - delayed local maps preserve provenance and competing hypotheses through partition and rejoin
+      - synchronization converges or records explicit unresolved disagreement without conflict loss
+      - metadata-first bandwidth and convergence results are reported
+  - id: BARRIER-6
+    name: Physics as evidence
+    status: blocked_by_barrier_3
+    evidence_artifact_ids: []
+    required_nodes: [PHY-010, WS-040, EXP-020, REV-010]
+    acceptance:
+      - at least one reconciliation decision is influenced by declared physical constraints
+      - no-physics and biased-physics conditions are executed on identical observation inputs
+      - physics-value noninterference and failure regions are independently reviewed
+  - id: BARRIER-7
+    name: Experimental validation
+    status: blocked_by_barriers_4_5_6
+    evidence_artifact_ids: []
+    required_nodes: [EXP-020, EXP-030, PERF-010, INT-010, REV-010]
+    acceptance:
+      - preregistered credible baselines ablations perturbations and statistical models are complete
+      - raw trials negative results uncertainty compute cost and threat analysis are retained
+      - clean-worktree independent reproduction and mandatory performance budgets pass
+  - id: BARRIER-8
+    name: Dissertation evidence lock
+    status: blocked_by_barrier_7
+    evidence_artifact_ids: []
+    required_nodes: [DISS-010, REV-010]
+    acceptance:
+      - every conclusion claim appears in the claim-evidence matrix with uncertainty threats and replication command
+      - supported demonstrated deferred blocked infeasible and unsupported outcomes remain distinct
+      - defense artifacts and final readiness assessment are independently accepted
