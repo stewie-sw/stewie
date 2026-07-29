@@ -600,6 +600,7 @@ def test_authoritative_query_rejects_broken_upstream_lineage(
 @pytest.mark.parametrize(
     ("start", "end"),
     [
+        (2**53 + 1, None),
         (10**100, None),
         (10**400, None),
         (10, 10**400),

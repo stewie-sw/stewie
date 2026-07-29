@@ -110,6 +110,17 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
                     f"{_path_text(path)}: integer must fit the signed 64-bit "
                     "authority-storage profile"
                 )
+            elif (
+                isinstance(value, int)
+                and len(path) >= 2
+                and path[-2]
+                in {"valid_time", "planned_valid_time", "executed_valid_time"}
+                and int(float(value)) != value
+            ):
+                errors.append(
+                    f"{_path_text(path)}: time integer must be exactly representable "
+                    "as IEEE-754 binary64"
+                )
             elif isinstance(value, float) and not math.isfinite(value):
                 errors.append(
                     f"{_path_text(path)}: numeric value must be finite"
