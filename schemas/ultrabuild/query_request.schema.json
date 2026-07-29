@@ -20,6 +20,7 @@
     "frame_id",
     "units",
     "requesting_agent_id",
+    "transaction_time",
     "content_hash"
   ],
   "properties": {
@@ -71,6 +72,7 @@
     "frame_id": {"$ref": "#/$defs/id"},
     "units": {"type": "object", "minProperties": 1},
     "requesting_agent_id": {"$ref": "#/$defs/id"},
+    "transaction_time": {"$ref": "#/$defs/transaction_time"},
     "content_hash": {"$ref": "#/$defs/sha256"}
   },
   "$defs": {
@@ -80,6 +82,15 @@
       "maxLength": 256,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
     },
-    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "transaction_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "recorded_at"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    }
   }
 }

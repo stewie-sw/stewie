@@ -29,6 +29,7 @@
     "projection_transaction_sequence",
     "result_coverage_hash",
     "result_payload_hash",
+    "transaction_time",
     "content_hash"
   ],
   "properties": {
@@ -133,6 +134,7 @@
     "result_payload_hash": {
       "oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
     },
+    "transaction_time": {"$ref": "#/$defs/transaction_time"},
     "content_hash": {"$ref": "#/$defs/sha256"}
   },
   "allOf": [
@@ -199,6 +201,15 @@
       "maxLength": 256,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
     },
-    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "transaction_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "recorded_at"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    }
   }
 }

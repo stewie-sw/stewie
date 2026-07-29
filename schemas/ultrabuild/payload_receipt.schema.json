@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/payload_receipt.schema.json",
+  "title": "STEWIE content-addressed payload durability receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "store_id",
+    "content_hash",
+    "media_type",
+    "byte_size",
+    "relative_path",
+    "durability",
+    "duplicate",
+    "generated_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.payload_receipt/1.0"},
+    "receipt_id": {"$ref": "#/$defs/id"},
+    "store_id": {"$ref": "#/$defs/id"},
+    "content_hash": {"$ref": "#/$defs/sha256"},
+    "media_type": {"type": "string", "minLength": 1},
+    "byte_size": {"type": "integer", "minimum": 0},
+    "relative_path": {
+      "type": "string",
+      "pattern": "^sha256/[a-f0-9]{2}/[a-f0-9]{64}$"
+    },
+    "durability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["committed", "file_fsync", "directory_fsync"],
+      "properties": {
+        "committed": {"const": true},
+        "file_fsync": {"const": true},
+        "directory_fsync": {"const": true}
+      }
+    },
+    "duplicate": {"type": "boolean"},
+    "generated_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

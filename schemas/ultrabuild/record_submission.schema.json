@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/record_submission.schema.json",
+  "title": "STEWIE untrusted immutable-record submission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "submission_id",
+    "idempotency_key",
+    "record_schema",
+    "producer",
+    "record"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.record_submission/1.0"},
+    "submission_id": {"$ref": "#/$defs/id"},
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "record_schema": {
+      "enum": [
+        "action_event.schema.json",
+        "barrier_decision.schema.json",
+        "branch.schema.json",
+        "conflict_record.schema.json",
+        "decision_record.schema.json",
+        "dependency_edge.schema.json",
+        "evidence_claim.schema.json",
+        "hypothesis_set.schema.json",
+        "provenance_bundle.schema.json",
+        "query_lens.schema.json",
+        "query_request.schema.json",
+        "reconciliation_decision.schema.json",
+        "state_candidate.schema.json",
+        "supersession_event.schema.json",
+        "world_revision.schema.json"
+      ]
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_id", "process_id"],
+      "properties": {
+        "agent_id": {"$ref": "#/$defs/id"},
+        "process_id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "source_observed_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "record": {
+      "type": "object",
+      "minProperties": 2,
+      "not": {
+        "anyOf": [
+          {"required": ["transaction_time"]},
+          {"required": ["content_hash"]},
+          {"required": ["recorded_at"]}
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    }
+  }
+}

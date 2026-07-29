@@ -5,7 +5,10 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from scripts.validate_ultrabuild_contracts import canonical_content_hash, canonical_scenario_id
+from stewie.ultrabuild.validation import (
+    canonical_content_hash,
+    canonical_scenario_id,
+)
 
 
 ZERO_HASH = "0" * 64
@@ -124,6 +127,7 @@ def abstain_decision() -> dict[str, Any]:
             },
             "admitted_observation_ids": [],
             "excluded_evidence": [{"claim_id": "claim.stale.1", "reason_code": "stale"}],
+            "dependency_edge_ids": [],
             "physics_evidence_ids": [],
             "decision": "ABSTAIN",
             "reason_codes": ["no_admissible_observation"],

@@ -37,6 +37,7 @@ dependencies = [
 # the default backend is a SQLite file, so the lean server persists edit sessions with NO Postgres. asyncpg
 # (the prod Postgres driver) is added by the `server` extra, since it is only needed for a Postgres URL.
 core = ["fastapi>=0.110,<1", "uvicorn>=0.20,<1", "pyyaml>=6,<7", "sqlalchemy[asyncio]>=2,<3", "aiosqlite>=0.19"]   # lean server: stewie-serve + /healthz + durable edit session, no CV/GIS
+ultrabuild = ["jsonschema>=4.21,<5", "rfc3339-validator>=0.1.4,<1"]  # research world-state authority contracts
 perception = ["opencv-python-headless>=4.8", "imageio>=2.31", "scipy>=1.10"]   # cv2 eval graph + image IO (lazy)
 planning = ["matplotlib", "pyproj"]                    # mission-planner report figures + non-polar DEM reproject (lazy)
 server = ["stewie[core]", "stewie[perception]", "stewie[planning]", "rasterio>=1.3,<2", "asyncpg>=0.29"]   # FULL ASGI server (PRD N7/N8; RB-06). rasterio (#254): COG export in prod (GDAL bundled in the manylinux wheel). asyncpg: the GW-08 Postgres/PostGIS driver (Phase 0 persistence). == core+perception+planning+rasterio+asyncpg
@@ -71,12 +72,16 @@ stewie-serve = "stewie.server.server:main"
 stewie-fetch-dem = "stewie.server.fetch_assets:main"
 # the ROS2 autonomy-seam bridge (#144 / Phase A): /cmd_vel <-> /stewie/odom through the SF-01 watchdog; ROS2 host only
 stewie-ros2-bridge = "stewie.bridge.ros2_bridge:main"
+stewie-ultrabuild = "stewie.ultrabuild.cli:main"
 
 [tool.setuptools]
 packages = ["stewie", "stewie.physics", "stewie.terrain", "stewie.twin", "stewie.specs",
             "stewie.envs", "stewie.server", "stewie.server.routers", "stewie.eval", "stewie.bridge",
-            "stewie.sensors", "stewie.contracts", "stewie.runtime",
+            "stewie.sensors", "stewie.contracts", "stewie.runtime", "stewie.ultrabuild",
             "dart", "dart.geometry", "dart.viz", "lode", "leap", "forge"]
+
+[tool.setuptools.data-files]
+"share/stewie/schemas/ultrabuild" = ["schemas/ultrabuild/*.json"]
 
 [tool.setuptools.package-data]
 # ship the planner's web UI + per-body config + the real-DEM ingest fixtures + intern sample missions

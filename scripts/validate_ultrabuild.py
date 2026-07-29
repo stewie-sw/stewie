@@ -11,7 +11,7 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
 from scripts.ultrabuild_contract_fixtures import fixtures, record_set_fixtures
-from scripts.validate_ultrabuild_contracts import validate_record, validate_record_set
+from stewie.ultrabuild.validation import validate_record, validate_record_set
 from scripts.validate_ultrabuild_requirements import validate_requirements
 
 ROOT = Path(__file__).resolve().parents[1]

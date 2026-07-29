@@ -9,6 +9,7 @@
     "bundle_id",
     "world_id",
     "site_id",
+    "subject",
     "agents",
     "activities",
     "entities",
@@ -23,6 +24,55 @@
     "bundle_id": {"$ref": "#/$defs/id"},
     "world_id": {"$ref": "#/$defs/id"},
     "site_id": {"$ref": "#/$defs/id"},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_id",
+        "record_schema",
+        "record_entity_id",
+        "submitted_record_hash",
+        "generating_activity_id",
+        "responsible_agent_id"
+      ],
+      "properties": {
+        "record_id": {"$ref": "#/$defs/id"},
+        "record_schema": {
+          "type": "string",
+          "pattern": "^[a-z_]+\\.schema\\.json$"
+        },
+        "record_entity_id": {"$ref": "#/$defs/id"},
+        "submitted_record_hash": {"$ref": "#/$defs/sha256"},
+        "payload_entity_id": {"$ref": "#/$defs/id"},
+        "payload_hash": {"$ref": "#/$defs/sha256"},
+        "coverage_entity_id": {"$ref": "#/$defs/id"},
+        "coverage_hash": {"$ref": "#/$defs/sha256"},
+        "generating_activity_id": {"$ref": "#/$defs/id"},
+        "responsible_agent_id": {"$ref": "#/$defs/id"},
+        "transform_ids": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/id"},
+          "uniqueItems": true
+        },
+        "calibration_ids": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/id"},
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {"required": ["payload_entity_id"]},
+          "then": {"required": ["payload_hash"]},
+          "else": {"not": {"required": ["payload_hash"]}}
+        },
+        {
+          "if": {"required": ["coverage_entity_id"]},
+          "then": {"required": ["coverage_hash"]},
+          "else": {"not": {"required": ["coverage_hash"]}}
+        }
+      ]
+    },
     "agents": {
       "type": "array",
       "minItems": 1,
@@ -110,7 +160,7 @@
         },
         "agent_id": {"$ref": "#/$defs/id"},
         "algorithm_version": {"$ref": "#/$defs/id"},
-        "code_commit": {"pattern": "^[a-f0-9]{40}$"},
+        "code_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
         "configuration_hash": {"$ref": "#/$defs/sha256"},
         "seed": {"type": ["integer", "null"], "minimum": 0},
         "started_at": {"type": "string", "format": "date-time"},

@@ -15,9 +15,13 @@
     "authority_scope",
     "spatial",
     "valid_time",
+    "uncertainty",
+    "state_contract_hash",
     "transaction_time",
     "payload_hash",
     "coverage_hash",
+    "payload_media_type",
+    "payload_byte_size",
     "claim_ids",
     "event_ids",
     "provenance_bundle_id",
@@ -67,7 +71,19 @@
     "spatial": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["region_id", "representation", "resolution", "crs", "frame_id", "units", "extent_hash"],
+      "required": [
+        "region_id",
+        "representation",
+        "resolution",
+        "crs",
+        "frame_id",
+        "transform_chain_id",
+        "axis_order",
+        "bounds",
+        "shape",
+        "units",
+        "extent_hash"
+      ],
       "properties": {
         "region_id": {"$ref": "#/$defs/id"},
         "representation": {
@@ -80,10 +96,29 @@
         },
         "crs": {"type": "string", "minLength": 1},
         "frame_id": {"$ref": "#/$defs/id"},
+        "transform_chain_id": {"$ref": "#/$defs/id"},
+        "axis_order": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "bounds": {
+          "type": "array",
+          "minItems": 4,
+          "items": {"type": "number"}
+        },
+        "shape": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "minimum": 1}
+        },
         "units": {"type": "object", "minProperties": 1},
         "extent_hash": {"$ref": "#/$defs/sha256"}
       }
     },
+    "uncertainty": {"$ref": "#/$defs/uncertainty"},
+    "state_contract_hash": {"$ref": "#/$defs/sha256"},
     "valid_time": {
       "type": "object",
       "additionalProperties": false,
@@ -106,6 +141,8 @@
     },
     "payload_hash": {"$ref": "#/$defs/sha256"},
     "coverage_hash": {"$ref": "#/$defs/sha256"},
+    "payload_media_type": {"type": "string", "minLength": 1},
+    "payload_byte_size": {"type": "integer", "minimum": 0},
     "claim_ids": {
       "type": "array",
       "items": {"$ref": "#/$defs/id"},
@@ -118,7 +155,11 @@
     },
     "provenance_bundle_id": {"$ref": "#/$defs/id"},
     "reconciliation_decision_id": {"$ref": "#/$defs/id"},
-    "prior_head_revision_id": {"$ref": "#/$defs/id"},
+    "candidate_id": {"$ref": "#/$defs/id"},
+    "candidate_record_hash": {"$ref": "#/$defs/sha256"},
+    "prior_head_revision_id": {
+      "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
+    },
     "branch_revision_sequence": {"type": "integer", "minimum": 0},
     "supersedes_revision_ids": {
       "type": "array",
@@ -147,6 +188,8 @@
       "then": {
         "required": [
           "reconciliation_decision_id",
+          "candidate_id",
+          "candidate_record_hash",
           "prior_head_revision_id",
           "branch_revision_sequence"
         ],
@@ -212,6 +255,64 @@
     "sha256": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "components",
+        "aggregate_variance_hash",
+        "mask_hash",
+        "calibration_status"
+      ],
+      "properties": {
+        "model": {"type": "string", "minLength": 1},
+        "components": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "status", "unit"],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "sensor",
+                  "localization",
+                  "geometric",
+                  "material",
+                  "temporal",
+                  "change_attribution",
+                  "model",
+                  "inter_robot"
+                ]
+              },
+              "status": {"enum": ["known", "unknown", "not_applicable"]},
+              "unit": {"type": "string", "minLength": 1},
+              "value": {"type": "number", "minimum": 0},
+              "calibration_id": {"$ref": "#/$defs/id"},
+              "reason_code": {"$ref": "#/$defs/id"}
+            },
+            "allOf": [
+              {
+                "if": {"properties": {"status": {"const": "known"}}, "required": ["status"]},
+                "then": {"required": ["value", "calibration_id"]},
+                "else": {
+                  "required": ["reason_code"],
+                  "not": {"required": ["value"]}
+                }
+              }
+            ]
+          }
+        },
+        "aggregate_variance_hash": {"$ref": "#/$defs/sha256"},
+        "mask_hash": {"$ref": "#/$defs/sha256"},
+        "calibration_status": {
+          "enum": ["calibrated", "assumed", "unknown", "out_of_domain"]
+        }
+      }
     }
   }
 }

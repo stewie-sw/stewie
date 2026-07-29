@@ -14,6 +14,7 @@
     "policy",
     "admitted_observation_ids",
     "excluded_evidence",
+    "dependency_edge_ids",
     "decision",
     "reason_codes",
     "metrics",
@@ -30,7 +31,9 @@
     "world_id": {"$ref": "#/$defs/id"},
     "site_id": {"$ref": "#/$defs/id"},
     "branch_id": {"$ref": "#/$defs/id"},
-    "prior_revision_id": {"$ref": "#/$defs/id"},
+    "prior_revision_id": {
+      "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
+    },
     "policy": {
       "type": "object",
       "additionalProperties": false,
@@ -64,6 +67,12 @@
       "uniqueItems": true,
       "default": []
     },
+    "dependency_edge_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true,
+      "default": []
+    },
     "decision": {
       "enum": ["PROMOTE", "REJECT", "ABSTAIN", "RETAIN_HYPOTHESES"]
     },
@@ -75,12 +84,26 @@
     "candidate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["candidate_id", "content_hash", "coverage_hash", "construction"],
+      "required": [
+        "candidate_id",
+        "candidate_record_hash",
+        "payload_hash",
+        "coverage_hash",
+        "state_contract_hash",
+        "construction"
+      ],
       "properties": {
         "candidate_id": {"$ref": "#/$defs/id"},
-        "content_hash": {"$ref": "#/$defs/sha256"},
+        "candidate_record_hash": {"$ref": "#/$defs/sha256"},
+        "payload_hash": {"$ref": "#/$defs/sha256"},
         "coverage_hash": {"$ref": "#/$defs/sha256"},
-        "construction": {"const": "plain_mean_of_admissible_observations"}
+        "state_contract_hash": {"$ref": "#/$defs/sha256"},
+        "construction": {
+          "enum": [
+            "plain_mean_of_admissible_observations",
+            "dependency_aware_inverse_variance_mean"
+          ]
+        }
       }
     },
     "resulting_revision_id": {"$ref": "#/$defs/id"},
@@ -145,6 +168,11 @@
         "required": ["candidate", "resulting_revision_id"],
         "properties": {
           "admitted_observation_ids": {"minItems": 1},
+          "review": {
+            "properties": {
+              "status": {"enum": ["not_required", "approved"]}
+            }
+          },
           "metrics": {
             "properties": {"observed_cells": {"minimum": 1}}
           }

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.local/schemas/ultrabuild/cas_receipt.schema.json",
+  "title": "STEWIE accepted-head compare-and-swap receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "store_id",
+    "operation_id",
+    "world_id",
+    "site_id",
+    "branch_id",
+    "policy_id",
+    "expected_revision_id",
+    "observed_revision_id",
+    "proposed_revision_id",
+    "decision_id",
+    "applied",
+    "reason_code",
+    "transaction_time",
+    "append_receipt_ids"
+  ],
+  "properties": {
+    "schema_version": {"const": "stewie.cas_receipt/1.0"},
+    "receipt_id": {"$ref": "#/$defs/id"},
+    "store_id": {"$ref": "#/$defs/id"},
+    "operation_id": {"$ref": "#/$defs/id"},
+    "world_id": {"$ref": "#/$defs/id"},
+    "site_id": {"$ref": "#/$defs/id"},
+    "branch_id": {"$ref": "#/$defs/id"},
+    "policy_id": {"$ref": "#/$defs/id"},
+    "expected_revision_id": {
+      "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
+    },
+    "observed_revision_id": {
+      "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
+    },
+    "proposed_revision_id": {"$ref": "#/$defs/id"},
+    "decision_id": {"$ref": "#/$defs/id"},
+    "applied": {"type": "boolean"},
+    "reason_code": {
+      "enum": ["applied", "stale_head", "policy_mismatch", "invalid_promotion", "idempotent_replay"]
+    },
+    "transaction_time": {"$ref": "#/$defs/transaction_time"},
+    "append_receipt_ids": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"applied": {"const": true}}},
+      "then": {
+        "properties": {"reason_code": {"enum": ["applied", "idempotent_replay"]}},
+        "minProperties": 15
+      },
+      "else": {
+        "properties": {
+          "reason_code": {
+            "enum": ["stale_head", "policy_mismatch", "invalid_promotion"]
+          },
+          "append_receipt_ids": {"maxItems": 0}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "transaction_time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "recorded_at"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}
