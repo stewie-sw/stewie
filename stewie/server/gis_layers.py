@@ -254,6 +254,94 @@ _GLOBE_CACHE: dict = {}
 _GLOBE_CACHE_MAX = 256                   # F7: FIFO cap (like dem._WORKAREA_CACHE) so key churn can't grow it unbounded
 _GLOBE_CACHE_LOCK = threading.Lock()     # F7: guard insert+evict (sync routes run in a threadpool)
 
+# ---- SR-06: the DISK cache needs a ceiling too -------------------------------------------------
+#: Cache-version token carried by every globe_cache stem. Bump it when the render math changes; the
+#: pruner then drops anything NOT carrying the current token, so a bump reclaims its own predecessors
+#: instead of stranding them forever. (The 2026-07-28 review found 202 of 286 live files were orphaned
+#: pre-`_r2` entries -- 70% of a 672 MB directory that nothing would ever read again.)
+_GLOBE_CACHE_VERSION = "r2"
+_GLOBE_DISK_LOCK = threading.Lock()      # SR-06: guard the directory scan+unlink
+
+
+def _globe_disk_max_bytes() -> int:
+    """The on-disk globe-cache ceiling, tunable via STEWIE_GLOBE_CACHE_MAX_MB (default 256 MB)."""
+    import os as _os
+    try:
+        mb = float(_os.environ.get("STEWIE_GLOBE_CACHE_MAX_MB", "256"))
+    except ValueError:
+        mb = 256.0
+    return int(max(mb, 1.0) * 1024 * 1024)
+
+
+def prune_globe_cache(cdir: str, max_bytes: int | None = None) -> dict:
+    """SR-06: bound the on-disk globe cache.
+
+    `/layers/globe/{kind}.png` is deliberately PUBLIC (GIS-03: a base map you cannot see is worse than
+    the DoS the per-IP quota already covers), and its cache stem is built from the caller-supplied
+    `site` plus the quantized sun -- and the ad-hoc `adhoc_<lat>_<lon>` site space is unbounded. The
+    in-memory FIFO cap (`_GLOBE_CACHE_MAX`) bounded only the dict; the DIRECTORY had no evictor at all,
+    so it grew without limit. Measured on the live host: 672 MB across 286 files, on the same volume as
+    operators.json, events.jsonl (the audit ledger), missions and the twin journals -- so exhausting it
+    takes out world state and the authority record, not merely the map.
+
+    Two passes, cheapest first:
+      1. drop every entry not carrying the CURRENT cache-version token;
+      2. evict whole (.npy + .json) pairs oldest-first until the directory fits `max_bytes`.
+
+    `.part` files are skipped -- they belong to an in-flight atomic write (RC-03). Returns a summary so
+    a caller/test can assert BYTES ON DISK rather than dict length. Never raises into a render path.
+    """
+    import os as _os
+    if max_bytes is None:
+        max_bytes = _globe_disk_max_bytes()
+    removed_stale = removed_lru = 0
+    with _GLOBE_DISK_LOCK:
+        try:
+            names = _os.listdir(cdir)
+        except OSError:
+            return {"bytes": 0, "removed_stale": 0, "removed_lru": 0}
+        stems: dict[str, list[str]] = {}
+        for n in names:
+            if n.endswith(".part"):
+                continue                                  # an atomic write in flight -- not ours to reap
+            if n.endswith(".npy") or n.endswith(".json"):
+                stems.setdefault(n.rsplit(".", 1)[0], []).append(n)
+
+        def _drop(stem: str) -> int:
+            k = 0
+            for n in stems.get(stem, ()):
+                try:
+                    _os.remove(_os.path.join(cdir, n)); k += 1
+                except OSError:
+                    pass
+            stems.pop(stem, None)
+            return k
+
+        for stem in list(stems):                          # pass 1: stale cache version
+            if f"_{_GLOBE_CACHE_VERSION}" not in stem:
+                removed_stale += _drop(stem)
+
+        def _info(stem: str) -> tuple[int, float]:
+            size, mt = 0, 0.0
+            for n in stems[stem]:
+                try:
+                    st = _os.stat(_os.path.join(cdir, n))
+                    size += st.st_size
+                    mt = max(mt, st.st_mtime)
+                except OSError:
+                    pass
+            return size, mt
+
+        entries = [(stem, *_info(stem)) for stem in stems]
+        total = sum(e[1] for e in entries)
+        if total > max_bytes:                             # pass 2: LRU down to the ceiling
+            for stem, size, _mt in sorted(entries, key=lambda e: e[2]):
+                if total <= max_bytes:
+                    break
+                removed_lru += _drop(stem)
+                total -= size
+        return {"bytes": total, "removed_stale": removed_stale, "removed_lru": removed_lru}
+
 # F7: the drape kinds whose RASTER actually depends on the sun position (a real-sun horizon march). Only
 # these key on (sun_el, sun_az); every other kind is sun-INDEPENDENT (dem is a fixed 315/45 lambertian
 # hillshade; slope/hazard/aspect/curvature/roughness + the terramechanics-spine physics fields are pure
@@ -1432,7 +1520,7 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
     # F7: the sun tokens are part of the disk stem ONLY for sun-dependent kinds (parity with the in-memory key),
     # so a sun-independent drape (dem/slope/hazard/...) commits ONE file per (kind,site) instead of one per sun.
     sun_tag = f"_{_sel}_{_saz}" if sun_dep else ""
-    stem = _oss.path.join(cdir, f"{kind}_{site}{sun_tag}_r2"
+    stem = _oss.path.join(cdir, f"{kind}_{site}{sun_tag}_{_GLOBE_CACHE_VERSION}"
                           + (f"_{grid_color}" if kind == "grid" else "") + sym_tag)
     if _oss.path.exists(stem + ".npy") and _oss.path.exists(stem + ".json"):
         out = (_np_load_rgba(stem + ".npy"), _json.load(open(stem + ".json")))
@@ -1524,6 +1612,13 @@ def render_globe(kind: str, *, sun_el: float = 6.0, sun_az: float = 90.0, mp=Non
             _json.dump(out[1], _jf); _jf.flush(); _os3.fsync(_jf.fileno())
         _os3.replace(npt, stem + ".npy")                 # the data
         _os3.replace(jt, stem + ".json")                 # the commit marker, last
+    except OSError:
+        pass
+    # SR-06: bound the directory right after the commit. Cheap (one listdir + stat per entry) and it runs
+    # on the write path, which is the only path that grows the cache -- so an unauthenticated key-churn
+    # cannot drive the volume to ENOSPC and take world state + the audit ledger down with it.
+    try:
+        prune_globe_cache(cdir)
     except OSError:
         pass
     return out
