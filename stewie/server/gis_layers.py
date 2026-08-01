@@ -347,7 +347,15 @@ def prune_globe_cache(cdir: str, max_bytes: int | None = None) -> dict:
 # hillshade; slope/hazard/aspect/curvature/roughness + the terramechanics-spine physics fields are pure
 # functions of the DEM), so keying them on the sun would re-render + permanently re-cache identical drapes
 # every time the sun/time slider moves.
-_SUN_DEPENDENT_GLOBE_KINDS = ("illumination", "incidence", "psr", "cost", "blocking")
+# SR-07 (2026-07-28 review): "psr" was in this list but its renderer takes sun_az/sun_el and uses
+# NEITHER -- it runs its own fixed `for az in range(0, 360, 30)` horizon sweep, so its pixels are a pure
+# function of (dem, cell). Keying it on the sun re-ran that 9.4 s sweep and committed another 4.19 MB
+# file for every degree of slider travel, all byte-identical (production held one md5 across three sun
+# keys). The reachable key space was 360x181 = 65,160 per site (~273 GB, ~181 CPU-hours) via the
+# deliberately public globe route, which made this the largest single contributor to SR-06's live
+# 672 MB. `routers/dem.py` already excluded psr for exactly this reason (#239); the two lists had
+# simply drifted apart.
+_SUN_DEPENDENT_GLOBE_KINDS = ("illumination", "incidence", "cost", "blocking")
 
 
 def _globe_cache_put(key, out):
