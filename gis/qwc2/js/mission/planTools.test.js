@@ -48,14 +48,59 @@ test("traversePath is the ordered polyline of ONLY the goto waypoints (authorshi
     assert.deepStrictEqual(PT.traversePath([]), []);
 });
 
-test("centroidLonLat = the mean selenographic lon/lat anchor (the return-to-lander base)", () => {
+test("centroidLonLat = the SPHERICAL centroid anchor (the return-to-lander base)", () => {
     const orders = [
         { kind: "cut", lonlat: LL0 }, { kind: "fill", lonlat: LL1 }, PT.traverseOrder(C2, LL2)
     ];
     const c = PT.centroidLonLat(orders);
-    assert.ok(Math.abs(c[0] - (LL0[0] + LL1[0] + LL2[0]) / 3) < 1e-9);
-    assert.ok(Math.abs(c[1] - (LL0[1] + LL1[1] + LL2[1]) / 3) < 1e-9);
+    // For a tight, non-wrapping cluster the spherical mean and the degree mean agree to well under a
+    // metre, so this still pins the ordinary case; the antimeridian test below is where they diverge.
+    assert.ok(Math.abs(c[0] - (LL0[0] + LL1[0] + LL2[0]) / 3) < 1e-4, `lon ${c[0]}`);
+    assert.ok(Math.abs(c[1] - (LL0[1] + LL1[1] + LL2[1]) / 3) < 1e-6, `lat ${c[1]}`);
+    // A centroid must lie inside the inputs' own longitude span -- the property the degree mean broke.
+    const lons = [LL0[0], LL1[0], LL2[0]];
+    assert.ok(c[0] >= Math.min(...lons) && c[0] <= Math.max(...lons), `lon ${c[0]} outside the span`);
     assert.strictEqual(PT.centroidLonLat([]), null);     // no orders -> no lander anchor
+});
+
+// SR-13: shackleton_rim (Artemis III Site04) straddles +/-180. The arithmetic mean of degrees put the
+// lander anchor on the OPPOSITE meridian -- ~10 km away, outside the tile -- and /api/plan then refused
+// the whole plan with a Haworth-named 400. These are the real polar longitudes from that failure.
+// Great-circle distance on the lunar sphere -- the anchor requirement is METRIC ("the work-area
+// centre"), so assert metres, not a coordinate literal. R = 1737.4 km (IAU mean lunar radius).
+function gcMetres(a, b) {
+    const D2R = Math.PI / 180;
+    const dLon = (b[0] - a[0]) * D2R, dLat = (b[1] - a[1]) * D2R;
+    const h = Math.sin(dLat / 2) ** 2
+        + Math.cos(a[1] * D2R) * Math.cos(b[1] * D2R) * Math.sin(dLon / 2) ** 2;
+    return 2 * 1737400 * Math.asin(Math.sqrt(h));
+}
+
+test("centroidLonLat does not jump the antimeridian (SR-13)", () => {
+    const west = [-178.85, -89.20], east = [178.85, -89.20];   // ~974 m apart, straddling +/-180
+    const c = PT.centroidLonLat([{ kind: "cut", lonlat: west }, { kind: "cut", lonlat: east }]);
+    const sep = gcMetres(west, east);
+    const dW = gcMetres(c, west), dE = gcMetres(c, east);
+    // The anchor must sit BETWEEN the orders, equidistant -- not on the far side of the pole.
+    assert.ok(Math.abs(dW - dE) < 1.0, `anchor not equidistant: ${dW} vs ${dE}`);
+    assert.ok(dW < sep, `anchor ${dW} m from an order that is only ${sep} m from its partner`);
+    // The degree mean put it at lon 0 -- tens of km away, outside the tile, which /api/plan refused.
+    assert.ok(gcMetres([0, -89.20], west) > 40000,
+        "the degree-mean anchor is no longer far away -- this regression guard has gone vacuous");
+    assert.ok(dW < 1000, `anchor drifted ${dW} m from the work area`);
+});
+
+test("centroidLonLat of a single order is that order (SR-13)", () => {
+    const c = PT.centroidLonLat([{ kind: "cut", lonlat: LL0 }]);
+    assert.ok(Math.abs(c[0] - LL0[0]) < 1e-9 && Math.abs(c[1] - LL0[1]) < 1e-9, `${c} != ${LL0}`);
+});
+
+test("centroidLonLat stays near the pole rather than drifting off it (SR-13)", () => {
+    // Four orders ringing the pole at every quadrant: the degree mean of longitudes is meaningless here,
+    // but the spherical centroid must stay at high southern latitude.
+    const ring = [-135, -45, 45, 135].map((lon) => ({ kind: "cut", lonlat: [lon, -89.9] }));
+    const c = PT.centroidLonLat(ring);
+    assert.ok(c[1] < -89.0, `centroid drifted off the pole to lat ${c[1]}`);
 });
 
 test("orderFrameEntry: a goto serializes to the anchor-relative order frame (y-flipped, raster-down)", () => {

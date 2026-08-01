@@ -1367,9 +1367,12 @@ export default class PlanAuthor {
     // anchor-relative x/y offset in metres (30135 East / y-flipped North -> the raster-down order frame the backend
     // planner expects). Throws if the anchor reprojection fails (each caller sets its own hint).
     _anchorAndOrders() {
-        const meanLon = this.orders.reduce((s, o) => s + o.lonlat[0], 0) / this.orders.length;
-        const meanLat = this.orders.reduce((s, o) => s + o.lonlat[1], 0) / this.orders.length;
-        const wc = this.reproject([meanLon, meanLat], GEO_CRS, MAP_CRS);
+        // SR-13: use the ONE centroid implementation (PlanTools.centroidLonLat, a spherical unit-vector
+        // mean). This used to duplicate the arithmetic-mean-of-degrees inline, so the return-to-lander
+        // anchor and the /api/plan anchor were two separate copies of the same polar/antimeridian bug.
+        const ll = PlanTools.centroidLonLat(this.orders);
+        if (!ll) { throw new Error('no orders to anchor the plan to'); }
+        const wc = this.reproject(ll, GEO_CRS, MAP_CRS);
         // cut / fill / goto all serialize through the ONE shared order-frame entry (planTools.orderFrameEntry),
         // so a traverse waypoint rides the exact same anchor affine + /api/plan path as a cut order.
         const orders = this.orders.map((o, i) => PlanTools.orderFrameEntry(o, i, wc));

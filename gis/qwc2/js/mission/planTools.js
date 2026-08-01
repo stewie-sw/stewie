@@ -91,9 +91,27 @@
             if (orders[i] && orders[i].lonlat) { os.push(orders[i].lonlat); }
         }
         if (!os.length) { return null; }
-        var sLon = 0, sLat = 0;
-        for (var j = 0; j < os.length; j++) { sLon += os[j][0]; sLat += os[j][1]; }
-        return [sLon / os.length, sLat / os.length];
+        // SR-13 (2026-07-28 review): this was an ARITHMETIC MEAN OF DEGREES, which is not a centroid on a
+        // sphere and fails hardest exactly where STEWIE plans -- the lunar south pole, where longitudes
+        // fan across the whole range and shackleton_rim (Artemis III Site04) straddles +/-180. Two orders
+        // 200 m apart at lon -178.85 and +178.85 averaged to lon 0: an anchor on the OPPOSITE meridian,
+        // ~10 km away and outside the tile, which /api/plan then refused with a Haworth-named 400. A sweep
+        // also found in-tile pairs whose anchor landed 427 m off the true centroid.
+        //
+        // Use the unit-vector (spherical) mean: convert to 3D direction cosines, average, convert back.
+        // Correct across the antimeridian AND at the pole, where degree-averaging has no meaning.
+        var D2R = Math.PI / 180, R2D = 180 / Math.PI;
+        var x = 0, y = 0, z = 0;
+        for (var j = 0; j < os.length; j++) {
+            var lon = os[j][0] * D2R, lat = os[j][1] * D2R, cl = Math.cos(lat);
+            x += cl * Math.cos(lon); y += cl * Math.sin(lon); z += Math.sin(lat);
+        }
+        x /= os.length; y /= os.length; z /= os.length;
+        var h = Math.sqrt(x * x + y * y);
+        // Degenerate only if the directions cancel entirely (an antipodal spread has no centroid); a real
+        // work area never does. Fall back to the first order rather than inventing a point.
+        if (h < 1e-12 && Math.abs(z) < 1e-12) { return [os[0][0], os[0][1]]; }
+        return [Math.atan2(y, x) * R2D, Math.atan2(z, h) * R2D];
     }
 
     // The per-order ORDER-FRAME entry POSTed to /api/plan: anchor-relative x/y in metres, y-flipped to the
