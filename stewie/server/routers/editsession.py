@@ -56,8 +56,15 @@ def _not_found(sid: str) -> JSONResponse:
 
 @router.post("/edit/session")
 def create_session():
-    """Mint a fresh mission-feature edit session; returns its opaque id + the (empty) initial state."""
-    sess = ES.new_session()
+    """Mint a fresh mission-feature edit session; returns its opaque id + the (empty) initial state.
+
+    SR-09: 503 when every existing session holds authored work -- the store refuses to delete an
+    operator's keep-out geometry (and its GW-08 audit) to make room for another session."""
+    from stewie.server.db import EditSessionCapacityError
+    try:
+        sess = ES.new_session()
+    except EditSessionCapacityError as e:
+        return JSONResponse(status_code=503, content={"ok": False, "error": str(e)})
     log_event("ide", "edit.session.create", sess.id)
     return {"ok": True, **sess.state()}
 

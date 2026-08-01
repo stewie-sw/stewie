@@ -91,8 +91,15 @@ def _merge_session_keepouts(payload: dict) -> None:
         return
     from stewie.server.edit_session import get_session
     sess = get_session(str(sid))
-    if sess is None or not sess.current_features():
-        return
+    if sess is None:
+        # SR-09: this used to be a silent no-op ("a stale id never breaks planning"). But the caller
+        # SUPPLIED a session id, so the plan is being authored against keep-outs the operator drew --
+        # and dropping them silently returned 200 for a route straight through the barrier. An unknown
+        # id now refuses (400); the client clears the stale id and re-plans deliberately.
+        raise ValueError(f"edit_session {str(sid)!r} is unknown or expired -- its keep-outs cannot be "
+                         "applied; clear the session id to plan without them")
+    if not sess.current_features():
+        return                                  # a KNOWN session with nothing drawn: nothing to merge
     anchor = payload.get("anchor_xy")
     if anchor is None or len(anchor) != 2:
         raise ValueError("edit_session requires anchor_xy [x, y] to project its keep-outs into the order frame")

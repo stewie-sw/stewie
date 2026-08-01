@@ -341,6 +341,15 @@ def _audit_from_row(row: EditAuditRow) -> dict:
 
 
 # ---- async operations -----------------------------------------------------------------------------
+class EditSessionCapacityError(RuntimeError):
+    """SR-09: the edit-session store is full and every session holds AUTHORED work.
+
+    Raised instead of destroying an operator's keep-out geometry (and its GW-08 audit) to make room for
+    another session. The caller surfaces this as a 503 -- refusing a new session is recoverable, silently
+    deleting authored no-go geometry is not.
+    """
+
+
 async def _create_session_row(sid: str, created_at: float, max_sessions: int) -> Optional[str]:
     """Insert a fresh (empty, version-0) session row, enforcing the global bound the in-memory store had:
     if the store is at ``max_sessions``, delete the OLDEST session (its audit + row) first. Returns the
@@ -351,13 +360,28 @@ async def _create_session_row(sid: str, created_at: float, max_sessions: int) ->
         async with s.begin():
             count = (await s.execute(select(func.count()).select_from(EditSessionRow))).scalar_one()
             if count >= max_sessions:
-                oldest = (await s.execute(
-                    select(EditSessionRow.opaque_id).order_by(EditSessionRow.created_at.asc()).limit(1)
-                )).scalar_one_or_none()
-                if oldest is not None:
-                    await s.execute(delete(EditAuditRow).where(EditAuditRow.session_id == oldest))
-                    await s.execute(delete(EditSessionRow).where(EditSessionRow.opaque_id == oldest))
-                    evicted = oldest
+                # SR-09 (2026-07-28 review): this evicted by CREATION time, so the longest-lived session
+                # went FIRST -- exactly the active operator's. It deleted the EditAuditRow too, destroying
+                # the GW-08 versioned before/after history that doctrine says undo must never delete. And
+                # /edit/session is keyless by design, so an anonymous script sending MAX_SESSIONS requests
+                # could delete an operator's authored keep-outs; the next Plan then returned 200 routing
+                # straight through the barrier (see the companion fix in routers/plan.py).
+                #
+                # Evict only a session holding NO authored work (no features, no markers), oldest such
+                # first -- so a flood of empty sessions evicts ITSELF. If every session holds authored
+                # work, refuse: a rejected new session is recoverable, deleted no-go geometry is not.
+                rows = (await s.execute(
+                    select(EditSessionRow.opaque_id, EditSessionRow.features, EditSessionRow.markers)
+                    .order_by(EditSessionRow.created_at.asc())
+                )).all()
+                victim = next((oid for oid, feats, marks in rows if not feats and not marks), None)
+                if victim is None:
+                    raise EditSessionCapacityError(
+                        f"edit-session store is full ({count}/{max_sessions}) and every session holds "
+                        "authored features; refusing to delete an operator's geometry to make room")
+                await s.execute(delete(EditAuditRow).where(EditAuditRow.session_id == victim))
+                await s.execute(delete(EditSessionRow).where(EditSessionRow.opaque_id == victim))
+                evicted = victim
             s.add(EditSessionRow(opaque_id=sid, plan_id=None, version=0, created_at=created_at,
                                  fid_seq=0, marker_seq=0, features={}, markers={}))
     return evicted

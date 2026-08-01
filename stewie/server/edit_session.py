@@ -343,9 +343,14 @@ def new_session() -> EditSession:
     with _CACHE_LOCK:
         if evicted:
             _CACHE.pop(evicted, None)
-        if len(_CACHE) >= MAX_SESSIONS:                     # bound the in-memory cache too (oldest-first)
-            oldest = min(_CACHE.values(), key=lambda s: s.created_at)
-            _CACHE.pop(oldest.id, None)
+        if len(_CACHE) >= MAX_SESSIONS:
+            # SR-09: the in-memory cache had the SAME oldest-first rule as the durable store, so it could
+            # drop an active operator's session even when the store kept it. Only an EMPTY cached session
+            # is evictable; if none is, leave the cache slightly over its bound rather than lose authored
+            # work (the durable store has already refused in that case, so this cannot grow unbounded).
+            spare = [s for s in _CACHE.values() if not s.current_features() and not s.current_markers()]
+            if spare:
+                _CACHE.pop(min(spare, key=lambda s: s.created_at).id, None)
         _CACHE[sid] = sess
     return sess
 
