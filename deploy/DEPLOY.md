@@ -24,8 +24,24 @@ docker tag stewie-backend:latest  stewie-backend:rollback        # undo target
 docker tag stewie-frontend:latest stewie-frontend:rollback
 docker compose -f deploy/compose.yml build backend frontend
 docker compose -f deploy/compose.yml up -d backend frontend
+
+# BEFORE rolling back, verify the target does not re-open a governance fix (SR-12):
+python scripts/check_rollback_safety.py stewie-backend:rollback   # non-zero = DO NOT roll back
 # rollback: re-tag rollback->latest + up -d
 ```
+
+**SR-12 (2026-07-28 review) — the rollback tag was 7 days stale and would have re-opened AR-005.**
+Measured on the host: `stewie-backend:latest` 2026-07-26 12:57, `stewie-backend:rollback`
+**2026-07-10 07:51**, and `stewie-backend:rollback-2026-07-26` pointing at a **2026-07-11** image — a
+tag whose name is 15 days off from what it actually holds. Commit `0946e1e8` (AR-005, "anonymous
+`/ide` users are no longer director") landed 2026-07-17, so executing the documented recovery would
+have restored a public backend where every anonymous browser resolves to **director**.
+
+The cause is visible right above: the re-tag is a manual line in a block, and the tag dates prove it
+was skipped on recent deploys. Until it is scripted into the build, run the check — it reads
+`deploy/governance_floor.json` (the reviewable record of commits that must not be rolled past) and
+refuses both a too-old image and a tag whose name contradicts its build date. `--force` overrides and
+prints what is being re-opened; record why in the deploy log.
 
 ## ⚠ Required env: `STEWIE_TLS_TERMINATED=1` (BP-02)
 

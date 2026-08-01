@@ -1,0 +1,33 @@
+{
+  "_comment": [
+    "SR-12: the ROLLBACK FLOOR. Each entry is a commit that closed a governance or authorization",
+    "defect. Rolling the deployed image back past the newest of these RE-OPENS that defect, so",
+    "scripts/check_rollback_safety.py refuses such a rollback unless it is forced explicitly.",
+    "",
+    "This file is the reviewable record. Add an entry whenever a commit closes an authz/authority",
+    "defect; check_rollback_safety.py --audit warns when a commit whose subject looks like a",
+    "governance fix is missing here, so forgetting to add one is visible rather than silent.",
+    "",
+    "Dates are commit dates (%cI) from the stewie-sw/stewie history."
+  ],
+  "commits": [
+    {
+      "sha": "ac6d0328",
+      "date": "2026-07-16T22:38:18-05:00",
+      "id": "AR-016",
+      "reason": "allowlisted subprocess test env + secret canary + repo-scan gate; stops the whole-environment leak that exposed Artemis/Alpaca credentials"
+    },
+    {
+      "sha": "e2e6a75e",
+      "date": "2026-07-16T23:07:57-05:00",
+      "id": "AR-003",
+      "reason": "withhold command authority when the release is not durably persisted (containment slice)"
+    },
+    {
+      "sha": "0946e1e8",
+      "date": "2026-07-17T22:58:42-05:00",
+      "id": "AR-005",
+      "reason": "scoped guest GIS principal -- anonymous /ide users are no longer resolved as director"
+    }
+  ]
+}
