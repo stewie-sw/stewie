@@ -218,7 +218,20 @@ rsync -a --exclude='cesium/' prod/ prod.bak-$(date +%Y%m%d-%H%M)/
 
 # 4) swap in (keep cesium/: it is a separate ~20 MB mount the build does not produce)
 rsync -a --delete --exclude='cesium/' <isolated>/gis/qwc2/prod/ prod/
+
+# 5) SR-10 GATE: refuse to ship a bundle older than the source it claims to contain.
+#    Run it AFTER the swap, against the live tree. Non-zero = do not announce this deploy.
+python scripts/check_ide_bundle_freshness.py --repo /mnt/projects/stewie/code --ref origin/main
 ```
+
+**SR-10 (2026-07-28 review) — the bundle can silently be weeks behind.** The deployed `/ide` was
+built 2026-07-13T23:09:24 while commit `4fb8e3a8` (TR-03, the operator worksite pick) touched
+`gis/qwc2/js` at 23:40:17; `grep -c start_xy` over the shipped bundle returned **zero**, yet the
+feature was recorded as LIVE. Because `prod/` is gitignored and bind-mounted, nothing failed — the
+staleness surfaced only as a missing control in someone's browser. Step 5 turns that into a deploy
+failure. Note it compares the bundle against the newest **commit** touching `gis/qwc2/js`, not against
+file mtimes: working-tree mtimes record when git wrote the file, so an mtime comparison reports this
+exact regression as fresh (`scripts/test_ide_bundle_freshness.py` pins that reasoning).
 
 **Cache:** `/ide/index.html` is Cloudflare `DYNAMIC` (never edge-cached) and the JS chunks are
 content-hashed, so a rebuild ships immediately — the `?v=` stamping trap that applies to
