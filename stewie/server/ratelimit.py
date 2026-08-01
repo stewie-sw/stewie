@@ -21,17 +21,25 @@ class RateLimiter:
         self._lock = threading.Lock()
         self._buckets: dict[str, tuple[float, int]] = {}   # key -> (window_start, count)
 
-    def allow(self, key: str, *, now: float | None = None) -> bool:
-        """True if this hit is within the window cap (and records it); False if the cap is exceeded."""
+    def allow(self, key: str, *, now: float | None = None, cost: int = 1) -> bool:
+        """True if this hit is within the window cap (and records it); False if the cap is exceeded.
+
+        SR-08: ``cost`` charges more than one unit for a request whose SERVER cost scales with its
+        payload. A pure request counter charged a 1-point and a 512-point /world/points batch the same,
+        so the two caps MULTIPLIED: 240 requests x 512 points x 29.9 ms = ~3,600 CPU-seconds demanded
+        per 60 s window against a single GIL-bound worker. Charging the real unit (points) makes the
+        window mean what it says. ``cost=1`` preserves the previous behaviour exactly.
+        """
+        c = max(1, int(cost))
         t = now if now is not None else time.monotonic()
         with self._lock:
             start, count = self._buckets.get(key, (t, 0))
             if t - start >= self.window_s:                 # window elapsed -> reset
                 start, count = t, 0
-            if count >= self.max_hits:
+            if count + c > self.max_hits:
                 self._buckets[key] = (start, count)
                 return False
-            self._buckets[key] = (start, count + 1)
+            self._buckets[key] = (start, count + c)
             # opportunistic GC so the dict cannot grow without bound under churned keys
             if len(self._buckets) > 4096:
                 self._gc(t)

@@ -31,6 +31,18 @@ router = APIRouter()
 _world_ratelimiter = RateLimiter(int(os.environ.get("STEWIE_WORLD_QUOTA_MAX", "240")),
                                  float(os.environ.get("STEWIE_WORLD_QUOTA_WINDOW_S", "60")))
 
+# SR-08 (2026-07-28 review): the request counter above is cost-BLIND, and /world/points accepts a batch
+# of up to 512 cells. Measured on the real Haworth DEM: 29.9 ms per point -> ~15.3 s of CPU for one
+# accepted request. The two caps therefore multiplied -- 240 x 15.3 s = ~3,600 CPU-seconds demanded per
+# 60 s window against ONE GIL-bound uvicorn worker (~60x oversubscription) -- and because client_ip
+# resolves to the nginx container IP unless STEWIE_TRUST_PROXY is set, a single anonymous client consumed
+# the entire public budget and stalled the authenticated cockpit with it.
+#
+# So charge the unit that actually costs: POINTS, not requests. The default budget is one full-size batch
+# per window, which is what a single worker can serve inside it.
+_world_point_budget = RateLimiter(int(os.environ.get("STEWIE_WORLD_POINT_BUDGET", "512")),
+                                  float(os.environ.get("STEWIE_WORLD_QUOTA_WINDOW_S", "60")))
+
 
 def _world_quota(request: Request) -> str:
     ip = client_ip(request)
@@ -383,6 +395,12 @@ def world_points(req: PointsReq, _rl: str = Depends(_world_quota)):   # public r
     if len(req.points) > 512:
         return JSONResponse(status_code=413,
                             content={"ok": False, "error": "too many points (max 512 per batch)"})
+    # SR-08: charge the per-IP budget by POINTS (the real cost unit), not by request. `_rl` is the
+    # client ip the F6 quota already resolved.
+    if not _world_point_budget.allow(_rl, cost=len(req.points)):
+        return JSONResponse(status_code=429, content={
+            "ok": False, "error": "world point-query budget exceeded (charged per point, not per "
+                                  "request); slow down or send smaller batches"})
     try:
         return {"ok": True, "site": req.site, "points": GL.points_values(req.site, req.points)}
     except (KeyError, FileNotFoundError) as e:
