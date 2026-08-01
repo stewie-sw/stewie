@@ -41,22 +41,14 @@ class TwinStore:
     def from_journal(cls, base, cell_m: float, journal_path: str) -> "TwinStore":
         """W-4 cold restore: rebuild the twin from base + the durable journal ALONE. Events replay
         through apply_event (hash-verified line by line); the rebuilt store keeps journaling."""
-        import os as _os
+        from stewie.twin.journal_io import replay_journal
         tw = cls(base, cell_m=cell_m)                    # replay WITHOUT journaling (no re-append)
-        if _os.path.exists(journal_path):
-            lines = [ln.strip() for ln in open(journal_path) if ln.strip()]
-            for i, line in enumerate(lines):
-                try:
-                    ev = json.loads(line)
-                except json.JSONDecodeError:
-                    # twin-gap-1 (audit 2026-06-11): a crash mid-fsync tears the FINAL line only.
-                    # Recover every complete prior event; abort ONLY if the corruption is interior
-                    # (a torn line that is NOT the last is real history loss, surface it).
-                    if i == len(lines) - 1:
-                        break
-                    raise ValueError(f"twin journal corrupt at interior line {i} (not the tail) "
-                                     "-- refusing a partial silent restore")
-                tw.apply_event(ev)
+        # twin-gap-1 (audit 2026-06-11): a crash mid-fsync tears the FINAL line only -- recover every
+        # complete prior event; interior corruption is real history loss and is surfaced.
+        # SR-05 (2026-07-28): replay_journal also REPAIRS the tail. Re-arming the writer over a torn
+        # final line grafted the next append onto it (open(..., "a"), no truncate), so that append
+        # reported success, the next cold restore silently lost it, and the one after refused to load.
+        replay_journal(journal_path, tw.apply_event, what="twin journal")
         tw.journal_path = journal_path                   # future edits journal again
         return tw
 

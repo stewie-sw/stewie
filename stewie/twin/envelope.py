@@ -268,23 +268,19 @@ class TransactionLog:
         ``_append`` (chain-verified, so a tampered record raises). A crash mid-fsync tears only the
         FINAL line -> recover every complete prior record; an interior torn line is real history loss
         -> surface it (refuse a partial silent restore)."""
+        from stewie.twin.journal_io import replay_journal
         log = cls(journal_path=None)                         # replay WITHOUT re-journalling
-        if os.path.exists(journal_path):
-            lines = [ln for ln in open(journal_path).read().splitlines() if ln.strip()]
-            for i, line in enumerate(lines):
-                try:
-                    rec: dict[str, Any] = json.loads(line)
-                except json.JSONDecodeError:
-                    if i == len(lines) - 1:                  # torn tail: stop, keep prior records
-                        break
-                    raise ValueError(
-                        f"world journal corrupt at interior line {i} (not the tail) "
-                        "-- refusing a partial silent restore")
-                log._append(rec["authority_sha"], int(rec["twin_version"]), rec["twin_hash"],
-                            rec["plan_id"], rec["belief"], rec["mission"], rec["site"], rec["body"],
-                            float(rec["mission_t_s"]), rec["provenance"],
-                            float(rec.get("uncertainty_m", 0.0)),
-                            rec.get("packet_sha", ""), rec.get("vehicle_sha", ""),  # DT-01 (old recs: "")
-                            expected_chain=rec["chain_hash"])
+
+        def _apply(rec: dict[str, Any]) -> None:
+            log._append(rec["authority_sha"], int(rec["twin_version"]), rec["twin_hash"],
+                        rec["plan_id"], rec["belief"], rec["mission"], rec["site"], rec["body"],
+                        float(rec["mission_t_s"]), rec["provenance"],
+                        float(rec.get("uncertainty_m", 0.0)),
+                        rec.get("packet_sha", ""), rec.get("vehicle_sha", ""),  # DT-01 (old recs: "")
+                        expected_chain=rec["chain_hash"])
+
+        # SR-05: torn tail tolerated AND truncated, so the re-armed writer below cannot append onto a
+        # partial record (which silently lost the next commit, then bricked the log on the restore after).
+        replay_journal(journal_path, _apply, what="world journal")
         log.journal_path = journal_path                      # future commits journal again
         return log

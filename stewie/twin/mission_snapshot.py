@@ -275,18 +275,10 @@ class MissionLineage:
         (a tampered record raises). A crash mid-fsync tears only the FINAL line -> keep every complete
         prior record; an interior torn line is real history loss -> surface it (refuse a silent partial
         restore)."""
+        from stewie.twin.journal_io import replay_journal
         lin = cls(body=body, journal_path=None)              # replay WITHOUT re-journalling
-        if os.path.exists(journal_path):
-            lines = [ln for ln in open(journal_path).read().splitlines() if ln.strip()]
-            for i, line in enumerate(lines):
-                try:
-                    rec: dict[str, Any] = json.loads(line)
-                except json.JSONDecodeError:
-                    if i == len(lines) - 1:                  # torn tail: stop, keep prior records
-                        break
-                    raise ValueError(
-                        f"BR-02: mission-snapshot journal corrupt at interior line {i} (not the tail) "
-                        "-- refusing a partial silent restore")
-                lin.snapshots.append(MissionSnapshot.from_record(rec))
+        # SR-05: torn tail tolerated AND truncated before the writer re-arms below.
+        replay_journal(journal_path, lambda rec: lin.snapshots.append(MissionSnapshot.from_record(rec)),
+                       what="BR-02: mission-snapshot journal")
         lin.journal_path = journal_path                      # future writes journal again
         return lin
