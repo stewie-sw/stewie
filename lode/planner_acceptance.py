@@ -29,6 +29,73 @@ from stewie.physics.column_state import ColumnState  # conserved authority -- th
 from stewie.terrain.site_dem import slope_deg_map     # I6/I11/CP-06 slope siting + repose
 
 
+# ---- SR-14: the typed footprint shape, honoured by acceptance -----------------------------------
+def _order_ring(o):
+    """The order's TRUE oriented footprint ring in the order frame, or None for a bare scalar order.
+
+    Reuses lode.gis_export._footprint_ring_xy -- the very ring the GIS export already publishes -- so
+    the map and the acceptance check cannot describe different ground again.
+    """
+    if getattr(o, "shape", None) is None:
+        return None
+    try:
+        from lode.gis_export import _footprint_ring_xy
+        ring = _footprint_ring_xy(o)
+    except Exception:                       # noqa: BLE001 -- an unrenderable shape falls back to the square
+        return None
+    return ring if ring and len(ring) >= 3 else None
+
+
+def _ring_mask(ring, x0, y0, cell_m, cc, rr):
+    """Rasterize a polygon ring onto the acceptance grid (vectorized even-odd crossing test).
+
+    Cell centres inside the ring are measured; everything else is not. No new dependency -- the same
+    crossing-number rule matplotlib.path would apply, done in numpy over the existing meshgrid.
+    """
+    px = (cc + 0.5)
+    py = (rr + 0.5)
+    xs = [(vx - x0) / cell_m for vx, _vy in ring]
+    ys = [(vy - y0) / cell_m for _vx, vy in ring]
+    inside = np.zeros(px.shape, dtype=bool)
+    n = len(xs)
+    for i in range(n):
+        j = (i - 1) % n
+        xi, yi, xj, yj = xs[i], ys[i], xs[j], ys[j]
+        if yi == yj:
+            continue                        # a horizontal edge crosses no horizontal ray
+        straddles = ((yi > py) != (yj > py))
+        xint = (xj - xi) * (py - yi) / (yj - yi) + xi
+        inside ^= straddles & (px < xint)
+    return inside
+
+
+def _footing_width_m(o) -> float:
+    """The footing width B for bearing capacity: the SHORT dimension of the real footprint.
+
+    Bearing capacity grows with B, so using an area-equivalent square (sqrt(area)) overstates the
+    allowable pressure for any elongated footing -- 4.7x for the measured 50x2 m corridor. For a ring
+    this is the minimum width over all edge normals (rotating calipers); a bare scalar order keeps the
+    legacy square-equivalent.
+    """
+    ring = _order_ring(o)
+    if ring is None:
+        return math.sqrt(o.footprint_m2)
+    pts = np.asarray(ring, dtype=float)
+    n = len(pts)
+    best = float("inf")
+    for i in range(n):
+        ax, ay = pts[i]
+        bx, by = pts[(i + 1) % n]
+        ex, ey = bx - ax, by - ay
+        L = math.hypot(ex, ey)
+        if L < 1e-12:
+            continue
+        nx, ny = -ey / L, ex / L            # unit normal to this edge
+        proj = pts[:, 0] * nx + pts[:, 1] * ny
+        best = min(best, float(proj.max() - proj.min()))
+    return best if best < float("inf") else math.sqrt(o.footprint_m2)
+
+
 def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, dem=None,
                   dem_origin=(0.0, 0.0), max_slope_deg=15.0, accept_flatness_tol_m=0.02,
                   bearing_load_pa=None, bearing_fs=3.0, return_grids=False):
@@ -79,7 +146,16 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
     rr, cc = np.meshgrid(np.arange(H), np.arange(W), indexing="ij")
 
     def _mask(o):
-        s = math.sqrt(o.footprint_m2); half = (s / 2) / cell_m
+        # SR-14 (2026-07-28 review): acceptance rasterized EVERY order as an area-equivalent square
+        # (sqrt(footprint_m2)), ignoring the typed shape the cockpit really authors -- so a
+        # {kind:'corridor', length:50, width:2} order was measured as a 10x10 m square, 40 m of the
+        # corridor was never measured at all, and as_built_pass still came back True. planner_model
+        # asserted "the shape carries orientation for acceptance"; it did not, and gis_export exported
+        # the true oriented ring, so the map and the acceptance check described DIFFERENT ground.
+        ring = _order_ring(o)
+        if ring is not None:
+            return _ring_mask(ring, x0, y0, cell_m, cc, rr)
+        s = math.sqrt(o.footprint_m2); half = (s / 2) / cell_m   # legacy: bare scalar, no typed shape
         cx, cy = (o.x - x0) / cell_m, (o.y - y0) / cell_m
         return (np.abs(cc + 0.5 - cx) <= half) & (np.abs(rr + 0.5 - cy) <= half)
 
@@ -173,7 +249,11 @@ def validate_plan(mission, *, cell_m=0.5, regolith_depth_m=10.0, max_cells=500, 
         mask = _mask(o)
         if int(mask.sum()) < 2:
             continue
-        b_width = math.sqrt(o.footprint_m2)
+        # SR-14: bearing capacity scales with the footing's SHORT dimension, so an area-equivalent
+        # square overstates it badly for a strip footing. Measured on the corridor above with the
+        # mission's own soil/gravity: B=2 -> 36,330 Pa vs B=10 -> 171,195 Pa -- allowable overstated
+        # 4.7x for ground a lander leg may sit on.
+        b_width = _footing_width_m(o)
         allow_loose = allowable_bearing_pa(_soil.cohesion, _soil.phi_rad, gamma_loose, b_width, factor_of_safety=bearing_fs)
         allow_firm = allowable_bearing_pa(_soil.cohesion, _soil.phi_rad, gamma_firm, b_width, factor_of_safety=bearing_fs)
         rec = {"action": o.action, "width_m": round(b_width, 3),
@@ -350,7 +430,16 @@ def execute_plan_acceptance(mission, trips, *, cell_m=0.5, regolith_depth_m=10.0
     rr, cc = np.meshgrid(np.arange(H), np.arange(W), indexing="ij")
 
     def _mask(o):
-        s = math.sqrt(o.footprint_m2); half = (s / 2) / cell_m
+        # SR-14 (2026-07-28 review): acceptance rasterized EVERY order as an area-equivalent square
+        # (sqrt(footprint_m2)), ignoring the typed shape the cockpit really authors -- so a
+        # {kind:'corridor', length:50, width:2} order was measured as a 10x10 m square, 40 m of the
+        # corridor was never measured at all, and as_built_pass still came back True. planner_model
+        # asserted "the shape carries orientation for acceptance"; it did not, and gis_export exported
+        # the true oriented ring, so the map and the acceptance check described DIFFERENT ground.
+        ring = _order_ring(o)
+        if ring is not None:
+            return _ring_mask(ring, x0, y0, cell_m, cc, rr)
+        s = math.sqrt(o.footprint_m2); half = (s / 2) / cell_m   # legacy: bare scalar, no typed shape
         cx, cy = (o.x - x0) / cell_m, (o.y - y0) / cell_m
         return (np.abs(cc + 0.5 - cx) <= half) & (np.abs(rr + 0.5 - cy) <= half)
 
