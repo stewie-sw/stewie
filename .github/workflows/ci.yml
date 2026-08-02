@@ -154,6 +154,18 @@ jobs:
         run: python scripts/fresh_install_smoke.py --lock requirements-dev.lock --strict
       - name: Wheel smoke (build the wheel, clean-venv [server] install, stewie-serve boots + /healthz)
         run: STEWIE_WHEEL_SMOKE=1 pytest stewie/server/test_fresh_wheel.py -p no:cacheprovider
+      # SR-20: security_audit.py claimed the package-smoke job invoked these; it did not -- a grep for
+      # check_deps_lock/gen_sbom/scan_artifacts across every workflow returned ZERO matches, so a
+      # release could be cut believing a live dependency audit had gated it. These two are offline and
+      # deterministic, so they are gated here for real. The pip-audit CVE scan is NOT wired (it needs a
+      # scanner that is not in the lock plus network egress), and the audit domain now says so instead
+      # of claiming PASS.
+      - name: Dependency lock matches pyproject (PO-05)
+        run: python scripts/check_deps_lock.py --lock requirements-dev.lock
+      - name: SBOM builds from the pinned lock (CycloneDX)
+        run: |
+          python scripts/gen_sbom.py --lock requirements-dev.lock -o /tmp/sbom.json
+          test -s /tmp/sbom.json
 
   test:
     name: test (py${{ matrix.python-version }})

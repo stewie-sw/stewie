@@ -94,7 +94,17 @@ SE01_AUDIT_DOMAINS: dict = {
                          "(the DT-01 cold-rebuild infra), which is not built here."),
     },
     "dependency_sbom_cve": {
-        "status": PASS,
+        # SR-20 (2026-07-28 review): this was PASS, and its evidence described CI invoking
+        # check_deps_lock -> gen_sbom -> scan_artifacts. No workflow invoked ANY of them (grep over
+        # .github/workflows returned zero matches), and FANOUT_SPECS.md:210 already said so in the
+        # first person: "no scanner ... CI never invokes them". A release could therefore be cut
+        # believing a live pip-audit had gated the resolved dependency set, so a newly-disclosed CVE
+        # in any pinned server package would ship to app.stewie.space under a green audit.
+        #
+        # The lock-vs-pyproject check and the SBOM build ARE now wired into the package-smoke job
+        # (they are offline and deterministic). The live CVE scan is NOT: pip-audit is not in the
+        # lock and needs network egress. A domain that cannot scan does not get to report PASS.
+        "status": GATED,
         "evidence": ("scripts/gen_sbom.py emits a CycloneDX 1.5 SBOM from the pinned lock; "
                      "scripts/check_deps_lock.py [REQ:PO-05] asserts the lock matches pyproject; "
                      "scripts/scan_artifacts.py [REQ:PO-05] runs a real pip-audit CVE scan of the "
@@ -102,9 +112,15 @@ SE01_AUDIT_DOMAINS: dict = {
                      "scripts/test_scan_artifacts.py against real captured pip-audit output -- the "
                      "vulnerable jinja2 2.11.2 capture with real CVE IDs refuses, the clean capture "
                      "passes). The live scan soft-gates to SKIP where the scanner/network is absent "
-                     "so it never fabricates a clean result -- but the scan-and-gate mechanism over "
-                     "resolved artifacts is wired and tested, which is what this domain requires."),
+                     "so it never fabricates a clean result. SR-20: the lock-vs-pyproject check and "
+                     "the SBOM build ARE now invoked by the CI package-smoke job (offline and "
+                     "deterministic); the live CVE scan is NOT invoked by anything."),
         "findings": [],
+        "gated_reason": ("the live pip-audit CVE scan is not wired into CI: pip-audit is absent from "
+                         "requirements-dev.lock and the scan needs network egress to an advisory "
+                         "database. scan_artifacts.py and its refuse-on-advisory gate are real and "
+                         "tested against captured pip-audit output, but nothing RUNS them, so no claim "
+                         "is made about the current CVE status of the resolved dependency set."),
     },
     "external_surface": {
         "status": GATED,
