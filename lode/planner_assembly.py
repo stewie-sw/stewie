@@ -31,7 +31,8 @@ from lode.planner_balance import cut_bank_density
 from lode.planner_routing import point_in_keepout
 from lode.planner_sim import _simulate
 from lode.planner_optimize import (
-    BRUTE_MAX_TRIPS, HELD_KARP_EXACT_METRIC, HELD_KARP_MAX_TRIPS, _objective_optimality, optimize_sequence,
+    BRUTE_MAX_TRIPS, HELD_KARP_EXACT_METRIC, HELD_KARP_MAX_TRIPS, _objective_optimality,
+    effective_algorithm, optimize_sequence,
 )
 from lode.planner_trips import _build_trips, _make_routes, _precedence_is_feasible, trip_precedence
 from lode.planner_multivehicle import (
@@ -522,16 +523,24 @@ def plan_and_simulate(mission: Mission, *, dem=None, dem_origin=(0.0, 0.0), max_
                               routes=routes)                 # optimizer scores the SAME routed geometry as the IR
     trips = [trips[i] for i in order]
     tl, per_trip, core = _simulate(mission, trips, routes)
-    resolved = algorithm                                    # what 'auto' actually dispatched to
-    if algorithm == "auto":
-        resolved = "brute" if len(trips) <= BRUTE_MAX_TRIPS else (
-            "held_karp_lk" if len(trips) <= HELD_KARP_MAX_TRIPS else "lk")
+    # SR-15: label from the solver that ACTUALLY ran, not the one requested. This corrected only the
+    # 'auto' case, so an operator-selected 'brute'/'held_karp' past its cap kept an "exact" label after
+    # silently degrading to LK-from-nearest -- a label rendered verbatim to the operator
+    # (rehearse_render.js) and carried into REHEARSED evidence (lode/resync.py).
+    resolved = effective_algorithm(algorithm, len(trips))
     # AL1 + P-10: be explicit AND objective-specific about optimality. `brute` simulates every permutation
     # so it is EXACT on the chosen objective. `held_karp(_lk)` is exact only on routed DRIVING DISTANCE,
     # then LK-polished -- so its label must NAME that metric and it is objective_exact ONLY when the
     # objective IS distance. Anything else (lk past the cap) is unbounded local search.
     optimality, objective_exact = _objective_optimality(resolved, objective)
-    if optimality == "heuristic" and len(trips) > HELD_KARP_MAX_TRIPS:
+    if resolved != algorithm and algorithm != "auto":
+        # SR-15: the operator asked for an exact solver and did not get it. Say so -- the old warning was
+        # gated on >HELD_KARP_MAX_TRIPS, so a 'brute' request at 8..16 trips degraded in total silence.
+        warnings.warn(
+            f"plan visit order: '{algorithm}' was requested but {len(trips)} trips exceed its exact cap "
+            f"(BRUTE_MAX_TRIPS={BRUTE_MAX_TRIPS}, HELD_KARP_MAX_TRIPS={HELD_KARP_MAX_TRIPS}); "
+            f"'{resolved}' ran instead and has no optimality bound.", stacklevel=2)
+    elif optimality == "heuristic" and len(trips) > HELD_KARP_MAX_TRIPS:
         warnings.warn(
             f"plan visit order is heuristic: {len(trips)} trips exceed the exact cap "
             f"(HELD_KARP_MAX_TRIPS={HELD_KARP_MAX_TRIPS}); algorithm '{resolved}' has no optimality bound.",

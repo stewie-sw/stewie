@@ -50,6 +50,29 @@ BRUTE_MAX_TRIPS = 7          # exhaustive permutation search only up to 7! = 504
 HELD_KARP_MAX_TRIPS = 16     # Held-Karp DP is O(2^n * n^2); ~16 trips is the practical ceiling
 
 
+def effective_algorithm(algorithm: str, n_trips: int) -> str:
+    """SR-15: the solver that ACTUALLY runs for (algorithm, n_trips).
+
+    `brute` and `held_karp` are operator-selectable but silently degrade to LK-from-nearest past their
+    caps. The assembly layer used to label the plan from the REQUESTED algorithm, correcting only the
+    `auto` case, so an explicit request kept its exact label after falling back. Measured on a real
+    20-trip mission: algorithm='brute' reported optimality='exact', objective_exact=True,
+    resolved_algorithm='brute' and ZERO warnings -- with BRUTE_MAX_TRIPS=7, 20! was obviously never
+    enumerated. That label is rendered verbatim to the operator and carried into REHEARSED evidence.
+
+    One resolver, used by BOTH the dispatch below and the label above it, so the two cannot drift apart.
+    """
+    if algorithm == "auto":
+        if n_trips <= BRUTE_MAX_TRIPS:
+            return "brute"
+        return "held_karp_lk" if n_trips <= HELD_KARP_MAX_TRIPS else "lk"
+    if algorithm == "brute" and n_trips > BRUTE_MAX_TRIPS:
+        return "lk"                       # the >cap fallback: local_search(nn_seed)
+    if algorithm == "held_karp" and n_trips > HELD_KARP_MAX_TRIPS:
+        return "lk"
+    return algorithm
+
+
 def _score(core, objective):
     """(sortable, raw) for a SINGLE objective: sortable is always MINIMIZED (max objectives negated)."""
     direction, fn = OBJECTIVES[objective]
@@ -294,7 +317,7 @@ def optimize_sequence(trips, mission, *, algorithm="auto", objective="time", pre
                                      precedence=precedence, routes=routes)
         # 8..16: exact driving tour (Held-Karp) as a strong SEED, then LK-polish on the REAL (recharge-
         # coupled) objective -- "solved in sequence". >16: LK from the nearest seed.
-        algorithm = "held_karp_lk" if n <= HELD_KARP_MAX_TRIPS else "lk"
+        algorithm = effective_algorithm("auto", n)          # SR-15: one resolver, shared with the label
 
     if algorithm == "nearest":
         return _nn_order(trips, mission, eligible_fn=eligible if has_prec else None)
