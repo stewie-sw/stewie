@@ -44,7 +44,61 @@ the userspace GL core the driver needs is absent.
 therefore taking the legacy hook path, which is why `NVIDIA_DRIVER_CAPABILITIES=all` did not produce the
 graphics injection.
 
-## The change (requires sudo — host-level, Aaron's)
+## RESOLVED 2026-08-02 — hardware EGL now initialises in the container
+
+```
+eglQueryDevicesEXT -> 3 devices
+dev0: init=True  vendor=NVIDIA        <-- the RTX 3090, hardware GL
+dev2: init=True  vendor=Mesa Project  <-- software, still available as fallback
+```
+
+Two things were needed, and the second is the one that was not obvious:
+
+**1. Generate the CDI spec** (host, sudo, done):
+
+```bash
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml   # -> nvidia.com/gpu=all
+```
+
+This alone took EGL device enumeration from 0 to 2 — but the NVIDIA device still failed
+`eglInitialize` with `0x3001 EGL_NOT_INITIALIZED`, while Mesa handled it and reported
+`failed to create dri2 screen` / `pci id 10de:2204, driver (null)`.
+
+**2. Mount the Debian-split GL dependency trio.** `ldd libEGL_nvidia.so` inside the container reported:
+
+```
+libnvidia-glsi.so.535.261.03 => not found
+```
+
+Debian packages the driver across TWO directories. `libEGL_nvidia` / `libGLX_nvidia` live under
+`/usr/lib/x86_64-linux-gnu/nvidia/current/` and CDI injects those — but their dependencies
+`libnvidia-glcore`, `libnvidia-glsi` and `libnvidia-eglcore` live one level up in
+`/usr/lib/x86_64-linux-gnu/`, and CDI does **not** inject them. `nvidia-ctk` builds its file list from
+the driver manifest, so `--library-search-path` does not add them either (verified: `grep -c glcore`
+on the generated spec stays 0).
+
+With glvnd unable to load the NVIDIA vendor library, it silently fell through to Mesa — which is why
+the failure looked like a Mesa/dri2 problem rather than a missing-dependency problem.
+
+The fix is the three bind mounts plus `LD_LIBRARY_PATH`, both captured in the `gz-render-gpu` service
+in `deploy/compose.yml`:
+
+```bash
+docker compose -f deploy/compose.yml --profile gzcam-gpu up gz-render-gpu
+```
+
+Version-pinned to `535.261.03`; a host driver upgrade requires updating those three paths (the service
+will fail loudly rather than silently fall back, which is the intended behaviour).
+
+**Not yet verified:** an actual gz camera render of a heightmap. The EGL precondition is now met, which
+is what the SIGABRT was attributed to, but the render itself has not been run end to end. The original
+`gz-render` service is left untouched and still uses llvmpipe, so nothing that works today changes.
+
+---
+
+## Original diagnosis (kept for the reasoning trail)
+
+### The change (requires sudo — host-level)
 
 ```bash
 # 1. Generate the CDI spec so the toolkit can inject the full capability set.

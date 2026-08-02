@@ -199,6 +199,44 @@ services:
   # image and relays pixels. There is NO code path from the pane to /cmd_vel, /cmd/nav_goal, /cmd/safe or
   # any service. NO GPU is requested (no deploy.resources / no /dev/dri): a visible-but-undriveable GPU
   # makes ogre2 pick EGL and segfault, so hiding it is what lets Mesa llvmpipe render cleanly.
+  # GPU-ENABLED variant of gz-render. MEASURED WORKING 2026-08-02: hardware EGL initialises inside the
+  # container (eglQueryDevicesEXT -> 3 devices, dev0 vendor=NVIDIA), which is the precondition ogre2's
+  # Terra needs and which llvmpipe cannot satisfy. See deploy/GAZEBO_GPU.md for the full diagnosis.
+  #   docker compose -f deploy/compose.yml --profile gzcam-gpu up gz-render-gpu
+  # Requires ONE host-level step, already done on archimedes:
+  #   sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+  gz-render-gpu:
+    profiles: [ "gzcam-gpu" ]
+    image: stewie-gazebo:jazzy
+    container_name: stewie-gz-render-gpu
+    network_mode: host
+    environment:
+      ROS_DOMAIN_ID: "7"
+      NVIDIA_DRIVER_CAPABILITIES: all          # graphics+display, not just compute+utility
+      # NOTE: LIBGL_ALWAYS_SOFTWARE / GALLIUM_DRIVER are deliberately ABSENT here -- they force llvmpipe
+      LD_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu/nvidia/current
+      GZ_SIM_RESOURCE_PATH: /ws/src:/ws/install/stewie_description/share
+      STEWIE_CAM_TOPIC: /stewie/camera/front_left/image
+      STEWIE_CAM_OUT_TOPIC: /stewie/camera/front_left/jpeg
+    volumes:
+      - "./ros2/gz_render_entrypoint.sh:/gz_render_entrypoint.sh:ro"
+      - "./ros2/camera_feeder.py:/camera_feeder.py:ro"
+      # The Debian driver packaging SPLITS the NVIDIA GL stack: libEGL_nvidia/libGLX_nvidia live under
+      # nvidia/current/ (and CDI injects those), but their dependencies libnvidia-glcore / -glsi /
+      # -eglcore live one directory up and CDI does NOT inject them -- `ldd libEGL_nvidia` reported
+      # "libnvidia-glsi.so => not found", so glvnd fell through to Mesa, which then failed with
+      # "failed to create dri2 screen / driver (null)" on pci 10de:2204. Mounting the trio alongside
+      # the libs that need them is what makes eglInitialize return vendor=NVIDIA.
+      - "/usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.535.261.03:/usr/lib/x86_64-linux-gnu/nvidia/current/libnvidia-glcore.so.535.261.03:ro"
+      - "/usr/lib/x86_64-linux-gnu/libnvidia-glsi.so.535.261.03:/usr/lib/x86_64-linux-gnu/nvidia/current/libnvidia-glsi.so.535.261.03:ro"
+      - "/usr/lib/x86_64-linux-gnu/libnvidia-eglcore.so.535.261.03:/usr/lib/x86_64-linux-gnu/nvidia/current/libnvidia-eglcore.so.535.261.03:ro"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - { driver: nvidia, count: all, capabilities: [ gpu, graphics, display ] }
+    command: [ "bash", "/gz_render_entrypoint.sh" ]
+    restart: "no"
   gz-render:
     profiles: [ "gzcam" ]
     image: stewie-gazebo:jazzy                     # built from deploy/ros2/Dockerfile.gazebo (gz + ros_gz + xvfb)
