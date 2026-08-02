@@ -6,7 +6,27 @@ The test suite runs keyless. After audit C-01, a keyless server FAILS CLOSED on 
 dev-open is permitted. Auth-specific tests override this with monkeypatch to exercise the
 fail-closed path.
 """
-import pytest
+import os
+
+# ---- headless rendering: force the non-GUI matplotlib backend BEFORE anything imports pyplot -------
+# The suite renders real report figures (lode/mission_planner, planner_acceptance, planner_views), and
+# under a FastAPI TestClient those sync routes execute in a THREADPOOL -- services.py keeps a
+# `report_lock` precisely because "matplotlib/pyplot is process-global + thread-unsafe".
+#
+# With PyQt6 installed (it is, via the QGIS tooling) matplotlib auto-selects the *GUI* backend `qtagg`,
+# so those renders become Qt calls from a non-main thread: undefined behaviour. Measured directly --
+# three figures rendered from a worker thread under qtagg emit
+#   GLib-CRITICAL: g_main_context_pop_thread_default: assertion 'stack != NULL' failed
+# (Qt's thread-context stack popped from the wrong thread), while the same probe under Agg is clean.
+# A full-suite run segfaulted (exit 139, no traceback) at a test inside lode/test_mission_planner.py,
+# the heaviest PDF-rendering file; it did not reproduce on a quieter machine, which is what undefined
+# behaviour looks like.
+#
+# deploy/compose.yml already sets MPLBACKEND=Agg for the running containers, so PRODUCTION was never
+# exposed -- only the test environment was unprotected. setdefault, so an explicit override still wins.
+os.environ.setdefault("MPLBACKEND", "Agg")
+
+import pytest  # noqa: E402 -- must follow the backend pin above
 
 
 @pytest.fixture(autouse=True)
