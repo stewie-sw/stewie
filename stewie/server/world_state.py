@@ -104,12 +104,28 @@ class WorldStateService:
             self._body = t.body
             self._mission_t_s = t.mission_t_s
 
-    def _twin_obj(self) -> "TwinStore":
+    def _twin_obj(self, twin: "TwinStore | None" = None) -> "TwinStore":
+        """The twin whose identity a commit records.
+
+        SR-18 (2026-07-28 review): this resolved ONLY the service's own binding, which
+        `state.world_state_service()` builds from the zero-arg `state.twin` accessor -- i.e. always the
+        DEFAULT (haworth) twin. A resync at another site mutated `state.twin(req.site)` and then
+        committed the DEFAULT twin's version/hash. Reproduced: two resyncs at site='shackleton_rim'
+        advanced that twin 0->1->2 while both transactions recorded twin_version=0, twin_hash=genesis,
+        and the same twin_hash spanned two materially different world states. `/world/transaction` and
+        the PG-01 projection then ASSERTED the observed twin was unchanged while it was mutated twice,
+        falsifying envelope's claim that `_world_sha` is "a function of EVERY source".
+
+        Callers that mutated a specific twin pass it explicitly, so the recorded identity cannot drift
+        from the object that actually changed.
+        """
+        if twin is not None:
+            return twin
         return self._twin() if callable(self._twin) else self._twin
 
     def _commit_locked(self, *, provenance: str, mission: str | None, site: str | None,
                        body: str | None, mission_t_s: float | None,
-                       uncertainty_m: float) -> "WorldTransaction":
+                       uncertainty_m: float, twin: "TwinStore | None" = None) -> "WorldTransaction":
         """Commit one linked snapshot from the current latest-known identities + the live twin. Caller
         holds ``self._lock``."""
         if mission is not None:
@@ -120,7 +136,7 @@ class WorldStateService:
             self._body = str(body)
         if mission_t_s is not None:
             self._mission_t_s = float(mission_t_s)
-        tw = self._twin_obj()
+        tw = self._twin_obj(twin)                        # SR-18: the twin actually mutated, when given
         if hasattr(tw, "identity"):                       # atomic (version, hash) under the twin's lock
             t_ver, t_hash = tw.identity()
         else:                                            # duck-typed fallback (e.g. a bare stub twin)
@@ -165,12 +181,17 @@ class WorldStateService:
                                        mission_t_s=mission_t_s, uncertainty_m=0.0)
 
     def record_resync(self, *, provenance: str, site: str | None = None,
-                      uncertainty_m: float = 0.0) -> "WorldTransaction":
+                      uncertainty_m: float = 0.0, twin: "TwinStore | None" = None) -> "WorldTransaction":
         """A perception/operator resync advanced the observed twin. Commit one linked snapshot (the
-        twin's new version/hash is read live; the other sources are carried forward)."""
+        twin's new version/hash is read live; the other sources are carried forward).
+
+        SR-18: pass `twin` -- the store the caller actually mutated. Without it the service falls back
+        to its own binding, which is the DEFAULT twin, so a non-default-site resync recorded an
+        identity belonging to a twin it never touched.
+        """
         with self._lock:
             return self._commit_locked(provenance=provenance, mission=None, site=site, body=None,
-                                       mission_t_s=None, uncertainty_m=uncertainty_m)
+                                       mission_t_s=None, uncertainty_m=uncertainty_m, twin=twin)
 
     def record_belief(self, *, belief: "BeliefState | dict", provenance: str,
                       mission_t_s: float | None = None) -> "WorldTransaction":

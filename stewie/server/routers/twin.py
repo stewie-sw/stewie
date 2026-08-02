@@ -87,8 +87,11 @@ def twin_resync(req: ResyncRequest, identity: str = Depends(require_role("operat
         # swallow that left the store ahead).
         try:
             with compensating(tw.undo, what="twin.resync"):
+                # SR-18: commit the identity of the twin THIS request mutated (`tw`), not the
+                # service's default binding -- otherwise a non-default site records twin_version=0 /
+                # twin_hash=genesis while its own twin advances.
                 state.world_state_service().record_resync(provenance=f"twin.resync: {req.provenance}",
-                                                          site=req.site)
+                                                          site=req.site, twin=tw)
         except Exception as e:   # noqa: BLE001 -- surfaced honestly AFTER the compensating rollback
             log.warning("twin.resync rolled back (world-state commit failed): %s", e)
             return JSONResponse(status_code=500, content={
