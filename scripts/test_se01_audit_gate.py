@@ -29,7 +29,10 @@ from scripts.security_audit import (
 
 # The four legs that need live-host / DNS / second-host / live-site access and cannot be audited
 # from a repo checkout. Named here so a test fails if any is ever silently dropped.
-_INFRA_GATED = {"host", "dns_site", "backup_restore", "external_surface"}
+# SR-20: dependency_sbom_cve joined this set. Its scanner is real and tested (below), but NOTHING RUNS
+# it -- pip-audit is absent from the lock and the scan needs network egress -- so the domain cannot
+# report PASS. It is named and non-blocking, exactly like the other infra legs.
+_INFRA_GATED = {"host", "dns_site", "backup_restore", "external_surface", "dependency_sbom_cve"}
 
 
 def _all_pass_manifest():
@@ -152,11 +155,18 @@ def test_dependency_sbom_cve_domain_is_backed_by_a_real_wired_cve_scan():
     assert scan_artifacts.gate(vuln) != 0, "the wired CVE gate must refuse on real findings"
     assert scan_artifacts.gate(clean) == 0, "the wired CVE gate must pass a clean scan"
 
-    # the SE-01 manifest reflects that this mechanism is wired: the dependency domain PASSes with no
-    # open finding, and its evidence cites the real scanner (no stale 'cve_scan_not_run' finding).
+    # SR-20: the scanner MECHANISM above is real -- that part of this test was always sound and still
+    # holds. What was NOT true is the conclusion the manifest drew from it. The domain claimed PASS on
+    # evidence describing CI invoking check_deps_lock -> gen_sbom -> scan_artifacts, while a grep across
+    # every workflow found ZERO invocations. A tested scanner that nothing runs is not a CVE gate.
+    #
+    # So the domain is now GATED with a reason: the mechanism is cited (still true), no PASS is claimed,
+    # and it stays non-blocking like the other infra legs.
     dep = SE01_AUDIT_DOMAINS["dependency_sbom_cve"]
-    assert dep["status"] == PASS, dep["status"]
+    assert dep["status"] == GATED, dep["status"]
     assert dep["findings"] == []
-    assert "scan_artifacts" in dep["evidence"]
+    assert "scan_artifacts" in dep["evidence"], "the domain must still cite the real scanner"
+    assert dep["gated_reason"], "a gated domain must say WHY, or it is a silent downgrade"
+    assert "pip-audit" in dep["gated_reason"]
     rep = security_audit_report()
     assert "dependency_sbom_cve" not in rep["blocking"]

@@ -104,11 +104,18 @@ def test_a_rover_command_is_refused_when_its_audit_cannot_be_written(monkeypatch
     def _boom(_line):
         raise OSError(28, "No space left on device")
 
-    monkeypatch.setattr(SVC, "_audit_append_raw", _boom)
+    # Patch ONLY across the request and restore immediately. Left active through teardown, the raw
+    # OSError escapes from importlib.reload's own audit writes and fails the test for an unrelated
+    # reason -- which is exactly what happened in the full-suite run (it passed in isolation).
+    real_append = SVC._audit_append_raw
+    c = TestClient(srv.app)
     try:
-        c = TestClient(srv.app)
-        r = c.post("/rc/command", headers={"X-API-Key": "test-key"},
-                   json={"kind": "goto", "goal_row": 5, "goal_col": 6, "mission": "Live Pad"})
+        SVC._audit_append_raw = _boom
+        try:
+            r = c.post("/rc/command", headers={"X-API-Key": "test-key"},
+                       json={"kind": "goto", "goal_row": 5, "goal_col": 6, "mission": "Live Pad"})
+        finally:
+            SVC._audit_append_raw = real_append
         assert r.status_code == 503, f"command was accepted despite an unwritable audit: {r.status_code}"
         assert submitted == [], "the rover command was SUBMITTED with no durable audit record"
     finally:

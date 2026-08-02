@@ -35,9 +35,14 @@ def test_resync_write_holds_the_resync_lock(monkeypatch, tmp_path):  # [REQ:DT-0
             return 7
 
     class _FakeWSS:
-        def record_resync(self, *, provenance, site):
+        # SR-18: `twin` is the store the route actually mutated -- the route now passes it so the
+        # committed DT-01 identity cannot drift to the default twin. The fake must track the real
+        # signature, or the TypeError is swallowed by the route's compensating handler into a 500 and
+        # this test fails for the wrong reason.
+        def record_resync(self, *, provenance, site, twin=None):
             # the world-state commit runs INSIDE the same critical section; assert the lock still holds here.
             seen["locked_during_commit"] = state._RESYNC_LOCK.locked()
+            seen["commit_twin_is_the_mutated_one"] = twin is not None
 
     monkeypatch.setattr(state, "twin", lambda *a, **k: _FakeTwin())
     monkeypatch.setattr(state, "world_state_service", lambda: _FakeWSS())
@@ -46,6 +51,8 @@ def test_resync_write_holds_the_resync_lock(monkeypatch, tmp_path):  # [REQ:DT-0
 
     assert seen["locked_during_mutation"] is True, "apply_patch ran outside the resync lock (torn read possible)"
     assert seen.get("locked_during_commit") is True, "the world-state commit ran outside the resync lock"
+    assert seen.get("commit_twin_is_the_mutated_one") is True, (
+        "SR-18: the route must pass the twin it mutated, or the commit records the default twin's identity")
     assert out["ok"] is True and out["twin_version"] == 8
 
 
