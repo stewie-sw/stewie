@@ -172,7 +172,16 @@ def _observation_aggregate(
     return aggregate, observed, masks
 
 
-def evaluate(
+# DEFERRAL, NOT AN ENDORSEMENT (2026-08-02). `evaluate` measures complexity 39 against the CI ceiling
+# of 10. It is not silenced because the metric is wrong -- it is silenced because this function's branch
+# structure IS the promotion rule: each branch is a stated condition of the theorem (partial coverage,
+# dependency components, the physics veto, the A7 repair ordering). Decomposing it to satisfy a metric
+# would move rule conditions into helpers whose call order then carries semantics invisibly, which is a
+# worse defect than a high number. Ten test files exercise this function directly, so a real refactor is
+# feasible -- but it is a scoped piece of work on the theorem, to be done deliberately with its author's
+# intent in hand, not as a side effect of a lint sweep. Same reasoning applies to
+# effective_support.component_support_from_graph.
+def evaluate(  # noqa: C901, PLR0912, PLR0915
     evidence: list[Evidence],
     *,
     prior: np.ndarray | None = None,

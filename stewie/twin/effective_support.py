@@ -73,7 +73,8 @@ def global_mask_dependency_edges(
     return {(a, b): mask.copy() for a, b in combinations(sorted(sources), 2)}
 
 
-def component_support_from_graph(
+# ruff: the branch structure below IS the rule -- see the noqa justification on the function.
+def component_support_from_graph(  # noqa: C901, PLR0912, PLR0915
     source_ids: list[str] | tuple[str, ...],
     observed_masks: Mapping[str, np.ndarray],
     sigma_m: Mapping[str, float],

@@ -21,7 +21,10 @@ def _safe_yaml():
     """PyYAML if importable, else None -- the deployed backend may not carry it; the evidence surface
     degrades gracefully (the .rviz/gz configs go empty) rather than 500ing the whole endpoint."""
     try:
-        import yaml
+        # PyYAML ships no type stubs and types-PyYAML is not in the lock; the module-level
+        # ignore_missing_imports does not cover import-untyped. This import is already inside a
+        # try/except ImportError -- the endpoint degrades gracefully without it.
+        import yaml  # type: ignore[import-untyped]
         return yaml
     except ImportError:
         return None

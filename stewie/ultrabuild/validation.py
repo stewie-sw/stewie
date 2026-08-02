@@ -268,7 +268,11 @@ def semantic_errors(schema_name: str, record: Mapping[str, Any]) -> list[str]:
                 errors.append("subject.generating_activity_id: activity uses another responsible agent")
             if agent_id not in agent_ids:
                 errors.append("subject.responsible_agent_id: agent is absent")
-            relation_triples = {
+            # mypy treats set operands invariantly, so `set[tuple[str, ...]] - set[tuple[Any|None, ...]]`
+            # is rejected even though the runtime subtraction is correct (tuples compare by value --
+            # verified with the exact shapes below). Annotating the element type keeps the check
+            # type-clean WITHOUT touching its logic.
+            relation_triples: set[tuple[Any, Any, Any]] = {
                 (
                     relation.get("kind"),
                     relation.get("subject_id"),
