@@ -22,6 +22,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
+#: SR-17: absolute elevation change that counts as "built" [m]. Absolute, never relative -- a relative
+#: tolerance on absolute lunar elevations silently scales with altitude. Two orders of magnitude below
+#: the 0.02 m acceptance tolerance (lode.planner_acceptance.accept_flatness_tol_m), so a build the
+#: acceptance check can measure is never invisible here, and matching the absolute convention
+#: `terrain_memory.summary()` already uses.
+AS_BUILT_EPS_M = 1e-4
+
 
 @dataclass(frozen=True)
 class CurrentTerrainView:
@@ -61,7 +68,19 @@ def compose_terrain_view(base_z, cell_m: float, *, as_built_z=None, as_built_ver
     if as_built_z is not None:                            # layer 1: as-built remembered build
         ab = np.asarray(as_built_z, dtype=float)
         if ab.shape == z.shape:
-            changed = ~np.isclose(ab, base)
+            # SR-17 (2026-07-28 review): this was `~np.isclose(ab, base)`, whose numpy default rtol=1e-5
+            # is RELATIVE -- applied to ABSOLUTE lunar elevations. On the real tile (min -96.61 /
+            # max 2842.21 / mean 1381.01 m) the drop threshold ran to 0.0284 m, and 26.8% of the tile
+            # exceeded the 0.02 m acceptance tolerance (planner_acceptance.accept_flatness_tol_m). At
+            # base 2800 m a +0.025 m fill vanished entirely and the cell stayed PRISTINE, so
+            # `as_built_dem` handed the planner the pristine surface for ground TerrainMemory said was
+            # built, and the LY-07 drape rendered no change. terrain_memory.imprint_on_dem_resampled
+            # divides by capacity=100, so every edge cell of every real build is sub-cm and hit this.
+            #
+            # Elevation deltas are ABSOLUTE quantities; the threshold must be too. Matches the
+            # convention `terrain_memory.summary()` already used (`np.abs(d) > 1e-9`), which is why the
+            # two disagreed about whether the same build existed.
+            changed = np.abs(ab - base) > AS_BUILT_EPS_M
             z[changed] = ab[changed]
             source[changed] = CurrentTerrainView.AS_BUILT
         else:
