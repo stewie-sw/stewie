@@ -21,6 +21,25 @@
 > cockpit at `app.stewie.space`. The committed matrix is projected read-only onto the in-IDE requirement
 > board, and the generated traceability file is written by the traceability tools. This narrative matrix
 > is hand-maintained; the code wins on any disagreement.
+>
+> **Review-register fix pass, 2026-08-01.** Sixteen entries from the read-only review
+> (`design/STEWIE_REVIEW_REGISTER_2026-07-28.md`) were closed on branch
+> `fix/sr-01-04-governance-durability`. Three claims ON THIS PAGE were over-claiming until that pass
+> and are only now accurate:
+>
+> * "a TSP family with honest optimality labels" (below) -- `brute` and `held_karp` reported
+>   `optimality: exact` after silently degrading past their caps (SR-15);
+> * the versioned edit-session's before/after audit and linear undo -- an anonymous session flood
+>   deleted a live operator's session *and* its audit rows (SR-09);
+> * the EG-07 audit trail -- it was process-memory only, so a redeploy erased every record and the
+>   endpoint still answered `verified: true, count: 0` (SR-04).
+>
+> Also closed: acceptance measured an area-equivalent square rather than the typed footprint,
+> overstating allowable bearing 4.7x for a strip footing (SR-14); the lander anchor averaged longitude
+> in degrees, placing it 48.5 km off at Shackleton (SR-13); `STEWIE_K_PHI` moved the planner costmap but
+> not the drive loop (SR-16); and the deployed `/ide` bundle shipped 31 minutes behind its own source
+> commit while recorded as live (SR-10). Still OPEN from that register: SR-11 (the viz2 GPU unit
+> executes the working tree; its unit file lives outside the repo) and roughly 45 MEDIUM/LOW entries.
 
 ## GIS mission-control IDE
 
