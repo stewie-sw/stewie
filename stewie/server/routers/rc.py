@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from stewie.bridge import rc_contract as RC
 from stewie.server import objects as OBJ
 from stewie.server.deps import require_auth, require_role
-from stewie.server.services import log_event
+from stewie.server.services import AuditWriteRefused, critical_event, log_event
 
 router = APIRouter()
 
@@ -166,11 +166,22 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
                 detail = f"command ineligible: {reason}" + (
                     "; an operator re-arm is required" if reason == "unsafe_safed" else "")
                 raise HTTPException(status_code=403 if reason.startswith("unauthorized") else 409, detail=detail)
+        # [AR-004] A rover command is the actuation boundary -- the most accountable action in the system.
+        # It used to be submitted FIRST and logged AFTER through the fail-OPEN `log_event`, so a
+        # disk-full / permission / rotation failure let the command through and merely flipped an
+        # in-process health flag: the rover moved with no durable record that it was told to.
+        # Record it durably FIRST; `critical_event` raises AuditWriteRefused if it cannot land, and the
+        # command is then never submitted.
+        try:
+            critical_event(identity, f"rc.{kind}", str(body.get("leg_id", "")),
+                           mission=str(body.get("mission") or ""), goal_row=body.get("goal_row"),
+                           goal_col=body.get("goal_col"))
+        except AuditWriteRefused as e:
+            raise HTTPException(status_code=503, detail=str(e)) from e
         try:    # #286: a motion command while the SF-01 watchdog is safed is a 409 (re-arm first), not a silent resume
             _RC_WATCHDOG.submit(cmd, now=now)
         except RC.WatchdogTrippedError as e:
             raise HTTPException(status_code=409, detail=str(e)) from e
-        log_event(identity, f"rc.{kind}", str(body.get("leg_id", "")))
     return {"ok": True, "accepted": kind, "watchdog_tripped": _RC_WATCHDOG.tripped}
 
 

@@ -178,6 +178,82 @@ def log_event(actor: str, action: str, target: str = "", **fields: Any) -> None:
         _record_audit_failure(e)
 
 
+# ---- AR-004: the FAIL-CLOSED audit path for privileged actions ----------------------------------
+class AuditWriteRefused(RuntimeError):
+    """AR-004: a CRITICAL action's audit record could not be durably written, so the action is refused.
+
+    `log_event` above is deliberately fail-OPEN -- it records degraded health and returns, because a
+    failed telemetry line must never break an ordinary request. The review found that same contract
+    applied to the actions that most need accountability: release, command, approval, key/role
+    administration and safety-state changes all called it AFTER the action, so a disk-full, permission,
+    rotation or filesystem failure permitted the operation and merely flipped an in-process flag. State
+    and audit could then disagree after a crash.
+
+    For those actions the ordering is inverted and the failure is fatal: the record is written FIRST and
+    the action proceeds only if it landed durably.
+    """
+
+
+#: AR-004 criticality classification. An action whose name starts with one of these is accountable:
+#: it must be durably recorded before it takes effect, or not happen at all.
+#: The rover-command route emits ``f"rc.{kind}"``, so the ACTUATION events are the kind names
+#: themselves (rc.goto, rc.safe, rc.setsim) -- not a literal "rc.command". Naming the class after the
+#: route rather than the emitted record is exactly the kind of near-miss that makes a gate vacuous; the
+#: classification test enumerates the real vocabulary.
+CRITICAL_ACTION_PREFIXES: tuple[str, ...] = (
+    "rc.goto",           # a rover motion command -- the actuation boundary
+    "rc.command",        # defensive: any future generic command record
+    "rc.safe",           # safety-state changes
+    "rc.estop",
+    "rc.setsim",         # director-only time-warp; changes what "safe" means
+    "rc.rearm",          # deliberate operator re-arm after a safe-stop
+    "rc.teleop_grant",   # bounded direct control granted
+    "executive.release", # release / approval
+    "executive.advance",
+    "operator.",         # key/role administration
+    "admin.",
+    "release.",
+    "twin.publish",      # authoritative world publication
+)
+
+
+def is_critical_action(action: str) -> bool:
+    """True if `action` is in the AR-004 accountable class (must be recorded or refused)."""
+    a = str(action)
+    return any(a.startswith(pfx) for pfx in CRITICAL_ACTION_PREFIXES)
+
+
+def critical_event(actor: str, action: str, target: str = "", **fields: Any) -> None:
+    """AR-004: durably record an accountable action BEFORE it takes effect, or raise.
+
+    Same record shape, redaction and fsync as `log_event` -- the only differences are ordering (callers
+    invoke this before the state change, not after) and that a write failure RAISES `AuditWriteRefused`
+    instead of degrading quietly. Health is still recorded, so the degraded flag and the CRITICAL log
+    line an operator watches for are unchanged.
+
+    NOT claimed: this does not make the audit and the state change one database transaction, and it does
+    not anchor signed audit roots off-host. Those are the remaining halves of AR-004 and are still open.
+    """
+    rec: dict[str, Any] = {"ts": round(time.time(), 3), "actor": actor, "action": action,
+                           "target": target, "critical": True}
+    cid = fields.pop("correlation_id", None) or get_correlation_id()
+    if cid is not None:
+        rec["correlation_id"] = cid
+    if fields:
+        rec.update(redact(fields))
+    line = _json.dumps(rec) + "\n"
+    try:
+        with _AUDIT_LOCK:
+            _audit_append_raw(line)
+    except OSError as e:
+        _record_audit_failure(e)
+        log.critical("AR-004: REFUSING %r by %r -- its audit record could not be durably written: %r",
+                     action, actor, e)
+        raise AuditWriteRefused(
+            f"critical action {action!r} refused: its audit record could not be durably written ({e})"
+        ) from e
+
+
 # matplotlib/pyplot is process-global + thread-unsafe; every report-rendering route serializes on this
 # ONE lock (shared by the plan + perception routers -- it must be a single process-wide instance).
 report_lock = threading.Lock()
