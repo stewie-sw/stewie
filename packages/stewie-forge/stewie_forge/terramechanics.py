@@ -109,8 +109,38 @@ class TerramechanicsParams:
 
     @classmethod
     def from_constants(cls) -> "TerramechanicsParams":
-        """The canonical lunar values from constants.py (all defaults)."""
-        return cls()
+        """The canonical lunar values, honouring a ``stewie.specs.config`` overlay when STEWIE is present.
+
+        SR-16 (2026-07-28 review): this returned a bare ``cls()`` -- the forge-local literals below --
+        so it silently ignored every constants overlay. Measured with ``STEWIE_K_PHI=200000``:
+        ``K.K_PHI`` became 200000.0 and the planner costmap moved with it (``lode/costmap_layers.py``
+        reads ``K.K_PHI`` directly, sinkage z up 3.9x, which feeds route cost and the ``impass`` gate),
+        while drive telemetry stayed **bit-identical** to the un-overridden run because the drive loop
+        builds its params here. The planner routed around soft ground the simulation never experienced,
+        and ``/config`` reported the override as applied. The comment above this dataclass asserted the
+        overlay "still reaches the built params"; it did not.
+
+        The package must stay STANDALONE (bodies + numeric only), so STEWIE is a soft dependency: when
+        ``stewie.specs.constants`` is importable its (already overlay-applied) values win; otherwise the
+        forge-local literals are the source of truth, exactly as before.
+        """
+        try:
+            from stewie.specs import constants as _K
+        except Exception:               # noqa: BLE001 -- standalone stewie-forge: local literals ARE canon
+            return cls()
+        def _v(name: str, fallback: float) -> float:
+            try:
+                return float(getattr(_K, name))
+            except (AttributeError, TypeError, ValueError):
+                return fallback
+        return cls(
+            k_c=_v("K_C", _K_C), k_phi=_v("K_PHI", _K_PHI), n_sinkage=_v("N_SINKAGE", _N_SINKAGE),
+            cohesion=_v("COHESION", _COHESION), phi_rad=_v("PHI", _PHI),
+            k_shear=_v("K_SHEAR", _K_SHEAR),
+            slip_c1=_v("SLIP_C1", _SLIP_C1), slip_c2=_v("SLIP_C2", _SLIP_C2),
+            rho_surface=_v("RHO_SURFACE", _RHO_SURFACE), rho_deep=_v("RHO_DEEP", _RHO_DEEP),
+            rover_mass_dry_kg=_v("ROVER_MASS_DRY_KG", _ROVER_MASS_DRY_KG),
+        )
 
     @classmethod
     def scm_oracle(cls) -> "TerramechanicsParams":
