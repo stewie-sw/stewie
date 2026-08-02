@@ -17,7 +17,8 @@ from pydantic import BaseModel, Field
 from stewie.bridge import rc_contract as RC
 from stewie.server import objects as OBJ
 from stewie.server.deps import require_auth, require_role
-from stewie.server.services import AuditWriteRefused, critical_event, log_event
+from stewie.server import services as _SVC   # AR-004: resolve AuditWriteRefused via the MODULE
+from stewie.server.services import critical_event, log_event
 
 router = APIRouter()
 
@@ -176,7 +177,12 @@ def rc_command(body: dict, identity: str = Depends(require_role("operator"))):
             critical_event(identity, f"rc.{kind}", str(body.get("leg_id", "")),
                            mission=str(body.get("mission") or ""), goal_row=body.get("goal_row"),
                            goal_col=body.get("goal_col"))
-        except AuditWriteRefused as e:
+        except _SVC.AuditWriteRefused as e:
+            # Caught via the MODULE attribute, not a from-import. `importlib.reload` of
+            # stewie.server.services (several tests do it) rebinds the class on the existing module
+            # object, so a name captured at import time becomes a STALE class and the except silently
+            # stops matching -- the exception then escapes as a 500 instead of the intended 503. This
+            # is not hypothetical: it is exactly how this failed in the full suite while passing alone.
             raise HTTPException(status_code=503, detail=str(e)) from e
         try:    # #286: a motion command while the SF-01 watchdog is safed is a 409 (re-arm first), not a silent resume
             _RC_WATCHDOG.submit(cmd, now=now)
