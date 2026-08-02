@@ -526,6 +526,10 @@ function closePolygon() {                                  // #178: finalize the
 function deleteSelectedPin() {                             // #64: Delete removes feature + pin
   if (!SELECTED_PIN) return;
   const ref = PIN_REFS.get(SELECTED_PIN);
+  // SR-23: this mutates ORDERS/KEEPOUTS/ANNOTATIONS but took NO undo snapshot, so the next Ctrl+Z
+  // popped an older state and silently destroyed whatever was authored in between -- and renderQueue
+  // persists, so the loss was PUT to the durable per-owner draft.
+  if (ref) snapshotAuthoring();
   if (ref) {
     if (ref.kind === "order") { const i = ORDERS.indexOf(ref.obj); if (i >= 0) ORDERS.splice(i, 1); }
     if (ref.kind === "keepout") { const i = KEEPOUTS.indexOf(ref.obj); if (i >= 0) KEEPOUTS.splice(i, 1); }
@@ -624,6 +628,9 @@ async function editPlace(lat, lon) {
   } else if (EDIT.tool === "note") {
     const text = prompt("note text:") || "";
     if (text) { const an = { x: d.x_m, y: d.y_m, text };
+      snapshotAuthoring();                                 // SR-23 (5th site, also not in the review):
+      // the sibling cut / fill / keep-out / polygon branches of this same handler all snapshot; the
+      // note branch did not, so dropping a note made the next Ctrl+Z pop someone else's state.
       ANNOTATIONS.push(an);
       dropPin(lat, lon, `${text.slice(0, 24)}`, "#e0b300", { kind: "note", obj: an });
       $("editstate").textContent = `note @ ${d.x_m}, ${d.y_m} m`; drawPlan(); }
@@ -3733,7 +3740,7 @@ function renderKeepouts() {
     const g = document.createElement("span"); g.className = "g";
     g.textContent = `obstacle: ${koLabel(k)}`;                 // #178: circle or box
     li.appendChild(g);
-    li.appendChild(mkbtn("✕", () => { KEEPOUTS.splice(i, 1); renderKeepouts(); }));
+    li.appendChild(mkbtn("✕", () => { snapshotAuthoring(); KEEPOUTS.splice(i, 1); renderKeepouts(); }));   // SR-23
     ol.appendChild(li);
   });
   drawPlan();
@@ -3742,6 +3749,7 @@ function renderKeepouts() {
 qel("koadd").onclick = () => {
   const x = +qel("kox").value, y = +qel("koy").value, r = +qel("kor").value;
   if (!(r > 0)) { setQ("keep-out radius must be > 0"); return; }
+  snapshotAuthoring();                                       // SR-23: was the un-snapshotted mutation
   KEEPOUTS.push({ x, y, r }); renderKeepouts();
   setQ(`${KEEPOUTS.length} keep-out obstacle(s); hauls will route around them`);
 };
@@ -3763,7 +3771,13 @@ function undoAuthoring() {
   KEEPOUTS.length = 0; d.k.forEach((x) => KEEPOUTS.push(x));
   ANNOTATIONS.length = 0; (d.a || []).forEach((x) => ANNOTATIONS.push(x));
   SELECTED_ORDER = -1;
-  renderQueue(); setQ("undone");
+  // SR-23: undo restores ORDERS *and* KEEPOUTS *and* ANNOTATIONS, but only re-rendered the queue --
+  // so #kolist kept listing deleted keep-outs with stale ✕ indices, and a later ✕ removed the wrong
+  // one. Re-render every surface this function mutates.
+  renderQueue();
+  if (typeof renderKeepouts === "function") renderKeepouts();
+  if (typeof renderAnnotations === "function") renderAnnotations();
+  setQ("undone");
   const h = $("qhist"); if (h) h.textContent = HISTORY.length ? `${HISTORY.length} undo` : "";
 }
 let QSORT = { key: null, dir: 1 };                          // UI-14: column sort (display-only)
@@ -3889,7 +3903,10 @@ function renderContentsTree() {
         else if (SELECTED_ORDER > row.ref) SELECTED_ORDER -= 1;
         renderQueue();
       } else if (row.kind === "keepout") {
-        KEEPOUTS.splice(row.ref, 1); renderKeepouts();
+        // SR-23 (found by the sweep test, NOT listed in the review): the sibling `order` branch above
+        // snapshots and this one did not -- an asymmetry inside one handler, so removing a keep-out
+        // from the table left the next Ctrl+Z popping someone else's state.
+        snapshotAuthoring(); KEEPOUTS.splice(row.ref, 1); renderKeepouts();
       }
     },
     onSelect: (row) => {
