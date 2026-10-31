@@ -1,0 +1,14 @@
+{
+ "fixture": "worksite_refined",
+ "generator": "oracle/build_fixtures.py::worksite_refined (stewie.terrain.dem_overlay.overlay_residual with fbm off on SYNTHETIC blocks, labelled; stewie.physics.worksite.WorkSite at k=2 on the real Haworth 5 m bundle)",
+ "payload_sha256": "e152e31a339b03b320b8aaa8528c924b064fed0242dcec2bb332d375af4aa6d5",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/drive.py": "a4cba2b9227e4e3b7add1b4913bcc4120d2fbd67c100928b1d3cca4d9854f885",
+  "stewie/physics/refinement.py": "70a764b808c6089455d6460e98be2b66bbf00ef43317851eee92accca65abdcb",
+  "stewie/physics/sandpile.py": "011b95534372966d3ef1078301cd8d7ceaa4178c9a82a5bd4e262f630c9a7152",
+  "stewie/physics/worksite.py": "edb4197977c5ad5cf237bbfc3488f11edd85c3c7c9cd437354922a795ec7b58f",
+  "stewie/terrain/dem_overlay.py": "fd359705412edfce6752edd7329032ea9e500a575068af710d46205008377865",
+  "stewie/terrain/tiles_mosaic.py": "e2cad158ecd762c76229cf99ab88265bdc8ca52da5bb452afd25f751bd95fa68"
+ }
+}

@@ -839,6 +839,28 @@ def drive_runs() -> None:
                    "tip_limit_deg": ST.tip_tilt_limit_deg(gauge_m=0.57, wheelbase_m=0.40, cg_height_m=0.30)})
 
 
+def _ws_window(ws) -> dict:
+    """A WorkSite's worked window, ledger and paging state (worksite oracles)."""
+    f = ws.fine
+    return {"origin": list(ws.window_world_origin), "region": list(ws.window_region_rc),
+            "width": f.width, "height": f.height,
+            **{n: getattr(f, n).ravel().tolist() for n in ("mass_areal", "density", "datum", "state_label",
+                                                            "disturbance")},
+            "inventory_kg": ws.inventory_kg, "peak_inventory_kg": ws.peak_inventory_kg,
+            "cut_total_kg": ws.cut_total_kg, "placed_total_kg": ws.placed_total_kg,
+            "total_mass": ws.total_mass(), "residual": ws.conservation_residual(),
+            "recenters": ws.recenters,
+            "store": sorted([[t[0], t[1], float(np.asarray(v["mass_areal"]).sum())]
+                             for t, v in ws.worked_store.items()])}
+
+
+def _ws_tick(ws, v, w) -> dict:
+    """One WorkSite.step and the telemetry the worksite oracles keep."""
+    t, dirty = ws.step(v, w, 0.1)
+    return {k: t[k] for k in ("v_achieved", "omega_achieved", "slip", "entrapped", "sinkage_m",
+                              "bounds_clamped", "recentered", "pose_xy")} | {"yaw": ws.yaw, "dirty": dirty}
+
+
 def worksite_native() -> None:
     """WorkSite on the real Haworth 5 m bundle at its native cell (fine_cell_m=None, k=1): the streaming path
     (recenter, per-tick step, flatten, page out, dump, relax, page back, edge clamp) and the single-window path
@@ -850,24 +872,7 @@ def worksite_native() -> None:
     from stewie_forge.terramechanics import TerramechanicsParams
 
     bundle = os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m")
-    names = ("mass_areal", "density", "datum", "state_label", "disturbance")
-
-    def window(ws):
-        f = ws.fine
-        return {"origin": list(ws.window_world_origin), "region": list(ws.window_region_rc),
-                "width": f.width, "height": f.height,
-                **{n: getattr(f, n).ravel().tolist() for n in names},
-                "inventory_kg": ws.inventory_kg, "peak_inventory_kg": ws.peak_inventory_kg,
-                "cut_total_kg": ws.cut_total_kg, "placed_total_kg": ws.placed_total_kg,
-                "total_mass": ws.total_mass(), "residual": ws.conservation_residual(),
-                "recenters": ws.recenters,
-                "store": sorted([[t[0], t[1], float(np.asarray(v["mass_areal"]).sum())]
-                                 for t, v in ws.worked_store.items()])}
-
-    def tick(ws, v, w):
-        t, dirty = ws.step(v, w, 0.1)
-        return {k: t[k] for k in ("v_achieved", "omega_achieved", "slip", "entrapped", "sinkage_m",
-                                  "bounds_clamped", "recentered", "pose_xy")} | {"yaw": ws.yaw, "dirty": dirty}
+    window, tick = _ws_window, _ws_tick
 
     ws = WorkSite.from_haworth_bundle(bundle, fine_cell_m=None)
     assert ws.k == 1 and not ws.smooth_datum
@@ -938,6 +943,77 @@ def worksite_native() -> None:
                                                               "final_yaw", "any_entrapped")},
                               "target_m": one_target, "moved_kg": one_moved, "placed_kg": one_placed,
                               "relax_steps": one_steps, "window": single}})
+
+
+def worksite_refined() -> None:
+    """Interpolation-only refinement (D-R72 (1)): the Python overlay with its fbm off (``fbm_nu0`` 0) and bilinear
+    thickness interpolation. (a) SYNTHETIC base blocks (labelled) with non-uniform thickness, one at zero so the
+    negative-thickness clamp runs; (b) WorkSite at k=2 on the real Haworth 5 m bundle, streaming and single-window."""
+    from stewie.physics.worksite import WorkSite
+    from stewie.specs import constants as K
+    from stewie.terrain import dem_overlay
+
+    off = {"fbm_nu0": 0.0, "smooth": "bilinear"}
+    names = ("mass_areal", "density", "datum", "state_label", "disturbance")
+    blocks = []
+    for k, (h, w) in ((3, (4, 5)), (4, (3, 3))):
+        rr, cc = np.meshgrid(np.arange(h, dtype=np.float64), np.arange(w, dtype=np.float64), indexing="ij")
+        density = 1300.0 + 40.0 * rr + 15.0 * cc
+        thick = 0.12 + 0.05 * np.sin(rr + 0.7 * cc) + 0.02 * cc
+        thick[1, 1] = 0.0                                 # a bare cell beside loose ones: the clamp path
+        base = {"mass_areal": thick * density, "density": density, "datum": 3.0 * rr - 1.5 * cc + 0.25 * rr * cc,
+                "state_label": ((rr + cc) % 3).astype(np.uint8), "disturbance": 0.1 * ((rr * w + cc) % 5)}
+        fine = dem_overlay.overlay_residual(base, k, 0.0, 0.0, params=off, fine_cell_m=5.0 / k)
+        blocks.append({"k": k, "height": h, "width": w, "base": {n: base[n].ravel().tolist() for n in names},
+                       "fine": {n: fine[n].ravel().tolist() for n in names}})
+    assert any((np.asarray(b["fine"]["mass_areal"]) == 0.0).any() for b in blocks), "clamp never ran"
+
+    bundle = os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m")
+    ws = WorkSite.from_haworth_bundle(bundle, fine_cell_m=2.5)
+    ws.mosaic.overlay_params = off
+    assert ws.k == 2 and ws.smooth_datum
+    t = ws._virgin_tile_fields(250, 250)
+    ws.mosaic.overlay_params = {"fbm_nu0": 0.0}            # bicubic: equal on uniform-thickness real terrain
+    tb = ws._virgin_tile_fields(250, 250)
+    ws.mosaic.overlay_params = off
+    bicubic_gap = max(float(np.abs(t[n] - tb[n]).max()) for n in ("mass_areal", "density", "datum"))
+    start = ws.base_rc_to_xy((1000.0, 1000.0))
+    far = ws.base_rc_to_xy((1000.0, 1012.0))
+    ckpt, ticks = {}, []
+    ws.recenter(start)
+    ckpt["first"] = _ws_window(ws)
+    ticks += [_ws_tick(ws, 0.25, 0.05) for _ in range(6)]
+    h = ws.fine.derive_height()
+    cut = np.zeros(h.shape, dtype=bool)
+    cut[8:16, 8:16] = True
+    cut_target = float(np.median(h[cut]))
+    moved = ws.flatten(cut, cut_target)
+    ws.recenter(far)
+    spot = np.zeros(ws.fine.derive_height().shape, dtype=bool)
+    spot[10:14, 10:14] = True
+    placed = ws.dump(spot, kg=0.5 * ws.inventory_kg)
+    relax_steps, _ = ws.relax(max_steps=400, theta_r=K.THETA_R, transfer_fraction=0.6)
+    ckpt["dumped"] = _ws_window(ws)
+    ws.recenter(start)
+    ckpt["returned"] = _ws_window(ws)
+    virgin = ws.window_virgin_height().ravel().tolist()
+    diff = ws.diff_field().ravel().tolist()
+    assert moved > 0 and placed > 0 and relax_steps < 400 and ws.recenters == 3
+    one = WorkSite.from_haworth_bundle(bundle, fine_cell_m=2.5)
+    one.mosaic.overlay_params = off
+    one.open_window((1000.0, 1000.0))
+    single = _ws_window(one)
+    write_fixture(ORACLE_FIXTURES, "worksite_refined", "oracle/build_fixtures.py::worksite_refined "
+                  "(stewie.terrain.dem_overlay.overlay_residual with fbm off on SYNTHETIC blocks, labelled; "
+                  "stewie.physics.worksite.WorkSite at k=2 on the real Haworth 5 m bundle)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/physics/worksite.py",
+                   "stewie/terrain/dem_overlay.py", "stewie/terrain/tiles_mosaic.py", "stewie/physics/refinement.py",
+                   "stewie/physics/drive.py", "stewie/physics/sandpile.py"],
+                  {"overlay_params": off, "blocks": blocks, "bundle": "samples/lunar_dem/haworth_10km_5m",
+                   "fine_cell_m": 2.5, "bicubic_gap": bicubic_gap, "start_xy": list(start), "far_xy": list(far),
+                   "tick_cmd": [0.25, 0.05], "ticks": ticks, "cut_target_m": cut_target, "moved_kg": moved,
+                   "placed_kg": placed, "relax_steps": relax_steps, "virgin_height": virgin, "diff": diff,
+                   "checkpoints": ckpt, "single": {"base_rc": [1000.0, 1000.0], "window": single}})
 
 
 def world_log_cases() -> None:
@@ -1199,6 +1275,7 @@ def main() -> None:
     conform_cases()
     drive_runs()
     worksite_native()
+    worksite_refined()
     world_log_cases()
     twin_store_cases()
     route_cases()

@@ -5,10 +5,11 @@
 //! (production takes them from the registry and the rover profile, D-R50 / D-R54).
 
 use serde_json::Value;
+use stewie_physics::column::Fields;
 use stewie_physics::column::Regolith;
 use stewie_physics::drive::Vehicle;
 use stewie_physics::soil::{SoilParams, bundled};
-use stewie_physics::worksite::{Setup, StepReport, WorkSite, WorkSiteError};
+use stewie_physics::worksite::{Setup, StepReport, WorkSite, WorkSiteError, refine_block};
 
 fn f(v: &Value) -> f64 {
     v.as_f64().unwrap()
@@ -76,6 +77,7 @@ fn python_setup(fx: &Value) -> Setup {
         gravity_ms2: f(&fx["g"]),
         v_max: f(&fx["v_max"]),
         tile_base_cells: fx["tile_base_cells"].as_u64().unwrap() as usize,
+        fine_cell_m: None,
     }
 }
 
@@ -444,4 +446,168 @@ fn the_production_setup_takes_its_limits_from_the_rover_profile() {
     .unwrap();
     assert!((ws.v_max - 0.3).abs() < 1e-12);
     assert!((ws.omega_max - 2.0 * 0.3 / profile.track_gauge_m.value).abs() < 1e-12);
+}
+
+/// `worksite_native` carries the Python soil and vehicle; the refined oracle runs the same Python defaults.
+fn refined() -> (Value, WorkSite) {
+    let rf = stewie_oracle::load("worksite_refined").unwrap().payload;
+    let setup = Setup {
+        fine_cell_m: Some(f(&rf["fine_cell_m"])),
+        ..python_setup(&fx())
+    };
+    let ws = WorkSite::from_bundle(
+        &stewie_oracle::repo_root().join(rf["bundle"].as_str().unwrap()),
+        setup,
+    )
+    .unwrap();
+    (rf, ws)
+}
+
+fn fields(v: &Value) -> Fields {
+    Fields {
+        mass_areal: vf(&v["mass_areal"]),
+        density: vf(&v["density"]),
+        state_label: v["state_label"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| u8::try_from(x.as_u64().unwrap()).unwrap())
+            .collect(),
+        disturbance: vf(&v["disturbance"]),
+        datum: vf(&v["datum"]),
+        ice: None,
+    }
+}
+
+/// Mean of base cell `(r, c)`'s `k x k` block in a refined field `w k` wide.
+#[allow(clippy::cast_precision_loss)]
+fn block_mean(fine: &[f64], (r, c): (usize, usize), w: usize, k: usize) -> f64 {
+    (0..k * k)
+        .map(|j| fine[(r * k + j / k) * w * k + c * k + j % k])
+        .sum::<f64>()
+        / (k * k) as f64
+}
+
+#[test]
+#[allow(clippy::cast_possible_truncation)]
+fn refinement_matches_the_python_overlay_where_it_conserves_and_never_creates_mass() {
+    let rf = stewie_oracle::load("worksite_refined").unwrap().payload;
+    let (mut matched, mut corrected) = (0, 0);
+    for b in rf["blocks"].as_array().unwrap() {
+        let (k, h, w) = (
+            b["k"].as_u64().unwrap() as usize,
+            b["height"].as_u64().unwrap() as usize,
+            b["width"].as_u64().unwrap() as usize,
+        );
+        let base = fields(&b["base"]);
+        let got = refine_block(&base, h, w, k);
+        let want = fields(&b["fine"]);
+        let tag = format!("k={k}");
+        close_all(&got.density, &want.density, &format!("{tag} density"));
+        close_all(&got.datum, &want.datum, &format!("{tag} datum"));
+        close_all(
+            &got.disturbance,
+            &want.disturbance,
+            &format!("{tag} disturbance"),
+        );
+        assert_eq!(got.state_label, want.state_label, "{tag} state_label");
+        assert!(
+            got.mass_areal.iter().all(|&m| m >= 0.0),
+            "{tag}: negative mass"
+        );
+        for (cell, &m) in base.mass_areal.iter().enumerate() {
+            let rc = (cell / w, cell % w);
+            // coarsen(refine(base)) == base: no base cell gains or loses mass
+            close(
+                block_mean(&got.mass_areal, rc, w, k),
+                m,
+                &format!("{tag} block mean {rc:?}"),
+            );
+            let python_mean = block_mean(&want.mass_areal, rc, w, k);
+            if (python_mean - m).abs() <= 1e-9 * m.abs().max(1.0) {
+                for j in 0..k * k {
+                    let i = (rc.0 * k + j / k) * w * k + rc.1 * k + j % k;
+                    close(
+                        got.mass_areal[i],
+                        want.mass_areal[i],
+                        &format!("{tag} mass {rc:?}[{j}]"),
+                    );
+                }
+                matched += 1;
+            } else {
+                corrected += 1; // the Python's clamp created mass here (D-R77)
+            }
+        }
+    }
+    assert!(
+        matched > 20 && corrected >= 2,
+        "matched {matched}, corrected {corrected}"
+    );
+}
+
+#[test]
+fn the_refined_streaming_session_matches_the_oracle() {
+    let (rf, mut ws) = refined();
+    let base = fx();
+    let ck = &rf["checkpoints"];
+    let (tf, theta) = (f(&base["transfer_fraction"]), f(&base["theta_r"]));
+    // on real terrain the thickness is uniform, so bicubic and bilinear refinement agree exactly
+    assert!(
+        f(&rf["bicubic_gap"]) == 0.0,
+        "bicubic gap {}",
+        rf["bicubic_gap"]
+    );
+    let start = xy(&rf["start_xy"]);
+    assert!(ws.recenter(start, 1).unwrap());
+    check_window(&ws, &ck["first"], "first");
+    let cmd = xy(&rf["tick_cmd"]);
+    for (i, want) in rf["ticks"].as_array().unwrap().iter().enumerate() {
+        let r = ws.step(cmd.0, cmd.1, f(&base["dt"]), 0.0).unwrap();
+        check_tick(&r, &ws, want, &format!("tick {i}"));
+    }
+    let moved = ws
+        .flatten(&mask(&ws, 8..16, 8..16), f(&rf["cut_target_m"]), true)
+        .unwrap();
+    close(moved, f(&rf["moved_kg"]), "moved");
+    assert!(ws.recenter(xy(&rf["far_xy"]), 1).unwrap());
+    let half = 0.5 * ws.inventory_kg();
+    close(
+        ws.dump(&mask(&ws, 10..14, 10..14), Some(half)).unwrap(),
+        f(&rf["placed_kg"]),
+        "placed",
+    );
+    let steps = ws.relax(400, theta, tf).unwrap();
+    assert_eq!(
+        steps as u64,
+        rf["relax_steps"].as_u64().unwrap(),
+        "relax steps"
+    );
+    check_window(&ws, &ck["dumped"], "dumped");
+    assert!(ws.recenter(start, 1).unwrap());
+    check_window(&ws, &ck["returned"], "returned");
+    close_all(
+        &ws.window_virgin_height().unwrap(),
+        &vf(&rf["virgin_height"]),
+        "virgin",
+    );
+    close_all(&ws.diff_field().unwrap(), &vf(&rf["diff"]), "diff");
+}
+
+#[test]
+fn the_refined_single_window_matches_the_oracle_and_a_non_integer_k_is_refused() {
+    let (rf, mut ws) = refined();
+    ws.open_window(xy(&rf["single"]["base_rc"]), 8.0).unwrap();
+    check_window(&ws, &rf["single"]["window"], "single");
+    let setup = Setup {
+        fine_cell_m: Some(2.0),
+        ..python_setup(&fx())
+    };
+    let err = WorkSite::from_bundle(
+        &stewie_oracle::repo_root().join(rf["bundle"].as_str().unwrap()),
+        setup,
+    );
+    assert!(
+        matches!(err, Err(WorkSiteError::Command(_))),
+        "5 m / 2 m is not an integer k"
+    );
 }

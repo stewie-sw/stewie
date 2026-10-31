@@ -4,8 +4,12 @@
 //!
 //! Two entry paths, mutually exclusive as in the Python: [`WorkSite::open_window`] works one tile, and
 //! [`WorkSite::recenter`] / [`WorkSite::step`] stream the window with the rover. A refused command, a target
-//! outside the site, or terrain whose DEM round-trip was never verified changes nothing. This node is the
-//! native path (worked cell = base cell); sub-cell refinement is RW-22b.
+//! outside the site, or terrain whose DEM round-trip was never verified changes nothing.
+//!
+//! The worked cell is the base cell or an integer fraction `1/k` of it. A finer window refines the real
+//! terrain by interpolation only (D-R72): the column thickness is interpolated bilinearly and each base cell's
+//! mean is restored exactly, so coarsening the worked tile returns the base; no procedural relief is added.
+//! The datum is resampled bilinearly across the whole base, so tile seams carry no terrace.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -71,6 +75,8 @@ pub struct Setup {
     pub v_max: f64,
     /// Base cells per paging tile side.
     pub tile_base_cells: usize,
+    /// Worked cell [m]; `None` works at the base cell. Must divide the base cell into an integer `k`.
+    pub fine_cell_m: Option<f64>,
 }
 
 /// One [`WorkSite::step`]: the drive telemetry plus the session's own flags.
@@ -236,11 +242,143 @@ fn paste(dst: &mut Fields, width: usize, src: &Fields, tw: usize, (r0, c0): (usi
     }
 }
 
+/// Worked cells per base cell side: `base / fine` as a positive integer within 1e-9 relative (Python
+/// `refinement.k_factor`; absorbs division noise such as 0.02 / 0.01, rejects a genuine non-integer).
+fn k_factor(base_cell_m: f64, fine_cell_m: f64) -> Result<usize, WorkSiteError> {
+    let ratio = base_cell_m / fine_cell_m;
+    let k = ratio.round_ties_even();
+    if !(fine_cell_m > 0.0 && k >= 1.0 && (ratio - k).abs() <= 1e-9 * k) {
+        return Err(WorkSiteError::Command(format!(
+            "worked cell {fine_cell_m} m must divide the base cell {base_cell_m} m into an integer"
+        )));
+    }
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    // a validated positive integer
+    Ok(k as usize)
+}
+
+/// Per-base-cell means of an `(h k) x (w k)` field (row-major).
+#[allow(clippy::cast_precision_loss, clippy::many_single_char_names)] // grid geometry: h, w, k
+fn block_means(fine: &[f64], h: usize, w: usize, k: usize) -> Vec<f64> {
+    let mut m = vec![0.0; h * w];
+    for (i, v) in fine.iter().enumerate() {
+        let (r, c) = (i / (w * k), i % (w * k));
+        m[(r / k) * w + c / k] += v;
+    }
+    let n = (k * k) as f64;
+    for v in &mut m {
+        *v /= n;
+    }
+    m
+}
+
+/// Shift each `k x k` block by one constant so its mean equals `base` (Python `_restore_block_means`).
+fn restore_block_means(fine: &[f64], base: &[f64], h: usize, w: usize, k: usize) -> Vec<f64> {
+    let means = block_means(fine, h, w, k);
+    fine.iter()
+        .enumerate()
+        .map(|(i, v)| {
+            let b = (i / (w * k) / k) * w + (i % (w * k)) / k;
+            v + (base[b] - means[b])
+        })
+        .collect()
+}
+
+/// Repeat each base value over its `k x k` block.
+fn expand<T: Copy>(base: &[T], h: usize, w: usize, k: usize) -> Vec<T> {
+    (0..h * k * w * k)
+        .map(|i| base[(i / (w * k) / k) * w + (i % (w * k)) / k])
+        .collect()
+}
+
+/// Bilinear interpolation of an `h x w` field onto its `k`-refined cell centres, clamped at the edges
+/// (Python `_smooth_interp_height`, mode "bilinear").
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
+fn bilinear_refine(base: &[f64], h: usize, w: usize, k: usize) -> Vec<f64> {
+    let kf = k as f64;
+    let axis = |i: usize, n: usize| {
+        let x = (i as f64 + 0.5) / kf - 0.5;
+        let i0 = (x.floor().max(0.0) as usize).min(n - 1);
+        (i0, (i0 + 1).min(n - 1), (x - i0 as f64).clamp(0.0, 1.0))
+    };
+    let mut out = Vec::with_capacity(h * k * w * k);
+    for fr in 0..h * k {
+        let (r0, r1, tr) = axis(fr, h);
+        for fc in 0..w * k {
+            let (c0, c1, tc) = axis(fc, w);
+            let top = base[r0 * w + c0] * (1.0 - tc) + base[r0 * w + c1] * tc;
+            let bot = base[r1 * w + c0] * (1.0 - tc) + base[r1 * w + c1] * tc;
+            out.push(top * (1.0 - tr) + bot * tr);
+        }
+    }
+    out
+}
+
+/// Where a `k x k` block of thickness dips below zero, scale it toward its mean just far enough that its minimum
+/// is zero: `t = m + a (t - m)` with `a = m / (m - min)`. The mean is unchanged and no mass is created (D-R77;
+/// the Python's clamp-then-restore creates mass on a bare cell beside loose ones).
+#[allow(clippy::many_single_char_names)] // grid geometry: h, w, k, t, m, a
+fn contract_negative_blocks(t: &mut [f64], h: usize, w: usize, k: usize) {
+    let means = block_means(t, h, w, k);
+    let mut lowest = vec![f64::INFINITY; h * w];
+    let cell = |i: usize| (i / (w * k) / k) * w + (i % (w * k)) / k;
+    for (i, v) in t.iter().enumerate() {
+        lowest[cell(i)] = lowest[cell(i)].min(*v);
+    }
+    for (i, v) in t.iter_mut().enumerate() {
+        let (m, lo) = (means[cell(i)], lowest[cell(i)]);
+        if lo < 0.0 {
+            let a = (m / (m - lo)).clamp(0.0, 1.0);
+            *v = m + a * (*v - m);
+        }
+    }
+}
+
+/// Interpolation-only refinement of an `h x w` block by `k` (D-R72 (1); the Python `overlay_residual` with its
+/// fbm off and bilinear smoothing). Density, datum, label and disturbance are copied per block; the column
+/// thickness is interpolated and each base cell's mean restored, a block that dips below zero is contracted
+/// toward its mean (D-R77), and the mass means are restored once more, so coarsening the result returns the
+/// base mass to the float64 floor. The caller replaces the datum with the global resample.
+#[must_use]
+pub fn refine_block(base: &Fields, h: usize, w: usize, k: usize) -> Fields {
+    let thick: Vec<f64> = base
+        .mass_areal
+        .iter()
+        .zip(&base.density)
+        .map(|(m, d)| m / d)
+        .collect();
+    let density = expand(&base.density, h, w, k);
+    let smooth = restore_block_means(&bilinear_refine(&thick, h, w, k), &thick, h, w, k);
+    // the Python adds a zero residual and restores the means a second time; both are kept for parity
+    let mut t = restore_block_means(&smooth, &thick, h, w, k);
+    contract_negative_blocks(&mut t, h, w, k);
+    let mass: Vec<f64> = t.iter().zip(&density).map(|(t, d)| t * d).collect();
+    let mass_areal = restore_block_means(&mass, &base.mass_areal, h, w, k)
+        .into_iter()
+        .map(|v| v.max(0.0))
+        .collect();
+    Fields {
+        mass_areal,
+        density,
+        state_label: expand(&base.state_label, h, w, k),
+        disturbance: expand(&base.disturbance, h, w, k),
+        datum: expand(&base.datum, h, w, k),
+        ice: None,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct WorkSite {
     base: ColumnState,
     setup: Setup,
-    cell_m: f64,
+    base_cell_m: f64,
+    fine_cell_m: f64,
+    /// Worked cells per base cell side.
+    k: usize,
     /// Site box `[x0, y0, x1, y1]` [m]: x grows with column, y with row.
     world: [f64; 4],
     datum_verified: bool,
@@ -273,7 +411,8 @@ impl WorkSite {
     /// `datum_verified` is true only for terrain loaded through the round-trip check ([`Self::from_bundle`]).
     ///
     /// # Errors
-    /// A zero tile size or a non-positive drive speed or gauge.
+    /// A zero tile size, a non-positive drive speed or gauge, or a worked cell that does not divide the base
+    /// cell into an integer `k`.
     pub fn new(
         base: ColumnState,
         origin: (f64, f64),
@@ -290,19 +429,23 @@ impl WorkSite {
                 s.tile_base_cells, s.v_max, s.vehicle.gauge_m
             )));
         }
-        let cell_m = base.cell_m();
+        let base_cell_m = base.cell_m();
+        let fine_cell_m = s.fine_cell_m.unwrap_or(base_cell_m);
+        let k = k_factor(base_cell_m, fine_cell_m)?;
         #[allow(clippy::cast_precision_loss)] // grid sizes are far below 2^52
         let world = [
             origin.0,
             origin.1,
-            origin.0 + base.width() as f64 * cell_m,
-            origin.1 + base.height() as f64 * cell_m,
+            origin.0 + base.width() as f64 * base_cell_m,
+            origin.1 + base.height() as f64 * base_cell_m,
         ];
         let tiles = |n: usize| i64::try_from(n.div_ceil(s.tile_base_cells)).unwrap_or(i64::MAX);
         let n_tiles = (tiles(base.height()), tiles(base.width()));
         Ok(Self {
             base,
-            cell_m,
+            base_cell_m,
+            fine_cell_m,
+            k,
             world,
             datum_verified,
             n_tiles,
@@ -403,8 +546,8 @@ impl WorkSite {
     #[must_use]
     pub fn base_rc_to_xy(&self, (br, bc): (f64, f64)) -> (f64, f64) {
         (
-            self.world[0] + bc * self.cell_m,
-            self.world[1] + br * self.cell_m,
+            self.world[0] + bc * self.base_cell_m,
+            self.world[1] + br * self.base_cell_m,
         )
     }
 
@@ -433,23 +576,69 @@ impl WorkSite {
         ]
     }
 
-    /// Unworked fields of tile `t` (native path: the base cells themselves).
+    /// Unworked fields of tile `t`: the base cells themselves, or their interpolation-only refinement with the
+    /// datum resampled bilinearly across the whole base.
     fn virgin_tile(&self, t: TileKey) -> Fields {
-        block(self.base.fields(), self.base.width(), self.tile_region(t))
+        let region = self.tile_region(t);
+        let cells = block(self.base.fields(), self.base.width(), region);
+        if self.k == 1 {
+            return cells;
+        }
+        let (h, w) = (region[2] - region[0], region[3] - region[1]);
+        let mut fine = refine_block(&cells, h, w, self.k);
+        fine.datum = self.bilinear_datum_block(
+            region[0] * self.k,
+            region[1] * self.k,
+            h * self.k,
+            w * self.k,
+        );
+        fine
+    }
+
+    /// The base datum resampled bilinearly onto worked cells `[fi0, fi0 + h) x [fj0, fj0 + w)` (global worked
+    /// indices; cell-centre registration, clamped at the base edge). A pure function of the global index, so it
+    /// agrees across every tile and window seam; the datum carries no mass.
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::many_single_char_names // grid geometry: h, w, k, d
+    )]
+    fn bilinear_datum_block(&self, fi0: usize, fj0: usize, h: usize, w: usize) -> Vec<f64> {
+        let (hb, wb) = (self.base.height(), self.base.width());
+        let d = &self.base.fields().datum;
+        let k = self.k as f64;
+        let axis = |i: usize, n: usize| {
+            let u = ((i as f64 + 0.5) / k - 0.5).clamp(0.0, n as f64 - 1.0);
+            let i0 = (u.floor() as usize).min(n.saturating_sub(2));
+            (i0, u - i0 as f64)
+        };
+        let mut out = Vec::with_capacity(h * w);
+        for fi in fi0..fi0 + h {
+            let (r0, tr) = axis(fi, hb);
+            for fj in fj0..fj0 + w {
+                let (c0, tc) = axis(fj, wb);
+                let at = |r: usize, c: usize| d[r * wb + c];
+                let top = at(r0, c0) * (1.0 - tc) + at(r0, c0 + 1) * tc;
+                let bot = at(r0 + 1, c0) * (1.0 - tc) + at(r0 + 1, c0 + 1) * tc;
+                out.push(top * (1.0 - tr) + bot * tr);
+            }
+        }
+        out
     }
 
     fn tile_grid_mass(&self, f: &Fields) -> f64 {
-        f.mass_areal.iter().sum::<f64>() * self.cell_m * self.cell_m
+        f.mass_areal.iter().sum::<f64>() * self.fine_cell_m * self.fine_cell_m
     }
 
     /// Tiles whose base region meets the disc of `radius_m` around `xy`, in scan order.
     #[allow(clippy::cast_possible_truncation)] // floor of a bounded tile index
     fn tiles_in_disc(&self, (x, y): (f64, f64), radius_m: f64) -> Vec<TileKey> {
         let (row, col) = (
-            (y - self.world[1]) / self.cell_m,
-            (x - self.world[0]) / self.cell_m,
+            (y - self.world[1]) / self.base_cell_m,
+            (x - self.world[0]) / self.base_cell_m,
         );
-        let rad = radius_m / self.cell_m;
+        let rad = radius_m / self.base_cell_m;
         #[allow(clippy::cast_precision_loss)]
         let t = self.setup.tile_base_cells as f64;
         let lo_hi = |v: f64| {
@@ -497,19 +686,22 @@ impl WorkSite {
             .ok_or_else(|| WorkSiteError::Bounds(format!("no tile near base cell {base_rc:?}")))?;
         let region = self.tile_region(tile);
         let fields = self.virgin_tile(tile);
-        let (h, w) = (region[2] - region[0], region[3] - region[1]);
+        let (h, w) = (
+            (region[2] - region[0]) * self.k,
+            (region[3] - region[1]) * self.k,
+        );
         self.fine = Some(ColumnState::new(
             w,
             h,
-            self.cell_m,
+            self.fine_cell_m,
             fields,
             0.0,
             &self.setup.regolith,
         )?);
         self.window_region_rc = Some(region);
         self.window_origin = Some((
-            self.world[0] + region[1] as f64 * self.cell_m,
-            self.world[1] + region[0] as f64 * self.cell_m,
+            self.world[0] + region[1] as f64 * self.base_cell_m,
+            self.world[1] + region[0] as f64 * self.base_cell_m,
         ));
         self.baseline_mass = Some(self.total_mass());
         Ok(())
@@ -522,7 +714,7 @@ impl WorkSite {
         };
         for &t in &self.active_blocks {
             let [r0, c0, r1, c1] = self.tile_region(t);
-            let region = [r0 - br0, c0 - bc0, r1 - br0, c1 - bc0];
+            let region = [r0 - br0, c0 - bc0, r1 - br0, c1 - bc0].map(|v| v * self.k);
             self.worked_store
                 .insert(t, block(fine.fields(), fine.width(), region));
         }
@@ -548,7 +740,7 @@ impl WorkSite {
             ));
         }
         // Python int(round(.)) rounds half to even and // floors, also for positions off the site
-        let cell = |v: f64, v0: f64| ((v - v0) / self.cell_m).round_ties_even() as i64;
+        let cell = |v: f64, v0: f64| ((v - v0) / self.base_cell_m).round_ties_even() as i64;
         let side = i64::try_from(self.setup.tile_base_cells).unwrap_or(i64::MAX);
         let centre = (
             cell(target.1, self.world[1]).div_euclid(side),
@@ -582,7 +774,7 @@ impl WorkSite {
         let bc0 = regions.iter().map(|r| r.1[1]).min().unwrap_or(0);
         let br1 = regions.iter().map(|r| r.1[2]).max().unwrap_or(0);
         let bc1 = regions.iter().map(|r| r.1[3]).max().unwrap_or(0);
-        let (h, w) = (br1 - br0, bc1 - bc0);
+        let (h, w) = ((br1 - br0) * self.k, (bc1 - bc0) * self.k);
         let mut out = Fields {
             mass_areal: vec![0.0; h * w],
             density: vec![0.0; h * w],
@@ -599,12 +791,19 @@ impl WorkSite {
                 self.baseline_virgin_kg += self.tile_grid_mass(&f);
                 f
             };
-            paste(&mut out, w, &tf, c1 - c0, (r0 - br0, c0 - bc0));
+            let k = self.k;
+            paste(
+                &mut out,
+                w,
+                &tf,
+                (c1 - c0) * k,
+                ((r0 - br0) * k, (c0 - bc0) * k),
+            );
         }
         self.fine = Some(ColumnState::new(
             w,
             h,
-            self.cell_m,
+            self.fine_cell_m,
             out,
             0.0,
             &self.setup.regolith,
@@ -613,8 +812,8 @@ impl WorkSite {
         self.active_origin = Some((br0, bc0));
         self.window_region_rc = Some([br0, bc0, br1, bc1]);
         self.window_origin = Some((
-            self.world[0] + bc0 as f64 * self.cell_m,
-            self.world[1] + br0 as f64 * self.cell_m,
+            self.world[0] + bc0 as f64 * self.base_cell_m,
+            self.world[1] + br0 as f64 * self.base_cell_m,
         ));
         self.recenters += 1;
         Ok(true)
@@ -628,14 +827,14 @@ impl WorkSite {
         let (ox, oy) = self
             .window_origin
             .ok_or_else(|| WorkSiteError::Path("no open window".into()))?;
-        Ok(((y - oy) / self.cell_m, (x - ox) / self.cell_m))
+        Ok(((y - oy) / self.fine_cell_m, (x - ox) / self.fine_cell_m))
     }
 
     fn active_rc_to_xy(&self, (r, c): (f64, f64)) -> Result<(f64, f64), WorkSiteError> {
         let (ox, oy) = self
             .window_origin
             .ok_or_else(|| WorkSiteError::Path("no open window".into()))?;
-        Ok((ox + c * self.cell_m, oy + r * self.cell_m))
+        Ok((ox + c * self.fine_cell_m, oy + r * self.fine_cell_m))
     }
 
     /// Cut every masked window cell above `target_m` toward it into the global ledger (a cell floors at its
@@ -822,8 +1021,8 @@ impl WorkSite {
         let xy = match (xy, self.last_rover_xy, self.window_origin) {
             (Some(p), _, _) | (None, Some(p), _) => p,
             (None, None, Some((ox, oy))) => (
-                ox + 0.5 * fine.width() as f64 * self.cell_m,
-                oy + 0.5 * fine.height() as f64 * self.cell_m,
+                ox + 0.5 * fine.width() as f64 * self.fine_cell_m,
+                oy + 0.5 * fine.height() as f64 * self.fine_cell_m,
             ),
             (None, None, None) => return Err(WorkSiteError::Path("no open window".into())),
         };
@@ -836,8 +1035,9 @@ impl WorkSite {
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // clamped to the grid first
     fn dirty_bbox(&self, fine: &ColumnState, center: (f64, f64), yaw: f64) -> [usize; 4] {
         let v = &self.setup.vehicle;
-        let pts = rover::wheel_contact_points(center, yaw, self.cell_m, v.gauge_m, v.wheelbase_m);
-        let half_w = (0.5 * v.wheel_width_m / self.cell_m).max(0.5);
+        let pts =
+            rover::wheel_contact_points(center, yaw, self.fine_cell_m, v.gauge_m, v.wheelbase_m);
+        let half_w = (0.5 * v.wheel_width_m / self.fine_cell_m).max(0.5);
         let fold = |f: fn(f64, f64) -> f64, init: f64, i: usize| {
             pts.iter()
                 .map(|p| if i == 0 { p.0 } else { p.1 })
@@ -975,12 +1175,12 @@ impl WorkSite {
         for &t in &self.active_blocks {
             let [r0, c0, r1, c1] = self.tile_region(t);
             let f = self.virgin_tile(t);
-            let tw = c1 - c0;
-            for r in 0..r1 - r0 {
+            let k = self.k;
+            let (tw, row0, col0) = ((c1 - c0) * k, (r0 - br0) * k, (c0 - bc0) * k);
+            for r in 0..(r1 - r0) * k {
                 for c in 0..tw {
                     let s = r * tw + c;
-                    virgin[(r0 - br0 + r) * w + c0 - bc0 + c] =
-                        f.datum[s] + f.mass_areal[s] / f.density[s];
+                    virgin[(row0 + r) * w + col0 + c] = f.datum[s] + f.mass_areal[s] / f.density[s];
                 }
             }
         }
