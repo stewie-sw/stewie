@@ -39,12 +39,21 @@ def sites() -> dict:
 
 
 def soil_baseline() -> dict:
-    """The constants.py soil values the body registry lacks, with their honesty tags (see constants.py)."""
+    """The constants.py regolith values the body registry lacks, with their honesty tags (see constants.py)."""
     spec = "spec section 5.2, stewie/specs/constants.py"
     return {"k_shear_m": {"value": float(K.K_SHEAR), "tag": "CALIB", "source": f"{spec} (1.0-1.8 cm)"},
             "slip_c1": {"value": float(K.SLIP_C1), "tag": "UNKNOWN", "source": f"{spec} (c1 ~0.4)"},
             "slip_c2": {"value": float(K.SLIP_C2), "tag": "UNKNOWN", "source": f"{spec} (c2 ~0.3)"},
-            "rho_deep": {"value": float(K.RHO_DEEP), "tag": "CALIB", "source": f"{spec} (1.8-2.0 g/cm^3)"}}
+            "rho_deep": {"value": float(K.RHO_DEEP), "tag": "CALIB", "source": f"{spec} (1.8-2.0 g/cm^3)"},
+            "rho_grain": {"value": float(K.RHO_GRAIN), "tag": "FIXED",
+                          "source": "spec section 5.1 grain specific gravity G_s 3.1 x water"},
+            "rho_spoil": {"value": float(K.RHO_SPOIL), "tag": "CALIB",
+                          "source": "loose surface density (Carrier & Mitchell, Lunar Sourcebook 1991, ch. 9)"},
+            "rho_sintered": {"value": float(K.RHO_SINTERED), "tag": "SOURCED",
+                             "source": "microwave-sintered simulant 2.23-2.34 g/cm^3 (Lin et al. 2024, J. Eur. Ceram. Soc.)"},
+            "z_t_m": {"value": float(K.Z_T), "tag": "CALIB", "source": f"{spec} (z_t 10-15 cm)"},
+            "w_ice_max": {"value": float(K.W_ICE_MAX), "tag": "UNKNOWN",
+                          "source": f"{spec} (0-5.6 % PSR, LCROSS-derived)"}}
 
 
 def _write(name: str, data: dict) -> str:

@@ -1,0 +1,11 @@
+{
+ "fixture": "column_ops",
+ "generator": "oracle/build_fixtures.py::column_ops (stewie.physics.column_state + worksite.flatten_to_level on a real Haworth crop)",
+ "payload_sha256": "b4a3f2323eefdcfa130c8086b9d2c329ee295cbc86551b9abe998a5d0989674d",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/column_state.py": "eb3c84f6b087be119b75543af7db1809612476208052c7d1a62b574398cfdf35",
+  "stewie/physics/worksite.py": "edb4197977c5ad5cf237bbfc3488f11edd85c3c7c9cd437354922a795ec7b58f",
+  "stewie/specs/constants.py": "3eacdd47e1491b20a3dfc5523f50e1a530630d16e79c1fd78bf36daa85ef1f65"
+ }
+}

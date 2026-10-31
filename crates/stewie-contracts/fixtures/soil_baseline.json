@@ -9,6 +9,21 @@
     "tag": "CALIB",
     "value": 1920.0
   },
+  "rho_grain": {
+    "source": "spec section 5.1 grain specific gravity G_s 3.1 x water",
+    "tag": "FIXED",
+    "value": 3100.0
+  },
+  "rho_sintered": {
+    "source": "microwave-sintered simulant 2.23-2.34 g/cm^3 (Lin et al. 2024, J. Eur. Ceram. Soc.)",
+    "tag": "SOURCED",
+    "value": 2300.0
+  },
+  "rho_spoil": {
+    "source": "loose surface density (Carrier & Mitchell, Lunar Sourcebook 1991, ch. 9)",
+    "tag": "CALIB",
+    "value": 1300.0
+  },
   "slip_c1": {
     "source": "spec section 5.2, stewie/specs/constants.py (c1 ~0.4)",
     "tag": "UNKNOWN",
@@ -18,5 +33,15 @@
     "source": "spec section 5.2, stewie/specs/constants.py (c2 ~0.3)",
     "tag": "UNKNOWN",
     "value": 0.3
+  },
+  "w_ice_max": {
+    "source": "spec section 5.2, stewie/specs/constants.py (0-5.6 % PSR, LCROSS-derived)",
+    "tag": "UNKNOWN",
+    "value": 0.056
+  },
+  "z_t_m": {
+    "source": "spec section 5.2, stewie/specs/constants.py (z_t 10-15 cm)",
+    "tag": "CALIB",
+    "value": 0.12
   }
 }

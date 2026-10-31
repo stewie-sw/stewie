@@ -32,6 +32,9 @@ Fixtures:
                      stewie_forge terramechanics/bearing and stewie.physics slip over a fixed input grid
                      (synthetic inputs, labelled; the implementation is the real one), with the parameter set
                      params_for_body gives each body, including the microgravity refusal.
+  column_ops         stewie.physics ColumnState from a real 32x32 crop of the Haworth bundle through a fixed
+                     sequence (flatten, dump, deposit, cut, fill, sinter): every return, the total mass after
+                     each step, the final fields and the loose mask; plus set_height_via_mass on a copy.
 """
 from __future__ import annotations
 
@@ -499,6 +502,67 @@ def terramechanics_cases() -> None:
                   {"bodies": bodies, "refused_without_analog": refused, "cases": cases})
 
 
+COLUMN_CROP = (1000, 1032, 1000, 1032)
+
+
+def column_ops() -> None:
+    from stewie.physics.column_state import ColumnState
+    from stewie.physics.worksite import coarse_base_from_bundle
+    from stewie.specs import constants as K
+
+    name = "haworth_10km_5m"
+    base, _ = coarse_base_from_bundle(os.path.join(REPO, "samples", "lunar_dem", name))
+    r0, r1, c0, c1 = COLUMN_CROP
+    crop = lambda a: np.array(a[r0:r1, c0:c1], dtype=np.float64)                    # noqa: E731
+    cs = ColumnState(c1 - c0, r1 - r0, base.cell_m, mass_areal=crop(base.mass_areal), density=crop(base.density),
+                     state_label=np.array(base.state_label[r0:r1, c0:c1], dtype=np.uint8),
+                     disturbance=crop(base.disturbance), datum=crop(base.datum))
+    initial = {"mass_areal": cs.mass_areal.ravel().tolist(), "density": cs.density.ravel().tolist(),
+               "state_label": cs.state_label.ravel().tolist(), "disturbance": cs.disturbance.ravel().tolist(),
+               "datum": cs.datum.ravel().tolist()}
+    shape = cs.mass_areal.shape
+
+    def rect(a, b, c, d):
+        m = np.zeros(shape, dtype=bool)
+        m[a:b, c:d] = True
+        return m
+
+    steps = []
+    h = cs.derive_height()
+    a = rect(4, 16, 4, 16)
+    target = float(h[a].min()) + 0.05
+    moved, hi = __import__("stewie.physics.worksite", fromlist=["flatten_to_level"]).flatten_to_level(cs, a, target)
+    steps.append({"op": "flatten", "rect": [4, 16, 4, 16], "target_m": target, "ret": moved,
+                  "cut_cells": int(hi.sum()), "total_kg": cs.total_mass()})
+    half = 0.5 * cs.drum_inventory
+    steps.append({"op": "dump", "rect": [18, 26, 4, 12], "kg": half, "spoil": K.RHO_SPOIL,
+                  "ret": cs.dump_from_inventory(rect(18, 26, 4, 12), half, K.RHO_SPOIL), "total_kg": cs.total_mass()})
+    steps.append({"op": "deposit", "rect": [2, 30, 20, 30], "kg_m2": 10.0, "spoil": K.RHO_SPOIL,
+                  "ret": cs.deposit_field(rect(2, 30, 20, 30), 10.0, K.RHO_SPOIL), "total_kg": cs.total_mass()})
+    steps.append({"op": "cut", "rect": [20, 32, 14, 22], "kg_m2": 50.0,
+                  "ret": cs.cut_to_inventory(rect(20, 32, 14, 22), 50.0), "total_kg": cs.total_mass()})
+    e = rect(0, 8, 24, 32)
+    tgt = float(cs.derive_height()[e].max())
+    steps.append({"op": "fill", "rect": [0, 8, 24, 32], "target_m": tgt, "max_lift_m": 0.02, "spoil": K.RHO_SPOIL,
+                  "ret": cs.fill_toward(e, tgt, max_lift_m=0.02, spoil_density=K.RHO_SPOIL), "total_kg": cs.total_mass()})
+    steps.append({"op": "sinter", "rect": [26, 30, 0, 4], "density": K.RHO_SINTERED,
+                  "ret": cs.sinter(rect(26, 30, 0, 4), K.RHO_SINTERED), "total_kg": cs.total_mass()})
+    final = {"mass_areal": cs.mass_areal.ravel().tolist(), "density": cs.density.ravel().tolist(),
+             "state_label": cs.state_label.ravel().tolist(), "disturbance": cs.disturbance.ravel().tolist(),
+             "height": cs.derive_height().ravel().tolist(), "drum_kg": cs.drum_inventory}
+    from stewie.physics.column_state import loose_mask
+    lifted = cs.derive_height() + 0.01
+    cs.set_height_via_mass(lifted)
+    write_fixture(ORACLE_FIXTURES, "column_ops", "oracle/build_fixtures.py::column_ops (stewie.physics.column_state "
+                  "+ worksite.flatten_to_level on a real Haworth crop)",
+                  [f"samples/lunar_dem/{name}/metadata.json", "stewie/physics/column_state.py", "stewie/physics/worksite.py",
+                   "stewie/specs/constants.py"],
+                  {"bundle": name, "crop": list(COLUMN_CROP), "width": c1 - c0, "height": r1 - r0,
+                   "cell_m": float(base.cell_m), "initial": initial, "steps": steps, "final": final,
+                   "loose": loose_mask(cs).ravel().tolist(),
+                   "after_set_height_mass": cs.mass_areal.ravel().tolist()})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -564,6 +628,7 @@ def main() -> None:
     polar_ldem_samples()
     pgda_avgvisib()
     terramechanics_cases()
+    column_ops()
 
 
 if __name__ == "__main__":

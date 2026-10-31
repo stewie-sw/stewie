@@ -6,6 +6,7 @@
 //! replaces and is checked against that oracle to 1e-9 relative.
 
 pub mod bearing;
+pub mod column;
 pub mod soil;
 pub mod terra;
 
