@@ -1,10 +1,10 @@
 {
  "provenance": {
-  "citations_sha256": "bbe18c43af273bc657a16da567eb2ba7c3ef5440f6044132cdf4e3e9f1475401",
+  "citations_sha256": "0b14fa8142d12a8803d6aa6038652bf7faa4f7437f51c227e462cbae2a657697",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "adc70dda907b9f87e3585ed0f217c7a5a6052354",
-  "prd_sha256": "8b2882fdcde3a9585d3303e1f565d8f9437866c16cabf9e8db0b37f63b74d226",
-  "specs_sha256": "f2ec27b61704ad33ed24abceb44610e4cbca4964d66400a48c08e2f216d24e0c"
+  "prd_commit": "a3baf40618a81ee744abed187f7e15e544a6b44f",
+  "prd_sha256": "2042ac09a6042a182241478d2d074c33f6b9f9be01df3a8c4e2fc7e990ea36ce",
+  "specs_sha256": "6d1e6398c21f38f76ea12430bf8aefac7bf1b60ae80aa08aaa7e36f317ef41cf"
  },
  "rows": [
   {
@@ -4111,12 +4111,12 @@
    "id": "PM-10",
    "lane": "PM",
    "pri": "P1",
-   "text": "Benchmark on a fixed LAC-style suite: localization RMSE, 5 cm height-cell pass fraction, rock F1, coverage, runtime, and failure count across seeds/light/rocks."
+   "text": "Benchmark on a fixed LAC-style suite: localization RMSE, 5 cm height-cell pass fraction, rock F1, coverage, runtime, and failure count across seeds/light/rocks. (2026-10-31: localization RMSE and coverage legs removed with the Katwijk dataset, rock F1 placeholder removed; the suite measures height-cell pass fraction, runtime and failure count.)"
   },
   {
-   "I": "P",
+   "I": "N",
    "Q": "N",
-   "V": "P",
+   "V": "N",
    "X": "N",
    "brief": {
     "goal": "demonstrate repeatable cm-scale localization comparable to the 0.038-0.067 m NAVLAB26 band before any parity claim.",
@@ -4124,11 +4124,11 @@
     "test_target": "NEW benchmarks/lac_suite/test_cm_parity.py (depends on PM-10)"
    },
    "bucket": "buildable",
-   "cited": true,
+   "cited": false,
    "id": "PM-11",
    "lane": "PM",
    "pri": "P1",
-   "text": "Target benchmark: demonstrate repeatable centimeter-scale localization comparable to the `0.038-0.067 m` `[NAVLAB26]` reference before claiming parity."
+   "text": "Target benchmark: demonstrate repeatable centimeter-scale localization comparable to the `0.038-0.067 m` `[NAVLAB26]` reference before claiming parity. (2026-10-31: the parity harness measured the removed Katwijk localization leg and was deleted with it; no localization source on this host.)"
   },
   {
    "I": "D",
@@ -5415,9 +5415,9 @@
    "text": "Permit a Meerkat observation action for multi-height parallax and shadow/rock disambiguation when stability guards pass. `[PROPOSED]`"
   },
   {
-   "I": "P",
+   "I": "N",
    "Q": "N",
-   "V": "P",
+   "V": "N",
    "X": "N",
    "brief": {
     "goal": "turn the single-trajectory solar-vs-VO/SLAM head-to-head into a real ablation SWEEP across sun angles \u00d7 terrains \u00d7 terrain-change states \u00d7 seeds.",
@@ -5425,28 +5425,28 @@
     "test_target": "extend dart/test_ablation.py with a `[REQ:SN-12]` sweep test"
    },
    "bucket": "buildable",
-   "cited": true,
+   "cited": false,
    "id": "SN-12",
    "lane": "SN",
    "pri": "P1",
-   "text": "Solar-navigation claims require ablations against VO/SLAM without solar factors across multiple sun angles, terrains, terrain-change states, and seeds."
+   "text": "Solar-navigation claims require ablations against VO/SLAM without solar factors across multiple sun angles, terrains, terrain-change states, and seeds. (2026-10-31: the real-rover ablation sweep was removed with the Katwijk dataset per Aaron; no sweep runs on this host.)"
   },
   {
-   "I": "D",
+   "I": "N",
    "Q": "N",
-   "V": "D",
+   "V": "N",
    "X": "N",
    "brief": {
     "goal": "add the preregistered acceptance gate for solar-nav claims (improve median yaw/pose error or track survival by a preregistered margin WITHOUT increasing tip events; report energy/time overhead).",
     "kind": "optional",
     "test_target": "NEW dart/test_ablation.py::test_sn13_preregistered_margin_gate (`[REQ:SN-13]`)"
    },
-   "bucket": "done",
-   "cited": true,
+   "bucket": "buildable",
+   "cited": false,
    "id": "SN-13",
    "lane": "SN",
    "pri": "P1",
-   "text": "Acceptance target `[PROPOSED]`: improve median yaw/pose error or feature-track survival by a preregistered margin without increasing tip events; report energy/time overhead."
+   "text": "Acceptance target `[PROPOSED]`: improve median yaw/pose error or feature-track survival by a preregistered margin without increasing tip events; report energy/time overhead. (2026-10-31: the preregistered margin gate and its real-rover test were removed with the Katwijk dataset per Aaron.)"
   },
   {
    "I": "D",
@@ -6036,9 +6036,9 @@
  "summary": {
   "briefs": 198,
   "buckets": {
-   "buildable": 94,
+   "buildable": 95,
    "concurrent": 0,
-   "done": 292,
+   "done": 291,
    "gated": 31
   },
   "by_lane": {
@@ -6279,7 +6279,7 @@
     "total": 1
    },
    "SN": {
-    "done": 14,
+    "done": 13,
     "total": 15
    },
    "SV": {
@@ -6333,7 +6333,7 @@
     "total": 127
    },
    "P1": {
-    "done": 164,
+    "done": 163,
     "total": 231
    },
    "P2": {
@@ -6345,10 +6345,10 @@
     "total": 2
    }
   },
-  "cited": 316,
-  "done_pct": 70.0,
+  "cited": 313,
+  "done_pct": 69.8,
   "in_scope": 386,
-  "in_scope_done_pct": 75.6,
+  "in_scope_done_pct": 75.4,
   "total": 417
  },
  "workflow_spine": [
