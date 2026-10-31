@@ -68,3 +68,9 @@ pub mod soil_baseline {
     #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
     typify::import_types!(schema = "schema/soil_baseline.schema.json");
 }
+
+/// A rover agent profile as data (RW-30), every figure tagged with its source.
+pub mod rover_profile {
+    #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
+    typify::import_types!(schema = "schema/rover_profile.schema.json");
+}

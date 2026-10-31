@@ -1,0 +1,192 @@
+{
+  "battery_capacity_ah": {
+    "source": "BATTERY: project lead 2026-06-02, ~30 Ah",
+    "tag": "SOURCED",
+    "value": 30.0
+  },
+  "battery_series_cells": {
+    "source": "BATTERY: project lead 2026-06-02, 12S Li-ion",
+    "tag": "SOURCED",
+    "value": 12.0
+  },
+  "cg_height_m": {
+    "source": "IPEx CG not public (stewie/specs/constants.py)",
+    "tag": "ASSUMPTION",
+    "value": 0.3
+  },
+  "contact_len_m": {
+    "source": "nominal wheel contact patch length, spec section 4 (stewie_forge)",
+    "tag": "ASSUMPTION",
+    "value": 0.1
+  },
+  "contact_width_m": {
+    "source": "wheel contact width (stewie_forge, rover.py)",
+    "tag": "ASSUMPTION",
+    "value": 0.18
+  },
+  "drive_speed_ms": {
+    "source": "SCHULER24 (IPEx TRL-5) nominal 30 cm/s",
+    "tag": "SOURCED",
+    "value": 0.3
+  },
+  "drivetrain_efficiency": {
+    "source": "electrical to tractive, not in SCHULER24",
+    "tag": "CALIB",
+    "value": 0.5
+  },
+  "drum_speed_rpm": {
+    "source": "R2D RASSOR-2.0 drum actuator maximum (rated 18)",
+    "tag": "ASSUMPTION",
+    "value": 25.0
+  },
+  "drums": {
+    "large": {
+      "capacity_kg": {
+        "source": "BDSCALE (Schuler, Nick et al.); Schuler 2022 Table 3",
+        "tag": "SOURCED",
+        "value": 24.98
+      },
+      "diameter_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.4371
+      },
+      "scoop_height_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.0478
+      },
+      "scoop_width_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.0904
+      },
+      "width_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.3526
+      }
+    },
+    "medium": {
+      "capacity_kg": {
+        "source": "BDSCALE (Schuler, Nick et al.); Schuler 2022 Table 3",
+        "tag": "SOURCED",
+        "value": 7.3
+      },
+      "diameter_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.2951
+      },
+      "scoop_height_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.0345
+      },
+      "scoop_width_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.0635
+      },
+      "width_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.2461
+      }
+    },
+    "small": {
+      "capacity_kg": {
+        "source": "BDSCALE (Schuler, Nick et al.); Schuler 2022 Table 3",
+        "tag": "SOURCED",
+        "value": 3.8
+      },
+      "diameter_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.2375
+      },
+      "scoop_height_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.0264
+      },
+      "scoop_width_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.0516
+      },
+      "width_m": {
+        "source": "BDSCALE (Schuler, Nick et al.) Table 1",
+        "tag": "SOURCED",
+        "value": 0.1989
+      }
+    }
+  },
+  "label": "NASA ISRU Pilot Excavator (IPEx)",
+  "liion_v_per_cell": {
+    "source": "standard Li-ion nominal cell voltage",
+    "tag": "FIXED",
+    "value": 3.7
+  },
+  "mass_dry_kg": {
+    "source": "SCHULER24 (IPEx TRL-5) '30 kg-class excavator'",
+    "tag": "CALIB",
+    "value": 30.0
+  },
+  "max_cut_depth_frac": {
+    "source": "BDSCALE (Schuler, Nick et al.): cut depth <= 50% of scoop opening",
+    "tag": "SOURCED",
+    "value": 0.5
+  },
+  "n_wheels": {
+    "source": "SCHULER24 (IPEx TRL-5) 4-wheel skid-steer",
+    "tag": "SOURCED",
+    "value": 4.0
+  },
+  "name": "ipex",
+  "nominal_slope_deg": {
+    "source": "SCHULER24 (IPEx TRL-5) inclinations up to 15 deg",
+    "tag": "SOURCED",
+    "value": 15.0
+  },
+  "obstacle_height_m": {
+    "source": "SCHULER24 (IPEx TRL-5) rock obstacles up to 7.5 cm",
+    "tag": "SOURCED",
+    "value": 0.075
+  },
+  "rake_deg": {
+    "source": "mid-range blade rake (McKyes 1985 30-90 deg)",
+    "tag": "CALIB_PENDING",
+    "value": 45.0
+  },
+  "rolling_resistance_coeff": {
+    "source": "rigid wheel on loose regolith 0.1-0.4",
+    "tag": "ASSUMPTION",
+    "value": 0.15
+  },
+  "skid_steer_track_m": {
+    "source": "WHEELTEST (Zhang, Schuler et al.) Eq. 1, RASSOR 2 test platform",
+    "tag": "SOURCED",
+    "value": 0.5207
+  },
+  "soil_tool_friction_frac": {
+    "source": "delta/phi, steel on regolith 0.3-0.6",
+    "tag": "CALIB_PENDING",
+    "value": 0.5
+  },
+  "track_gauge_m": {
+    "source": "Godot model sidecar.gd WHEEL_ORIGINS, not a publication (stewie/physics/rover.py)",
+    "tag": "MODEL",
+    "value": 0.57
+  },
+  "wheel_radius_m": {
+    "source": "WHEELTEST (Zhang, Schuler et al.): 30.5 cm diameter wheels",
+    "tag": "SOURCED",
+    "value": 0.1525
+  },
+  "wheelbase_m": {
+    "source": "Godot model sidecar.gd WHEEL_ORIGINS, not a publication (stewie/physics/rover.py)",
+    "tag": "MODEL",
+    "value": 0.4
+  }
+}

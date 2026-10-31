@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
-use stewie_contracts::{body, dem_bundle, package_manifest, site, soil_baseline};
+use stewie_contracts::{body, dem_bundle, package_manifest, rover_profile, site, soil_baseline};
 
 fn crate_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -148,4 +148,64 @@ fn committed_package_manifest_validates_and_an_escaping_path_is_rejected() {
     escape["layers"][0]["image"]["path"] = Value::from("../ldem_16.img");
     assert!(!v.is_valid(&escape));
     assert!(serde_json::from_value::<package_manifest::PackageManifest>(escape).is_err());
+}
+
+#[test]
+fn rover_profile_validates_and_a_profile_missing_any_field_is_rejected() {
+    let doc = load(&crate_dir().join("fixtures/rover_ipex.json"));
+    let v = validator("rover_profile.schema.json");
+    assert!(v.is_valid(&doc));
+    let p: rover_profile::RoverProfile = serde_json::from_value(doc.clone()).unwrap();
+    assert!(
+        (p.wheel_radius_m.value - 0.1525).abs() < 1e-12,
+        "published 30.5 cm wheel"
+    );
+    let keys: Vec<String> = doc.as_object().unwrap().keys().cloned().collect();
+    assert!(keys.len() > 20);
+    for k in keys {
+        let mut missing = doc.clone(); // synthetic mutation of the real profile
+        missing.as_object_mut().unwrap().remove(&k);
+        assert!(!v.is_valid(&missing), "{k} is required");
+        assert!(
+            serde_json::from_value::<rover_profile::RoverProfile>(missing).is_err(),
+            "{k}"
+        );
+    }
+    let mut untagged = doc;
+    untagged["cg_height_m"]["tag"] = Value::from("GUESS");
+    assert!(!v.is_valid(&untagged));
+}
+
+/// A source line that compiles a reserve number in (comments and string literals excluded).
+fn compiles_a_reserve(line: &str) -> bool {
+    let l = line.to_lowercase();
+    l.contains("reserve")
+        && l.chars().any(|c| c.is_ascii_digit())
+        && !l.trim_start().starts_with("//")
+        && !l.contains('"')
+}
+
+/// RW-30: battery reserves come only from mission configuration; no crate compiles one in.
+#[test]
+fn no_reserve_default_is_compiled_into_any_crate() {
+    // vacuity guard: the predicate does catch the pattern it exists for (synthetic lines, labelled)
+    assert!(compiles_a_reserve("    let battery_reserve_frac = 0.10;"));
+    assert!(!compiles_a_reserve("    // reserve 10% before recharge"));
+    let mut hits = Vec::new();
+    let mut stack = vec![repo().join("crates")];
+    while let Some(dir) = stack.pop() {
+        for e in fs::read_dir(&dir).unwrap().flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else if p.extension().is_some_and(|x| x == "rs") {
+                for (n, line) in fs::read_to_string(&p).unwrap().lines().enumerate() {
+                    if compiles_a_reserve(line) {
+                        hits.push(format!("{}:{}", p.display(), n + 1));
+                    }
+                }
+            }
+        }
+    }
+    assert!(hits.is_empty(), "reserve literals in code: {hits:?}");
 }

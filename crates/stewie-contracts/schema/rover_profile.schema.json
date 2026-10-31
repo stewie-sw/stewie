@@ -1,0 +1,192 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/rover_profile.schema.json",
+  "title": "RoverProfile",
+  "description": "A rover agent profile as data (RW-30): every figure the physics, planner and assessment read about the vehicle, each with its honesty tag and source. MODEL marks geometry read from the simulation model rather than a publication. Battery reserves are NOT here: they come only from mission configuration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "label",
+    "mass_dry_kg",
+    "n_wheels",
+    "wheel_radius_m",
+    "track_gauge_m",
+    "wheelbase_m",
+    "skid_steer_track_m",
+    "cg_height_m",
+    "contact_len_m",
+    "contact_width_m",
+    "drive_speed_ms",
+    "nominal_slope_deg",
+    "obstacle_height_m",
+    "drivetrain_efficiency",
+    "rolling_resistance_coeff",
+    "battery_series_cells",
+    "battery_capacity_ah",
+    "liion_v_per_cell",
+    "drum_speed_rpm",
+    "max_cut_depth_frac",
+    "rake_deg",
+    "soil_tool_friction_frac",
+    "drums"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mass_dry_kg": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "n_wheels": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "wheel_radius_m": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "track_gauge_m": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "wheelbase_m": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "skid_steer_track_m": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "cg_height_m": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "contact_len_m": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "contact_width_m": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "drive_speed_ms": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "nominal_slope_deg": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "obstacle_height_m": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "drivetrain_efficiency": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "rolling_resistance_coeff": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "battery_series_cells": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "battery_capacity_ah": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "liion_v_per_cell": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "drum_speed_rpm": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "max_cut_depth_frac": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "rake_deg": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "soil_tool_friction_frac": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "drums": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "small",
+        "medium",
+        "large"
+      ],
+      "properties": {
+        "small": {
+          "$ref": "#/definitions/Drum"
+        },
+        "medium": {
+          "$ref": "#/definitions/Drum"
+        },
+        "large": {
+          "$ref": "#/definitions/Drum"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Tag": {
+      "type": "string",
+      "enum": [
+        "MEASURED",
+        "SOURCED",
+        "FIXED",
+        "CALIB",
+        "CALIB_PENDING",
+        "ASSUMPTION",
+        "MODEL",
+        "UNKNOWN"
+      ]
+    },
+    "Tagged": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "tag",
+        "source"
+      ],
+      "properties": {
+        "value": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "tag": {
+          "$ref": "#/definitions/Tag"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Drum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width_m",
+        "diameter_m",
+        "scoop_width_m",
+        "scoop_height_m",
+        "capacity_kg"
+      ],
+      "properties": {
+        "width_m": {
+          "$ref": "#/definitions/Tagged"
+        },
+        "diameter_m": {
+          "$ref": "#/definitions/Tagged"
+        },
+        "scoop_width_m": {
+          "$ref": "#/definitions/Tagged"
+        },
+        "scoop_height_m": {
+          "$ref": "#/definitions/Tagged"
+        },
+        "capacity_kg": {
+          "$ref": "#/definitions/Tagged"
+        }
+      }
+    }
+  }
+}
