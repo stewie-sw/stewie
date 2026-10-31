@@ -617,8 +617,8 @@ def sandpile_runs() -> None:
     for name, conn, coh_deg, tf, floor in (("eight", 8, 0.0, 0.5, False), ("four", 4, 0.0, 0.5, False),
                                            ("cohesive", 8, 5.0, 0.8, False), ("sintered_floor", 8, 0.0, 0.5, True),
                                            ("flat_synthetic", 8, 0.0, 0.5, False)):
-        # flat_synthetic is a SYNTHETIC uniform layer (labelled): the real crop has bedrock slopes steeper than
-        # repose, so relax_to_rest never reports rest there; a flat floor exercises the rest criterion.
+        # flat_synthetic is a SYNTHETIC uniform layer (labelled): rest on a floor with no bedrock relief. The real
+        # crop's bedrock is steeper than repose; its runs rest because drained cells stop donating (D-R52/D-R72).
         cs = ColumnState(32, 32, 5.0) if name == "flat_synthetic" else _real_crop_state()
         if floor:
             ring = np.zeros(cs.mass_areal.shape, dtype=bool)
@@ -638,7 +638,7 @@ def sandpile_runs() -> None:
     write_fixture(ORACLE_FIXTURES, "sandpile_runs", "oracle/build_fixtures.py::sandpile_runs "
                   "(stewie.physics.sandpile.Sandpile on the real Haworth crop of column_ops)",
                   ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/physics/sandpile.py",
-                   "stewie/physics/column_state.py"],
+                   "stewie/physics/column_state.py", "stewie/specs/constants.py"],
                   {"crop": list(COLUMN_CROP), "deposit": {"r": 16, "c": 16, "kg": 3.0e6, "radius": 1,
                    "spoil": K.RHO_SPOIL}, "theta_deg": 35.0, "max_steps": 400, "capture_every": 4,
                    "eps_deg": 0.5, "runs": runs})

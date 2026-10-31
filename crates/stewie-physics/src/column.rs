@@ -32,6 +32,8 @@ pub struct Regolith {
     pub rho_sintered: f64,
     /// Thickness of the default loose layer [m].
     pub z_t_m: f64,
+    /// Median grain size [m]: a sandpile donor must hold more than this (D-R52).
+    pub d50_m: f64,
     pub w_ice_max: f64,
 }
 
@@ -46,6 +48,7 @@ impl Regolith {
             rho_spoil: base.rho_spoil.value,
             rho_sintered: base.rho_sintered.value,
             z_t_m: base.z_t_m.value,
+            d50_m: base.d50_m.value,
             w_ice_max: base.w_ice_max.value,
         }
     }

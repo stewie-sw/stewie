@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://stewie.space/schema/soil_baseline.schema.json",
   "title": "SoilBaseline",
-  "description": "Regolith constants the body registry does not carry: the Janosi-Hanamoto shear modulus, the slip-sinkage coefficients, the density ladder (compacted, spoil, sintered, grain), the density transition depth, the ice ceiling and the dense-end strength of the material model. Each value keeps its honesty tag from stewie/specs/constants.py and a source note.",
+  "description": "Regolith constants the body registry does not carry: the Janosi-Hanamoto shear modulus, the slip-sinkage coefficients, the density ladder (compacted, spoil, sintered, grain), the density transition depth, the median grain size, the ice ceiling and the dense-end strength of the material model. Each value keeps its honesty tag from stewie/specs/constants.py and a source note.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -14,6 +14,7 @@
     "rho_spoil",
     "rho_sintered",
     "z_t_m",
+    "d50_m",
     "w_ice_max",
     "phi_dense_deg",
     "cohesion_dense_pa"
@@ -41,6 +42,9 @@
       "$ref": "#/definitions/Tagged"
     },
     "z_t_m": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "d50_m": {
       "$ref": "#/definitions/Tagged"
     },
     "w_ice_max": {

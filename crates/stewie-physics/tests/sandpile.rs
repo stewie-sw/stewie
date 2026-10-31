@@ -120,9 +120,11 @@ fn every_relaxation_run_matches_the_oracle() {
         close_all(&cs.derive_height(), &vf(&run["height"]), name);
         rested += usize::from(steps < 400);
     }
+    // D-R52/D-R72: drained cells over steep bedrock no longer hold the pile open, so every run settles
     assert_eq!(
-        rested, 1,
-        "only the flat synthetic layer reaches rest (D-R52)"
+        rested,
+        fx["runs"].as_array().unwrap().len(),
+        "every run reaches rest"
     );
 }
 

@@ -112,11 +112,18 @@ class Sandpile:
 
     # -- relaxation --------------------------------------------------------
 
+    def _donor_mask(self) -> np.ndarray:
+        """Cells that can shed mass: loose AND holding more than one median grain (K.D50) of column.
+        D-R52/D-R72: a drained loose cell over bedrock steeper than repose would otherwise keep a
+        geometrically shrinking budget forever and the pile would never report rest."""
+        cs = self.cs
+        return loose_mask(cs) & (cs.mass_areal / cs.density > K.D50)
+
     def _max_loose_slope(self) -> float:
         """Largest downhill slope angle [rad] from a LOOSE source cell (for stopping)."""
         cs = self.cs
         height = cs.derive_height()
-        mask = loose_mask(cs)
+        mask = self._donor_mask()
         max_ang = 0.0
         for (dr, dc), run in zip(self.neighbors, self._runs):
             h2 = np.roll(np.roll(height, -dr, axis=0), -dc, axis=1)
@@ -199,7 +206,7 @@ class Sandpile:
 
         height = cs.derive_height()
         donor_density = cs.density
-        mask = loose_mask(cs)                        # DONOR mobility gate (source must be loose)
+        mask = self._donor_mask()                    # DONOR mobility gate (loose, with removable mass)
 
         # Pass A: per direction, the excess height of the LOOSE donor above the repose plane of its
         # (dr,dc) neighbor -- the per-neighbor outflow weight (donor is the HIGHER, loose cell; the

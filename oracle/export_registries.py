@@ -54,6 +54,8 @@ def soil_baseline() -> dict:
             "rho_sintered": {"value": float(K.RHO_SINTERED), "tag": "SOURCED",
                              "source": "microwave-sintered simulant 2.23-2.34 g/cm^3 (Lin et al. 2024, J. Eur. Ceram. Soc.)"},
             "z_t_m": {"value": float(K.Z_T), "tag": "CALIB", "source": f"{spec} (z_t 10-15 cm)"},
+            "d50_m": {"value": float(K.D50), "tag": "CALIB",
+                      "source": f"{spec} (median grain 40-130 um, ~70); the smallest column a sandpile donor sheds"},
             "w_ice_max": {"value": float(K.W_ICE_MAX), "tag": "UNKNOWN",
                           "source": f"{spec} (0-5.6 % PSR, LCROSS-derived)"},
             "phi_dense_deg": {"value": float(M.PHI_DENSE_DEG), "tag": "CALIB",

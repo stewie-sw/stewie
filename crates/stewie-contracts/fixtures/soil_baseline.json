@@ -4,6 +4,11 @@
     "tag": "CALIB",
     "value": 1000.0
   },
+  "d50_m": {
+    "source": "spec section 5.2, stewie/specs/constants.py (median grain 40-130 um, ~70); the smallest column a sandpile donor sheds",
+    "tag": "CALIB",
+    "value": 7e-05
+  },
   "k_shear_m": {
     "source": "spec section 5.2, stewie/specs/constants.py (1.0-1.8 cm)",
     "tag": "CALIB",

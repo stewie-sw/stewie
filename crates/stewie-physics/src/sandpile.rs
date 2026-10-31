@@ -5,7 +5,7 @@
 //! over-repose neighbours by excess, and moves that **mass** (at the donor's density) to the receivers.
 //! Every gram removed from a donor lands in exactly one receiver, so grid mass is invariant. The receiver's
 //! density is re-mixed by volume; a receiver may be any in-bounds cell (loose spoil can spread onto a firm
-//! floor), but only loose donors move.
+//! floor), but only loose donors move, and only while they hold more than one median grain (D-R52).
 
 use crate::PhysicsError;
 use crate::column::{ColumnState, Regolith, StateLabel};
@@ -134,10 +134,21 @@ impl<'a> Sandpile<'a> {
         Ok(())
     }
 
-    /// Largest downhill angle [rad] from a loose source to any in-bounds neighbour.
+    /// Loose cells holding more than one median grain of column: the only cells that can shed mass or keep
+    /// the pile from rest. A drained cell over bedrock steeper than repose would otherwise never settle.
+    fn donor_mask(&self) -> Vec<bool> {
+        let f = self.cs.fields();
+        let mut m = self.cs.loose_mask(&self.regolith);
+        for (i, d) in m.iter_mut().enumerate() {
+            *d &= f.mass_areal[i] / f.density[i] > self.regolith.d50_m;
+        }
+        m
+    }
+
+    /// Largest downhill angle [rad] from a donor to any in-bounds neighbour.
     fn max_loose_slope(&self) -> f64 {
         let h = self.cs.derive_height();
-        let loose = self.cs.loose_mask(&self.regolith);
+        let loose = self.donor_mask();
         let mut max = 0.0f64;
         for &d in self.neighbours() {
             let run = self.run(d);
@@ -155,7 +166,7 @@ impl<'a> Sandpile<'a> {
     pub fn relax_step(&mut self) -> bool {
         let tan_thr = (self.cfg.theta_r + self.cfg.cohesion_steepening).tan();
         let h = self.cs.derive_height();
-        let loose = self.cs.loose_mask(&self.regolith);
+        let loose = self.donor_mask();
         let dirs = self.neighbours();
         let n = h.len();
         // Pass A: per direction, the loose donor's height above the repose plane toward that neighbour
