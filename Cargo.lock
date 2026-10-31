@@ -1126,6 +1126,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "stewie-twin"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "sha2",
+ "stewie-oracle",
+]
+
+[[package]]
 name = "stewie-wasm"
 version = "0.1.0"
 dependencies = [

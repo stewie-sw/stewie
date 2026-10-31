@@ -1,0 +1,160 @@
+{
+ "chain": [
+  "73b041e0eb1bfcfec9a09c71a513a6b59f7b3524bd9a9ce23ec98f6758985d92",
+  "ebd073b66cc17b9a73165e470b94caadc34666e6e0251e59d68510024d7a03b3",
+  "76afc911f67c49dddc7124c7341a60ca757e407e7851db29cd520cadc8840a09"
+ ],
+ "commits": [
+  {
+   "authority_sha": "genesis",
+   "belief": {},
+   "body": "moon",
+   "mission": "none",
+   "mission_t_s": 0.0,
+   "packet_sha": "",
+   "plan_id": "none",
+   "provenance": "boot",
+   "site": "haworth",
+   "twin_hash": "genesis",
+   "twin_version": 0,
+   "uncertainty_m": 0.0,
+   "vehicle_sha": ""
+  },
+  {
+   "authority_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "belief": {
+    "n": 12,
+    "nested": {
+     "a": 1e+16,
+     "z": null
+    },
+    "ok": true,
+    "pose": [
+     1.5,
+     -2.25,
+     1e-05
+    ]
+   },
+   "body": "moon",
+   "mission": "m1",
+   "mission_t_s": 123456789.123,
+   "packet_sha": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+   "plan_id": "plan-7",
+   "provenance": "quote \" back \\ nl \n tab \t ctl \u0001 del  é é 🌙",
+   "site": "shackleton_rim",
+   "twin_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+   "twin_version": 3,
+   "uncertainty_m": 0.05,
+   "vehicle_sha": ""
+  },
+  {
+   "authority_sha": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "belief": {
+    "big": 1000000000000000.0,
+    "k": 0.1,
+    "neg": -0.0,
+    "sub": 5e-324,
+    "tiny": 0.0001
+   },
+   "body": "moon",
+   "mission": "m1",
+   "mission_t_s": 1e-07,
+   "packet_sha": "",
+   "plan_id": "plan-8",
+   "provenance": "resync",
+   "site": "haworth",
+   "twin_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+   "twin_version": 4,
+   "uncertainty_m": 2.5,
+   "vehicle_sha": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
+ ],
+ "floats": [
+  [
+   0.0,
+   "0.0"
+  ],
+  [
+   -0.0,
+   "-0.0"
+  ],
+  [
+   1.0,
+   "1.0"
+  ],
+  [
+   0.1,
+   "0.1"
+  ],
+  [
+   0.0001,
+   "0.0001"
+  ],
+  [
+   1e-05,
+   "1e-05"
+  ],
+  [
+   0.00012345,
+   "0.00012345"
+  ],
+  [
+   1000000000000000.0,
+   "1000000000000000.0"
+  ],
+  [
+   1e+16,
+   "1e+16"
+  ],
+  [
+   1.5e+16,
+   "1.5e+16"
+  ],
+  [
+   123456789.123,
+   "123456789.123"
+  ],
+  [
+   5e-324,
+   "5e-324"
+  ],
+  [
+   2.2250738585072014e-308,
+   "2.2250738585072014e-308"
+  ],
+  [
+   1.7976931348623157e+308,
+   "1.7976931348623157e+308"
+  ],
+  [
+   -1e-100,
+   "-1e-100"
+  ],
+  [
+   3.141592653589793,
+   "3.141592653589793"
+  ],
+  [
+   1e+22,
+   "1e+22"
+  ],
+  [
+   9007199254740992.0,
+   "9007199254740992.0"
+  ],
+  [
+   100.0,
+   "100.0"
+  ],
+  [
+   0.00030000000000000003,
+   "0.00030000000000000003"
+  ],
+  [
+   1.152921504606847e+18,
+   "1.152921504606847e+18"
+  ]
+ ],
+ "journal": "{\"authority_sha\": \"genesis\", \"belief\": {}, \"body\": \"moon\", \"chain_hash\": \"73b041e0eb1bfcfec9a09c71a513a6b59f7b3524bd9a9ce23ec98f6758985d92\", \"mission\": \"none\", \"mission_t_s\": 0.0, \"packet_sha\": \"\", \"plan_id\": \"none\", \"prev_hash\": \"genesis\", \"provenance\": \"boot\", \"seq\": 0, \"site\": \"haworth\", \"twin_hash\": \"genesis\", \"twin_version\": 0, \"uncertainty_m\": 0.0, \"vehicle_sha\": \"\", \"world_sha\": \"c270173ab630ac7a6ce26ea7457818430f6e7646803ffacd306d3e54893ec024\"}\n{\"authority_sha\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"belief\": {\"n\": 12, \"nested\": {\"a\": 1e+16, \"z\": null}, \"ok\": true, \"pose\": [1.5, -2.25, 1e-05]}, \"body\": \"moon\", \"chain_hash\": \"ebd073b66cc17b9a73165e470b94caadc34666e6e0251e59d68510024d7a03b3\", \"mission\": \"m1\", \"mission_t_s\": 123456789.123, \"packet_sha\": \"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\", \"plan_id\": \"plan-7\", \"prev_hash\": \"73b041e0eb1bfcfec9a09c71a513a6b59f7b3524bd9a9ce23ec98f6758985d92\", \"provenance\": \"quote \\\" back \\\\ nl \\n tab \\t ctl \\u0001 del \\u007f e\\u0301 \\u00e9 \\ud83c\\udf19\", \"seq\": 1, \"site\": \"shackleton_rim\", \"twin_hash\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\", \"twin_version\": 3, \"uncertainty_m\": 0.05, \"vehicle_sha\": \"\", \"world_sha\": \"dbddf10c3d6760c5e117564eab0ee32cc65b6f5f76897913a9dbe475aea751db\"}\n{\"authority_sha\": \"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\", \"belief\": {\"big\": 1000000000000000.0, \"k\": 0.1, \"neg\": -0.0, \"sub\": 5e-324, \"tiny\": 0.0001}, \"body\": \"moon\", \"chain_hash\": \"76afc911f67c49dddc7124c7341a60ca757e407e7851db29cd520cadc8840a09\", \"mission\": \"m1\", \"mission_t_s\": 1e-07, \"packet_sha\": \"\", \"plan_id\": \"plan-8\", \"prev_hash\": \"ebd073b66cc17b9a73165e470b94caadc34666e6e0251e59d68510024d7a03b3\", \"provenance\": \"resync\", \"seq\": 2, \"site\": \"haworth\", \"twin_hash\": \"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\", \"twin_version\": 4, \"uncertainty_m\": 2.5, \"vehicle_sha\": \"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\", \"world_sha\": \"1592b4503aed35c53b5efd284345aa8a72bb2af2e4f740fa6ab1d6452bb9927e\"}\n",
+ "synthetic": true
+}

@@ -53,6 +53,9 @@ Fixtures:
                      5 cm ramp steepening to 40 deg (material, skid-steer, a dig reaction) driven to
                      entrapment; a SYNTHETIC flat grid with rocks (labelled). Per-step telemetry, final fields;
                      plus stability() over a tilt grid with NaN and a CG offset.
+  world_log_cases    stewie.twin.envelope.TransactionLog: SYNTHETIC commits (labelled) with awkward floats,
+                     nested beliefs, linked/unlinked packet+vehicle ids and escape-heavy provenance; the
+                     exact journal bytes Python writes; plus Python float repr over the exponent range.
 """
 from __future__ import annotations
 
@@ -825,6 +828,43 @@ def drive_runs() -> None:
                    "tip_limit_deg": ST.tip_tilt_limit_deg(gauge_m=0.57, wheelbase_m=0.40, cg_height_m=0.30)})
 
 
+def world_log_cases() -> None:
+    """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
+    import tempfile
+
+    from stewie.twin.envelope import TransactionLog
+
+    commits = [
+        {"authority_sha": "genesis", "twin_version": 0, "twin_hash": "genesis", "plan_id": "none", "belief": {},
+         "mission": "none", "site": "haworth", "body": "moon", "mission_t_s": 0.0, "provenance": "boot",
+         "uncertainty_m": 0.0, "packet_sha": "", "vehicle_sha": ""},
+        {"authority_sha": "a" * 64, "twin_version": 3, "twin_hash": "b" * 64, "plan_id": "plan-7",
+         "belief": {"pose": [1.5, -2.25, 1e-05], "ok": True, "n": 12, "nested": {"z": None, "a": 1e16}},
+         "mission": "m1", "site": "shackleton_rim", "body": "moon", "mission_t_s": 123456789.123,
+         "provenance": 'quote " back \\ nl \n tab \t ctl \x01 del \x7f e\u0301 \u00e9 \U0001f319',
+         "uncertainty_m": 0.05, "packet_sha": "c" * 64, "vehicle_sha": ""},
+        {"authority_sha": "d" * 64, "twin_version": 4, "twin_hash": "e" * 64, "plan_id": "plan-8",
+         "belief": {"k": 0.1, "big": 1e15, "tiny": 0.0001, "neg": -0.0, "sub": 5e-324}, "mission": "m1",
+         "site": "haworth", "body": "moon", "mission_t_s": 1e-07, "provenance": "resync",
+         "uncertainty_m": 2.5, "packet_sha": "", "vehicle_sha": "f" * 64},
+    ]
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "world.journal")
+        log = TransactionLog(journal_path=path)
+        for c in commits:
+            log.commit_snapshot(**c)
+        journal = open(path, "rb").read().decode("utf-8")
+    floats = [0.0, -0.0, 1.0, 0.1, 0.0001, 1e-05, 0.00012345, 1e15, 1e16, 1.5e16, 123456789.123, 5e-324,
+              2.2250738585072014e-308, 1.7976931348623157e308, -1e-100, 3.141592653589793, 1e22, 9007199254740993.0,
+              100.0, 1e-04 * 3, 2.0 ** 60]
+    write_fixture(ORACLE_FIXTURES, "world_log_cases", "oracle/build_fixtures.py::world_log_cases "
+                  "(stewie.twin.envelope.TransactionLog; SYNTHETIC commit inputs, labelled)",
+                  ["stewie/twin/envelope.py", "stewie/twin/journal_io.py"],
+                  {"synthetic": True, "commits": commits, "journal": journal,
+                   "chain": [t.chain_hash for t in log.transactions],
+                   "floats": [[x, repr(x)] for x in floats]})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -896,6 +936,7 @@ def main() -> None:
     rover_ops()
     conform_cases()
     drive_runs()
+    world_log_cases()
 
 
 if __name__ == "__main__":

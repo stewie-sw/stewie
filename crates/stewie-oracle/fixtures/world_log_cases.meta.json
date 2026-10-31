@@ -1,0 +1,9 @@
+{
+ "fixture": "world_log_cases",
+ "generator": "oracle/build_fixtures.py::world_log_cases (stewie.twin.envelope.TransactionLog; SYNTHETIC commit inputs, labelled)",
+ "payload_sha256": "f71f0f4425e3d035cbceb1a1755020c481600beb0ca631a45effbaaf8cf8780f",
+ "sources": {
+  "stewie/twin/envelope.py": "9ef45754c82fc20fc7163322eafcef4682f4e1624051b5754fbba6fb69ef85ff",
+  "stewie/twin/journal_io.py": "05bf90765455029d8a124d3b8a0fde70d428696fec7ce78125e07cc925f223a4"
+ }
+}
