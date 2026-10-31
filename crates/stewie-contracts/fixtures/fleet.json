@@ -1,0 +1,150 @@
+{
+  "actions": [
+    "compact",
+    "drive",
+    "dump",
+    "excavate",
+    "fill",
+    "grade",
+    "haul",
+    "process",
+    "sinter"
+  ],
+  "chargers": {
+    "lander_tower": {
+      "concurrent": 4,
+      "label": "Lander power tower",
+      "provenance": "[ASSUMPTION] shared surface power station (K8 PSR tower) serving N rovers; reuses the [CALIB] recharge power, not a new fabricated value.",
+      "recharge_power_w": 700.0,
+      "serves": [
+        "*"
+      ]
+    },
+    "surface_pad": {
+      "concurrent": 1,
+      "label": "Surface charge pad",
+      "provenance": "[CALIB] no published IPEx solar/charge spec; matches ipex_specs.RECHARGE_POWER_W (700 W).",
+      "recharge_power_w": 700.0,
+      "serves": [
+        "*"
+      ]
+    }
+  },
+  "default_charger": "surface_pad",
+  "default_vehicle": "ipex",
+  "power_sources": {
+    "ipex_battery": {
+      "capacity_j": 4795200.000000001,
+      "continuous_w": 0.0,
+      "kind": "battery",
+      "label": "IPEx 12S/30Ah Li-ion",
+      "mass_kg": null,
+      "provenance": "ipex_specs.py (NTRS 20240008162) + 12S/30Ah pack; recharge_w [CALIB].",
+      "recharge_w": 700.0
+    },
+    "lander_tower": {
+      "capacity_j": 0.0,
+      "continuous_w": 700.0,
+      "kind": "tower",
+      "label": "Surface power tower / lander",
+      "mass_kg": null,
+      "provenance": "[ASSUMPTION] a shared surface power station (K8 PSR tower) that can serve N vehicles; continuous_w reuses the [CALIB] recharge power, not a new fabricated value.",
+      "recharge_w": 0.0
+    }
+  },
+  "tools": {
+    "sinter": {
+      "capability": "sinter",
+      "energy_j_per_kg": 920000.0,
+      "label": "Sinter head (regolith fuser)",
+      "product_density_kg_m3": 2300.0,
+      "provenance": "[CALIB] energy = constants.SINTER_ENERGY_J_PER_KG (thermodynamic floor); product density = constants.RHO_SINTERED (microwave-sinter measured). Its host platform's mass/power are not sourced -> kept as a tool, not a fabricated vehicle."
+    }
+  },
+  "vehicles": {
+    "ez_rassor": {
+      "capabilities": [
+        "compact",
+        "drive",
+        "dump",
+        "excavate",
+        "haul"
+      ],
+      "cg_height_m": 0.3,
+      "contact_len_m": 0.1,
+      "dig_energy_j_per_kg": 4151.3902922436555,
+      "drive_power_w": 40.37574878393602,
+      "drum_capacity_kg": 30.0,
+      "dry_mass_kg": 30.0,
+      "gauge_m": 0.57,
+      "label": "EZ-RASSOR-geometry rover (render body)",
+      "n_wheels": 4,
+      "onboard_power": [
+        "ipex_battery"
+      ],
+      "provenance": "Geometry = the MIT EZ-RASSOR URDF (FlaSpaceInst/UCF; docs/ezrassor_assets.md), the body the default Godot mesh + the rover.py globals describe. Energy/drum REUSE the IPEx-grounded model -- EZ-RASSOR's own mass/power are not separately sourced and are NOT fabricated here. Mirrors rover.WHEEL_GAUGE_M/WHEEL_BASE_M/WHEEL_RADIUS_M + CG_HEIGHT_M.",
+      "render_assets": "",
+      "skid_steer": true,
+      "ui_visible": false,
+      "wheel_radius_m": 0.18,
+      "wheel_width_m": 0.18,
+      "wheelbase_m": 0.4
+    },
+    "ipex": {
+      "capabilities": [
+        "compact",
+        "drive",
+        "dump",
+        "excavate",
+        "haul"
+      ],
+      "cg_height_m": 0.21,
+      "contact_len_m": 0.1,
+      "dig_energy_j_per_kg": 4151.3902922436555,
+      "drive_power_w": 40.37574878393602,
+      "drum_capacity_kg": 30.0,
+      "dry_mass_kg": 30.0,
+      "gauge_m": 0.3645,
+      "label": "ISRU Pilot Excavator (IPEx)",
+      "n_wheels": 4,
+      "onboard_power": [
+        "ipex_battery"
+      ],
+      "provenance": "ipex_specs.py (Schuler et al., IPEx TRL-5, NTRS 20240008162); a RASSOR-lineage drum excavator -> no sinter tool on the baseline platform. Geometry: wheel r + drum sourced; track = 0.7 x RASSOR-2 0.5207 m; wheelbase/CG [CALIB]. Render body = CC0 self-authored (scripts/gen_ipex_mesh.py).",
+      "render_assets": "ipex",
+      "skid_steer": true,
+      "ui_visible": true,
+      "wheel_radius_m": 0.1525,
+      "wheel_width_m": 0.18,
+      "wheelbase_m": 0.3
+    },
+    "rassor2": {
+      "capabilities": [
+        "compact",
+        "drive",
+        "dump",
+        "excavate",
+        "haul"
+      ],
+      "cg_height_m": 0.34,
+      "contact_len_m": 0.1,
+      "dig_energy_j_per_kg": 4151.3902922436555,
+      "drive_power_w": 40.37574878393602,
+      "drum_capacity_kg": 80.0,
+      "dry_mass_kg": 65.0,
+      "gauge_m": 0.5207,
+      "label": "RASSOR 2.0 (TRL-4 breadboard precursor)",
+      "n_wheels": 4,
+      "onboard_power": [
+        "ipex_battery"
+      ],
+      "provenance": "RASSOR 2.0 breadboard (Mueller 2016 / Schuler 2022 BD-scaling): dry mass 65 kg, large bucket drum 24.98 kg/drum x2, 43 cm wheels (r 0.215), 0.5207 m skid-steer track -- all SOURCED. wheelbase/CG [CALIB]. Energy reuses the IPEx model (RASSOR-2's own power not separately sourced; not fabricated). The TRL-4 precursor, registered so vehicle selection drives the planner numbers (its bigger per-cycle drum -> fewer drum cycles than IPEx).",
+      "render_assets": "",
+      "skid_steer": true,
+      "ui_visible": false,
+      "wheel_radius_m": 0.215,
+      "wheel_width_m": 0.18,
+      "wheelbase_m": 0.45
+    }
+  }
+}

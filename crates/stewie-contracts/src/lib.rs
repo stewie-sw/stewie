@@ -126,6 +126,12 @@ pub mod astronaut_profile {
     }
 }
 
+/// The fleet registry: vehicles, tools, power sources and chargers (RW-33a).
+pub mod fleet {
+    #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
+    typify::import_types!(schema = "schema/fleet.schema.json");
+}
+
 /// An on-demand plugin's manifest (D-R01, RW-50).
 pub mod plugin_manifest {
     #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]

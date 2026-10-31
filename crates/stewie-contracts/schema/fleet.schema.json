@@ -1,0 +1,302 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/fleet.schema.json",
+  "title": "Fleet",
+  "description": "The fleet registry (stewie/specs/vehicles.py, RW-33a): vehicles with their base capability sets and drive figures, mountable tools that grant a capability, power sources and recharge stations. Each entry keeps the registry's provenance text; a mission's orders are gated on the capabilities of its vehicle plus mounted tools.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actions",
+    "default_vehicle",
+    "default_charger",
+    "vehicles",
+    "tools",
+    "power_sources",
+    "chargers"
+  ],
+  "definitions": {
+    "Action": {
+      "type": "string",
+      "enum": [
+        "compact",
+        "drive",
+        "dump",
+        "excavate",
+        "fill",
+        "grade",
+        "haul",
+        "process",
+        "sinter"
+      ]
+    },
+    "Vehicle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capabilities",
+        "cg_height_m",
+        "contact_len_m",
+        "dig_energy_j_per_kg",
+        "drive_power_w",
+        "drum_capacity_kg",
+        "dry_mass_kg",
+        "gauge_m",
+        "label",
+        "n_wheels",
+        "onboard_power",
+        "provenance",
+        "render_assets",
+        "skid_steer",
+        "ui_visible",
+        "wheel_radius_m",
+        "wheel_width_m",
+        "wheelbase_m"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dry_mass_kg": {
+          "type": "number",
+          "minimum": 0
+        },
+        "n_wheels": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "wheel_width_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "contact_len_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "drum_capacity_kg": {
+          "type": "number",
+          "minimum": 0
+        },
+        "drive_power_w": {
+          "type": "number",
+          "minimum": 0
+        },
+        "dig_energy_j_per_kg": {
+          "type": "number",
+          "minimum": 0
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Action"
+          },
+          "uniqueItems": true
+        },
+        "gauge_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "wheelbase_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "wheel_radius_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cg_height_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "skid_steer": {
+          "type": "boolean"
+        },
+        "render_assets": {
+          "type": "string"
+        },
+        "onboard_power": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "ui_visible": {
+          "type": "boolean"
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability",
+        "energy_j_per_kg",
+        "label",
+        "product_density_kg_m3",
+        "provenance"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capability": {
+          "$ref": "#/definitions/Action"
+        },
+        "energy_j_per_kg": {
+          "type": "number",
+          "minimum": 0
+        },
+        "product_density_kg_m3": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "PowerSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capacity_j",
+        "continuous_w",
+        "kind",
+        "label",
+        "mass_kg",
+        "provenance",
+        "recharge_w"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "battery",
+            "rtg",
+            "fuel_cell",
+            "tether",
+            "solar",
+            "tower"
+          ]
+        },
+        "capacity_j": {
+          "type": "number",
+          "minimum": 0
+        },
+        "recharge_w": {
+          "type": "number",
+          "minimum": 0
+        },
+        "continuous_w": {
+          "type": "number",
+          "minimum": 0
+        },
+        "mass_kg": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Charger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "concurrent",
+        "label",
+        "provenance",
+        "recharge_power_w",
+        "serves"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recharge_power_w": {
+          "type": "number",
+          "minimum": 0
+        },
+        "concurrent": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "serves": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "properties": {
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Action"
+      },
+      "uniqueItems": true
+    },
+    "default_vehicle": {
+      "type": "string",
+      "minLength": 1
+    },
+    "default_charger": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vehicles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/definitions/Vehicle"
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Tool"
+      }
+    },
+    "power_sources": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/PowerSource"
+      }
+    },
+    "chargers": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/definitions/Charger"
+      }
+    }
+  }
+}

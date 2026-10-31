@@ -1245,6 +1245,132 @@ def twin_ops_cases() -> None:
                    "sol_seconds": cadence.SOL_SECONDS, "every_n_events": 50, "due": due})
 
 
+def mission_cases() -> None:
+    """lode.planner_model.mission_from_dict (RW-33a) on the three committed sample missions and on SYNTHETIC variants
+    of the first (labelled): one accepted case per optional block and one refused case per check. Each case
+    records the Python's parsed Mission or its refusal."""
+    import copy
+    import dataclasses
+    import glob
+
+    from lode.planner_model import mission_from_dict
+
+    samples = {os.path.basename(f)[:-5]: json.load(open(f)) for f in
+               sorted(glob.glob(os.path.join(REPO, "stewie", "server", "sample_missions", "*.json")))}
+    base = samples["01_flatten_pad"]
+
+    def var(**kw):
+        p = copy.deepcopy(base)
+        for k, v in kw.items():
+            if v is _DROP:
+                p.pop(k, None)
+            else:
+                p[k] = v
+        return p
+
+    def orders(*extra):
+        return copy.deepcopy(base["orders"]) + list(extra)
+
+    def with_order(**kw):
+        o = dict(base["orders"][0])
+        o.update(kw)
+        o = {k: v for k, v in o.items() if v is not _DROP}
+        return var(orders=[o, base["orders"][1]])
+
+    cut = {"action": "c2", "kind": "cut", "x": 5, "y": 5, "depth_m": 0.1}
+    cases = dict(samples)
+    cases.update({
+        "versioned": var(schema_version="stewie_mission/1.0"),
+        "vehicle_case_and_tool": var(vehicle="IPEx", tools=["Sinter"], orders=orders(
+            {"action": "pave", "kind": "sinter", "x": 20, "y": 20, "footprint_m2": 4, "depth_m": 0.05})),
+        "soil_same_as_body": var(soil=" Moon "),
+        "soil_override": var(soil="mars"),
+        "shapes": var(orders=orders(
+            dict(cut, action="rect", shape={"kind": "rectangle", "w": 3, "h": 2, "theta_deg": 30}),
+            dict(cut, action="circ", shape={"kind": "circle", "r": 1.5}),
+            dict(cut, action="corr", shape={"kind": "corridor", "length": 10, "width": 0.5}),
+            dict(cut, action="poly", shape={"kind": "polygon", "vertices": [[0, 0], [4, 0], [4, 3]]}))),
+        "path_and_precedence": var(orders=orders({"action": "w1", "kind": "goto", "x": 1, "y": 1},
+                                                 {"action": "w2", "kind": "goto", "x": 2, "y": 1},
+                                                 {"action": "w3", "kind": "goto", "x": 3, "y": 2}),
+                                   precedence=[["cut high spot", "fill pad"]]),
+        "keepouts": var(keepouts=[{"x": 25, "y": 0, "r": 3}, {"x0": 30, "y0": 8, "x1": 28, "y1": 2},
+                                  {"points": [[0, 20], [5, 20], [5, 25]]}]),
+        "every_optional_block": var(
+            objective_constraints={"max_time_s": 36000, "risk_weight": 0.5},
+            mission_windows={"work": [[0, 3600], [7200, 9000]], "recharge": []},
+            shared_resources=[{"id": "pit-a", "kind": "pit", "sites": [[10, 10]]},
+                              {"id": "dump-b", "kind": "dump", "capacity": 2, "sites": [[40, 10], [41, 10]]}],
+            observations=[{"vehicle": 0, "x": 5, "y": 5, "t_start": 10, "t_end": 20},
+                          {"vehicle": 1, "x": 6, "y": 5, "t_start": 15, "t_end": 30, "kind": "solar"}],
+            dig_energy_factor=1.4, accept_flatness_tol_m=0.03, lander=[2, 3], return_buffer_frac=0.3,
+            charger_capacity=12, date="2027-01-15", name=42, physics_backend_id=" tier2_numpy "),
+        "capacity_zero": var(charger_capacity=0),
+        "capacity_fraction": var(charger_capacity=2.7),
+        "insitu_density": with_order(insitu_density_kg_m3=1650.0, note="bank cut"),
+        # refusals
+        "not_an_object": [base],
+        "body_case": var(body="Moon"),
+        "unknown_schema": var(schema_version="stewie_mission/9"),
+        "unknown_vehicle": var(vehicle="digger"),
+        "unknown_tool": var(tools=["laser"]),
+        "unknown_soil": var(soil="vulcan"),
+        "unknown_backend": var(physics_backend_id="chrono"),
+        "no_orders": var(orders=[]),
+        "order_not_object": var(orders=["cut"]),
+        "missing_field": with_order(depth_m=_DROP),
+        "bad_kind": with_order(kind="drill"),
+        "sinter_without_tool": var(orders=orders({"action": "pave", "kind": "sinter", "x": 1, "y": 1,
+                                                  "footprint_m2": 1, "depth_m": 0.1})),
+        "string_coordinate": with_order(x="10"),
+        "negative_depth": with_order(depth_m=-0.1),
+        "zero_footprint": with_order(footprint_m2=0),
+        "bad_shape_kind": var(orders=orders(dict(cut, shape={"kind": "hexagon"}))),
+        "degenerate_polygon": var(orders=orders(dict(cut, shape={"kind": "polygon", "vertices": [[0, 0], [1, 1], [2, 2]]}))),
+        "precedence_unknown": var(precedence=[["cut high spot", "nowhere"]]),
+        "precedence_shape": var(precedence=[["cut high spot"]]),
+        "keepouts_not_list": var(keepouts={"x": 1}),
+        "keepout_two_points": var(keepouts=[{"points": [[0, 0], [1, 1]]}]),
+        "keepout_unknown": var(keepouts=[{"x": 1, "y": 2}]),
+        "keepout_zero_radius": var(keepouts=[{"x": 1, "y": 2, "r": 0}]),
+        "constraint_unknown": var(objective_constraints={"max_fun": 1}),
+        "constraint_negative": var(objective_constraints={"max_time_s": -1}),
+        "window_class": var(mission_windows={"sleep": [[0, 1]]}),
+        "window_reversed": var(mission_windows={"work": [[10, 5]]}),
+        "resource_duplicate": var(shared_resources=[{"id": "a", "kind": "pit", "sites": [[0, 0]]},
+                                                    {"id": "a", "kind": "pit", "sites": [[1, 0]]}]),
+        "resource_kind": var(shared_resources=[{"id": "a", "kind": "garage", "sites": [[0, 0]]}]),
+        "resource_capacity_zero": var(shared_resources=[{"id": "a", "kind": "pit", "capacity": 0, "sites": [[0, 0]]}]),
+        "resource_capacity_float": var(shared_resources=[{"id": "a", "kind": "pit", "capacity": 2.0, "sites": [[0, 0]]}]),
+        "observation_vehicle": var(observations=[{"vehicle": -1, "x": 0, "y": 0, "t_start": 0, "t_end": 1}]),
+        "observation_window": var(observations=[{"vehicle": 0, "x": 0, "y": 0, "t_start": 5, "t_end": 5}]),
+        "observation_missing": var(observations=[{"vehicle": 0, "x": 0, "y": 0, "t_end": 1}]),
+        "dig_factor_zero": var(dig_energy_factor=0),
+        "flatness_negative": var(accept_flatness_tol_m=-1),
+        "return_buffer_negative": var(return_buffer_frac=-0.1),
+        "charger_shape": var(charger=[1]),
+        "lander_shape": var(lander=[1, 2, 3]),
+    })
+    out = []
+    for name, payload in cases.items():
+        try:
+            m = mission_from_dict(payload)
+            out.append({"name": name, "payload": payload, "ok": True, "mission": dataclasses.asdict(m)})
+        except (ValueError, KeyError, TypeError) as e:       # TypeError reaches the server as a 500, not a 400
+            out.append({"name": name, "payload": payload, "ok": False, "error": f"{type(e).__name__}: {e}"})
+    accepted = sum(c["ok"] for c in out)
+    assert (accepted, len(out) - accepted) == (15, 38), (accepted, len(out))   # 14 planned + the string coordinate
+    write_fixture(ORACLE_FIXTURES, "mission_cases", "oracle/build_fixtures.py::mission_cases (lode.planner_model."
+                  "mission_from_dict on the committed sample missions and SYNTHETIC variants, labelled)",
+                  ["lode/planner_model.py", "stewie/specs/vehicles.py", "stewie/server/sample_missions/01_flatten_pad.json",
+                   "stewie/server/sample_missions/02_haul_around_hazard.json",
+                   "stewie/server/sample_missions/03_blocked_infeasible.json"],
+                  {"cases": out})
+
+
+_DROP = object()
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1508,6 +1634,7 @@ def main() -> None:
     terrain_memory_cases()
     traffic_memory_cases()
     twin_ops_cases()
+    mission_cases()
     world_log_cases()
     twin_store_cases()
     route_cases()

@@ -1,0 +1,19 @@
+[package]
+name = "stewie-plan"
+description = "The LODE build planner: the mission model and its trust boundary, cut-fill balance, trips, endurance, sequencing and the executable plan IR."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+stewie-contracts = { path = "../stewie-contracts" }
+stewie-twin = { path = "../stewie-twin" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+
+[lints]
+workspace = true

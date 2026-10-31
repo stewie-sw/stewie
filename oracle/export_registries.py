@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew,fleet}.json
 """
 from __future__ import annotations
 
@@ -143,6 +143,35 @@ def eva_crew() -> dict:
                                                 (30.0, 21.5, "30%"))]}
 
 
+def fleet() -> dict:
+    """The fleet registry (stewie/specs/vehicles.py): vehicles with their capability sets and drive figures, mountable
+    tools, power sources and chargers, each with the registry's own provenance text (RW-33a)."""
+    from stewie.specs import vehicles as V
+
+    def rec(obj, keys):
+        out = {k: getattr(obj, k) for k in keys}
+        for k, v in out.items():
+            if isinstance(v, (frozenset, set)):
+                out[k] = sorted(v)
+            elif isinstance(v, tuple):
+                out[k] = list(v)
+            elif isinstance(v, float) or (isinstance(v, int) and not isinstance(v, bool) and k.endswith(("_m", "_kg", "_w", "_j", "_kg_m3", "_j_per_kg"))):
+                out[k] = float(v)
+        return out
+
+    vk = ("label", "dry_mass_kg", "n_wheels", "wheel_width_m", "contact_len_m", "drum_capacity_kg", "drive_power_w",
+          "dig_energy_j_per_kg", "capabilities", "gauge_m", "wheelbase_m", "wheel_radius_m", "cg_height_m", "skid_steer",
+          "render_assets", "onboard_power", "ui_visible", "provenance")
+    return {"actions": sorted(V.ACTIONS), "default_vehicle": V.DEFAULT_VEHICLE, "default_charger": V.DEFAULT_CHARGER,
+            "vehicles": {k: rec(v, vk) for k, v in V.VEHICLES.items()},
+            "tools": {k: rec(t, ("label", "capability", "energy_j_per_kg", "product_density_kg_m3", "provenance"))
+                      for k, t in V.TOOLS.items()},
+            "power_sources": {k: rec(p, ("label", "kind", "capacity_j", "recharge_w", "continuous_w", "mass_kg",
+                                         "provenance")) for k, p in V.POWER_SOURCES.items()},
+            "chargers": {k: rec(c, ("label", "recharge_power_w", "concurrent", "serves", "provenance"))
+                         for k, c in V.CHARGERS.items()}}
+
+
 def _write(name: str, data: dict) -> str:
     path = os.path.normpath(os.path.join(_OUT, name))
     with open(path, "w", encoding="utf-8") as fh:
@@ -157,6 +186,7 @@ def main() -> None:
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))
+    print(_write("fleet.json", fleet()))
 
 
 if __name__ == "__main__":

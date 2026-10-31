@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 use stewie_contracts::{
-    astronaut_profile, body, dem_bundle, package_manifest, rover_profile, site, soil_baseline,
+    astronaut_profile, body, dem_bundle, fleet, package_manifest, rover_profile, site,
+    soil_baseline,
 };
 
 fn crate_dir() -> PathBuf {
@@ -229,6 +230,40 @@ fn astronaut_profile_carries_its_cited_values_and_rejects_a_missing_or_untagged_
         astronaut_profile::check(&p).is_err(),
         "grades must increase"
     );
+}
+
+#[test]
+fn fleet_registry_validates_and_its_references_resolve() {
+    let doc = load(&crate_dir().join("fixtures/fleet.json"));
+    let v = validator("fleet.schema.json");
+    assert!(v.is_valid(&doc));
+    let f: fleet::Fleet = serde_json::from_value(doc.clone()).unwrap();
+    assert!(f.vehicles.contains_key(f.default_vehicle.as_str()));
+    assert!(f.chargers.contains_key(f.default_charger.as_str()));
+    for (name, veh) in &f.vehicles {
+        for p in &veh.onboard_power {
+            assert!(
+                f.power_sources.contains_key(p.as_str()),
+                "{name}: power source {}",
+                p.as_str()
+            );
+        }
+    }
+    let ipex = &f.vehicles["ipex"];
+    assert!(
+        (ipex.gauge_m - 0.3645).abs() < 1e-12,
+        "flight-IPEx geometry (D-R86)"
+    );
+    // synthetic mutations of the real registry are refused
+    let mut missing = doc.clone();
+    missing["vehicles"]["ipex"]
+        .as_object_mut()
+        .unwrap()
+        .remove("drum_capacity_kg");
+    assert!(!v.is_valid(&missing), "a vehicle without its drum capacity");
+    let mut verb = doc;
+    verb["tools"]["sinter"]["capability"] = Value::from("teleport");
+    assert!(!v.is_valid(&verb), "a capability outside the action set");
 }
 
 /// A source line that compiles a reserve number in (comments and string literals excluded).

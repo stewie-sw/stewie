@@ -1,0 +1,3036 @@
+{
+ "cases": [
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "01_flatten_pad",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [
+     {
+      "r": 10.0,
+      "x": 25.0,
+      "y": 0.0
+     }
+    ],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 2 — haul around a crater keep-out",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 0.0,
+      "y": 0.0
+     },
+     {
+      "action": "build berm",
+      "depth_m": 0.2,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 50.0,
+      "y": 0.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "02_haul_around_hazard",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 10,
+      "x": 25,
+      "y": 0
+     }
+    ],
+    "name": "Tutorial 2 — haul around a crater keep-out",
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "build berm",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 50,
+      "y": 0
+     }
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [
+     {
+      "r": 18.0,
+      "x": 40.0,
+      "y": 0.0
+     }
+    ],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 3 — INFEASIBLE: fill site has no safe corridor",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 0.0,
+      "y": 0.0
+     },
+     {
+      "action": "stranded fill",
+      "depth_m": 0.2,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 0.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "03_blocked_infeasible",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 18,
+      "x": 40,
+      "y": 0
+     }
+    ],
+    "name": "Tutorial 3 — INFEASIBLE: fill site has no safe corridor",
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "stranded fill",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 0
+     }
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "versioned",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "schema_version": "stewie_mission/1.0"
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     },
+     {
+      "action": "pave",
+      "depth_m": 0.05,
+      "footprint_m2": 4.0,
+      "insitu_density_kg_m3": null,
+      "kind": "sinter",
+      "note": "",
+      "shape": null,
+      "x": 20.0,
+      "y": 20.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [
+     "Sinter"
+    ],
+    "vehicle": "IPEx"
+   },
+   "name": "vehicle_case_and_tool",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     },
+     {
+      "action": "pave",
+      "depth_m": 0.05,
+      "footprint_m2": 4,
+      "kind": "sinter",
+      "x": 20,
+      "y": 20
+     }
+    ],
+    "tools": [
+     "Sinter"
+    ],
+    "vehicle": "IPEx"
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "soil_same_as_body",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "soil": " Moon "
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "mars",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "soil_override",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "soil": "mars"
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     },
+     {
+      "action": "rect",
+      "depth_m": 0.1,
+      "footprint_m2": 6.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": {
+       "h": 2,
+       "kind": "rectangle",
+       "theta_deg": 30,
+       "w": 3
+      },
+      "x": 5.0,
+      "y": 5.0
+     },
+     {
+      "action": "circ",
+      "depth_m": 0.1,
+      "footprint_m2": 7.0685834705770345,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": {
+       "kind": "circle",
+       "r": 1.5
+      },
+      "x": 5.0,
+      "y": 5.0
+     },
+     {
+      "action": "corr",
+      "depth_m": 0.1,
+      "footprint_m2": 5.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": {
+       "kind": "corridor",
+       "length": 10,
+       "width": 0.5
+      },
+      "x": 5.0,
+      "y": 5.0
+     },
+     {
+      "action": "poly",
+      "depth_m": 0.1,
+      "footprint_m2": 6.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": {
+       "kind": "polygon",
+       "vertices": [
+        [
+         0,
+         0
+        ],
+        [
+         4,
+         0
+        ],
+        [
+         4,
+         3
+        ]
+       ]
+      },
+      "x": 5.0,
+      "y": 5.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "shapes",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     },
+     {
+      "action": "rect",
+      "depth_m": 0.1,
+      "kind": "cut",
+      "shape": {
+       "h": 2,
+       "kind": "rectangle",
+       "theta_deg": 30,
+       "w": 3
+      },
+      "x": 5,
+      "y": 5
+     },
+     {
+      "action": "circ",
+      "depth_m": 0.1,
+      "kind": "cut",
+      "shape": {
+       "kind": "circle",
+       "r": 1.5
+      },
+      "x": 5,
+      "y": 5
+     },
+     {
+      "action": "corr",
+      "depth_m": 0.1,
+      "kind": "cut",
+      "shape": {
+       "kind": "corridor",
+       "length": 10,
+       "width": 0.5
+      },
+      "x": 5,
+      "y": 5
+     },
+     {
+      "action": "poly",
+      "depth_m": 0.1,
+      "kind": "cut",
+      "shape": {
+       "kind": "polygon",
+       "vertices": [
+        [
+         0,
+         0
+        ],
+        [
+         4,
+         0
+        ],
+        [
+         4,
+         3
+        ]
+       ]
+      },
+      "x": 5,
+      "y": 5
+     }
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     },
+     {
+      "action": "w1",
+      "depth_m": 0.0,
+      "footprint_m2": 0.0,
+      "insitu_density_kg_m3": null,
+      "kind": "goto",
+      "note": "",
+      "shape": null,
+      "x": 1.0,
+      "y": 1.0
+     },
+     {
+      "action": "w2",
+      "depth_m": 0.0,
+      "footprint_m2": 0.0,
+      "insitu_density_kg_m3": null,
+      "kind": "goto",
+      "note": "",
+      "shape": null,
+      "x": 2.0,
+      "y": 1.0
+     },
+     {
+      "action": "w3",
+      "depth_m": 0.0,
+      "footprint_m2": 0.0,
+      "insitu_density_kg_m3": null,
+      "kind": "goto",
+      "note": "",
+      "shape": null,
+      "x": 3.0,
+      "y": 2.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [
+     [
+      "cut high spot",
+      "fill pad"
+     ],
+     [
+      "w1",
+      "w2"
+     ],
+     [
+      "w2",
+      "w3"
+     ]
+    ],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "path_and_precedence",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     },
+     {
+      "action": "w1",
+      "kind": "goto",
+      "x": 1,
+      "y": 1
+     },
+     {
+      "action": "w2",
+      "kind": "goto",
+      "x": 2,
+      "y": 1
+     },
+     {
+      "action": "w3",
+      "kind": "goto",
+      "x": 3,
+      "y": 2
+     }
+    ],
+    "precedence": [
+     [
+      "cut high spot",
+      "fill pad"
+     ]
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [
+     {
+      "r": 3.0,
+      "x": 25.0,
+      "y": 0.0
+     },
+     {
+      "x0": 28.0,
+      "x1": 30.0,
+      "y0": 2.0,
+      "y1": 8.0
+     },
+     {
+      "points": [
+       [
+        0.0,
+        20.0
+       ],
+       [
+        5.0,
+        20.0
+       ],
+       [
+        5.0,
+        25.0
+       ]
+      ]
+     }
+    ],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "keepouts",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 3,
+      "x": 25,
+      "y": 0
+     },
+     {
+      "x0": 30,
+      "x1": 28,
+      "y0": 8,
+      "y1": 2
+     },
+     {
+      "points": [
+       [
+        0,
+        20
+       ],
+       [
+        5,
+        20
+       ],
+       [
+        5,
+        25
+       ]
+      ]
+     }
+    ],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": 0.03,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 8,
+    "date": "2027-01-15",
+    "dig_energy_factor": 1.4,
+    "keepouts": [],
+    "lander": [
+     2.0,
+     3.0
+    ],
+    "mission_windows": {
+     "work": [
+      [
+       0.0,
+       3600.0
+      ],
+      [
+       7200.0,
+       9000.0
+      ]
+     ]
+    },
+    "name": "42",
+    "objective_constraints": {
+     "max_time_s": 36000.0,
+     "risk_weight": 0.5
+    },
+    "observations": [
+     {
+      "kind": "meerkat",
+      "t_end": 20.0,
+      "t_start": 10.0,
+      "vehicle": 0,
+      "x": 5.0,
+      "y": 5.0
+     },
+     {
+      "kind": "solar",
+      "t_end": 30.0,
+      "t_start": 15.0,
+      "vehicle": 1,
+      "x": 6.0,
+      "y": 5.0
+     }
+    ],
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.3,
+    "shared_resources": [
+     {
+      "capacity": 1,
+      "id": "pit-a",
+      "kind": "pit",
+      "sites": [
+       [
+        10.0,
+        10.0
+       ]
+      ]
+     },
+     {
+      "capacity": 2,
+      "id": "dump-b",
+      "kind": "dump",
+      "sites": [
+       [
+        40.0,
+        10.0
+       ],
+       [
+        41.0,
+        10.0
+       ]
+      ]
+     }
+    ],
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "every_optional_block",
+   "ok": true,
+   "payload": {
+    "accept_flatness_tol_m": 0.03,
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "charger_capacity": 12,
+    "date": "2027-01-15",
+    "dig_energy_factor": 1.4,
+    "keepouts": [],
+    "lander": [
+     2,
+     3
+    ],
+    "mission_windows": {
+     "recharge": [],
+     "work": [
+      [
+       0,
+       3600
+      ],
+      [
+       7200,
+       9000
+      ]
+     ]
+    },
+    "name": 42,
+    "objective_constraints": {
+     "max_time_s": 36000,
+     "risk_weight": 0.5
+    },
+    "observations": [
+     {
+      "t_end": 20,
+      "t_start": 10,
+      "vehicle": 0,
+      "x": 5,
+      "y": 5
+     },
+     {
+      "kind": "solar",
+      "t_end": 30,
+      "t_start": 15,
+      "vehicle": 1,
+      "x": 6,
+      "y": 5
+     }
+    ],
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "physics_backend_id": " tier2_numpy ",
+    "return_buffer_frac": 0.3,
+    "shared_resources": [
+     {
+      "id": "pit-a",
+      "kind": "pit",
+      "sites": [
+       [
+        10,
+        10
+       ]
+      ]
+     },
+     {
+      "capacity": 2,
+      "id": "dump-b",
+      "kind": "dump",
+      "sites": [
+       [
+        40,
+        10
+       ],
+       [
+        41,
+        10
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "capacity_zero",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "charger_capacity": 0,
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 2,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "capacity_fraction",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "charger_capacity": 2.7,
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": 1650.0,
+      "kind": "cut",
+      "note": "bank cut",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "insitu_density",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "insitu_density_kg_m3": 1650.0,
+      "kind": "cut",
+      "note": "bank cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: mission payload must be a JSON object",
+   "name": "not_an_object",
+   "ok": false,
+   "payload": [
+    {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "error": "ValueError: unknown body 'Moon'; known: ['bennu', 'bp1_testbed', 'ceres', 'earth', 'mars', 'moon', 'phobos']",
+   "name": "body_case",
+   "ok": false,
+   "payload": {
+    "body": "Moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "MissionSchemaError: no migration path from schema_version 'stewie_mission/9' to 'stewie_mission/1.0'; register a migrator (register_mission_migration) for that version",
+   "name": "unknown_schema",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "schema_version": "stewie_mission/9"
+   }
+  },
+  {
+   "error": "ValueError: \"unknown vehicle 'digger'; known: ['ez_rassor', 'ipex', 'rassor2']\"",
+   "name": "unknown_vehicle",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "digger"
+   }
+  },
+  {
+   "error": "ValueError: \"unknown tool 'laser'; known: ['sinter']\"",
+   "name": "unknown_tool",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "tools": [
+     "laser"
+    ]
+   }
+  },
+  {
+   "error": "ValueError: \"unknown body 'vulcan'; known: ['bennu', 'bp1_testbed', 'ceres', 'earth', 'mars', 'moon', 'phobos']\"",
+   "name": "unknown_soil",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "soil": "vulcan"
+   }
+  },
+  {
+   "error": "ValueError: unknown/unselectable physics_backend_id 'chrono'; selectable: ['tier2_numpy'] (the PX-03 Chrono oracle is not a release-authority backend until it conserves mass)",
+   "name": "unknown_backend",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "physics_backend_id": "chrono"
+   }
+  },
+  {
+   "error": "ValueError: mission needs a non-empty 'orders' list",
+   "name": "no_orders",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": []
+   }
+  },
+  {
+   "error": "ValueError: order 0 must be an object",
+   "name": "order_not_object",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     "cut"
+    ]
+   }
+  },
+  {
+   "error": "ValueError: order 0 missing field(s): ['depth_m']",
+   "name": "missing_field",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: order 0 kind 'drill' not in ('cut', 'fill', 'sinter', 'goto')",
+   "name": "bad_kind",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "drill",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: order 2: sinter is GATED OFF -- no vehicle in the fleet carries a sinter tool ('ipex' is a drum excavator; sinter is a separate Tool to mount).",
+   "name": "sinter_without_tool",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     },
+     {
+      "action": "pave",
+      "depth_m": 0.1,
+      "footprint_m2": 1,
+      "kind": "sinter",
+      "x": 1,
+      "y": 1
+     }
+    ]
+   }
+  },
+  {
+   "mission": {
+    "accept_flatness_tol_m": null,
+    "body": "moon",
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "charger_capacity": 1,
+    "date": "2026-06-03",
+    "dig_energy_factor": null,
+    "keepouts": [],
+    "lander": null,
+    "mission_windows": null,
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": null,
+    "observations": null,
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "cut",
+      "note": "",
+      "shape": null,
+      "x": 10.0,
+      "y": 10.0
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": null,
+      "kind": "fill",
+      "note": "",
+      "shape": null,
+      "x": 40.0,
+      "y": 10.0
+     }
+    ],
+    "physics_backend_id": "tier2_numpy",
+    "precedence": [],
+    "return_buffer_frac": 0.2,
+    "shared_resources": null,
+    "soil": "",
+    "temp_c": null,
+    "tools": [],
+    "vehicle": "ipex"
+   },
+   "name": "string_coordinate",
+   "ok": true,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": "10",
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "DomainError: order 0 depth_m: must be > 0 (got -0.1)",
+   "name": "negative_depth",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": -0.1,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "DomainError: order 0 footprint_m2: must be > 0 (got 0)",
+   "name": "zero_footprint",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 0,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: unknown footprint shape kind 'hexagon' (use rectangle|circle|corridor|polygon)",
+   "name": "bad_shape_kind",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     },
+     {
+      "action": "c2",
+      "depth_m": 0.1,
+      "kind": "cut",
+      "shape": {
+       "kind": "hexagon"
+      },
+      "x": 5,
+      "y": 5
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: polygon footprint is degenerate (zero area)",
+   "name": "degenerate_polygon",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     },
+     {
+      "action": "c2",
+      "depth_m": 0.1,
+      "kind": "cut",
+      "shape": {
+       "kind": "polygon",
+       "vertices": [
+        [
+         0,
+         0
+        ],
+        [
+         1,
+         1
+        ],
+        [
+         2,
+         2
+        ]
+       ]
+      },
+      "x": 5,
+      "y": 5
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: precedence 'cut high spot'->'nowhere' references an unknown order action",
+   "name": "precedence_unknown",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "precedence": [
+     [
+      "cut high spot",
+      "nowhere"
+     ]
+    ]
+   }
+  },
+  {
+   "error": "ValueError: precedence entry ['cut high spot'] must be [before_action, after_action]",
+   "name": "precedence_shape",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "precedence": [
+     [
+      "cut high spot"
+     ]
+    ]
+   }
+  },
+  {
+   "error": "ValueError: 'keepouts' must be a list of {x,y,r} circles or {x0,y0,x1,y1} rectangles",
+   "name": "keepouts_not_list",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": {
+     "x": 1
+    },
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: keepout 0 polygon needs 3..256 vertices (got 2)",
+   "name": "keepout_two_points",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "points": [
+       [
+        0,
+        0
+       ],
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    ],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: keepout 0 must be {x,y,r} (circle), {x0,y0,x1,y1} (rectangle), or {points} (polygon)",
+   "name": "keepout_unknown",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "x": 1,
+      "y": 2
+     }
+    ],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "DomainError: keepout 0 r: must be > 0 (got 0)",
+   "name": "keepout_zero_radius",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 0,
+      "x": 1,
+      "y": 2
+     }
+    ],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: unknown objective constraint 'max_fun'; allowed: ['max_charges', 'max_distance_m', 'max_energy_J', 'max_time_s', 'risk_weight']",
+   "name": "constraint_unknown",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": {
+     "max_fun": 1
+    },
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: objective constraint 'max_time_s' must be >= 0 (got -1.0)",
+   "name": "constraint_negative",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "objective_constraints": {
+     "max_time_s": -1
+    },
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: unknown mission_window class 'sleep'; allowed: ['drive', 'recharge', 'work']",
+   "name": "window_class",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "mission_windows": {
+     "sleep": [
+      [
+       0,
+       1
+      ]
+     ]
+    },
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: mission_windows['work'][0]: close (5.0) must be >= open (10.0)",
+   "name": "window_reversed",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "mission_windows": {
+     "work": [
+      [
+       10,
+       5
+      ]
+     ]
+    },
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: shared_resources[1]: duplicate id 'a'",
+   "name": "resource_duplicate",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "shared_resources": [
+     {
+      "id": "a",
+      "kind": "pit",
+      "sites": [
+       [
+        0,
+        0
+       ]
+      ]
+     },
+     {
+      "id": "a",
+      "kind": "pit",
+      "sites": [
+       [
+        1,
+        0
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: shared_resources['a'] kind 'garage'; allowed: ['corridor', 'dump', 'pit', 'vantage']",
+   "name": "resource_kind",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "shared_resources": [
+     {
+      "id": "a",
+      "kind": "garage",
+      "sites": [
+       [
+        0,
+        0
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: shared_resources['a'] capacity must be an int >= 1 (got 0)",
+   "name": "resource_capacity_zero",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "shared_resources": [
+     {
+      "capacity": 0,
+      "id": "a",
+      "kind": "pit",
+      "sites": [
+       [
+        0,
+        0
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: shared_resources['a'] capacity must be an int >= 1 (got 2.0)",
+   "name": "resource_capacity_float",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "shared_resources": [
+     {
+      "capacity": 2.0,
+      "id": "a",
+      "kind": "pit",
+      "sites": [
+       [
+        0,
+        0
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: observations[0] vehicle must be an int >= 0 (got -1)",
+   "name": "observation_vehicle",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "observations": [
+     {
+      "t_end": 1,
+      "t_start": 0,
+      "vehicle": -1,
+      "x": 0,
+      "y": 0
+     }
+    ],
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: observations[0] window must have t_end > t_start (got [5.0, 5.0))",
+   "name": "observation_window",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "observations": [
+     {
+      "t_end": 5,
+      "t_start": 5,
+      "vehicle": 0,
+      "x": 0,
+      "y": 0
+     }
+    ],
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: observations[0] needs 't_start'",
+   "name": "observation_missing",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "observations": [
+     {
+      "t_end": 1,
+      "vehicle": 0,
+      "x": 0,
+      "y": 0
+     }
+    ],
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: 'dig_energy_factor' must be > 0 (got 0.0)",
+   "name": "dig_factor_zero",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "dig_energy_factor": 0,
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: 'accept_flatness_tol_m' must be > 0 (got -1.0)",
+   "name": "flatness_negative",
+   "ok": false,
+   "payload": {
+    "accept_flatness_tol_m": -1,
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: return_buffer_frac must be >= 0 (got -0.1)",
+   "name": "return_buffer_negative",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "return_buffer_frac": -0.1
+   }
+  },
+  {
+   "error": "ValueError: charger must be a 2-element [x, y]; got [1]",
+   "name": "charger_shape",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     1
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  },
+  {
+   "error": "ValueError: lander must be a 2-element [x, y]; got [1, 2, 3]",
+   "name": "lander_shape",
+   "ok": false,
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "lander": [
+     1,
+     2,
+     3
+    ],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   }
+  }
+ ]
+}
