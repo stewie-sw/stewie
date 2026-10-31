@@ -1,0 +1,10 @@
+{
+ "fixture": "route_cases",
+ "generator": "oracle/build_fixtures.py::route_cases (lode.planner_routing on a real Haworth window; cost layers SYNTHETIC integer formulas, labelled)",
+ "payload_sha256": "dd7a5f7b493440ec88903bfd2d6547a0b5084ff6326f03884b413334beb35eb0",
+ "sources": {
+  "lode/planner_routing.py": "5ce65415b2fe381303555cb909495198a2023119419e544b274847023e7ae0c5",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/terrain/site_dem.py": "ac5aaf0a3ee382098b2b12d38c59deabe5bd80e786efed9276308942d20444c8"
+ }
+}

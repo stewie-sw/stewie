@@ -287,23 +287,14 @@ impl DemTile {
         if row >= self.height || col >= self.width {
             return None;
         }
-        let z = |r: usize, c: usize| f64::from(self.z[r * self.width + c]);
-        let d = |lo: f64, hi: f64, span: f64| (hi - lo) / span;
-        let gx = if col == 0 {
-            d(z(row, 0), z(row, 1), self.cell_m)
-        } else if col == self.width - 1 {
-            d(z(row, col - 1), z(row, col), self.cell_m)
-        } else {
-            d(z(row, col - 1), z(row, col + 1), 2.0 * self.cell_m)
-        };
-        let gy = if row == 0 {
-            d(z(0, col), z(1, col), self.cell_m)
-        } else if row == self.height - 1 {
-            d(z(row - 1, col), z(row, col), self.cell_m)
-        } else {
-            d(z(row - 1, col), z(row + 1, col), 2.0 * self.cell_m)
-        };
-        Some(gx.hypot(gy).atan().to_degrees())
+        Some(slope_deg_at(
+            |r, c| f64::from(self.z[r * self.width + c]),
+            self.width,
+            self.height,
+            self.cell_m,
+            row,
+            col,
+        ))
     }
 
     /// Projected (easting, northing) [m] of a cell centre.
@@ -353,6 +344,52 @@ impl DemTile {
         let (e, n) = self.proj.forward(ll).ok()?;
         self.sample_projected(e, n)
     }
+}
+
+/// Surface slope [deg] at `(row, col)` of a `width` x `height` grid read through `z`: numpy
+/// `np.gradient` (central differences inside, one-sided on the border), then `atan(|grad|)`. Grids need
+/// at least two cells per axis.
+pub fn slope_deg_at(
+    z: impl Fn(usize, usize) -> f64,
+    width: usize,
+    height: usize,
+    cell_m: f64,
+    row: usize,
+    col: usize,
+) -> f64 {
+    let d = |lo: f64, hi: f64, span: f64| (hi - lo) / span;
+    let gx = if col == 0 {
+        d(z(row, 0), z(row, 1), cell_m)
+    } else if col == width - 1 {
+        d(z(row, col - 1), z(row, col), cell_m)
+    } else {
+        d(z(row, col - 1), z(row, col + 1), 2.0 * cell_m)
+    };
+    let gy = if row == 0 {
+        d(z(0, col), z(1, col), cell_m)
+    } else if row == height - 1 {
+        d(z(row - 1, col), z(row, col), cell_m)
+    } else {
+        d(z(row - 1, col), z(row + 1, col), 2.0 * cell_m)
+    };
+    gx.hypot(gy).atan().to_degrees()
+}
+
+/// [`slope_deg_at`] over every cell of a row-major `z` (Python `site_dem.slope_deg_map`).
+#[must_use]
+pub fn slope_deg_grid(z: &[f64], width: usize, height: usize, cell_m: f64) -> Vec<f64> {
+    (0..z.len())
+        .map(|i| {
+            slope_deg_at(
+                |r, c| z[r * width + c],
+                width,
+                height,
+                cell_m,
+                i / width,
+                i % width,
+            )
+        })
+        .collect()
 }
 
 /// Anything that answers "terrain height here?" in the body's frame: a local tile, a global grid.

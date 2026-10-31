@@ -59,6 +59,10 @@ Fixtures:
   twin_store_cases   stewie.twin.versioned.TwinStore over the REAL Haworth crop heights: a real unchanged
                      resync, SYNTHETIC offset and integral patches (labelled), an edge patch and undos;
                      the journal bytes, current map, observed mask and identity.
+  route_cases        lode.planner_routing on a REAL 160x160 Haworth crop (5 m): legs under 25 and 12 deg
+                     caps, circle/rect/polygon keep-outs, SYNTHETIC illumination and map-uncertainty layers
+                     (labelled), an off-DEM endpoint and a keep-out wall that forces window widening; plus
+                     one full costmap with every term.
 """
 from __future__ import annotations
 
@@ -905,6 +909,80 @@ def twin_store_cases() -> None:
                    "errors": errors})
 
 
+ROUTE_WINDOW = (1000, 600, 100)   # real Haworth rows, cols, size: 85% passable incl. drop-offs, hazards to avoid
+
+
+def route_layers(H: int, W: int) -> dict:
+    """SYNTHETIC cost layers (labelled), integer-modulo formulas so the Rust test regenerates them exactly."""
+    yy, xx = np.mgrid[0:H, 0:W]
+    return {"illum_total": ((xx + 2 * yy) % 17) / 17.0, "shadow_hazard": (xx % 7) / 7.0, "saturation": (yy % 5) / 5.0,
+            "map_uncertainty": ((xx * yy) % 11) / 11.0, "visibility": ((xx + yy) % 3) / 3.0,
+            "map_unc": ((3 * xx + 5 * yy) % 13) / 13.0}
+
+
+def route_cases() -> None:
+    from scipy import ndimage
+
+    from lode import planner_routing as PR
+    from stewie.physics.worksite import coarse_base_from_bundle
+
+    base, _ = coarse_base_from_bundle(os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    cell, origin = 5.0, (100.0, 50.0)
+    H, W = Z.shape
+    L = route_layers(H, W)
+    weights = {"shadow": 2.0, "saturation": 0.5, "visibility": 1.5}
+    illum_terms = {k: L[k] for k in ("shadow_hazard", "saturation", "map_uncertainty", "visibility")} | {"weights": weights}
+    _, passable = PR.slope_costmap(Z, cell, max_drop_m=PR.MAX_DROP_M)
+    lab, _ = ndimage.label(passable, structure=np.ones((3, 3)))
+    main = lab == np.argmax(np.bincount(lab.ravel())[1:]) + 1
+    rr, cc = np.nonzero(main)
+
+    def site(fr, fc):        # the main-component cell nearest a fixed fraction of the window, as local (x, y)
+        k = int(np.argmin((rr - fr * H) ** 2 + (cc - fc * W) ** 2))
+        return (float(cc[k] * cell - origin[0] + 2.5), float(rr[k] * cell - origin[1] + 2.5))
+
+    A, B, C, D = site(0.1, 0.1), site(0.9, 0.85), site(0.15, 0.9), site(0.85, 0.15)
+    legs = []
+
+    def leg(name, a, b, **kw):
+        r = PR.route_leg((Z, cell), origin, a, b, return_terms=True, **kw)
+        legs.append({"name": name, "a": list(a), "b": list(b),
+                     "max_slope_deg": kw.get("max_slope_deg", 25.0), "margin_m": kw.get("margin_m", 20.0),
+                     "keepouts": list(kw.get("keepouts", ())), "illum": kw.get("illum_cost") is not None,
+                     "illum_terms": isinstance(kw.get("illum_cost"), dict), "map_unc": kw.get("map_unc_cost") is not None,
+                     "illum_weight": kw.get("illum_weight", 1.0), "map_unc_weight": kw.get("map_unc_weight", 1.0),
+                     "routed_m": r[0], "grid_straight_m": r[1], "reached": r[2],
+                     "waypoints": [list(p) for p in r[3]], "breakdown": r[4]})
+
+    leg("diag", A, B)
+    leg("cross", C, D)
+    leg("cap12", A, B, max_slope_deg=12.0)
+    wp = legs[0]["waypoints"]
+    mid = tuple(wp[len(wp) // 2])        # keep-outs sit ON the plain route, so each one must move it
+    leg("circle", A, B, keepouts=[{"x": mid[0], "y": mid[1], "r": 40.0}])
+    leg("rect", A, B, keepouts=[{"x0": mid[0] - 30, "y0": mid[1] - 60, "x1": mid[0] + 30, "y1": mid[1] + 60}])
+    leg("poly", A, B, keepouts=[{"points": [[mid[0] - 50, mid[1] - 10], [mid[0] + 20, mid[1] - 70],
+                                             [mid[0] + 60, mid[1] + 20], [mid[0] - 10, mid[1] + 50]]}])
+    leg("wall", A, B, margin_m=2.0, keepouts=[{"x0": A[0] - 200, "y0": mid[1] - 5, "x1": B[0] + 10, "y1": mid[1] + 5}])
+    leg("illum_total", A, B, illum_cost=L["illum_total"], illum_weight=3.0)
+    leg("illum_terms", C, D, illum_cost=illum_terms, illum_weight=2.0, map_unc_cost=L["map_unc"], map_unc_weight=4.0)
+    leg("off_dem", A, (5000.0, 40.0))
+    k = 40
+    cost, passable_k, terms = PR.slope_costmap(Z[:k, :k], cell, max_drop_m=PR.MAX_DROP_M,
+                                               illum={kk: (v[:k, :k] if kk != "weights" else v) for kk, v in illum_terms.items()},
+                                               illum_weight=2.0, map_unc=L["map_unc"][:k, :k], map_unc_weight=4.0,
+                                               return_terms=True)
+    write_fixture(ORACLE_FIXTURES, "route_cases", "oracle/build_fixtures.py::route_cases (lode.planner_routing on a "
+                  "real Haworth window; cost layers SYNTHETIC integer formulas, labelled)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "lode/planner_routing.py", "stewie/terrain/site_dem.py"],
+                  {"window": list(ROUTE_WINDOW), "width": W, "height": H, "cell_m": cell, "origin": list(origin),
+                   "z": Z.ravel().tolist(), "weights": weights, "max_drop_m": PR.MAX_DROP_M, "legs": legs,
+                   "costmap": {"size": k, "cost": cost.ravel().tolist(), "passable": passable_k.ravel().tolist(),
+                               "terms": {kk: v.ravel().tolist() for kk, v in terms.items()}}})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -978,6 +1056,7 @@ def main() -> None:
     drive_runs()
     world_log_cases()
     twin_store_cases()
+    route_cases()
 
 
 if __name__ == "__main__":
