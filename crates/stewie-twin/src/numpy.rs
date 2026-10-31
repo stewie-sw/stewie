@@ -1,6 +1,7 @@
 //! The numpy behaviour the twin's records depend on: float64 `sum` (pairwise, so a hashed volume matches
 //! the Python's to the last bit), Python's `round(x, n)`, and the `.npy` / `.npz` files the Python twin
-//! persists (uncompressed zip of version 1 `.npy` arrays: `<f8`, `<i8` and 0-d `<U` strings).
+//! persists (zip of version 1 `.npy` arrays: `<f8`, `<i8`, `<u4`, `|u1` and 0-d `<U` strings; written
+//! uncompressed, read stored or deflated, since `numpy.savez_compressed` deflates).
 
 use std::collections::BTreeMap;
 use std::io::{Read, Seek, Write};
@@ -65,6 +66,10 @@ pub enum Array {
     U32 {
         shape: Vec<usize>,
         data: Vec<u32>,
+    },
+    U8 {
+        shape: Vec<usize>,
+        data: Vec<u8>,
     },
     /// A 0-d unicode string (`<U{n}`).
     Str(String),
@@ -135,6 +140,10 @@ fn parse_npy(bytes: &[u8]) -> Result<Array, TwinError> {
             data: words(8)?.map(|c| i64::from_le_bytes(eight(c))).collect(),
             shape,
         }),
+        "|u1" => Ok(Array::U8 {
+            data: words(1)?.map(|c| c[0]).collect(),
+            shape,
+        }),
         "<u4" => Ok(Array::U32 {
             data: words(4)?
                 .map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]]))
@@ -182,6 +191,7 @@ fn npy_bytes(a: &Array) -> Vec<u8> {
             shape(s),
             data.iter().flat_map(|v| v.to_le_bytes()).collect(),
         ),
+        Array::U8 { shape: s, data } => ("|u1".into(), shape(s), data.clone()),
         Array::U32 { shape: s, data } => (
             "<u4".into(),
             shape(s),

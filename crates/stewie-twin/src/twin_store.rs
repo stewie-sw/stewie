@@ -102,6 +102,18 @@ impl TwinStore {
         self.cell_m
     }
 
+    /// The immutable base heights (row-major).
+    #[must_use]
+    pub fn base(&self) -> &[f64] {
+        &self.base
+    }
+
+    /// `(rows, cols)`.
+    #[must_use]
+    pub fn shape(&self) -> (usize, usize) {
+        (self.rows, self.cols)
+    }
+
     #[must_use]
     pub fn version(&self) -> u64 {
         self.version

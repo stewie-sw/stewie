@@ -1165,6 +1165,86 @@ def traffic_memory_cases() -> None:
                    "npz": "crates/stewie-oracle/fixtures/traffic_memory_haworth.npz"})
 
 
+def twin_ops_cases() -> None:
+    """The twin's server-side operations (RW-21c-3) on real terrain: the composed terrain view over a real Haworth
+    crop (as-built from the Terrain Memory fixture, observed from twin patches), a backup snapshot and a
+    mission-time-stamped (compressed) snapshot written by the Python, and the version and time retention ladders
+    and snapshot triggers on SYNTHETIC file names and times (labelled)."""
+    import shutil
+    import tempfile
+
+    from stewie.physics.worksite import coarse_base_from_bundle
+    from stewie.twin import backup, cadence
+    from stewie.twin.terrain_memory import TerrainMemory
+    from stewie.twin.terrain_view import compose_terrain_view
+    from stewie.twin.versioned import TwinStore
+
+    base, _ = coarse_base_from_bundle(os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    dem = base.derive_height()[990:1030, 980:1020].copy()
+    tm = TerrainMemory.load(os.path.join(ORACLE_FIXTURES, "terrain_memory_haworth.npz"))
+    as_built = tm.imprint_on_dem(dem, dem_cell=5.0, dem_origin=(-5.0, 15.0))
+    tw = TwinStore(dem, cell_m=5.0)
+    tw.apply_patch(dem[2:6, 3:9] + 0.05, origin_rc=(2, 3), provenance="SYNTHETIC +0.05 m resync over the build (labelled)")
+    tw.apply_patch(dem[30:33, 30:34] - 0.1, origin_rc=(30, 30), provenance="SYNTHETIC -0.1 m resync (labelled)")
+    view = compose_terrain_view(dem, 5.0, as_built_z=as_built, as_built_version=tm.version,
+                                observed_heights=tw.current(), observed_mask=tw.observed_mask(),
+                                twin_version=tw.version)
+    ignored = compose_terrain_view(dem, 5.0, as_built_z=as_built[:-1], as_built_version=tm.version,
+                                   observed_heights=tw.current(), observed_mask=np.zeros(dem.shape, dtype=bool),
+                                   twin_version=tw.version)
+    assert {0, 1, 2} <= set(np.unique(view.source).tolist())
+    # SR-17: the volume-conserving coarse imprint leaves sub-centimetre edge changes; they must count as built
+    with open(os.path.join(ORACLE_FIXTURES, "terrain_memory_cases.payload.json")) as fh:
+        tmc = json.load(fh)
+    tmc = tmc.get("payload", tmc)
+    coarse = np.array(tmc["fine"]["resampled"]).reshape(dem.shape)
+    assert np.array_equal(np.array(tmc["dem"]).reshape(dem.shape), dem)
+    assert np.count_nonzero((np.abs(coarse - dem) > 1e-4) & (np.abs(coarse - dem) < 1e-2)) > 0
+    fine_view = compose_terrain_view(dem, 5.0, as_built_z=coarse, as_built_version=1)
+    with tempfile.TemporaryDirectory() as d:
+        shutil.copy(backup.snapshot(tw, os.path.join(d, "a")), os.path.join(ORACLE_FIXTURES, "twin_snapshot.npz"))
+        stamped = cadence.snapshot_at(tw, os.path.join(d, "b"), mission_t_s=12345.5)
+        shutil.copy(stamped, os.path.join(ORACLE_FIXTURES, "twin_snapshot_stamped.npz"))
+        vdir = os.path.join(d, "v")
+        os.makedirs(vdir)
+        for v in range(1, 24):
+            open(os.path.join(vdir, f"twin_v{v:06d}.npz"), "wb").close()
+        kept_versions = backup.apply_retention(vdir, keep_recent=5, ladder=10)
+    hour, day, week = 3600.0, 86400.0, 7 * 86400.0
+    now = 100 * week
+    ages = [0.0, 0.2 * hour, 0.9 * hour, 1.5 * hour, 23.9 * hour, 24.5 * hour, 30 * hour, 2.5 * day, 2.6 * day,
+            8.9 * day, 9.5 * day, 3 * week, 3.1 * week, 5.5 * week, 9 * week, -60.0]
+    times = {f"twin_v{i:06d}.npz": now - a for i, a in enumerate(ages)}
+    times["twin_v000099.npz"] = times["twin_v000003.npz"]          # an exact tie: the smaller name wins
+    retained = sorted(cadence.select_retained(times, now_t_s=now, keep_hourly=24, keep_daily=7, keep_weekly=4))
+    sched = cadence.SnapshotScheduler(sol_seconds=cadence.SOL_SECONDS, every_n_events=50)
+    due = [{"t": t, "n": n, "last_t": lt, "last_n": ln,
+            "due": sched.due(mission_t_s=t, n_events=n, last_snap_t_s=lt, last_snap_events=ln)}
+           for t, n, lt, ln in ((0.0, 0, 0.0, 0), (cadence.SOL_SECONDS - 1, 49, 0.0, 0), (cadence.SOL_SECONDS, 3, 0.0, 0),
+                                (5000.0, 60, 100.0, 10), (5000.0, 59, 100.0, 10))]
+    ver, ident = tw.identity()
+    write_fixture(ORACLE_FIXTURES, "twin_ops_cases", "oracle/build_fixtures.py::twin_ops_cases (stewie.twin."
+                  "{terrain_view, backup, cadence} on a real Haworth crop; retention names and times SYNTHETIC, labelled)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/twin/terrain_view.py",
+                   "crates/stewie-oracle/fixtures/terrain_memory_cases.payload.json", "stewie/twin/backup.py", "stewie/twin/cadence.py", "stewie/twin/versioned.py"],
+                  {"rows": 40, "cols": 40, "cell_m": 5.0, "dem": dem.ravel().tolist(),
+                   "as_built": as_built.ravel().tolist(), "as_built_version": tm.version,
+                   "observed": tw.current().ravel().tolist(), "mask": tw.observed_mask().ravel().tolist(),
+                   "twin_version": tw.version, "identity": [ver, ident], "events": tw.events,
+                   "view": {"heights": view.heights.ravel().tolist(), "source": view.source.ravel().tolist(),
+                            "as_built_version": view.as_built_version, "twin_version": view.twin_version,
+                            "observed_fraction": view.observed_fraction},
+                   "coarse_as_built": coarse.ravel().tolist(),
+                   "coarse_view": {"heights": fine_view.heights.ravel().tolist(),
+                                   "source": fine_view.source.ravel().tolist()},
+                   "ignored": {"heights": ignored.heights.ravel().tolist(), "as_built_version": ignored.as_built_version,
+                               "twin_version": ignored.twin_version},
+                   "snapshot": "crates/stewie-oracle/fixtures/twin_snapshot.npz",
+                   "stamped": "crates/stewie-oracle/fixtures/twin_snapshot_stamped.npz", "stamped_t": 12345.5,
+                   "kept_versions": kept_versions, "now": now, "times": times, "retained": retained,
+                   "sol_seconds": cadence.SOL_SECONDS, "every_n_events": 50, "due": due})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1427,6 +1507,7 @@ def main() -> None:
     worksite_refined()
     terrain_memory_cases()
     traffic_memory_cases()
+    twin_ops_cases()
     world_log_cases()
     twin_store_cases()
     route_cases()

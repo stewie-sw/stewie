@@ -1,0 +1,13 @@
+{
+ "fixture": "twin_ops_cases",
+ "generator": "oracle/build_fixtures.py::twin_ops_cases (stewie.twin.{terrain_view, backup, cadence} on a real Haworth crop; retention names and times SYNTHETIC, labelled)",
+ "payload_sha256": "5f19ba1f9c4fab515c39803357bf969d553282b8dbd7e4cd03998a94bc8b41b6",
+ "sources": {
+  "crates/stewie-oracle/fixtures/terrain_memory_cases.payload.json": "cfb927e1d8eed3f137e063e5667cbd2b53b770aa334e71aa5e128f47dabf96d3",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/twin/backup.py": "7695018a5c786fbdba017a82020b590683119115aac828e7ff7d2bfbfeb4db31",
+  "stewie/twin/cadence.py": "141718106f428aec60f005ef72a2b33ee7f7aeab069230250e24c7ab09c0131b",
+  "stewie/twin/terrain_view.py": "a43a33cab4903391c43531feb96360e13152bb661b6e2e678847a777e7687ecf",
+  "stewie/twin/versioned.py": "217ef0c531b16d1d657a8f6c757f8e4947bcb45e9a6f333e69fbd44acb6a64ac"
+ }
+}

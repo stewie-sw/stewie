@@ -2,10 +2,13 @@
 //! byte for byte, so every hash is taken over [`pyjson::dumps`], a port of Python's
 //! `json.dumps(obj, sort_keys=True)`.
 
+pub mod backup;
+pub mod cadence;
 pub mod journal;
 pub mod numpy;
 pub mod pyjson;
 pub mod terrain_memory;
+pub mod terrain_view;
 pub mod traffic_memory;
 pub mod twin_store;
 pub mod world_log;
@@ -55,15 +58,36 @@ impl From<std::io::Error> for TwinError {
 /// # Errors
 /// An I/O failure.
 pub fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), TwinError> {
+    write_atomic_via(
+        path,
+        &std::path::PathBuf::from(format!("{}.part", path.display())),
+        bytes,
+    )
+}
+
+/// [`write_atomic`] through a chosen temporary file (removed if the write fails).
+///
+/// # Errors
+/// An I/O failure.
+pub fn write_atomic_via(
+    path: &std::path::Path,
+    tmp: &std::path::Path,
+    bytes: &[u8],
+) -> Result<(), TwinError> {
     use std::io::Write as _;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(TwinError::Io)?;
     }
-    let tmp = std::path::PathBuf::from(format!("{}.part", path.display()));
-    let mut f = std::fs::File::create(&tmp).map_err(TwinError::Io)?;
-    f.write_all(bytes).map_err(TwinError::Io)?;
-    f.sync_all().map_err(TwinError::Io)?;
-    std::fs::rename(&tmp, path).map_err(TwinError::Io)
+    let written = (|| {
+        let mut f = std::fs::File::create(tmp)?;
+        f.write_all(bytes)?;
+        f.sync_all()?;
+        std::fs::rename(tmp, path)
+    })();
+    if written.is_err() {
+        let _ = std::fs::remove_file(tmp); // leave no temp behind; the write error is what is reported
+    }
+    written.map_err(TwinError::Io)
 }
 
 /// The raw persisted bytes at `path` (or `None`), taken before a mutation so a world-log commit that then
