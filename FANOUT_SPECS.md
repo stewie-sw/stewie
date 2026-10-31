@@ -368,7 +368,7 @@ reports it V=D. An agent finishes by adding/extending that test and flipping the
 - goal: demonstrate repeatable cm-scale localization comparable to the 0.038-0.067 m NAVLAB26 band before any parity claim.
 - acceptance: a benchmark reports localization RMSE in the 0.038-0.067 m band across repeats on LAC data, with the harness refusing "parity" until reached.
 - current_state: blocked — present numbers are meters-scale (Katwijk ~3.35 m); cm parity needs the GPU dense render→depth + SuperPoint/LightGlue pipeline on LAC/IPEx sim data, absent on this host.
-- files: benchmarks/katwijk/, benchmarks/s3li_crater/, scripts/ros2_bridge/score_pose.py
+- files: benchmarks/s3li_crater/, scripts/ros2_bridge/score_pose.py
 - test_target: NEW benchmarks/lac_suite/test_cm_parity.py (depends on PM-10)
 - notes: GATED (GPU dense-stereo + weights + LAC data). Closeable slice = the comparison harness reporting current RMSE vs the band + withholding any parity claim; the demonstration itself cannot complete on this host.
 

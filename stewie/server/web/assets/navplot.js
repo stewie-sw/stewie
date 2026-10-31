@@ -1,6 +1,6 @@
 // FS-24: the Navigation-pane CANVAS PLOTTERS -- pure top-down 2D drawings of the SLAM/drive
 // estimator surfaces. Each takes the target <canvas> element + the server payload and paints it; no
-// globals, no DOM lookups (the cockpit's nav* handlers resolve $("navplot") etc. and pass the canvas
+// globals, no DOM lookups (the cockpit's nav* handlers resolve $("navdriveplot") etc. and pass the canvas
 // in via thin binding aliases, per the existing window.STEWIE_* module pattern). Extracted verbatim
 // from cockpit.js (PRD FS-24); behaviour is preserved exactly. The auto-scale/projection is the same
 // pad+min-fit transform every nav plot used inline, hoisted to _fit() so the four plots share it.
@@ -12,7 +12,7 @@
   // bounding box with ~10% padding. 2026-07-01 frontend-audit "live-data plots don't scale": the old
   // transform anchored the min corner at pad with a 1e-6 minSpan, so a degenerate/near-degenerate
   // traverse rendered as one dot pinned bottom-left. The default minimum world span is now 10 m
-  // (site-frame plots: drawTrajectory/drawDrive/drawReal); drawFix keeps its tight 0.5 m DEM rig.
+  // (site-frame plots: drawDrive/drawReal); drawFix keeps its tight 0.5 m DEM rig.
   function _fit(cv, pts, pad, minSpan) {
     pad = pad == null ? 26 : pad; minSpan = minSpan == null ? 10 : minSpan;
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
@@ -24,21 +24,6 @@
   }
 
   // P1.4: the fused-estimate vs dead-reckoning trajectory (the /slam estimator surface).
-  function drawTrajectory(cv, est, base) {
-    const g = cv.getContext("2d");
-    g.clearRect(0, 0, cv.width, cv.height);
-    const t = _fit(cv, est.concat(base)), X = t.X, Y = t.Y;
-    const line = (path, color, w) => {
-      g.strokeStyle = color; g.lineWidth = w; g.beginPath();
-      path.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
-      g.stroke();
-    };
-    line(base, "#e0a23a", 2); line(est, "#36d1dc", 2);
-    g.font = "10px system-ui"; g.fillStyle = "#36d1dc"; g.fillText("— fused estimate", 26, 14);
-    g.fillStyle = "#e0a23a"; g.fillText("— dead reckoning", 26 + 104, 14);
-  }
-
-  // FS-05 end-to-end DRIVE PREVIEW: the planned route (amber dashed) vs the executed trajectory (cyan)
   // + start/goal + recovery backups. `res` = the /nav/run response.
   function drawDrive(cv, res) {
     const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
@@ -102,7 +87,7 @@
     g.fillStyle = "#9aa"; g.font = "10px system-ui"; g.fillText("● landmarks  ● drift  ● fix  ✛ true  (DEM frame, m)", 6, 14);
   }
 
-  var API = { _fit: _fit, drawTrajectory: drawTrajectory, drawDrive: drawDrive,
+  var API = { _fit: _fit, drawDrive: drawDrive,
               drawReal: drawReal, drawFix: drawFix };
   if (typeof module !== "undefined" && module.exports) module.exports = API;   // node:test
   if (root) root.STEWIE_NAVPLOT = API;                                         // browser (window)

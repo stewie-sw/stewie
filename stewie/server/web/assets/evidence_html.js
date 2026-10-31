@@ -51,7 +51,7 @@
     const ok = (s) => `<span style="color:#7CE0A6">${s}</span>`;
     return `<div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px;font-size:11px;line-height:1.7;font-variant-numeric:tabular-nums">
        <div style="font-family:Orbitron,system-ui;letter-spacing:.08em;font-size:10px;color:var(--accent);margin-bottom:6px">RELEASE GATES — EVIDENCE <small style="color:var(--muted)">(${e.evidence_mode || "?"})</small></div>
-       <div><b>G1</b> ${ok(j.g1)} · contracts ${e.g1_contract_checks_pass}/${e.g1_contract_checks_total} PASS · real Katwijk dead-reckon ATE <b>${f(e.g1_ate_m, " m")}</b> over ${f(e.g1_eval_track_m, " m", 1)} · sim baseline ${f(e.g1_baseline_raw_m, " m")} raw / ${f(e.g1_baseline_aligned_m, " m")} aligned</div>
+       <div><b>G1</b> ${ok(j.g1)} · contracts ${e.g1_contract_checks_pass}/${e.g1_contract_checks_total} PASS · sim baseline ${f(e.g1_baseline_raw_m, " m")} raw / ${f(e.g1_baseline_aligned_m, " m")} aligned</div>
        <div><b>G2</b> ${ok(j.g2)} · stereo covariance σ <b>${f(e.g2_sigma_px, " px")}</b> · held-out 3σ coverage <b>${f(e.g2_coverage_3sigma, "", 3)}</b> · depth ${f(e.g2_median_depth_m, " m")} ± ${f(e.g2_sigma_depth_m, " m", 3)}</div>
        <div style="color:var(--muted);margin-top:4px">${e.g2_evidence_scope || ""}</div>
        <div style="margin-top:4px">frozen baseline ${j.byte_identical_to_frozen ? ok("byte-identical ✓") : '<span style="color:#e0556a">DIVERGED ✗</span>'} · artifact <code>${j.latest_artifact}</code></div>

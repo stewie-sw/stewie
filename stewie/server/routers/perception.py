@@ -1,6 +1,5 @@
 """Perception router (ARCH-3): the estimation + render surface -- algorithm comparison (/compare),
-the articulation-parallax relocalization fix (/localize), the integrated SLAM run + class comparison
-over real Katwijk (/slam, /slam/compare), the two-posture parallax capture plan + measured render-pair
+the articulation-parallax relocalization fix (/localize), the two-posture parallax capture plan + measured render-pair
 fix (/render/parallax, /localize/render), structure decomposition (/structure), drum-fill sensing
 (/sense), and the Godot earthwork render (/render).
 
@@ -20,7 +19,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from stewie.server import state
-from stewie.server.deps import _env, require_auth
+from stewie.server.deps import require_auth
 from stewie.server.schemas import Order, _MAX_ORDERS
 from stewie.server.services import log_event, prune_reports, report_lock
 
@@ -130,20 +129,6 @@ class LocalizeRequest(BaseModel):
     shadow_sigma_deg: float = Field(default=8.0, gt=0.0, le=90.0)
     shadow_min_contrast: float = Field(default=20.0, ge=0.0, le=255.0)
 
-
-class SlamRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")          # I3: observation/config only -- no truth injection
-    # pattern-validated -> the segment name cannot path-traverse out of the dataset root
-    segment: str = Field(default="Part1", pattern=r"^Part[1-9][0-9]?$", max_length=12)
-    n_keyframes: int = Field(default=30, ge=5, le=200)
-    seed: int = Field(default=0, ge=0, le=10000)
-
-
-class SlamCompareRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    segment: str = Field(default="Part1", pattern=r"^Part[1-9][0-9]?$", max_length=12)
-    n_keyframes: int = Field(default=30, ge=5, le=200)
-    n_seeds: int = Field(default=12, ge=1, le=100)
 
 
 class LocalizeRenderRequest(BaseModel):
@@ -262,84 +247,6 @@ def get_localize_traverse(_auth: None = Depends(require_auth)):
               f"fused {out['abs_max_fused_m']:.1f}m ({out['n_dem_fix']} fixes)")
     return {"ok": True, **out}
 
-
-_KATWIJK_CACHE: dict = {}   # part name -> loaded real arrays (parse once, reuse across requests)
-
-
-def _katwijk_arrays(segment: str):
-    """Resolve + cache the REAL Katwijk arrays for a segment. Returns None if the dataset is not on this
-    host (not bundled -- ESA license + size); the /slam endpoint then answers 503, never fabricates.
-    No machine-specific path in source: the root is $STEWIE_KATWIJK_DIR."""
-    if segment in _KATWIJK_CACHE:
-        return _KATWIJK_CACHE[segment]
-    root = _env("KATWIJK_DIR")
-    if not root:
-        return None
-    part_dir = os.path.join(root, segment)
-    if not os.path.isdir(part_dir):
-        return None
-    from dart import integrated_slam as ISLAM
-    arrays = ISLAM.load_katwijk_arrays(part_dir)
-    _KATWIJK_CACHE[segment] = arrays
-    return arrays
-
-
-@router.post("/slam")
-def post_slam(req: SlamRequest, _auth: None = Depends(require_auth)):
-    """[REQ:PM-06] The integrated multi-factor SLAM run, exposed. Fuse odometry + IMU-yaw + shadow-yaw
-    + articulation-parallax + DEM-registration over a real Katwijk segment and return the trajectory,
-    the aligned + absolute trajectory error, the odometry-only baseline, and the leave-one-out factor
-    attribution. The raw Katwijk traverse is not bundled (ESA license + size); when it is not on this
-    host the endpoint answers 503 -- it never fabricates a trajectory (PRD §22 P1.2)."""
-    from dart import integrated_slam as ISLAM
-    arrays = _katwijk_arrays(req.segment)
-    if arrays is None:
-        return JSONResponse(status_code=503, content={
-            "ok": False, "error": f"Katwijk segment {req.segment!r} unavailable (set STEWIE_KATWIJK_DIR "
-            "to the dataset root; not bundled -- ESA license + size)"})
-    truth, dr, tyaw, gyro = arrays
-    try:
-        loo = ISLAM.leave_one_out(truth, dr, tyaw, gyro, n_keyframes=req.n_keyframes, seed=req.seed)
-    except (ValueError, RuntimeError) as e:
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
-    full, base = loo["full"], loo["baseline_odom"]
-    log_event("api", "slam",
-              f"{req.segment}: fused {full['abs_max_err_m']:.2f}m vs baseline {base['abs_max_err_m']:.2f}m")
-    return {
-        "ok": True, "segment": req.segment, "n_keyframes": req.n_keyframes,
-        "ate_aligned_m": full["ate_aligned_m"], "abs_max_err_m": full["abs_max_err_m"],
-        "baseline_abs_max_err_m": base["abs_max_err_m"],
-        "reduction_x": round(base["abs_max_err_m"] / max(full["abs_max_err_m"], 1e-9), 1),
-        "n_fix": full["n_fix"],
-        "trajectory_xy": [[float(x), float(y)] for x, y in full["est_xy"]],
-        "baseline_xy": [[float(x), float(y)] for x, y in base["est_xy"]],   # odom-only path -> est-vs-DR plot
-        "leave_one_out": loo["leave_one_out"],
-    }
-
-
-@router.post("/slam/compare")
-def post_slam_compare(req: SlamCompareRequest, _auth: None = Depends(require_auth)):
-    """[REQ:SN-12] The shared-testbed head-to-head, surfaced. The SAME pose graph over the SAME real
-    Katwijk trajectory under three approach classes, each at its characteristic absolute-fix sigma:
-    passive single-pass (no fix), ShadowNav-class global map-match (~3 m), Navigation articulation parallax
-    (~0.5 m). Each class is MODELED at its reported accuracy against the real drift -- the proprietary
-    stacks are not executed (honest comparison-of-classes, not of stacks). 503 when the dataset is
-    absent (PRD §22 P3)."""
-    from dart import integrated_slam as ISLAM
-    arrays = _katwijk_arrays(req.segment)
-    if arrays is None:
-        return JSONResponse(status_code=503, content={
-            "ok": False, "error": f"Katwijk segment {req.segment!r} unavailable (set STEWIE_KATWIJK_DIR; "
-            "not bundled -- ESA license + size)"})
-    truth, dr, tyaw, gyro = arrays
-    try:
-        cmp = ISLAM.shared_testbed_comparison(truth, dr, tyaw, gyro,
-                                              n_seeds=req.n_seeds, n_keyframes=req.n_keyframes)
-    except (ValueError, RuntimeError) as e:
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
-    log_event("api", "slam/compare", req.segment)
-    return {"ok": True, "segment": req.segment, "n_seeds": req.n_seeds,
-            "modeled": "each class at its reported sigma vs the real drift; stacks not executed", "comparison": cmp}
 
 
 @router.post("/render/parallax")

@@ -38,24 +38,3 @@ def test_no_real_adapter_stub_present():
     assert "NotImplementedError" not in src
 
 
-_AI4 = "/mnt/projects/datasets/ai4mars/extracted/ai4mars-dataset-merged-0.6"
-_AI4_HAVE = os.path.isdir(os.path.join(_AI4, "msl/ncam/images/edr"))
-
-
-@pytest.mark.skipif(not _AI4_HAVE, reason="AI4Mars not extracted")
-def test_ai4mars_adapter_loads_real_frame_and_scores():
-    import glob
-    frame = None
-    for p in sorted(glob.glob(os.path.join(_AI4, "msl/ncam/images/edr/*.JPG"))):
-        base = os.path.splitext(os.path.basename(p))[0]
-        try:
-            f = DS.load_ai4mars_frame(_AI4, base)
-        except FileNotFoundError:
-            continue
-        if f.labels:
-            frame = f
-            break
-    assert frame is not None and frame.image_right is None and frame.source.startswith("ai4mars:")
-    assert all(lb.radius_px > 0 for lb in frame.labels)         # real big-rock label centroids
-    m = DS.score(frame, DS.detect(frame))                       # detect + score on REAL Mars imagery
-    assert m["precision"] is not None and 0.0 <= m["precision"] <= 1.0

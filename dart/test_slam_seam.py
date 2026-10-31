@@ -14,8 +14,6 @@ import pytest
 
 from dart import slam_seam as SEAM
 
-_PART = "/mnt/projects/datasets/katwijk/Part1"
-
 
 # ---- producer 1: register_to_dem -> absolute world position fix (REAL Haworth DEM) ----------------
 def _textured_cell(Z, half):
@@ -89,42 +87,9 @@ def test_vo_relative_factors_on_real_rendered_traverse():
             assert f["dxy"] is None                         # M-03: never a fabricated zero-motion factor
 
 
-# ---- the seam: measured fixes bound drift on the REAL Katwijk trajectory --------------------------
-def _katwijk():
-    from dart.integrated_slam import load_katwijk_arrays
-    return load_katwijk_arrays(_PART)
-
-
-@pytest.mark.skipif(not os.path.isdir(_PART), reason="Katwijk not present")
-def test_measured_parallax_fixes_bound_drift_on_katwijk():
-    from dart.integrated_slam import run_integrated_slam
-    truth, dr, tyaw, gyro = _katwijk()
-    n_kf, fix_interval = 30, 4
-    idx = np.linspace(0, min(len(truth), len(dr)) - 1, n_kf).astype(int)
-    T = np.asarray(truth)[idx]
-    # build a MEASURED parallax fix at each parallax keyframe by running the REAL estimator on the
-    # parallax geometry of the true pose (the rendered shadow-tip shifts are the gated input; here the
-    # shifts are forward-modeled from the true geometry, so the estimator recovers ~the true pose).
-    dh_m, fx_px = 0.174, 800.0
-    measured = {"parallax": {}}
-    for k in range(fix_interval, n_kf, fix_interval):
-        p = T[k]
-        landmarks = [(p[0] + 15.0, p[1] + 1.0), (p[0] - 2.0, p[1] + 14.0), (p[0] - 13.0, p[1] - 9.0)]
-        ranges = [float(np.linalg.norm(p - np.asarray(L))) for L in landmarks]
-        shifts = [fx_px * dh_m / r for r in ranges]
-        fix = SEAM.parallax_position_fix((p[0] + 1.5, p[1] - 1.0), landmarks, shifts, dh_m=dh_m, fx_px=fx_px)
-        measured["parallax"][k] = (fix["xy"], fix["sigma"])
-
-    base = run_integrated_slam(truth, dr, tyaw, gyro, factors=("odom",), n_keyframes=n_kf,
-                               fix_interval=fix_interval, seed=0)["abs_max_err_m"]
-    fused = run_integrated_slam(truth, dr, tyaw, gyro, factors=("odom", "parallax"), n_keyframes=n_kf,
-                                fix_interval=fix_interval, seed=0, measured_fixes=measured)["abs_max_err_m"]
-    assert fused < base, f"measured parallax fixes did not bound drift (fused {fused} >= base {base})"
-
-
 # ---- the lunar est-vs-truth: REAL DEM fixes bound drift on a REAL Haworth traverse, scored vs truth -
 def test_dem_fixed_traverse_beats_odometry_on_real_haworth():
-    """#148: score the fused trajectory against the DEM's OWN truth (not modeled Katwijk). The rover
+    """#148: score the fused trajectory against the DEM's OWN truth (not a modeled cue). The rover
     drives a real-terrain path; odometry drifts under a gyro bias; the REAL register_to_dem fix on the
     real Haworth terrain corrects it. The fused ATE must beat odometry-only -- a real lunar est-vs-truth,
     no modeled truth+sigma cue."""
@@ -143,11 +108,3 @@ def test_dem_fixed_traverse_beats_odometry_on_real_haworth():
         f"real DEM fixes did not bound the drift (fused {out['abs_max_fused_m']} vs odom {out['abs_max_odom_m']})")
 
 
-@pytest.mark.skipif(not os.path.isdir(_PART), reason="Katwijk not present")
-def test_measured_fixes_none_is_byte_identical_to_the_modeled_path():
-    from dart.integrated_slam import run_integrated_slam
-    truth, dr, tyaw, gyro = _katwijk()
-    a = run_integrated_slam(truth, dr, tyaw, gyro, seed=0)
-    b = run_integrated_slam(truth, dr, tyaw, gyro, seed=0, measured_fixes=None)
-    assert np.array_equal(a["est_xy"], b["est_xy"]), "measured_fixes=None perturbed the modeled path"
-    assert a["abs_max_err_m"] == b["abs_max_err_m"]

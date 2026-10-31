@@ -334,19 +334,9 @@ def validate_current() -> dict:
     else:
         g1c["locked_capture_via_runtime"] = "MISSING"
 
-    # blocker 5: the real-capture evaluation executed (Katwijk vs RTK truth)
-    kw_path = ROOT / "validation" / "katwijk_dead_reckon_2026-06-10.json"
-    if kw_path.exists():
-        kw = json.loads(kw_path.read_text())
-        ok_kw = (kw["n_eval_points"] >= 1000 and 0.0 < kw["ate_aligned_m"]
-                 < 0.5 * kw["eval_track_length_m"]
-                 and "disclosure" in kw["calibration"])
-        g1c["real_capture_scored"] = "PASS" if ok_kw else "FAIL"
-        g1["katwijk_dead_reckon"] = {"ate_aligned_m": kw["ate_aligned_m"],
-                                     "eval_track_length_m": kw["eval_track_length_m"],
-                                     "artifact": kw_path.name}
-    else:
-        g1c["real_capture_scored"] = "MISSING"
+    # blocker 5: a real-world capture scored against survey truth. No real-capture evaluator exists since
+    # the Katwijk adapter was removed (2026-10-31), so G1 stays blocked on this criterion.
+    g1c["real_capture_scored"] = "MISSING"
 
     # blocker 6: remote CI -- external evidence, recorded as attestation (verifiable via gh)
     g1c["remote_ci_green"] = "PASS_ATTESTED (astoreyai/stewie run 27261544141, 2026-06-10: lint+mypy+coverage 92.7%+tests)"

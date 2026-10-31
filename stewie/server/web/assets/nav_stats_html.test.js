@@ -22,17 +22,6 @@ test("driveStatsHTML: not-arrived shows the red reason (escaped)", () => {
   assert.ok(h.includes("#e8273f") && h.includes("&lt;stuck&gt;"));
 });
 
-test("slamStatsHTML: fused ATE vs baseline with reduction factor", () => {
-  const h = N.slamStatsHTML({ ate_aligned_m: 0.9, abs_max_err_m: 1.2, baseline_abs_max_err_m: 3.6, reduction_x: 3.0 });
-  assert.ok(h.includes("fused ATE <b>0.9 m</b>") && h.includes("vs baseline <b>3.6 m</b>"));
-  assert.ok(h.includes("3× tighter"));
-});
-
-test("leaveOneOutHTML: renders each fix's drift contribution", () => {
-  const h = N.leaveOneOutHTML({ leave_one_out: { apriltag: { contribution_m: 0.5 }, dem: { contribution_m: 0.2 } } });
-  assert.ok(h.includes("apriltag <b>+0.5 m</b>") && h.includes("dem <b>+0.2 m</b>"));
-});
-
 test("errLine: red span, escapes the message", () => {
   assert.ok(N.errLine("boom", esc).includes('color:#e8273f') && N.errLine("boom", esc).includes("boom"));
   assert.ok(N.errLine("<x>", esc).includes("&lt;x&gt;"));

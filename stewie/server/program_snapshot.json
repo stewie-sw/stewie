@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "bbe18c43af273bc657a16da567eb2ba7c3ef5440f6044132cdf4e3e9f1475401",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "e1dfee190ac77f059dca5e1f42fb12c5d642deaa",
-  "prd_sha256": "fef20de1f45ef0e1129aa0f0e7fec0d4ff54940fa06a05702ea0c11a9880069f",
-  "specs_sha256": "9f500c3d93a0dfd1f12ed484b730387d6f6f78079979fbec6504c428975f09e8"
+  "prd_commit": "adc70dda907b9f87e3585ed0f217c7a5a6052354",
+  "prd_sha256": "8b2882fdcde3a9585d3303e1f565d8f9437866c16cabf9e8db0b37f63b74d226",
+  "specs_sha256": "f2ec27b61704ad33ed24abceb44610e4cbca4964d66400a48c08e2f216d24e0c"
  },
  "rows": [
   {
@@ -1379,7 +1379,75 @@
    "id": "DA-06",
    "lane": "DA",
    "pri": "P2",
-   "text": "**Phase-3 live world model -- ROS2 writes + near-real-time QGIS.** The central world-model DB is authoritative mutable state: ROS2 writes mission updates through the gated ingest bridge (IN-01), STEWIE folds terrain after every mission (the SIM execute->remember loop, already built), and QGIS/QWC2 renders the latest world state within one refresh off the same store; a replayed mission updates the world model and the next map read reflects it. (extends IN-01 + the SIM execute->remember loop + DT-04 Terrain Memory)"
+   "text": "**Phase-3 live world model -- ROS2 evidence ingest + near-real-time QGIS projection.** The central store durably records events, evidence, decisions, accepted versions, and indexes; it is not an unconstrained mutable terrain authority. ROS2 submits observations through IN-01/DA-08, construction changes originate in the conserved authority, accepted belief advances only through DA-09, and QGIS/QWC2 renders a version-attributed DA-10 projection within one refresh. A replayed mission reproduces the same conserved and accepted hashes before the next map read reflects them."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "Implement the immutable construction-event ledger in `docs/construction_event_ledger_contract.md`: executed terrain-changing actions, not commands or GIS layers, become the replay authority for conserved-state transitions.",
+    "kind": "atomic",
+    "test_target": "stewie/twin/test_construction_event_ledger.py::test_two_robot_events_are_idempotent_mass_conserving_and_cold_replayable (NEW)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-07",
+   "lane": "DA",
+   "pri": "P0",
+   "text": "**Immutable construction-event ledger.** Every executed dig/dump/grade/drive-compaction action records command versus execution, asset/task/mission identity, times, lunar frame/geometry, authority backend/configuration, deterministic delta, before/after conserved-state hashes, raw evidence references, and mass balance in one idempotent authority transaction. A retry cannot apply the action twice; a cold replay reproduces the conserved hash. Contract: `docs/construction_event_ledger_contract.md`."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "Persist immutable observation evidence and a versioned pair-specific per-cell possible-dependency graph, binding authenticated source/sensor identity, acquisition/validity time, frame/transform, calibration, uncertainty, coverage, artifacts, processing lineage, and construction provenance to one exact promotion candidate.",
+    "kind": "atomic",
+    "test_target": "stewie/twin/test_evidence_candidate_ledger.py::test_candidate_binds_immutable_evidence_identity_and_dependency_graph (NEW)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-08",
+   "lane": "DA",
+   "pri": "P0",
+   "text": "**Durable observation, identity, and possible-dependency binding.** Every theorem-facing observation is immutable and bound to authenticated source/sensor, acquisition and validity time, transform/frame, calibration, uncertainty, coverage and raw-artifact hashes. A versioned pair-specific per-cell possible-dependency graph records shared action/localization/registration/calibration/preprocessing provenance and is bound to the exact candidate; unknown dependency fails closed. Shared action is never labeled a causal error mechanism without independent evidence."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "Replace direct accepted-state resync with the live promotion gate and atomic accepted-world publication: every promote/abstain/reject decision is immutable, and a promoted child version plus branch-head compare-and-swap commit in the same transaction.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_live_promotion_publication.py::test_resync_cannot_split_decision_from_accepted_world_or_overwrite_concurrently (NEW)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-09",
+   "lane": "DA",
+   "pri": "P0",
+   "text": "**Live promotion gate plus atomic accepted-world publication.** `POST /twin/resync` cannot advance accepted terrain directly: it writes observed evidence or constructs a candidate, the configured rule records promote/abstain/reject, and any accepted child version plus decision and branch-head compare-and-swap commit atomically. Physics may veto but cannot construct/select/weight/fill promoted cells. Fault injection proves no split decision/version commit and concurrency proves no last-write-wins."
+  },
+  {
+   "I": "N",
+   "Q": "NA",
+   "V": "N",
+   "X": "N",
+   "brief": {
+    "goal": "Make PostGIS/QGIS/WMS/tile products disposable version-attributed projections of the canonical ledger and accepted world, then prove the complete two-robot action-to-GIS path is cold-replay equivalent.",
+    "kind": "atomic",
+    "test_target": "stewie/server/test_action_to_gis_replay.py::test_two_robot_live_path_and_rebuilt_projection_are_hash_equivalent (NEW)"
+   },
+   "bucket": "buildable",
+   "cited": false,
+   "id": "DA-10",
+   "lane": "DA",
+   "pri": "P1",
+   "text": "**Replay-equivalent GIS projections and operational acceptance test.** PostGIS/QGIS/WMS/tiles are disposable read models identified by accepted-world hash, ledger high-water mark, epistemic class, lunar CRS, units, and projector version. Deleting and rebuilding every projection preserves canonical hashes. A two-robot, partial-coverage, concurrent-ingest test exercises action\u2192observation\u2192graph\u2192decision\u2192accepted world\u2192GIS through the live API and reproduces the same decision/world hash after cold restore."
   },
   {
    "I": "D",
@@ -5966,9 +6034,9 @@
   }
  ],
  "summary": {
-  "briefs": 194,
+  "briefs": 198,
   "buckets": {
-   "buildable": 90,
+   "buildable": 94,
    "concurrent": 0,
    "done": 292,
    "gated": 31
@@ -6040,7 +6108,7 @@
    },
    "DA": {
     "done": 1,
-    "total": 6
+    "total": 10
    },
    "DE": {
     "done": 1,
@@ -6262,11 +6330,11 @@
   "by_priority": {
    "P0": {
     "done": 121,
-    "total": 124
+    "total": 127
    },
    "P1": {
     "done": 164,
-    "total": 230
+    "total": 231
    },
    "P2": {
     "done": 7,
@@ -6278,10 +6346,10 @@
    }
   },
   "cited": 316,
-  "done_pct": 70.7,
-  "in_scope": 382,
-  "in_scope_done_pct": 76.4,
-  "total": 413
+  "done_pct": 70.0,
+  "in_scope": 386,
+  "in_scope_done_pct": 75.6,
+  "total": 417
  },
  "workflow_spine": [
   "Plan",

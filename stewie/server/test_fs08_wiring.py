@@ -96,7 +96,7 @@ def test_fs08_full_wiring_chain(client):  # [REQ:FS-08]
     html = _INDEX_HTML.read_text()
     empty_ids = set(re.findall(r'id="([a-z0-9]+empty)"', html))
     required_empty = {
-        "rpempty", "panoempty", "pcempty", "navempty", "execempty", "reportempty", "rehearseempty",
+        "rpempty", "panoempty", "pcempty", "execempty", "reportempty", "rehearseempty",
         "fleetrosterempty", "fleetplanempty", "constructioncatalogempty", "modelsregistriesempty",
     }
     missing = required_empty - empty_ids

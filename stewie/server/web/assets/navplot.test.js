@@ -1,7 +1,7 @@
 // FS-24 (node:test): the Navigation-pane canvas plotters are pure -> unit-testable without a browser
 // via a recording 2D-context stub. We assert (a) the recorded draw-call stream for representative
 // inputs, and (b) the auto-fit transform math. The browser DOM lookups stay in cockpit.js (thin
-// aliases that pass $("navplot") etc. in); behaviour is preserved.
+// aliases that pass $("navdriveplot") etc. in); behaviour is preserved.
 // Run: node --test stewie/server/web/assets/navplot.test.js
 "use strict";
 const { test } = require("node:test");
@@ -63,18 +63,6 @@ test("drawDrive: a short drive renders centered via the 10 m minimum span", () =
   assert.ok(arcs.length >= 2);                              // start + goal dots
   const [sx, sy] = [arcs[0][1], arcs[0][2]];                // start dot at [40, 40]
   assert.ok(Math.abs(sx - 150) < 15 && Math.abs(sy - 80) < 15);   // near center, not (26, 134)
-});
-
-test("drawTrajectory: clears, draws baseline then estimate, legend", () => {
-  const calls = [];
-  N.drawTrajectory(cv(calls), [[0, 0], [10, 10]], [[0, 0], [12, 8]]);
-  assert.deepStrictEqual(calls[0], ["clearRect", 0, 0, 300, 160]);
-  // first stroked line is the baseline (amber #e0a23a), then the estimate (cyan #36d1dc)
-  const strokes = calls.filter((c) => c[0] === "strokeStyle").map((c) => c[1]);
-  assert.strictEqual(strokes[0], "#e0a23a");
-  assert.strictEqual(strokes[1], "#36d1dc");
-  const texts = calls.filter((c) => c[0] === "fillText").map((c) => c[1]);
-  assert.deepStrictEqual(texts, ["— fused estimate", "— dead reckoning"]);
 });
 
 test("drawDrive: empty payload clears then renders the explicit empty state", () => {

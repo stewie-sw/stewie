@@ -2656,7 +2656,6 @@ $("trainerstepfwd") && ($("trainerstepfwd").onclick = () => {
 // ---- Navigation view (P1.4): Navigation estimator surface + articulation-parallax relocalization -----
 // FS-24: the four pure nav-pane CANVAS PLOTTERS now live in navplot.js (window.STEWIE_NAVPLOT); these
 // thin binding aliases resolve the target <canvas> via $() and forward, preserving behaviour exactly.
-function navDrawTrajectory(est, base) { window.STEWIE_NAVPLOT.drawTrajectory($("navplot"), est, base); }
 let LAST_LOCALIZATION = null;                              // #nav-mission: localization trace from the last /plan
 // the LIVE mission localization: the run_closed_loop real estimate (terrain-relative + AprilTag-beacon
 // fixes) vs the true pose per leg, the leg dots colour-coded by which real fix corrected them.
@@ -2721,28 +2720,8 @@ async function navDriveRun() {
   } catch (e) { $("navdrivestats").innerHTML = window.STEWIE_NAV_STATS_HTML.errLine("server unreachable", esc); }
   finally { btn.disabled = false; btn.textContent = "▶ Run drive"; }
 }
-async function navRun() {
-  const seg = $("navseg").value, kf = +$("navkf").value || 30;
-  $("navrun").disabled = true; $("navrun").textContent = "… running";
-  try {
-    const r = await fetch("/slam", { method: "POST", headers: apiHeaders(),
-      body: JSON.stringify({ segment: seg, n_keyframes: kf }) });
-    const b = await r.json();
-    const N = window.STEWIE_NAV_STATS_HTML;                  // FS-24: pure stat builders; fetch + plot stay here
-    if (!b.ok) { $("navempty").style.display = "none";
-      $("navstats").innerHTML = N.errLine(b.error || "estimator unavailable", esc);  // SEC-04
-      $("navloo").textContent = ""; return; }
-    $("navempty").style.display = "none";
-    navDrawTrajectory(b.trajectory_xy, b.baseline_xy);
-    $("navstats").innerHTML = N.slamStatsHTML(b);
-    $("navloo").innerHTML = N.leaveOneOutHTML(b);
-    VALIDATED_RUN = true;                                   // VALIDATE gate: a real Validate run completed
-    if (typeof renderStepper === "function") renderStepper();
-  } catch (e) { $("navstats").innerHTML = window.STEWIE_NAV_STATS_HTML.errLine("server unreachable", esc); }
-  finally { $("navrun").disabled = false; $("navrun").textContent = "▶ Run estimator"; }
-}
 // #148: REAL terrain-fix est-vs-truth on the real Haworth DEM (register_to_dem fused vs odometry),
-// scored against the DEM's own truth -- the real lunar est-vs-truth, distinct from modeled Katwijk.
+// scored against the DEM's own truth -- the real lunar est-vs-truth.
 function navDrawReal(trueXY, fusedXY, odomXY) {
   const cv = $("navrealplot"); if (cv) window.STEWIE_NAVPLOT.drawReal(cv, trueXY, fusedXY, odomXY);
 }
@@ -2761,28 +2740,6 @@ async function navRealTraverse() {
       + `<br><span style="opacity:.7">Real Haworth terrain, scored vs the DEM's own truth — no modeled cue.</span>`;
   } catch (e) { $("navrealstats").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
   finally { if (btn) { btn.disabled = false; btn.textContent = "▶ Run real traverse"; } }
-}
-async function navCompare() {                          // P3.1: shared-testbed head-to-head (modeled at reported σ)
-  const seg = $("navseg").value, kf = +$("navkf").value || 30;
-  $("navcmp").disabled = true; $("navcmp").textContent = "… comparing";
-  try {
-    const r = await fetch("/slam/compare", { method: "POST", headers: apiHeaders(),
-      body: JSON.stringify({ segment: seg, n_keyframes: kf, n_seeds: 8 }) });
-    const b = await r.json();
-    if (!b.ok) { $("navcmpout").innerHTML = `<span style="color:#e8273f">${esc(b.error || "comparison unavailable")}</span>`; return; }  // SEC-04
-    const rows = Object.entries(b.comparison);
-    const worst = Math.max(...rows.map(([, v]) => v.mean_m));
-    $("navcmpout").innerHTML = "<b>shared-testbed head-to-head</b> — absolute drift, one trajectory, one metric:<br>"
-      + rows.map(([k, v]) => {
-          const w = Math.max(2, Math.round(180 * v.mean_m / worst));
-          const cls = k.includes("Navigation") ? "#36d1dc" : k.includes("ShadowNav") ? "#e0a23a" : "#888";
-          return `<div style="margin:3px 0"><span style="display:inline-block;width:230px">${k}</span>`
-            + `<span style="display:inline-block;height:9px;width:${w}px;background:${cls};vertical-align:middle"></span> `
-            + `<b>${v.mean_m} m</b> ±${v.ci95_m}</div>`;
-        }).join("")
-      + `<div style="color:var(--muted);margin-top:3px">${b.modeled} · n=${b.n_seeds} seeds</div>`;
-  } catch (e) { $("navcmpout").innerHTML = `<span style="color:#e8273f">server unreachable</span>`; }
-  finally { $("navcmp").disabled = false; $("navcmp").textContent = "Compare approaches"; }
 }
 function navGate() {                                  // #97 perception gate: should_relocalize(sigma, moving)
   const sig = +$("navsig").value, stand = $("navstand").checked, armed = sig > 2.0 && stand;
@@ -3153,9 +3110,7 @@ async function navContract() {
     });
   } catch (e) { out.textContent = "nav contract failed — run server.py (" + e + ")"; }
 }
-if ($("navrun")) {
-  $("navrun").onclick = navRun;
-  $("navcmp").onclick = navCompare;
+if ($("navreloc")) {
   if ($("navcontract")) $("navcontract").onclick = navContract;  // #228 L2: FS-05 nav-stage contract readout
   if ($("rctlm")) $("rctlm").onclick = rcTelemetryToggle;       // #228 L3 / #230: push-driven live RC telemetry + SF-01 watchdog stream
   if ($("rctlmrate")) $("rctlmrate").addEventListener("change", () => { if (rcStream) { stopRcStream(); startRcStream(); } });  // P4: re-open at the new push rate without losing the session
@@ -3169,7 +3124,6 @@ if ($("navrun")) {
   if ($("navdrive")) $("navdrive").onclick = navDriveRun;     // FS-05 end-to-end route-then-drive preview
   if ($("navreal")) $("navreal").onclick = navRealTraverse;   // #148 real Haworth terrain-fix est-vs-truth
   $("navreloc").onclick = navReloc;
-  if ($("ctxnav-run")) $("ctxnav-run").onclick = navRun;   // tab-contextual left: same estimator run
   ["navsig", "navstand"].forEach((id) => { const el = $(id); if (el) { el.oninput = navGate; el.onchange = navGate; } });
   navGate();
 }

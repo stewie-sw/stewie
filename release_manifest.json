@@ -92,10 +92,10 @@
     ]
   },
   "req_trace": {
-    "cited": 316,
+    "cited": 313,
     "reconciles": true,
     "total": 417,
-    "understated_count": 24,
+    "understated_count": 22,
     "unknown_markers": [],
     "v_done_uncited": []
   },

@@ -118,45 +118,6 @@ def test_typed_factors_are_consumed_by_factor_lookup():
     assert abs(kept.scalar_sigma() - math.radians(4.0)) < 1e-12
 
 
-def test_typed_shadow_factor_vs_non_shadow_baseline_on_real_katwijk():
-    # [REQ:AS-08] ablation vs non-shadow VO/SLAM on the REAL Katwijk baseline: the typed SHADOW_YAW
-    # MeasurementFactor the converter emits, fed through the integrated estimator (odom+imu+shadow), must
-    # not degrade heading vs the non-shadow (odom+imu) VO/SLAM baseline -- the row's shadow-vs-non-shadow
-    # comparison. Real dead-reckoned track + gyro from Katwijk Part1; the shadow heading source is exact
-    # (anti_solar - yaw = body_bearing), so the converter is exercised, not the noise.
-    import os
-
-    from dart.integrated_slam import load_katwijk_arrays, run_integrated_slam
-
-    part = "/mnt/projects/datasets/katwijk/Part1"
-    if not os.path.isdir(part):
-        import pytest
-        pytest.skip("raw Katwijk not present")
-    truth, dr, tyaw, gyro = load_katwijk_arrays(part)
-
-    n_kf = 30
-    fix_interval = 5
-    idx = np.linspace(0, len(tyaw) - 1, n_kf).astype(int)
-    anti_solar_deg = 215.0
-    measured = []
-    for k in range(fix_interval, n_kf, fix_interval):
-        yaw_deg = math.degrees(float(tyaw[idx[k]]))
-        body_bearing_deg = anti_solar_deg - yaw_deg           # so yaw_from_shadow recovers yaw exactly
-        fac = SF.shadow_yaw_factors([{"contrast": 40.0}], [body_bearing_deg],
-                                    anti_solar_az_deg=anti_solar_deg, sigma_deg=4.0, keyframe=k)[0]
-        assert isinstance(fac, MeasurementFactor)             # the typed record the estimator consumes
-        measured.append(fac)
-
-    base = run_integrated_slam(truth, dr, tyaw, gyro, factors=("odom", "imu"),
-                               n_keyframes=n_kf, fix_interval=fix_interval, seed=0)
-    fused = run_integrated_slam(truth, dr, tyaw, gyro, factors=("odom", "imu", "shadow"),
-                                n_keyframes=n_kf, fix_interval=fix_interval, seed=0,
-                                measured_fixes=measured)
-    # the typed shadow factors were consumed as MEASURED (not the modeled truth+noise fallback)
-    assert fused["measured"] == len(measured)
-    # fusing the typed shadow-yaw factor does not worsen heading vs the non-shadow VO/SLAM baseline
-    assert fused["heading_rmse_deg"] <= base["heading_rmse_deg"] + 1e-6
-
 
 def test_anti_solar_from_sun_azimuth():
     # the shadow ray is opposite the sun; the converter exposes the conversion the ephemeris feeds.

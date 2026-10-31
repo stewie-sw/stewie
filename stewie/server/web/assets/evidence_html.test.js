@@ -37,11 +37,11 @@ test("evidenceHTML: escapes a hostile source string (SEC-04)", () => {
 test("gateEvidenceHTML: G1/G2 + frozen byte-identical + next gate", () => {
   const j = { g1: "PASS ✓", g2: "PASS ✓", byte_identical_to_frozen: true, latest_artifact: "run_42",
     evidence: { evidence_mode: "real", g1_contract_checks_pass: 8, g1_contract_checks_total: 8,
-      g1_ate_m: 3.35, g1_eval_track_m: 92.48, g1_baseline_raw_m: 12, g1_baseline_aligned_m: 9,
+      g1_baseline_raw_m: 12, g1_baseline_aligned_m: 9,
       g2_sigma_px: 0.6, g2_coverage_3sigma: 0.997, g2_median_depth_m: 4.1, g2_sigma_depth_m: 0.03,
       g2_evidence_scope: "held-out", next_gate: "G3" } };
   const h = E.gateEvidenceHTML(j);
-  assert.ok(h.includes("3.35 m"));
+  assert.ok(h.includes("12.00 m"));
   assert.ok(h.includes("byte-identical ✓"));
   assert.ok(h.includes("run_42"));
   assert.ok(h.includes("G3"));
@@ -55,7 +55,7 @@ test("gateEvidenceHTML: diverged frozen baseline shows the failure span", () => 
 
 test("gateEvidenceHTML: null numerics fall back to the em-dash", () => {
   const j = { g1: "x", g2: "y", byte_identical_to_frozen: true, latest_artifact: "r",
-    evidence: { g1_ate_m: null, g2_sigma_px: null } };
+    evidence: { g2_sigma_px: null } };
   const h = E.gateEvidenceHTML(j);
   assert.ok(h.includes("—"));
 });

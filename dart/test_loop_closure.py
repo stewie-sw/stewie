@@ -9,15 +9,12 @@ and supplies the relative relocalization measurement, is the gated sensor-side i
 from __future__ import annotations
 
 import math
-import os
 
 import numpy as np
 import pytest
 
 from dart import loop_closure as LC
 from dart.pose_graph_se2 import PoseGraphSE2
-
-_PART = "/mnt/projects/datasets/katwijk/Part1"
 
 
 def test_detect_revisits_finds_the_start_return():
@@ -84,12 +81,3 @@ def test_add_loop_closures_returns_count_and_adds_between_factors():
     assert {0, 5, 6, 1}.issubset(g._ids)               # the loop-closure endpoints are now graph nodes
 
 
-@pytest.mark.skipif(not os.path.isdir(_PART), reason="Katwijk not present")
-def test_detect_revisits_on_real_katwijk_is_wellformed():
-    from dart.integrated_slam import load_katwijk_arrays
-    truth, _dr, _ty, _gy = load_katwijk_arrays(_PART)
-    idx = np.linspace(0, len(truth) - 1, 60).astype(int)
-    rev = LC.detect_revisits([tuple(truth[i]) for i in idx], radius_m=3.0, min_index_gap=8)
-    assert isinstance(rev, list)                       # real-data smoke: runs + well-formed
-    for i, j in rev:
-        assert 0 <= i < j < 60 and j - i >= 8

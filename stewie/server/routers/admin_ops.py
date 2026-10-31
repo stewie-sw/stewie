@@ -74,12 +74,10 @@ def admin_gates(_auth: str = Depends(require_director)):
     # panel. Every value is read from the on-disk artifact; an absent key degrades to None (older
     # artifacts may carry a different schema). No number is computed or fabricated here.
     g1, g2 = latest.get("g1", {}), latest.get("g2", {})
-    kd, sc = g1.get("katwijk_dead_reckon", {}), g1.get("simulated_closure", {})
+    sc = g1.get("simulated_closure", {})
     cc, cov = g1.get("contract_checks", {}), g2.get("covariance_calibration", {})
     evidence = {
         "evidence_mode": latest.get("evidence_mode"),
-        "g1_ate_m": kd.get("ate_aligned_m"),
-        "g1_eval_track_m": kd.get("eval_track_length_m"),
         "g1_baseline_raw_m": sc.get("baseline_wheel_imu_ate_raw_m"),
         "g1_baseline_aligned_m": sc.get("baseline_wheel_imu_ate_aligned_m"),
         "g1_contract_checks_pass": sum(1 for v in cc.values() if v == "PASS"),

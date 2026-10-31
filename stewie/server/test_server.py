@@ -379,43 +379,6 @@ def test_localize_forbids_truth_fields(client):
     assert "true_pose_xy" in r.json()["error"]                 # the forbidden field is named, never consumed
 
 
-# ---- POST /slam : P1.2 -- the integrated multi-factor SLAM run, exposed over a real segment --------
-_KATWIJK = os.environ.get("STEWIE_KATWIJK_DIR", "/mnt/projects/datasets/katwijk")
-
-
-@pytest.mark.skipif(not os.path.isdir(os.path.join(_KATWIJK, "Part1")),
-                    reason="raw Katwijk dataset not on this host (ESA license + size, not bundled)")
-def test_slam_fuses_real_katwijk_and_bounds_drift(client, monkeypatch):
-    """[REQ:PM-06] /slam runs the integrated SLAM over a REAL Katwijk segment and returns trajectory +
-    ATE + leave-one-out; the fused absolute drift is far below the odometry-only baseline."""
-    monkeypatch.setenv("STEWIE_KATWIJK_DIR", _KATWIJK)
-    PERC._KATWIJK_CACHE.clear()
-    r = client.post("/slam", json={"segment": "Part1", "n_keyframes": 20})
-    assert r.status_code == 200, r.text
-    b = r.json()
-    assert b["ok"] is True
-    assert b["abs_max_err_m"] < b["baseline_abs_max_err_m"]     # fusion beats odometry-only drift
-    assert len(b["trajectory_xy"]) == 20 and len(b["trajectory_xy"][0]) == 2
-    assert len(b["baseline_xy"]) == 20                          # odom-only path -> estimate-vs-DR plot
-    assert set(b["leave_one_out"]) == {"imu", "shadow", "parallax", "dem"}
-
-
-def test_slam_503_when_dataset_absent(client, monkeypatch):
-    """[REQ:PM-06] no machine paths in source -- with no dataset configured, /slam answers a clean 503,
-    it never fabricates a trajectory."""
-    monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
-    monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
-    PERC._KATWIJK_CACHE.clear()
-    r = client.post("/slam", json={"segment": "Part1"})
-    assert r.status_code == 503 and r.json()["ok"] is False
-
-
-def test_slam_rejects_bad_segment(client):
-    """[REQ:PM-06] the segment is pattern-validated -> no path traversal into the dataset root."""
-    r = client.post("/slam", json={"segment": "../../etc"})
-    assert r.status_code == 400 and r.json()["ok"] is False
-
-
 # ---- POST /render/parallax : P1.3 -- articulation_bridge wired onto the render surface ------------
 def test_render_parallax_plan_two_postures(client):
     """[REQ:SN-10] /render/parallax wires the articulation-parallax capture onto the render surface:
@@ -438,33 +401,6 @@ def test_render_parallax_rejects_unknown_posture(client):
         "scene": "crater_boulders", "sun_az_deg": 135.0, "sun_el_deg": 8.0, "posture_to": "NOTAPOSTURE"})
     assert r.status_code == 400 and r.json()["ok"] is False
 
-
-# ---- POST /slam/compare : P3.1 -- the shared-testbed head-to-head, surfaced -----------------------
-@pytest.mark.skipif(not os.path.isdir(os.path.join(_KATWIJK, "Part1")),
-                    reason="raw Katwijk dataset not on this host (ESA license + size, not bundled)")
-def test_slam_compare_three_approach_classes(client, monkeypatch):
-    """[REQ:SN-12] /slam/compare runs the shared-testbed head-to-head over a REAL segment: the same
-    pose graph under three approach classes, each modeled at its reported sigma. Navigation bounds the
-    absolute drift the passive single-pass cannot."""
-    monkeypatch.setenv("STEWIE_KATWIJK_DIR", _KATWIJK)
-    PERC._KATWIJK_CACHE.clear()
-    r = client.post("/slam/compare", json={"segment": "Part1", "n_keyframes": 20, "n_seeds": 5})
-    assert r.status_code == 200, r.text
-    c = r.json()["comparison"]
-    keys = list(c)
-    assert len(keys) == 3 and all("mean_m" in c[k] and "note" in c[k] for k in keys)
-    nav = [k for k in keys if "Navigation" in k][0]
-    passive = [k for k in keys if "passive" in k or "Stanford" in k][0]
-    assert c[nav]["mean_m"] < c[passive]["mean_m"]            # active fixes bound what passive cannot
-
-
-def test_slam_compare_503_when_dataset_absent(client, monkeypatch):
-    """[REQ:SN-12] no dataset configured -> clean 503, never a fabricated comparison."""
-    monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
-    monkeypatch.delenv("STEWIE_KATWIJK_DIR", raising=False)
-    PERC._KATWIJK_CACHE.clear()
-    r = client.post("/slam/compare", json={"segment": "Part1"})
-    assert r.status_code == 503 and r.json()["ok"] is False
 
 
 def test_localize_render_real_fix_or_503(client):

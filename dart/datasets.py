@@ -3,7 +3,7 @@
 The detector/sizer (obstacle_map, rock_detect, stereo_vo) already take raw image arrays, so the only
 per-dataset code is a thin ADAPTER that yields a standard ``PerceptionFrame`` (image[s] + optional prior
 DEM + optional pose + optional EVAL labels). Detection and P/R/F1 then run UNCHANGED on whichever set is
-loaded -- the SIMULATED Godot renders today, or a REAL set (Katwijk / AI4Mars / lunar) once its bytes are
+loaded -- the SIMULATED Godot renders today, or a REAL lunar set once its bytes are
 fetched. Real adapters are NOT faked: each is a real loader that reads its native format and raises a
 clear "not fetched" error until the data exists (cf. load_haworth_dem). Labels live ONLY on the
 eval-scoring path (I3); the detector is handed images only.
@@ -110,32 +110,3 @@ def _mask_to_labels(mask, *, min_area_px: int = 150) -> list:
             out.append(Label(u=float(cent[k, 0]), v=float(cent[k, 1]),
                              radius_px=float((area / 3.141592653589793) ** 0.5)))
     return out
-
-
-def load_ai4mars_frame(root: str, base: str, *, split: str = "train", subsystem: str = "msl/ncam",
-                       min_label_area_px: int = 150) -> PerceptionFrame:
-    """REAL AI4Mars adapter (Zenodo 15995036): an MSL Navcam EDR image + its crowd-sourced semantic label.
-    The 'big rock' NAV class (3) becomes the eval obstacle labels (connected components -> Label). AI4Mars
-    is MONOCULAR (no stereo pair) -> image_right=None -> appearance detection only; the stereo size-gate +
-    DEM cross-analysis ride a stereo set (MER/MSL PDS). Real Mars imagery; labels are EVAL-only (I3)."""
-    import cv2
-    img = cv2.imread(os.path.join(root, subsystem, "images", "edr", base + ".JPG"))
-    if split == "test":
-        # the REAL dataset layout (verified): test gold labels live under
-        # labels/test/masked-gold-min3-100agree/<base>_merged.png -- labels/test/<base>.png never
-        # exists, so the test split was silently unreachable (audit L33)
-        lbl_path = os.path.join(root, subsystem, "labels", "test",
-                                "masked-gold-min3-100agree", base + "_merged.png")
-    else:
-        lbl_path = os.path.join(root, subsystem, "labels", split, base + ".png")
-    lbl = cv2.imread(lbl_path, cv2.IMREAD_UNCHANGED)
-    if img is None or lbl is None:
-        raise FileNotFoundError(f"AI4Mars frame {base!r} not found under {root}/{subsystem} (split={split})")
-    labels = _mask_to_labels(lbl == 3, min_area_px=min_label_area_px)        # NAV class 3 = big rock
-    return PerceptionFrame(image_left=img, image_right=None, labels=labels,
-                           source=f"ai4mars:{subsystem}/{base}")
-
-
-# To add ANOTHER real dataset, write one `load_<name>_frame(...) -> PerceptionFrame` (cf. load_ai4mars_frame
-# above) -- e.g. Katwijk (real rover stereo + rocks + DEM; ESA, network-blocked here). detect + score then
-# run UNCHANGED. Add the loader only once its bytes are fetched + the parser is tested on the real files.

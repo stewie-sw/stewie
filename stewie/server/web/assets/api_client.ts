@@ -143,8 +143,6 @@ export type ApiPath =
   | '/siteplan/analyze'
   | '/siteplan/volume'
   | '/sites'
-  | '/slam'
-  | '/slam/compare'
   | '/soil/{name}'
   | '/soils'
   | '/solar'
@@ -331,8 +329,6 @@ export const API_ROUTES: readonly ApiRoute[] = [
   { method: 'POST', path: '/siteplan/analyze', operationId: 'siteplan_analyze_siteplan_analyze_post', mutatesAuthority: true },
   { method: 'POST', path: '/siteplan/volume', operationId: 'siteplan_volume_siteplan_volume_post', mutatesAuthority: true },
   { method: 'GET', path: '/sites', operationId: 'sites_list_sites_get', mutatesAuthority: false },
-  { method: 'POST', path: '/slam', operationId: 'post_slam_slam_post', mutatesAuthority: true },
-  { method: 'POST', path: '/slam/compare', operationId: 'post_slam_compare_slam_compare_post', mutatesAuthority: true },
   { method: 'POST', path: '/soil/{name}', operationId: 'soil_save_soil__name__post', mutatesAuthority: true },
   { method: 'GET', path: '/soils', operationId: 'soils_list_soils_get', mutatesAuthority: false },
   { method: 'GET', path: '/solar', operationId: 'solar_solar_get', mutatesAuthority: false },

@@ -394,7 +394,7 @@
      faint grid makes an EMPTY canvas read as a "viewport awaiting data"; once the JS fills the canvas the
      opaque bitmap covers the grid, so this only shows when there's nothing drawn yet. !important overrides
      the per-element inline background:#0a0a0c without touching the inline border/radius. */
-  #navdriveplot, #navmissionplot, #navrealplot, #navplot, #navcov, #execcanvas, #hudcanvas, #rcdrivemap {
+  #navdriveplot, #navmissionplot, #navrealplot, #navcov, #execcanvas, #hudcanvas, #rcdrivemap {
     background-color: #0a0a0c !important;
     background-image: linear-gradient(rgba(120,132,150,.06) 1px, transparent 1px),
                       linear-gradient(90deg, rgba(120,132,150,.06) 1px, transparent 1px) !important;
@@ -712,7 +712,6 @@
         <div class="ctxh">Navigation <span class="sysb">LEAP</span></div>
         <div style="font-size:11px;color:var(--muted);line-height:1.55">State estimation — the rover's live pose estimate vs truth, the per-leg fixes (terrain scan-match / AprilTag beacon), and articulation-parallax relocalization. Full controls &amp; plots are in the pane →</div>
         <div id="ctxnav-loc" style="font-size:11px;line-height:1.7;margin-top:10px;color:var(--muted)">Plan a mission (Plan tab) to see the live localization summary.</div>
-        <button id="ctxnav-run" class="go" style="font-size:11px;margin-top:10px;width:100%" title="run the pose-graph estimator on a Katwijk beach traverse — a public planetary-rover dataset used as the real-data validation baseline">▶ Run estimator on Katwijk traverse (real rover dataset)</button>
       </div>
     </div>
     <div id="ctx-perception" class="ctxblock" hidden>
@@ -1101,8 +1100,7 @@
         </div>
         <!-- MISSION LOCALIZATION: the LIVE planning-loop estimate (run_closed_loop real terrain-relative +
              AprilTag-beacon fixes) vs the true pose, per leg, colour-coded by which real fix corrected it.
-             Populated from the last /plan response (perception.localization). The Katwijk benchmark below is
-             the validation evidence; THIS is the rover's own mission localization. -->
+             Populated from the last /plan response (perception.localization). -->
         <div style="padding:4px 2px 8px;border-bottom:1px solid var(--line);margin-bottom:8px">
           <div class="cap" style="font-size:10px">MISSION LOCALIZATION — live estimate vs truth <small>(terrain-relative + AprilTag-beacon fixes, from the last plan)</small></div>
           <canvas id="navmissionplot" width="460" height="240" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:4px"></canvas>
@@ -1111,31 +1109,14 @@
 
         <!-- #148: REAL terrain-fix est-vs-truth on the real Haworth DEM -- the register_to_dem fix fused
              through the pose graph, scored against the DEM's OWN truth. This is the real lunar
-             est-vs-truth, distinct from the MODELED-cue Katwijk baseline below. -->
+             est-vs-truth. -->
         <div style="padding:4px 2px 8px;border-bottom:1px solid var(--line);margin-bottom:8px">
           <div class="cap" style="font-size:10px">REAL TERRAIN-FIX LOCALIZATION — Haworth DEM <small>(register_to_dem fused vs odometry, scored vs the DEM's own truth)</small>
             <button id="navreal" class="go" style="font-size:11px;margin-left:8px">▶ Run real traverse</button></div>
           <canvas id="navrealplot" width="460" height="240" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:4px"></canvas>
-          <div id="navrealstats" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">Press <b>Run real traverse</b>: the rover drives a textured Haworth path, dead reckoning drifts under a gyro bias, and the REAL <code>register_to_dem</code> terrain fix corrects it — fused (cyan) vs odometry (amber) vs truth (white dashed), scored against the DEM's own truth. Real terrain + real estimator; the modeled-cue Katwijk run below is the noisy-odometry baseline. Needs the Haworth bundle (clean 503 otherwise).</div>
+          <div id="navrealstats" style="font-size:11px;line-height:1.7;margin-top:4px;color:var(--muted)">Press <b>Run real traverse</b>: the rover drives a textured Haworth path, dead reckoning drifts under a gyro bias, and the REAL <code>register_to_dem</code> terrain fix corrects it — fused (cyan) vs odometry (amber) vs truth (white dashed), scored against the DEM's own truth. Real terrain + real estimator. Needs the Haworth bundle (clean 503 otherwise).</div>
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;padding:4px 2px">
-          <div style="flex:1 1 460px;min-width:340px">
-            <div class="ctl" style="font-size:11px">
-              segment <select id="navseg"><option>Part1</option><option>Part2</option><option>Part3</option></select>
-              · keyframes <input id="navkf" type="number" value="30" min="5" max="200" style="width:4em" />
-              <button id="navrun" class="go" style="font-size:11px">▶ Run estimator</button>
-              <button id="navcmp" class="site" style="font-size:11px" title="shared-testbed head-to-head: the same trajectory under passive / ShadowNav-class / Navigation, each modeled at its reported sigma">Compare approaches</button>
-            </div>
-            <canvas id="navplot" width="460" height="330" style="border:1px solid var(--line);border-radius:6px;background:#0a0a0c;max-width:100%;margin-top:6px"></canvas>
-            <div id="navstats" style="font-size:11px;line-height:1.7;margin-top:6px"></div>
-            <div id="navloo" style="font-size:11px;margin-top:2px;color:var(--muted)"></div>
-            <div id="navcmpout" style="font-size:11px;margin-top:8px"></div>
-            <div id="navempty" class="empty">No estimator run yet. Pick a real Katwijk segment and press
-              <b>Run estimator</b>: the integrated pose graph fuses odometry + IMU + shadow-yaw +
-              articulation-parallax + DEM, plotting the fused trajectory (cyan) against dead reckoning
-              (amber) with the leave-one-out factor attribution. Needs the Katwijk dataset on the host
-              (a clean 503 otherwise — never a faked trajectory).</div>
-          </div>
           <div style="flex:1 1 320px;min-width:280px">
             <div class="cap" style="font-size:10px">RELOCALIZE — articulation parallax (standstill)</div>
             <div id="navgate" style="font-size:11px;margin:5px 0"></div>
@@ -1568,8 +1549,8 @@
 <script src="/assets/icons.js?v=cc7490feb72b"></script><!-- ICON-SET: monochrome inline-SVG toolbar glyphs (sets window.STEWIE_ICONS) -->
 <script src="/assets/role_rank.js?v=46d024fe6f3b"></script><!-- FS-24: pure role-authority ladder rank (sets window.STEWIE_ROLE_RANK) -->
 <script src="/assets/keepout_geom.js?v=8e0b54e7d7e5"></script><!-- FS-24: pure keep-out shape/bounds/label (sets window.STEWIE_KEEPOUT_GEOM) -->
-<script src="/assets/navplot.js?v=c75ee6db866c"></script><!-- FS-24: pure nav-pane canvas plotters (sets window.STEWIE_NAVPLOT) -->
-<script src="/assets/evidence_html.js?v=56796cce20c6"></script>
+<script src="/assets/navplot.js?v=ba6601bb3c45"></script><!-- FS-24: pure nav-pane canvas plotters (sets window.STEWIE_NAVPLOT) -->
+<script src="/assets/evidence_html.js?v=df7f664efce5"></script>
     <script src="/assets/ros_evidence_html.js?v=29a45c684f4c"></script><!-- FS-27: ROS/Gazebo/RViz evidence surface render -->
     <script src="/assets/command_authority_html.js?v=729977fcd3d5"></script><!-- FS-24: pure release-evidence HTML builders (sets window.STEWIE_EVIDENCE_HTML) -->
 <script src="/assets/gantt_downsample.js?v=db209d54821d"></script><!-- frontend-audit D: pure activity-Gantt pixel-column downsampler + battery envelope (sets window.STEWIE_GANTT_DOWNSAMPLE); loads BEFORE rover_hud.js -->
@@ -1590,10 +1571,10 @@
 <script src="/assets/regolith_estimate.js?v=8e723a0722ec"></script><!-- FS-24: pure dig-only feasibility estimate math + breakdown table (sets window.STEWIE_REGOLITH_ESTIMATE) -->
 <script src="/assets/scorecard_chips.js?v=7808422d95f5"></script><!-- FS-24: pure trainer-scorecard KPI chip strips TR-01 (sets window.STEWIE_SCORECARD_CHIPS) -->
 <script src="/assets/terrain_memory_html.js?v=829b436ab1ff"></script><!-- FS-24: pure Construction-pane Terrain Memory readout W3 (sets window.STEWIE_TERRAIN_MEMORY_HTML) -->
-<script src="/assets/nav_stats_html.js?v=3dda1aea883a"></script><!-- FS-24: pure Navigation-pane drive/SLAM stat lines (sets window.STEWIE_NAV_STATS_HTML) -->
+<script src="/assets/nav_stats_html.js?v=87e134d5cd69"></script><!-- FS-24: pure Navigation-pane drive/SLAM stat lines (sets window.STEWIE_NAV_STATS_HTML) -->
 <script src="/assets/cockpit_state.js?v=fcaa16f324c4"></script><!-- FS-16: pure routeable cockpit state model (sets window.STEWIE_STATE) -->
 <script src="/assets/provenance_label.js?v=e6ec3e5b78b5"></script><!-- FS-03: pure epistemic provenance chips truth/belief/forecast/live (sets window.STEWIE_PROVENANCE) -->
 <script src="/assets/ops_chips.js?v=956a4ab31cdc"></script><!-- frontend-audit C: pure ops-chip formatters health/link/provenance/mission-time (sets window.STEWIE_OPS_CHIPS) -->
-<script src="/assets/cockpit.js?v=d749a3d9278d"></script>
+<script src="/assets/cockpit.js?v=3159676a2c02"></script>
 </body>
 </html>

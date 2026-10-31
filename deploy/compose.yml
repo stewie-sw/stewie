@@ -21,10 +21,6 @@ services:
       # it over the internal compose network. Keep this true only while a real HTTPS terminator fronts it.
       STEWIE_TLS_TERMINATED: ${STEWIE_TLS_TERMINATED:-1}
       MPLCONFIGDIR: /tmp/mpl
-      # Real-use wiring (Aaron 2026-06-16: "everything wired for actual use, nothing dissertation-only"):
-      # the Katwijk SLAM eval (/slam, /slam/compare) reads its real ESA rover telemetry from here. Without
-      # it the deployed endpoint 503s; with it the Navigation pane returns real ATE on the live host.
-      STEWIE_KATWIJK_DIR: ${STEWIE_KATWIJK_DIR:-/katwijk}
       # SF-02: bounded command authority for MISSION-LESS low-level rover commands (teleop). This is a
       # production/operations deploy, so the runnable profile defaults to OPERATE -> a mission-less GoTo is
       # REFUSED (only a released/live mission may command the rover). STEWIE_ALLOW_TELEOP is deliberately
@@ -58,10 +54,6 @@ services:
       # PLAN ANYWHERE (#30): the real global LOLA LDEM (8.5 GB), READ-ONLY, so the resolver can crop any
       # lat/lon. Overridable host path (no baked machine path, cf. ARCH-05); only cropped windows are read.
       - "${STEWIE_GLOBAL_LDEM_HOST_DIR:-/mnt/projects/datasets/argus_dem_nav/lunar_dem}:/mnt/projects/datasets/argus_dem_nav/lunar_dem:ro"
-      # Mount the real ESA Katwijk dataset READ-ONLY so /slam returns real ATE on the deployed cockpit.
-      # Host path is overridable (no baked machine path, cf. ARCH-05); only ~8.6 MB of telemetry per
-      # segment is read, never the raw imagery, and the endpoint stays auth-gated.
-      - "${STEWIE_KATWIJK_HOST_DIR:-/mnt/projects/datasets/katwijk}:/katwijk:ro"
     restart: unless-stopped
     # hardening: minimal caps, no privilege escalation, immutable rootfs (writes only to /data + /tmp)
     cap_drop: [ "ALL" ]
