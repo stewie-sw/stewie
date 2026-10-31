@@ -9,7 +9,7 @@ function repoTerrain(): Plugin {
   const repo = resolve(import.meta.dirname, "..");
   const routes: [RegExp, (m: RegExpMatchArray) => string][] = [
     [/^\/data\/tiles\/([a-z0-9_]+)\/(metadata\.json|heightmap\.rf32)$/, (m) => resolve(repo, "samples/lunar_dem", m[1]!, m[2]!)],
-    [/^\/data\/global\/(ldem_16\.(?:lbl|img))$/, (m) => resolve(repo, ".cache/terrain", m[1]!)],
+    [/^\/data\/package\/south_polar_sites\/([a-z0-9_]+\.(?:json|lbl|img))$/, (m) => resolve(repo, ".cache/package/south_polar_sites", m[1]!)],
   ];
   return {
     name: "stewie-repo-terrain",

@@ -48,3 +48,60 @@ fn horizon_json_round_trips_and_rejects_ragged_arrays() {
     let ragged = json.replacen("\"reach_m\":[", "\"reach_m\":[1.0,", 1);
     assert!(stewie_wasm::horizon_from_json(&ragged).is_err());
 }
+
+/// The device-package stack the browser now uses (D-R47): the 5 m tile, the 40 m site crop, the 240 m polar
+/// tier and `LDEM_16`. The horizon draws on every tier and completes every ray near the pole.
+#[test]
+fn the_device_package_stack_loads_and_completes_the_horizon() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let pkg = root.join(".cache/package/south_polar_sites");
+    let text = |p: &std::path::Path| std::fs::read_to_string(p).unwrap();
+    let bytes = |p: &std::path::Path| std::fs::read(p).unwrap();
+    let mut e = stewie_wasm::Engine::new(&text(
+        &root.join("crates/stewie-contracts/fixtures/bodies.json"),
+    ))
+    .unwrap();
+    let tile = root.join("samples/lunar_dem/shackleton_rim_10km_5m");
+    e.add_tile(
+        0,
+        "shackleton_rim_10km_5m",
+        &text(&tile.join("metadata.json")),
+        &bytes(&tile.join("heightmap.rf32")),
+    )
+    .unwrap();
+    for (prio, id) in [(1, "ldem_85s_40m_shackleton_rim"), (2, "ldem_75s_240m")] {
+        e.add_polar(
+            prio,
+            id,
+            &text(&pkg.join(format!("{id}.lbl"))),
+            &bytes(&pkg.join(format!("{id}.img"))),
+        )
+        .unwrap();
+    }
+    e.add_global(
+        9,
+        "ldem_16",
+        &text(&pkg.join("ldem_16.lbl")),
+        &bytes(&pkg.join("ldem_16.img")),
+    )
+    .unwrap();
+    assert_eq!(
+        e.stack_signature(),
+        "regional@5.0m > regional@40.0m > regional@240.0m > ldem_16@1895.2m"
+    );
+    let h = e
+        .horizon(-89.823, 158.213, 360, 200_000.0, 50.0, 1.5)
+        .unwrap();
+    assert!(
+        h.complete.iter().all(|&c| c),
+        "no ray stops at the pole hole"
+    );
+    let sources: Vec<&str> = h.sources.iter().map(String::as_str).collect();
+    for id in [
+        "shackleton_rim_10km_5m",
+        "ldem_85s_40m_shackleton_rim",
+        "ldem_75s_240m",
+    ] {
+        assert!(sources.contains(&id), "{id} used: {sources:?}");
+    }
+}

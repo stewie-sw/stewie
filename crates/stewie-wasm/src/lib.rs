@@ -5,7 +5,7 @@
 //! with JSON in and out. Terrain arrives as bytes (a browser fetches it); the body radius comes from the
 //! registry JSON, never a literal.
 
-use lunar_dem::{DemTile, GlobalGrid, Resolved, TerrainSource, TerrainStack};
+use lunar_dem::{DemTile, GlobalGrid, PolarGrid, Resolved, TerrainSource, TerrainStack};
 use lunar_ephem::{Body, Ephemeris, Utc, az_el};
 use lunar_frames::{LatLon, Sphere, body_fixed};
 use lunar_horizon::{Horizon, HorizonConfig, horizon};
@@ -70,6 +70,23 @@ impl Engine {
     ) -> Result<(), String> {
         let g =
             GlobalGrid::from_label_bytes(id, label, img, self.moon).map_err(|e| e.to_string())?;
+        self.stack.push(priority, Box::new(g));
+        Ok(())
+    }
+
+    /// A PDS polar-stereographic LOLA grid (a polar tier, or a site crop from the device package).
+    ///
+    /// # Errors
+    /// Any `PolarGrid::from_label_bytes` refusal.
+    pub fn add_polar(
+        &mut self,
+        priority: u32,
+        id: &str,
+        label: &str,
+        img: &[u8],
+    ) -> Result<(), String> {
+        let g =
+            PolarGrid::from_label_bytes(id, label, img, self.moon).map_err(|e| e.to_string())?;
         self.stack.push(priority, Box::new(g));
         Ok(())
     }
@@ -534,6 +551,19 @@ mod bindings {
         ) -> Result<(), JsError> {
             self.0
                 .add_tile(priority, id, metadata_json, heightmap)
+                .map_err(|e| JsError::new(&e))
+        }
+
+        #[wasm_bindgen(js_name = addPolar)]
+        pub fn add_polar(
+            &mut self,
+            priority: u32,
+            id: &str,
+            label: &str,
+            img: &[u8],
+        ) -> Result<(), JsError> {
+            self.0
+                .add_polar(priority, id, label, img)
                 .map_err(|e| JsError::new(&e))
         }
 

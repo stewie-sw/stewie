@@ -121,8 +121,8 @@ jobs:
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - run: node --version
-      - name: real terrain for the engine tests (PDS LDEM_16, sha256-pinned)
-        run: python3 pipeline/fetch.py terrain_sources.json
+      - name: real terrain for the engine tests (PDS LOLA tiers, sha256-pinned) and the device package built from it
+        run: python3 pipeline/fetch.py terrain_sources.json && python3 pipeline/build_package.py
         working-directory: .
       - name: build the WASM engine package (wasm-bindgen-cli pinned to the crate's 0.2.130)
         run: cargo install wasm-bindgen-cli --version 0.2.130 --locked && npm run build:engine

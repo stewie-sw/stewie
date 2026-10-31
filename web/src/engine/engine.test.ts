@@ -60,3 +60,20 @@ describe("engine bindings", () => {
     expect(e.stackSignature()).toMatch(/^regional@5\.0m > ldem_16@/);
   });
 });
+
+describe("device package stack (D-R47)", () => {
+  const pkg = (f: string) => repo(`.cache/package/south_polar_sites/${f}`);
+  const e = new Engine(JSON.stringify(bodies));
+  e.addTile(0, "shackleton_rim_10km_5m", readFileSync(repo("samples/lunar_dem/shackleton_rim_10km_5m/metadata.json"), "utf8"), readFileSync(repo("samples/lunar_dem/shackleton_rim_10km_5m/heightmap.rf32")));
+  for (const [prio, id] of [[1, "ldem_85s_40m_shackleton_rim"], [2, "ldem_75s_240m"]] as const) {
+    e.addPolar(prio, id, readFileSync(pkg(`${id}.lbl`), "utf8"), readFileSync(pkg(`${id}.img`)));
+  }
+  e.addGlobal(9, "ldem_16", readFileSync(pkg("ldem_16.lbl"), "utf8"), readFileSync(pkg("ldem_16.img")));
+
+  it("stacks the 5 m tile, the 40 m crop, the 240 m tier and LDEM_16, and completes every ray at the pole", () => {
+    expect(e.stackSignature()).toBe("regional@5.0m > regional@40.0m > regional@240.0m > ldem_16@1895.2m");
+    const h = JSON.parse(e.horizon(-89.823, 158.213, 360, 200_000, 50, 1.5)) as { complete: boolean[]; sources: string[] };
+    expect(h.complete.every(Boolean)).toBe(true);
+    expect(h.sources).toEqual(expect.arrayContaining(["shackleton_rim_10km_5m", "ldem_85s_40m_shackleton_rim", "ldem_75s_240m"]));
+  });
+});
