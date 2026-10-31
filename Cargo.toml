@@ -1,0 +1,19 @@
+[workspace]
+resolver = "3"
+members = ["xtask"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+license-file = "LICENSE"
+publish = false
+authors = ["John McCardle", "Aaron Storey"]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
