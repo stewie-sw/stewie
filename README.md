@@ -46,8 +46,9 @@ claim on lunar positions). On that map you can:
 - **author a mission with a tool palette** — cut and fill build orders, structures, and keep-out
   barriers, plus traverse-by-waypoints, return-to-lander, and place-objects (beacon, cache, instrument,
   sample, antenna). Every edit is written through the backend edit-session, a server-owned, versioned
-  source of truth with a before/after audit trail and linear undo. Planner controls and a multi-vehicle
-  fleet round it out;
+  source of truth for the design workspace, with a before/after audit trail and linear undo. It is not
+  conserved-terrain or accepted-belief authority. Planner controls and a multi-vehicle fleet round it
+  out;
 - **plan anywhere** — pick any lat/lon on the Moon (typed or map-click); a request-time DEM resolver
   crops the global LOLA so you plan in that local frame, not only at the fixed sites;
 - **inspect the plan** — candidate-future compare, plan detail, and a Gantt schedule, then run a
@@ -100,8 +101,10 @@ provenance tag, and no synthetic values stand in for measured ones.
 ## Capability state (honest)
 
 **Live and load-bearing:** the GIS IDE, mission authoring and planning, the conserved-physics core, the
-analysis layers, the versioned digital twin, and plan-anywhere over the global DEM. The public deploy is
-**simulation-only**, and mission Release is **director-gated**.
+analysis layers, the versioned simulation twin, and plan-anywhere over the global DEM. The public
+deploy is **simulation-only**, and mission Release is **director-gated**. The dissertation's
+observation-only promotion rule is a tested research path; live `/twin/resync` does not yet execute
+that rule or persist its graph-bound evidence and decision.
 
 **The perception loop (the differentiator):** the observed-map producer closes STEWIE's loop on
 perception, not just action. A rover observes its own terrain change through a real render, and the
@@ -111,29 +114,33 @@ divergence is the self-made hazard an open-loop terrain generator cannot produce
 host-verified today: the cheap in-loop observability channel plus the deterministic end-to-end replay
 loop. The dense reconstruction tier (render to stereo or COLMAP RMSE) stays gated.
 
-**Progress:** the requirement matrix (product requirements, section 7) reads **254 of 339 requirements
-verified done** (about 75 percent overall; 78 percent of the 325 in-scope rows, with hardware and host
-gated rows excluded from that denominator). By priority: P0 107/116, P1 143/188, P2 4/33. The counts are
-the live tool output (`STATUS.json`, `release_manifest.json`); the matrix is projected read-only onto the
-in-IDE requirement board.
+**Progress:** do not copy a hand-counted completion total into this README. `STATUS.md` /
+`STATUS.json` are the generated source for requirement totals, test-cited rows, and cited rows whose
+verification state is not yet `D`. Those are traceability measures, not a claim that every cited row
+is complete. The matrix is projected read-only onto the in-IDE requirement board.
 
-**On the roadmap (honest):** persistence is moving to a hybrid Postgres plus PostGIS store; the durable
-edit-session (Phase 0) is in progress, and the map layer is no longer the authority (the server-owned
-edit-session is). The direction is planned, not shipped.
+**On the roadmap (honest):** durable edit sessions and a relational world-transaction projection
+exist. The missing critical path is DA-07--DA-10: immutable executed construction events; durable
+observation/graph/candidate/decision evidence; live promotion with atomic accepted-world publication;
+and version-attributed GIS projections plus replay. PostgreSQL/PostGIS is a persistence and query
+substrate, never an unconstrained terrain or acceptance authority.
 
 **Gated or not yet built (named, not hidden):** a live ROS2 and Gazebo pit with a real rover (the
 containers build, but there is no live pit link yet); the PyChrono force oracle (a stub; the Tier-3
 drum-force track needs a PyChrono host); dense-stereo GPU perception; the dense map-channel reward;
-LAC/IPEx arm geometry; and camera video (render-gated). STEWIE makes no flight claims and never presents
-simulated truth as a live measurement.
+LAC/IPEx arm geometry; camera video (render-gated); and the end-to-end
+action→evidence→promotion→accepted-world→GIS replay bridge. STEWIE makes no flight claims and never
+presents simulated truth as a live measurement.
 
 ## Quickstart
 
 ```bash
 git clone https://github.com/stewie-sw/stewie.git && cd stewie
-pip install -e .[dev]      # full toolchain (tests, lint, types, server, planner)
+pip install -e packages/stewie-bodies -e packages/stewie-forge -e '.[dev]'
+# full toolchain (tests, lint, types, server, planner)
 # or a lighter target:
-pip install -e .[server]   # the planner API and cockpit only
+pip install -e packages/stewie-bodies -e packages/stewie-forge -e '.[server]'
+# the planner API and cockpit only
 ```
 
 Requires Python 3.11 or newer.
@@ -177,6 +184,10 @@ sites, layers, and how to rebuild) is documented under [`gis/`](gis/).
   architecture index, the release policy, contracts, and the subsystem references.
 - **Generated traceability** — [`STATUS.md`](STATUS.md), produced by the traceability tools (do not
   hand-edit).
+- **Accepted-world event contract** —
+  [`docs/construction_event_ledger_contract.md`](docs/construction_event_ledger_contract.md), with
+  authority decision
+  [`ADR-0008`](docs/adr/0008-construction-event-ledger-and-gis-projections.md).
 
 ## Quality gates
 
@@ -184,7 +195,7 @@ Every push runs the CI gate ([`ci.yml`](.github/workflows/ci.yml)):
 
 - **Lint** — `ruff` pyflakes (F) across all packages.
 - **Power-of-10** — bounded cyclomatic complexity on the conserved core (`stewie/physics`, `stewie/twin`).
-- **Types** — `mypy` over the core and planner (a documented ratchet narrows the remaining exclusions).
+- **Types** — `mypy` over `stewie`, DART, LODE, LEAP and FORGE.
 - **Requirements traceability** — every `V=D` requirement must be cited by a test.
 - **Tests + coverage** — `pytest` with a coverage floor of **85 percent** (py3.11), plus a py3.12/3.13
   test matrix.

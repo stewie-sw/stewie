@@ -242,6 +242,12 @@ def test_nonfinite_validity_metadata_and_support_thresholds_are_rejected(truth):
         evaluate([observation], last_modified_at=np.nan)
     with pytest.raises(ValueError, match="min_effective_support"):
         evaluate([observation], min_effective_support=np.nan)
+    for invalid_components in (np.nan, np.inf, 1.5):
+        with pytest.raises(ValueError, match="min_override_components"):
+            evaluate(
+                [observation],
+                min_override_components=invalid_components,  # type: ignore[arg-type]
+            )
 
 
 def test_decision_and_accepted_bytes_are_order_invariant(truth):

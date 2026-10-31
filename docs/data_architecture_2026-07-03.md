@@ -2,9 +2,16 @@
 
 Proposal (Aaron): a hybrid world-model database, not one DB for everything.
 
+> **Current reconciliation, 2026-07-28.** This design predates the explicit separation of executed
+> construction events, observation evidence, promotion decisions, and accepted-world versions.
+> [ADR-0008](adr/0008-construction-event-ledger-and-gis-projections.md) and the
+> [operational contract](construction_event_ledger_contract.md) now govern that boundary. The hybrid
+> storage choices remain useful; none becomes authority merely by persisting a record.
+
 | Layer | Tool | Role |
 |---|---|---|
-| Authoritative world STATE | PostgreSQL + PostGIS | queryable interpreted world state + spatial indexing |
+| Canonical ledger + accepted-version metadata | Durable transactional store, potentially PostgreSQL | immutable events/evidence/decisions, branch-head compare-and-swap, outbox, indexes |
+| Spatial read model | PostGIS | queryable, version-attributed projection; never direct terrain or acceptance authority |
 | Analytics / snapshots / offline science | DuckDB + GeoParquet | fast local geospatial analytics |
 | Raw robot telemetry | MCAP / rosbag2 | high-rate ROS streams, replay |
 | 3D scene / viz assets | 3D Tiles / glTF / USD | streamed 3D content |
@@ -28,12 +35,13 @@ The answer is the same each time: **STEWIE's authority is the conserved-physics 
 excavation + the hash-chained event log). PostGIS has no concept of mass conservation, provenance chaining, or
 the excavation physics that MUTATES the world — so it cannot be the source of truth for what the world IS.
 
-Correct framing: **the conserved model decides; Postgres/PostGIS DURABLY STORES the events + a queryable
-PROJECTION of the interpreted state.** The world mutates through the physics authority path (never a direct DB
-write); the DB is the durable, indexed, queryable record of that authority. That preserves the conservation +
-provenance guarantees the dissertation depends on, while adding the query/durability Postgres is good at. Their
-own "store interpreted products in PostGIS, references to raw in object store" is precisely this projection
-layer — just not the authority.
+Correct framing: **the conserved model decides simulated physical mutation; the acceptance service
+decides which observation-derived belief becomes accepted; PostgreSQL can durably store their immutable
+records; PostGIS supplies a spatial projection.** Neither physics predictions nor database writes may
+construct an accepted observation patch. The DB is the durable, indexed record and transaction
+substrate, while GIS tables remain rebuildable read models. That preserves conservation, evidence,
+and acceptance boundaries while adding the durability and query facilities PostgreSQL/PostGIS are
+good at.
 
 ## Grounding cautions
 
@@ -56,9 +64,9 @@ layer — just not the authority.
 Keep the conserved-physics model as the authority. Add persistence in the order the file store fails you:
 1. DuckDB + GeoParquet for analytics/snapshots (already planned, DW lane) — do first, cheap.
 2. MCAP/rosbag2 + object storage for raw telemetry/blobs (rosbags already present) — reference by URI.
-3. PostgreSQL + PostGIS as the durable event store + queryable projection — WHEN durability/query needs
-   (W-1..W-4, multi-client, complex spatial queries) actually arrive. Mirror `TwinStore` events into it; never
-   make it the authority.
+3. PostgreSQL as the durable canonical ledger/transaction substrate and PostGIS as the queryable spatial
+   projection — WHEN durability/query needs (W-1..W-4, multi-client, complex spatial queries) actually
+   arrive. Implement DA-07--DA-10 rather than merely mirroring unlabeled `TwinStore` patches.
 4. 3D Tiles/glTF/USD as viz/asset streaming — pairs with the GL lane (deck.gl `Tile3DLayer`).
 
 Status: recorded design (not built). The single-rover dissertation does not require the DB cluster; the
@@ -84,8 +92,9 @@ query views), consolidated. This is "git for world state" — a strong, correct 
   changes) · `merge_decision` (accept/reject/override + reviewer + rationale). Types: accept_observation /
   accept_simulation_result / accept_construction_change / reject_as_sensor_noise / reject_as_model_error /
   manual_override.
-- INVARIANT (correct, load-bearing): nothing becomes accepted truth without {source branch, target branch,
-  diff, confidence, provenance, merge decision}. This is what makes it a scientific twin, not a 3D dashboard.
+- TARGET INVARIANT (not yet enforced by live resync): nothing becomes accepted belief without {exact
+  evidence set, dependency graph, parent accepted version, diff, uncertainty, provenance, promotion
+  decision}. Terrain-changing execution also names its conserved before/after hashes and mass balance.
 
 ### Event sourcing + snapshots
 - `twins.event_log` (branch-scoped typed events + payload + provenance) → state = initial snapshot + event

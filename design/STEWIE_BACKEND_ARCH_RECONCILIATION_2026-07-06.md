@@ -1,5 +1,14 @@
 # STEWIE Backend-Architecture Reconciliation: Aaron's QGIS-Kernel Vision vs the Real Code + the Design Deliverable
 
+> **Historical commit-scoped reconciliation.** The evidence below describes
+> `14ecade`, not the current working tree. Current authority is separated:
+> conserved terrain owns physical mutation; the accepted-world journal owns
+> promoted belief; immutable events/evidence/decisions provide replay; and
+> PostGIS/QGIS are derived projections. The DA-07--DA-10 bridge remains
+> unimplemented. See `../PRD.md`, `../docs/ARCHITECTURE.md`,
+> `../docs/adr/0008-construction-event-ledger-and-gis-projections.md`, and
+> `../docs/construction_event_ledger_contract.md`.
+
 **Date:** 2026-07-06
 **Repo HEAD:** `14ecade` ("ROS egress: advisory occupancy/costmap/path exports + MapMeta georef") on `main`
 **Grounding design doc:** `design/STEWIE_LUNAR_PLATFORM_DESIGN_2026-07-06.md` (committed `250c0c9`, the 40/24/5 capability matrix + 15-service map + PostGIS/Timescale data model)

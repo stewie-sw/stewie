@@ -16,6 +16,9 @@ extends Node3D
 #   --sun-elev / --sun-azim   sun elevation/azimuth deg (inspection; default grazing 5/215)
 #   --exposure <f>            filmic tonemap exposure (default 1.2)
 #   --brdf   hapke|lambert    terrain BRDF: Hapke/Lommel-Seeliger (default) or Lambert baseline
+#   --capture-evaluation-pixels ABS_JSON  optional evaluator-only finite-capture ray queries
+#       Reuses --capture-python for strict JSON validation; adds root
+#       evaluation_depth_reference.json and capture_manifest.evaluation_depth_reference only.
 #
 # LAYERS (each toggled on/off by presence in --layers):
 #   heightmap  : unlit false-color ramp by elevation        (layer 1)
@@ -141,6 +144,204 @@ var _bench_cams := 8
 # sensors.json per docs/sensor_bridge_contract.md §2. The Godot->ROS conversion is
 # NOT done here (sensors.json is 100% Godot-frame; §3 is C1's job).
 var _cameras_mode := false
+# Truth-isolated, finite apparatus capture; legacy capture modes remain diagnostic.
+var _capture_runtime_mode := false
+var _capture_runtime_frames := 0
+var _capture_out := ""
+var _capture_postures_path := ""
+var _capture_coupling := "fixed_chassis"
+var _capture_python := ""
+var _capture_native_raster := false
+var _capture_postures: Array = []
+# These objects never enter the rendered World3D or a sensor packet.
+var _capture_evaluation_pixels := ""
+var _evaluation_arg_error := ""
+var _evaluation_query: Dictionary = {}
+var _evaluation_frames: Dictionary = {}
+var _evaluation_query_sha := ""
+var _evaluation_source_id := ""
+var _evaluation_space := RID()
+var _evaluation_bodies: Array = []
+var _evaluation_geometry: Array = []
+var _evaluation_records: Array = []
+var _evaluation_ledger: Array = []
+var _evaluation_pending: Dictionary = {}
+var _evaluation_error := ""
+var _evaluation_completed_frames := 0
+var _evaluation_probes: Dictionary = {}
+const EVALUATION_TERRAIN_LAYER := 1 << 29
+# Frozen, reviewed non-displacing shaders: a changed material must be reviewed
+# before its base triangles may certify rover visibility. GPU terrain depth
+# itself remains sourced directly from the rendered attachment.
+const EVALUATION_GEOMETRY_SHADERS := {
+	"terrain_active": "278da6e7a32d79c5cec0565dd76da732affdd7c50e04281c38309a78b58cebae",
+	"rover": "5aa3fce0826390426fd4181ec0fc07de7d2fe0fb02c01afeccb8bc7d75f3c070",
+}
+const EVALUATION_ROVER_LAYER := 1 << 30
+
+# Read-only observer of the existing camera depth attachment, not another
+# camera/pass rendering the scene. The compute dispatch only copies requested
+# texels into evaluator-owned storage; it never writes a scene texture.
+class EvaluationDepthProbe extends CompositorEffect:
+	var mutex := Mutex.new()
+	var request: Dictionary = {}
+	var result: Dictionary = {}
+	var shader := RID()
+	var pipeline := RID()
+	var sampler := RID()
+	# RenderingServer's internal OFF mode is returned by native buffers at 1:1;
+	# Godot 4.6 rendering_server.h assigns 255 but does not expose it to scripts.
+	const NATIVE_SCALING_OFF := 255
+	const COPY_DEPTH := """#version 450
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0) uniform sampler2D scene_depth;
+layout(set = 0, binding = 1, std430) readonly buffer Queries { ivec2 uv[]; } queries;
+layout(set = 0, binding = 2, std430) writeonly buffer Depths { float z[]; } depths;
+layout(push_constant, std430) uniform Params { uvec4 data; } params;
+void main() {
+	uint i = gl_GlobalInvocationID.x;
+	if (i < params.data.x) {
+		ivec2 uv = queries.uv[i];
+		depths.z[i] = uv.x < 0 ? -1.0 : texelFetch(scene_depth, uv, 0).r;
+	}
+}
+"""
+
+	func _init() -> void:
+		effect_callback_type = EFFECT_CALLBACK_TYPE_POST_OPAQUE
+		access_resolved_depth = true
+
+	func arm(frame_index: int, pixels: Array, size: Vector2i) -> void:
+		mutex.lock()
+		request = {"frame_index": frame_index, "pixels": pixels, "size": size}
+		result = {}
+		mutex.unlock()
+
+	func take() -> Dictionary:
+		mutex.lock()
+		var captured := result
+		result = {}
+		mutex.unlock()
+		return captured
+
+	func publish(captured: Dictionary) -> void:
+		mutex.lock()
+		result = captured
+		mutex.unlock()
+
+	func _render_callback(_type: int, render_data: RenderData) -> void:
+		mutex.lock()
+		var pending := request
+		request = {}
+		mutex.unlock()
+		if pending.is_empty():
+			return
+		var captured := {"frame_index": pending["frame_index"], "error": ""}
+		var rd := RenderingServer.get_rendering_device()
+		var buffers := render_data.get_render_scene_buffers() as RenderSceneBuffersRD
+		if buffers != null:
+			captured["raster"] = {"view_count": buffers.get_view_count(),
+				"internal_size": str(buffers.get_internal_size()), "requested_size": str(pending["size"]),
+				"taa": buffers.get_use_taa(), "scaling_mode": buffers.get_scaling_3d_mode()}
+		if rd == null or buffers == null or buffers.get_view_count() != 1 \
+				or buffers.get_internal_size() != pending["size"] or buffers.get_use_taa() \
+				or buffers.get_scaling_3d_mode() not in [RenderingServer.VIEWPORT_SCALING_3D_MODE_BILINEAR, NATIVE_SCALING_OFF]:
+			captured["error"] = "native depth requires RD, one view, unscaled bilinear raster and no temporal jitter; rd=%s buffers=%s raster=%s" % [rd != null, buffers != null, JSON.stringify(captured.get("raster", {}))]
+			publish(captured)
+			return
+		var depth := buffers.get_depth_layer(0)
+		if not depth.is_valid():
+			captured["error"] = "actual native GPU depth attachment unavailable"
+			publish(captured)
+			return
+		if not shader.is_valid():
+			var source := RDShaderSource.new()
+			source.source_compute = COPY_DEPTH
+			var spirv := rd.shader_compile_spirv_from_source(source)
+			if spirv.get_stage_compile_error(RenderingDevice.SHADER_STAGE_COMPUTE) != "":
+				captured["error"] = "depth-copy shader: " + spirv.get_stage_compile_error(RenderingDevice.SHADER_STAGE_COMPUTE)
+				publish(captured)
+				return
+			shader = rd.shader_create_from_spirv(spirv)
+			pipeline = rd.compute_pipeline_create(shader)
+			sampler = rd.sampler_create(RDSamplerState.new())
+		if not shader.is_valid() or not pipeline.is_valid() or not sampler.is_valid():
+			captured["error"] = "native depth-copy GPU pipeline allocation failed"
+			publish(captured)
+			return
+		var pixels: Array = pending["pixels"]
+		var coordinates := PackedInt32Array()
+		coordinates.resize(pixels.size() * 2)
+		for i in range(pixels.size()):
+			var pixel: Array = pixels[i]
+			var integral: bool = float(pixel[0]) == floor(float(pixel[0])) and float(pixel[1]) == floor(float(pixel[1]))
+			coordinates[2 * i] = int(pixel[0]) if integral else -1
+			coordinates[2 * i + 1] = int(pixel[1]) if integral else -1
+		var query_buffer := rd.storage_buffer_create(coordinates.size() * 4, coordinates.to_byte_array())
+		var depth_buffer := rd.storage_buffer_create(pixels.size() * 4)
+		if not query_buffer.is_valid() or not depth_buffer.is_valid():
+			if query_buffer.is_valid():
+				rd.free_rid(query_buffer)
+			if depth_buffer.is_valid():
+				rd.free_rid(depth_buffer)
+			captured["error"] = "native depth-copy GPU buffer allocation failed"
+			publish(captured)
+			return
+		var texture_uniform := RDUniform.new()
+		texture_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+		texture_uniform.binding = 0
+		texture_uniform.add_id(sampler)
+		texture_uniform.add_id(depth)
+		var query_uniform := RDUniform.new()
+		query_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
+		query_uniform.binding = 1
+		query_uniform.add_id(query_buffer)
+		var depth_uniform := RDUniform.new()
+		depth_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
+		depth_uniform.binding = 2
+		depth_uniform.add_id(depth_buffer)
+		var uniforms := rd.uniform_set_create([texture_uniform, query_uniform, depth_uniform], shader, 0)
+		if not uniforms.is_valid():
+			rd.free_rid(query_buffer)
+			rd.free_rid(depth_buffer)
+			captured["error"] = "native depth-copy GPU bindings unavailable"
+			publish(captured)
+			return
+		var commands := rd.compute_list_begin()
+		if commands < 0:
+			rd.free_rid(uniforms)
+			rd.free_rid(query_buffer)
+			rd.free_rid(depth_buffer)
+			captured["error"] = "native depth-copy GPU command list unavailable"
+			publish(captured)
+			return
+		rd.compute_list_bind_compute_pipeline(commands, pipeline)
+		rd.compute_list_bind_uniform_set(commands, uniforms, 0)
+		var params := PackedInt32Array([pixels.size(), 0, 0, 0]).to_byte_array()
+		rd.compute_list_set_push_constant(commands, params, params.size())
+		rd.compute_list_dispatch(commands, ceili(float(pixels.size()) / 64.0), 1, 1)
+		rd.compute_list_end()
+		var bytes := rd.buffer_get_data(depth_buffer)
+		captured["depths"] = bytes.to_float32_array()
+		captured["msaa_3d"] = buffers.get_msaa_3d()
+		captured["screen_space_aa"] = buffers.get_screen_space_aa()
+		if bytes.size() != pixels.size() * 4:
+			captured["error"] = "incomplete native GPU depth readback"
+		rd.free_rid(uniforms)
+		rd.free_rid(query_buffer)
+		rd.free_rid(depth_buffer)
+		publish(captured)
+
+	func release() -> void:
+		var rd := RenderingServer.get_rendering_device()
+		if shader.is_valid():
+			rd.free_rid(shader)
+		if sampler.is_valid():
+			rd.free_rid(sampler)
+		shader = RID()
+		pipeline = RID()
+		sampler = RID()
+var _sim_time_s := 0.0
 var _drive_mode := false        # --drive: live real-time 8-pane drive view (terrain-modeller)
 var _drive_auto := 0            # --drive-auto N: scripted N-frame drive then screenshot+quit (headless verify)
 # Wave-1 lane dispatch modes (skeletons land in L0; lanes fill their owned .gd in).
@@ -218,6 +419,14 @@ var _rover_up := Vector3.UP
 
 func _ready() -> void:
 	_parse_args()
+	if _evaluation_arg_error != "" or (_capture_evaluation_pixels != "" and not _capture_runtime_mode):
+		push_error("sidecar: " + (_evaluation_arg_error if _evaluation_arg_error != "" else \
+			"--capture-evaluation-pixels requires finite --capture-runtime"))
+		get_tree().quit(2)
+		return
+	if _capture_runtime_mode and not _prepare_runtime_capture():
+		get_tree().quit(2)
+		return
 
 	if _layers.is_empty():
 		_layers = DEFAULT_LAYERS.split(",")
@@ -241,6 +450,10 @@ func _ready() -> void:
 	_setup_environment()
 	_build_layers()
 
+	if _capture_runtime_frames > 0:
+		var capture_ok: bool = await _runtime_capture()
+		get_tree().quit(0 if capture_ok else 6)
+		return
 	if _drive_mode:
 		# live real-time 8-pane drive view: hand off to the drive controller (no quit).
 		var dc = preload("res://drive_controller.gd").new()
@@ -295,6 +508,768 @@ func _ready() -> void:
 		" size=", _viewport_size.x, "x", _viewport_size.y,
 		" scene=", sf.scene_name, " layers=", ",".join(_layers))
 	get_tree().quit(0)
+
+func _process(delta: float) -> void:
+	_sim_time_s += delta
+
+func _prepare_runtime_capture() -> bool:
+	if _capture_runtime_frames < 1 or _capture_runtime_frames > 1000:
+		push_error("sidecar: --capture-runtime requires 1..1000 finite exposures")
+		return false
+	if not _capture_out.is_absolute_path() or _capture_postures_path == "":
+		push_error("sidecar: runtime capture requires absolute --capture-out NEW_DIR and --capture-postures JSON")
+		return false
+	if _cameras_mode or _cameras_seq_mode or _drive_mode or _chase_cam or _seq_dir != "" \
+			or _rover_pose_path != "" or _sun_sweep_mode or _depart_spiral_mode \
+			or _topdown_spiral_mode or _lander_faces_mode or _probe_multicam or _bench_multicam:
+		push_error("sidecar: runtime capture cannot be combined with legacy/trajectory/chase modes")
+		return false
+	if _chassis_lift_m != 0.0 or _rover_sink != 0.0 or not _layers.has("rover"):
+		push_error("sidecar: runtime capture requires rover layer; independent chassis lift/sink is forbidden")
+		return false
+	if _capture_coupling not in ["fixed_chassis", "posture_kinematics"]:
+		push_error("sidecar: --capture-coupling must be fixed_chassis or posture_kinematics")
+		return false
+	if _capture_coupling == "posture_kinematics" and not FileAccess.file_exists(_capture_python):
+		push_error("sidecar: authoritative coupling requires --capture-python EXISTING_INTERPRETER")
+		return false
+	var file := FileAccess.open(_capture_postures_path, FileAccess.READ)
+	if file == null:
+		push_error("sidecar: cannot open posture command schedule")
+		return false
+	var parsed = JSON.parse_string(file.get_as_text())
+	if not parsed is Array or parsed.size() != _capture_runtime_frames:
+		push_error("sidecar: posture schedule must contain exactly one joint-command object per exposure")
+		return false
+	for item in parsed:
+		if not item is Dictionary or item.size() != 2:
+			push_error("sidecar: each command must contain only arm_front_pitch_rad and arm_back_pitch_rad")
+			return false
+		for key in ["arm_front_pitch_rad", "arm_back_pitch_rad"]:
+			if not item.has(key) or not (item[key] is float or item[key] is int) \
+					or not is_finite(float(item[key])) or absf(float(item[key])) > PI:
+				push_error("sidecar: invalid joint command; require finite radians in [-pi,pi]")
+				return false
+	_capture_postures = parsed
+	_arm_front_pitch_override = float(_capture_postures[0]["arm_front_pitch_rad"])
+	_arm_back_pitch_override = float(_capture_postures[0]["arm_back_pitch_rad"])
+	if _capture_evaluation_pixels != "" and not _prepare_evaluation_queries():
+		return false
+	_capture_out = _capture_out.trim_suffix("/")
+	if DirAccess.dir_exists_absolute(_capture_out) or FileAccess.file_exists(_capture_out):
+		push_error("sidecar: refusing to overwrite existing capture output: " + _capture_out)
+		return false
+	var parent_path := _capture_out.get_base_dir()
+	if DirAccess.make_dir_recursive_absolute(parent_path) != OK:
+		push_error("sidecar: cannot create capture parent directory")
+		return false
+	var parent := DirAccess.open(parent_path)
+	if parent == null or parent.make_dir(_capture_out.get_file()) != OK:
+		push_error("sidecar: cannot exclusively create new capture directory")
+		return false
+	return true
+
+func _runtime_capture() -> bool:
+	var root := _find_rover_root()
+	if root == null or root.get_node_or_null("arm_front/drum_front") == null \
+			or root.get_node_or_null("arm_back/drum_back") == null or not root.position.is_finite():
+		push_error("sidecar: runtime capture requires the existing articulated arm/drum assets")
+		return false
+	var nominal := root.transform
+	var fwd: Vector3 = root.basis * Vector3.RIGHT
+	fwd.y = 0.0
+	var target := SensorsEmitScript.build_lander(self, sf, AprilTagGenScript,
+		root.global_position, fwd.normalized(), _lander_standoff, _lander_yaw_deg)
+	# No automatically placed fiducial may supply texture or an implicit anchor
+	# to this natural-feature study. Its pose remains evaluation-only metadata.
+	target.visible = false
+	# Build the sensor rig near the origin, before any sub-cell camera offsets
+	# are rounded at large map coordinates. The terrain and actors move together.
+	var scene_origin := root.global_position
+	global_position -= scene_origin
+	var scene_from_capture := SensorsEmitScript.pose_dict(Transform3D(Basis.IDENTITY, scene_origin))
+	var cams: Array = CameraRigScript.build(self, root, get_viewport().world_3d,
+		_viewport_size, _cam_pitch_deg, _camera_fov_override)
+	if _capture_native_raster:
+		# Explicit sensor-only apparatus option. Never alter project defaults or
+		# silently change pixels merely because an evaluator requested depth.
+		for entry in cams:
+			var sensor_viewport: Viewport = (entry["cam"] as Camera3D).get_viewport()
+			sensor_viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+			sensor_viewport.scaling_3d_scale = 1.0
+			sensor_viewport.msaa_3d = Viewport.MSAA_DISABLED
+			sensor_viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+			sensor_viewport.use_taa = false
+	var scene_identity := _runtime_scene_identity()
+	if scene_identity.is_empty():
+		return false
+	var work_lights: Array = CameraRigScript.build_work_lights(root, _work_lights_on)
+	var calibration := _runtime_calibration(cams)
+	if calibration.is_empty():
+		return false
+	var capture_id := _capture_out.get_file() + ":" + str(OS.get_process_id())
+	if _capture_evaluation_pixels != "":
+		_evaluation_source_id = "evaluation:native_render_depth:" + capture_id + ":" + _evaluation_query_sha
+		if not _build_evaluation_geometry(root) or not _build_evaluation_probes(cams):
+			return false
+	var frames: Array = []
+	for k in range(_capture_runtime_frames):
+		var command: Dictionary = _capture_postures[k]
+		for side in ["front", "back"]:
+			var joint := root.get_node("arm_" + side) as Node3D
+			var rest: Basis = joint.get_meta("joint_rest_basis")
+			var axis: Vector3 = joint.get_meta("joint_axis")
+			joint.basis = rest * Basis(axis, float(command["arm_" + side + "_pitch_rad"]))
+		var readback: Dictionary = SensorsEmitScript.joint_proprioception(root, _sim_time_s, k)
+		var sample: Dictionary = readback["channels"]["joints"]["samples"][0]
+		var coupling := _runtime_coupling(sample)
+		if coupling.is_empty():
+			return false
+		root.transform = nominal
+		if _capture_coupling == "posture_kinematics":
+			# Positive source-law pitch raises the nose (+X toward +Y in Godot).
+			root.basis = nominal.basis * Basis(Vector3(0, 0, 1), coupling["pitch_rad"])
+			root.position.y = nominal.origin.y + float(coupling["chassis_lift_m"])
+		CameraRigScript.sync_mounts(cams, root)
+		if _capture_evaluation_pixels != "":
+			_sync_evaluation_geometry()
+			# Flush static-body transforms in the isolated space before exposure.
+			await get_tree().physics_frame
+		# New geometry must register, then snapshot the state at the actual draw
+		# event whose completed textures are saved. No pose changes inside exposure.
+		for _warm in range(3):
+			await RenderingServer.frame_post_draw
+		await RenderingServer.frame_pre_draw
+		var timestamp := _sim_time_s
+		var exposure := {"model": "instantaneous_global_shutter",
+			"timestamp_s": timestamp, "duration_s": 0.0,
+			"tonemap_exposure": _exposure, "process_frame": Engine.get_process_frames(),
+			"sensor_integration_time": {"status": "UNAVAILABLE", "reason": "renderer has no physical integration model"}}
+		var proprio: Dictionary = SensorsEmitScript.joint_proprioception(root, timestamp, k)
+		var joint_id := "%s:%06d:joints" % [capture_id, k]
+		var kin: Dictionary = SensorsEmitScript.kinematics_snapshot(
+			root, timestamp, joint_id, calibration["calibration_id"])
+		kin["coupling"] = coupling
+		var lights: Array = []
+		for light in work_lights:
+			lights.append({"name": String(light.name), "on": light.visible,
+				"pose_in_base_link": SensorsEmitScript.pose_dict(light.transform),
+				"energy": light.light_energy, "photometry": "uncalibrated Godot energy mapping"})
+		var sun := SensorsEmitScript.sun_block(_sun_elev_deg, _sun_azim_deg, timestamp)
+		sun["source"] = "configured_directional_light"
+		sun["evidence_class"] = "rendered_sensor_sim"
+		sun["epoch_utc"] = null
+		sun["backend"] = "apparatus_fixed_direction"
+		var packet := SensorsEmitScript.build_runtime_packet(capture_id, String(sf.scene_name),
+			k, timestamp, cams, calibration, proprio, kin, sun, exposure, lights)
+		var truth := SensorsEmitScript.build_evaluation_packet(capture_id, k, timestamp, root, target, cams)
+		truth["world_frame"] = "capture_local"
+		truth["scene_from_capture"] = scene_from_capture
+		for request in _evaluation_frames.get(k, []):
+			if not request["pixels"].is_empty():
+				_evaluation_probes[request["name"]].arm(k, request["pixels"], _viewport_size)
+		await RenderingServer.frame_post_draw
+		var frame_dir := _capture_out.path_join("%06d" % k)
+		if DirAccess.make_dir_recursive_absolute(frame_dir) != OK:
+			push_error("sidecar: failed to create frame directory")
+			return false
+		for entry in cams:
+			var image: Image = (entry["sv"] as SubViewport).get_texture().get_image()
+			var image_path := frame_dir.path_join(String(entry["image"]))
+			if image == null or image.is_empty() or image.save_png(image_path) != OK:
+				push_error("sidecar: runtime image readback/write failed: " + image_path)
+				return false
+		if not _write_runtime_json(frame_dir.path_join("runtime_sensors.json"), packet) \
+				or not _write_runtime_json(frame_dir.path_join("evaluation_truth.json"), truth):
+			return false
+		if _evaluation_frames.has(k) and not await _capture_evaluation_frame(k, cams, packet, frame_dir):
+			return false
+		frames.append({"directory": "%06d" % k, "timestamp_s": timestamp,
+			"runtime_sha256": FileAccess.get_sha256(frame_dir.path_join("runtime_sensors.json")),
+			"evaluation_sha256": FileAccess.get_sha256(frame_dir.path_join("evaluation_truth.json"))})
+		print("sidecar: runtime exposure %d/%d t=%.6f %s" % [k + 1, _capture_runtime_frames, timestamp, frame_dir])
+	var manifest := {
+		"schema_version": "argus.parallax_sundial.capture/1", "status": "COMPLETE",
+		"capture_id": capture_id, "evidence_class": "rendered_sensor_sim", "frames": frames,
+		"godot_version": Engine.get_version_info(),
+		"world_frame": "capture_local",
+		"fiducial_visible": false, "fiducial_anchor_admissible": false,
+		"scene_directory": _scene_dir, "scene_metadata_sha256": FileAccess.get_sha256(_scene_dir.path_join("metadata.json")),
+		"scene_identity": scene_identity,
+		"posture_commands_sha256": FileAccess.get_sha256(_capture_postures_path),
+		"calibration_id": calibration["calibration_id"], "profile_sha256": calibration["profile_sha256"],
+		"coupling": _capture_coupling, "self_shadow_visibility": "UNASSESSED_SENSOR_IMAGES_REQUIRED",
+		"raster_mode": "native_single_sample" if _capture_native_raster else "configured_sensor_raster"}
+	if _capture_evaluation_pixels != "":
+		var descriptor := _finish_evaluation_reference(capture_id)
+		if descriptor.is_empty():
+			return false
+		manifest["evaluation_depth_reference"] = descriptor
+	return _write_runtime_json(_capture_out.path_join("capture_manifest.json"), manifest)
+
+# Strict query input is selected from sensor images before any native reference
+# is opened. Empty support is allowed only as an explicit refusal ledger entry.
+func _evaluation_fail(reason: String) -> bool:
+	_evaluation_error = reason
+	push_error("sidecar: evaluation depth: " + reason)
+	return false
+
+func _evaluation_keys(value: Variant, keys: Array) -> bool:
+	if not value is Dictionary or value.size() != keys.size():
+		return false
+	for key in keys:
+		if not value.has(key):
+			return false
+	return true
+
+func _evaluation_number(value: Variant) -> bool:
+	return (value is float or value is int) and is_finite(float(value))
+
+func _prepare_evaluation_queries() -> bool:
+	if not _capture_evaluation_pixels.is_absolute_path():
+		return _evaluation_fail("query path must be absolute")
+	var file := FileAccess.open(_capture_evaluation_pixels, FileAccess.READ)
+	if file == null:
+		return _evaluation_fail("cannot open query JSON")
+	var query_bytes := file.get_buffer(file.get_length())
+	var text := query_bytes.get_string_from_utf8()
+	file.close()
+	var hash := HashingContext.new()
+	hash.start(HashingContext.HASH_SHA256)
+	hash.update(query_bytes)
+	_evaluation_query_sha = hash.finish().hex_encode()
+	# Godot's JSON reader accepts trailing commas and discards duplicate keys.
+	# Reuse the finite-capture Python interpreter for strict config validation,
+	# bind its digest to the bytes above, then use native decoded values below.
+	if not FileAccess.file_exists(_capture_python):
+		return _evaluation_fail("strict query validation requires --capture-python EXISTING_INTERPRETER")
+	var validator := """import sys,json,hashlib
+def unique(pairs):
+    result={}
+    for key,value in pairs:
+        if key in result: raise ValueError('duplicate JSON key: '+key)
+        result[key]=value
+    return result
+def reject(value):
+    raise ValueError('nonfinite JSON constant: '+value)
+raw=open(sys.argv[1],'rb').read()
+json.loads(raw.decode('utf-8'),object_pairs_hook=unique,parse_constant=reject)
+print(hashlib.sha256(raw).hexdigest())
+"""
+	var validation: Array = []
+	var exit_code := OS.execute(_capture_python, PackedStringArray(["-c", validator, _capture_evaluation_pixels]), validation, true)
+	if exit_code != 0 or "".join(PackedStringArray(validation)).strip_edges() != _evaluation_query_sha:
+		return _evaluation_fail("query is not strict JSON, has duplicate keys, or changed during validation: " + str(validation))
+	var json := JSON.new()
+	if json.parse(text) != OK:
+		return _evaluation_fail("invalid query JSON: " + json.get_error_message())
+	var query: Variant = json.data
+	if not _evaluation_keys(query, ["schema_version", "episode_id", "frame_id", "frames"]) \
+			or query["schema_version"] != "argus.parallax_sundial.depth_queries/1":
+		return _evaluation_fail("query requires exactly the depth_queries/1 fields")
+	for key in ["episode_id", "frame_id"]:
+		if not query[key] is String or query[key].strip_edges() == "":
+			return _evaluation_fail("query " + key + " must be a nonempty declared label")
+	if not query["frames"] is Array:
+		return _evaluation_fail("query frames must be an array")
+	var names: Dictionary = {}
+	for camera in CameraRigScript.CAMERAS:
+		names[String(camera["name"])] = true
+	for frame in query["frames"]:
+		if not _evaluation_keys(frame, ["frame_index", "cameras"]):
+			return _evaluation_fail("frame requires exactly frame_index and cameras")
+		var index: Variant = frame["frame_index"]
+		if not _evaluation_number(index) or float(index) != floor(float(index)) \
+				or float(index) < 0 or float(index) >= _capture_runtime_frames:
+			return _evaluation_fail("frame_index must identify an actual requested exposure")
+		var k := int(index)
+		if _evaluation_frames.has(k) or not frame["cameras"] is Array:
+			return _evaluation_fail("duplicate frame_index or invalid cameras array")
+		var seen_names: Dictionary = {}
+		for camera in frame["cameras"]:
+			if not _evaluation_keys(camera, ["name", "image_sha256", "pixels"]):
+				return _evaluation_fail("camera requires exactly name, image_sha256 and pixels")
+			if not camera["name"] is String or not names.has(camera["name"]) or seen_names.has(camera["name"]):
+				return _evaluation_fail("unknown or duplicate native camera name")
+			seen_names[camera["name"]] = true
+			var sha: Variant = camera["image_sha256"]
+			if not sha is String or sha.length() != 64:
+				return _evaluation_fail("image_sha256 must be 64 lowercase hex characters")
+			for ch in sha:
+				if not ch in "0123456789abcdef":
+					return _evaluation_fail("image_sha256 must be 64 lowercase hex characters")
+			var pixels: Variant = camera["pixels"]
+			if not pixels is Array or pixels.size() > 10000:
+				return _evaluation_fail("pixels must be an array of at most 10000 coordinates per camera")
+			var seen_pixels: Dictionary = {}
+			for pixel in pixels:
+				if not pixel is Array or pixel.size() != 2 \
+						or not _evaluation_number(pixel[0]) or not _evaluation_number(pixel[1]):
+					return _evaluation_fail("pixel coordinates must be finite numeric [u,v]")
+				var u := float(pixel[0])
+				var v := float(pixel[1])
+				if u < 0 or v < 0 or u >= _viewport_size.x or v >= _viewport_size.y:
+					return _evaluation_fail("pixel outside actual viewport")
+				# Signed zero is the same coordinate even though printf preserves
+				# its sign; reject it as duplicate rather than minting two IDs.
+				var coordinate_key := "%.6f:%.6f" % [0.0 if u == 0 else u, 0.0 if v == 0 else v]
+				if seen_pixels.has(coordinate_key):
+					return _evaluation_fail("duplicate pixel or six-decimal logical sample ID collision")
+				seen_pixels[coordinate_key] = true
+		_evaluation_frames[k] = frame["cameras"]
+	_evaluation_query = query
+	if _evaluation_frames.is_empty():
+		_evaluation_ledger.append({"status": "refused", "refusal_reason": "empty_frame_requests"})
+	return true
+
+# Far-field vertices are displaced only on the GPU. Never invent a second
+# height interpolator or ray against its undisplaced PlaneMesh.
+func _build_evaluation_probes(cams: Array) -> bool:
+	for entry in cams:
+		var camera := entry["cam"] as Camera3D
+		if camera.compositor != null or camera.projection != Camera3D.PROJECTION_PERSPECTIVE:
+			return _evaluation_fail("depth observer requires unchanged perspective camera without existing compositor")
+		var probe := EvaluationDepthProbe.new()
+		var compositor := Compositor.new()
+		compositor.compositor_effects = [probe]
+		camera.compositor = compositor
+		_evaluation_probes[String(entry["name"])] = probe
+	return true
+
+func _build_evaluation_geometry(root: Node3D) -> bool:
+	# This finite apparatus supports its existing opaque terrain+rover geometry.
+	# Do not silently omit clasts, particles, overlays or distortion from visibility.
+	for layer in _layers:
+		if layer not in ["terrain", "rover"]:
+			return _evaluation_fail("native reference boundary supports only terrain,rover layers")
+	var terrain: Node3D = null
+	for child in get_children():
+		if child.get_script() == TerrainScript:
+			if terrain != null:
+				return _evaluation_fail("ambiguous rendered terrain node")
+			terrain = child
+	if terrain == null:
+		return _evaluation_fail("no actual rendered terrain")
+	_evaluation_space = PhysicsServer3D.space_create()
+	PhysicsServer3D.space_set_active(_evaluation_space, true)
+	var active := terrain.get("_active_mi") as MeshInstance3D
+	var far_field := terrain.get("_far_mi") as MeshInstance3D
+	if active == null or far_field == null or active.mesh == null or far_field.mesh == null:
+		return _evaluation_fail("missing active/far rendered mesh instances")
+	if not _add_evaluation_body(active, active.mesh, "terrain_active", EVALUATION_TERRAIN_LAYER):
+		return false
+	var material := far_field.material_override as ShaderMaterial
+	if material == null or material.shader == null:
+		return _evaluation_fail("missing actual far-field material")
+	_evaluation_geometry.append({"kind": "terrain_farfield", "node_path": str(far_field.get_path()),
+		"shader": material.shader.resource_path, "shader_sha256": FileAccess.get_sha256(material.shader.resource_path),
+		"source": "actual GPU depth; shader-displaced mesh intentionally absent from CPU collision"})
+	for mi: MeshInstance3D in _collect_mesh_instances(root):
+		if mi.is_visible_in_tree() and mi.mesh != null:
+			if not _add_evaluation_body(mi, mi.mesh, "rover", EVALUATION_ROVER_LAYER):
+				return false
+	return true
+
+func _add_evaluation_body(mi: MeshInstance3D, mesh: Mesh, kind: String, layer: int) -> bool:
+	if not mi.is_visible_in_tree() or mi.skin != null or mi.get_blend_shape_count() != 0:
+		return _evaluation_fail("reference geometry must be visible, unskinned and without morph targets")
+	var material := mi.material_override as ShaderMaterial
+	if material == null or material.shader == null or mi.material_overlay != null \
+			or material.next_pass != null or material.shader.code.sha256_text() != EVALUATION_GEOMETRY_SHADERS[kind]:
+		return _evaluation_fail("native triangle visibility requires the reviewed non-displacing opaque shader")
+	for surface_index in range(mesh.get_surface_count()):
+		var surface := RenderingServer.mesh_get_surface(mesh.get_rid(), surface_index)
+		if surface.get("primitive") != Mesh.PRIMITIVE_TRIANGLES or not surface.get("lods", {}).is_empty():
+			return _evaluation_fail("render-only mesh LOD/nontriangle geometry is outside native collision boundary")
+	var shape := mesh.create_trimesh_shape()
+	if shape == null:
+		return _evaluation_fail("cannot create exact rendered triangle collision for " + str(mi.get_path()))
+	shape.backface_collision = true
+	var body := PhysicsServer3D.body_create()
+	PhysicsServer3D.body_set_mode(body, PhysicsServer3D.BODY_MODE_STATIC)
+	PhysicsServer3D.body_set_collision_layer(body, layer)
+	PhysicsServer3D.body_set_collision_mask(body, 0)
+	PhysicsServer3D.body_add_shape(body, shape.get_rid())
+	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_TRANSFORM, mi.global_transform)
+	PhysicsServer3D.body_set_space(body, _evaluation_space)
+	_evaluation_bodies.append({"rid": body, "shape": shape, "node": mi, "kind": kind})
+	_evaluation_geometry.append({"kind": kind, "node_path": str(mi.get_path()),
+		"mesh_faces": shape.get_faces().size() / 3, "render_layers": mi.layers,
+		"mesh_resource": mesh.resource_path, "source": "existing rendered mesh triangles"})
+	return true
+
+func _sync_evaluation_geometry() -> void:
+	for body in _evaluation_bodies:
+		var node := body["node"] as MeshInstance3D
+		node.force_update_transform()
+		PhysicsServer3D.body_set_state(body["rid"], PhysicsServer3D.BODY_STATE_TRANSFORM, node.global_transform)
+
+func _evaluation_active_face_diagnostic(hit: Dictionary, camera: Camera3D, direction: Vector3) -> Dictionary:
+	# Evaluator-only evidence about the actual collision face. Clockwise front
+	# normals are the NEGATIVE edge cross product; smooth shading normals and
+	# two-sided physics hit normals do not establish raster face eligibility.
+	for body in _evaluation_bodies:
+		if body["rid"] != hit.get("rid"):
+			continue
+		var node := body["node"] as MeshInstance3D
+		var shape := body["shape"] as ConcavePolygonShape3D
+		var mesh_transform := node.global_transform
+		var collision_transform: Transform3D = PhysicsServer3D.body_get_state(
+			body["rid"], PhysicsServer3D.BODY_STATE_TRANSFORM)
+		var details := {"node_path": str(node.get_path()), "visible_in_tree": node.is_visible_in_tree(),
+			"camera_cull_mask": camera.cull_mask, "mesh_render_layers": node.layers,
+			"camera_render_layers_include_mesh": (camera.cull_mask & node.layers) != 0,
+			"reviewed_shader_cull_mode": "back", "shape_backface_collision": shape.backface_collision,
+			"mesh_basis_determinant": mesh_transform.basis.determinant(),
+			"collision_basis_determinant": collision_transform.basis.determinant()}
+		for key in ["mesh_global_transform", "collision_global_transform"]:
+			var xf: Transform3D = mesh_transform if key == "mesh_global_transform" else collision_transform
+			details[key] = {"basis_columns": [
+				[xf.basis.x.x, xf.basis.x.y, xf.basis.x.z],
+				[xf.basis.y.x, xf.basis.y.y, xf.basis.y.z],
+				[xf.basis.z.x, xf.basis.z.y, xf.basis.z.z]],
+				"origin_m": [xf.origin.x, xf.origin.y, xf.origin.z]}
+		var faces := shape.get_faces()
+		var index := int(hit.get("face_index", -1)) * 3
+		if index < 0 or index + 2 >= faces.size():
+			details["face_evidence_status"] = "unavailable_native_face_index"
+			return details
+		var a := mesh_transform * faces[index]
+		var b := mesh_transform * faces[index + 1]
+		var c := mesh_transform * faces[index + 2]
+		var front_normal := (c - a).cross(b - a).normalized()
+		details.merge({"face_evidence_status": "native_triangle",
+			"triangle_vertices_capture_local_m": [[a.x, a.y, a.z], [b.x, b.y, b.z], [c.x, c.y, c.z]],
+			"clockwise_front_normal": [front_normal.x, front_normal.y, front_normal.z],
+			"clockwise_front_dot_ray": front_normal.dot(direction),
+			"front_facing": front_normal.dot(direction) < 0.0})
+		return details
+	return {"face_evidence_status": "unavailable_native_body"}
+
+func _capture_evaluation_frame(k: int, cams: Array, packet: Dictionary, directory: String) -> bool:
+	var entries: Dictionary = {}
+	var samples: Dictionary = {}
+	for entry in cams:
+		entries[String(entry["name"])] = entry
+	for sample in packet["cameras"]:
+		samples[String(sample["name"])] = sample
+	var requests: Array = _evaluation_frames[k]
+	var gpu: Dictionary = {}
+	for request in requests:
+		var name: String = request["name"]
+		var path := directory.path_join(String(entries[name]["image"]))
+		if FileAccess.get_sha256(path) != request["image_sha256"]:
+			return _evaluation_fail("source PNG SHA mismatch at frame %d camera %s" % [k, name])
+		if not request["pixels"].is_empty():
+			var captured: Dictionary = _evaluation_probes[name].take()
+			if captured.is_empty() or captured.get("frame_index") != k:
+				return _evaluation_fail("GPU reference missing at actual anchor exposure")
+			if captured.get("error", "") != "":
+				return _evaluation_fail(captured["error"])
+			gpu[name] = captured
+	if requests.is_empty():
+		_evaluation_ledger.append({"frame_index": k, "status": "refused", "refusal_reason": "empty_camera_requests"})
+	# No actor/camera changes until the native physics callback finishes. Saved
+	# packet time is the anchor exposure, not the later query-computation time.
+	_evaluation_pending = {"frame_index": k, "requests": requests, "entries": entries, "samples": samples, "gpu": gpu}
+	while not _evaluation_pending.is_empty():
+		await get_tree().physics_frame
+	return _evaluation_error == ""
+
+func _physics_process(_delta: float) -> void:
+	if _evaluation_pending.is_empty():
+		return
+	var state := PhysicsServer3D.space_get_direct_state(_evaluation_space)
+	if state == null:
+		_evaluation_fail("isolated native physics space unavailable")
+	else:
+		for request in _evaluation_pending["requests"]:
+			var name: String = request["name"]
+			var camera := _evaluation_pending["entries"][name]["cam"] as Camera3D
+			var sample: Dictionary = _evaluation_pending["samples"][name]
+			var ledger := {"frame_index": _evaluation_pending["frame_index"], "camera": name,
+				"camera_sample_id": sample["sample_id"], "timestamp_s": sample["timestamp_s"],
+				"image_sha256": request["image_sha256"], "requested_pixels": request["pixels"].size(),
+				"status": "complete" if not request["pixels"].is_empty() else "refused",
+				"refusal_reason": null if not request["pixels"].is_empty() else "empty_pixel_requests"}
+			_evaluation_ledger.append(ledger)
+			for i in range(request["pixels"].size()):
+				var gpu: Dictionary = _evaluation_pending["gpu"][name]
+				_evaluation_records.append(_evaluation_depth_at(state, camera, sample, request["pixels"][i],
+					float(gpu["depths"][i]), gpu))
+		_evaluation_completed_frames += 1
+	_evaluation_pending = {}
+
+func _evaluation_depth_at(state: PhysicsDirectSpaceState3D, camera: Camera3D, sample: Dictionary, pixel: Array, gpu_depth: float, gpu: Dictionary) -> Dictionary:
+	var screen := Vector2(float(pixel[0]) + 0.5, float(pixel[1]) + 0.5)
+	var origin := camera.project_ray_origin(screen)
+	var direction := camera.project_ray_normal(screen)
+	var from := camera.project_position(screen, camera.near)
+	var to := camera.project_position(screen, camera.far)
+	var record := {"episode_id": _evaluation_query["episode_id"], "quantity": "landmark_depth_m",
+		"sample_id": String(sample["sample_id"]) + ":terrain:%.6f:%.6f" % [float(pixel[0]), float(pixel[1])],
+		"timestamp_s": sample["timestamp_s"], "frame_id": _evaluation_query["frame_id"],
+		"value": null, "source_ids": [_evaluation_source_id], "status": "refused", "refusal_reason": null,
+		"evaluation_only": {"pixel_uv": pixel, "camera": sample["name"],
+			"camera_sample_id": sample["sample_id"], "geometry_frame": "capture_local",
+			"ray_origin_m": [origin.x, origin.y, origin.z], "ray_direction": [direction.x, direction.y, direction.z],
+			"ray_near_m": camera.near, "ray_far_m": camera.far,
+			"msaa_3d": gpu["msaa_3d"], "screen_space_aa": gpu["screen_space_aa"]}}
+	if float(pixel[0]) != floor(float(pixel[0])) or float(pixel[1]) != floor(float(pixel[1])):
+		record["refusal_reason"] = "subpixel_reference_resolution_unavailable"
+		return record
+	if not is_finite(gpu_depth) or gpu_depth <= 0.0 or gpu_depth > 1.0:
+		record["refusal_reason"] = "no_native_depth_hit" if gpu_depth == 0.0 else "invalid_native_depth"
+		return record
+	if not from.is_finite() or not to.is_finite() or not direction.is_finite():
+		record["refusal_reason"] = "invalid_native_projection"
+		return record
+	if int(gpu["msaa_3d"]) != RenderingServer.VIEWPORT_MSAA_DISABLED:
+		record["refusal_reason"] = "multisample_visibility_resolution_unavailable"
+		return record
+	# The native perspective depth attachment uses reversed Z (near=1, far=0).
+	# Invert that projection with the actual Camera3D clip distances; this is
+	# optical Z, not Euclidean ray length or a DEM-derived range.
+	var z := camera.near * camera.far / (camera.near + gpu_depth * (camera.far - camera.near))
+	var position := camera.project_position(screen, z)
+	if not is_finite(z) or z <= 0 or not position.is_finite():
+		record["refusal_reason"] = "nonpositive_or_nonfinite_native_depth"
+		return record
+	record["evaluation_only"].merge({"gpu_reversed_z": gpu_depth, "positive_optical_z_m": z,
+		"hit_position_m": [position.x, position.y, position.z], "geometry_source": "actual_GPU_depth"})
+	# Keep exact native triangle hits/normals as diagnostics, not GPU primitive
+	# labels. Refuse every rover-intersecting raster ray conservatively, even if
+	# a terrain fragment might hide that rover triangle.
+	for layer in [EVALUATION_TERRAIN_LAYER, EVALUATION_ROVER_LAYER]:
+		var query := PhysicsRayQueryParameters3D.create(from, to, layer)
+		query.hit_back_faces = true
+		var hit := state.intersect_ray(query)
+		if hit.is_empty():
+			continue
+		var hit_position: Vector3 = hit["position"]
+		var normal: Vector3 = hit["normal"]
+		var optical := camera.get_camera_transform().affine_inverse() * hit_position
+		var kind := "rover" if layer == EVALUATION_ROVER_LAYER else "terrain_active"
+		var diagnostic := {"hit_position_m": [hit_position.x, hit_position.y, hit_position.z],
+			"hit_normal": [normal.x, normal.y, normal.z], "face_index": hit.get("face_index", -1),
+			"positive_optical_z_m": -optical.z}
+		record["evaluation_only"][kind + "_ray_hit"] = diagnostic
+		if layer == EVALUATION_TERRAIN_LAYER:
+			diagnostic.merge(_evaluation_active_face_diagnostic(hit, camera, direction))
+			# Keep the historical two-sided hit, but distinguish it from a face
+			# eligible under the reviewed cull_back shader. Even a one-sided hit
+			# is NOT a GPU surface label: the displaced far field may occlude it.
+			var front_query := PhysicsRayQueryParameters3D.create(from, to, layer)
+			front_query.hit_back_faces = false
+			var front_hit := state.intersect_ray(front_query)
+			var front_diagnostic := {"status": "no_hit" if front_hit.is_empty() else "hit",
+				"interpretation": "front_face_collision_only_not_visible_surface_certification"}
+			if not front_hit.is_empty():
+				var front_position: Vector3 = front_hit["position"]
+				var front_optical := camera.get_camera_transform().affine_inverse() * front_position
+				front_diagnostic.merge({"hit_position_m": [front_position.x, front_position.y, front_position.z],
+					"face_index": front_hit.get("face_index", -1), "positive_optical_z_m": -front_optical.z})
+				front_diagnostic.merge(_evaluation_active_face_diagnostic(front_hit, camera, direction))
+			record["evaluation_only"]["terrain_active_frontface_ray_hit"] = front_diagnostic
+		if layer == EVALUATION_ROVER_LAYER:
+			record["evaluation_only"]["rover_occlusion"] = "intersecting_ray_conservative_refusal"
+			record["refusal_reason"] = "rover_intersection_visibility_unresolved"
+			return record
+	record["evaluation_only"]["rover_occlusion"] = "no_native_rover_triangle_on_raster_ray"
+	record["status"] = "ok"
+	record["value"] = [z]
+	return record
+
+func _finish_evaluation_reference(capture_id: String) -> Dictionary:
+	if _evaluation_error != "" or _evaluation_completed_frames != _evaluation_frames.size():
+		_evaluation_fail("requested native reference output incomplete")
+		return {}
+	var package := {"schema_version": "argus.parallax_sundial.depth_reference/1",
+		"provenance": "GROUND_TRUTH_EVAL", "capture_id": capture_id,
+		"query_sha256": _evaluation_query_sha, "records": _evaluation_records, "request_ledger": _evaluation_ledger,
+		"source_ids": [_evaluation_source_id], "geometry": _evaluation_geometry,
+		"pixel_convention": "top-left integer raster indices, u right/v down; Camera3D sample-center ray at (u+0.5,v+0.5); subpixel requests refused",
+		"reference_resolution_boundary": {
+			"active": "actual rendered ArrayMesh two-sided collision diagnostics plus front-face/transform probe; neither certifies GPU visibility; no DEM resampling",
+			"farfield": "actual GPU depth includes shader displacement; no CPU interpolation/reconstruction",
+			"visibility": "existing opaque GPU depth; every rover-intersecting native ray conservatively refused",
+			"calibration": "development native raster geometry, not physical pixel-center/lens calibration or independent terrain registration",
+			"unquantified": ["GPU depth quantization", "resolved MSAA sample vs center ray", "screen-space AA image footprint", "shader normal and appearance detail"],
+			"covariance": "UNAVAILABLE; no fabricated calibrated reference covariance"},
+		"producer_source_sha256": {"sidecar": FileAccess.get_sha256("res://sidecar.gd"),
+			"terrain": FileAccess.get_sha256("res://terrain.gd"), "camera_rig": FileAccess.get_sha256("res://camera_rig.gd")},
+		"status": "COMPLETE"}
+	var path := _capture_out.path_join("evaluation_depth_reference.json")
+	if not _write_runtime_json(path, package):
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		_evaluation_fail("cannot reopen completed native reference output")
+		return {}
+	var bytes := file.get_length()
+	file.close()
+	var sha := FileAccess.get_sha256(path)
+	if bytes <= 0 or sha.length() != 64:
+		_evaluation_fail("cannot digest completed native reference output")
+		return {}
+	return {"path": "evaluation_depth_reference.json", "sha256": sha, "bytes": bytes,
+		"query_sha256": _evaluation_query_sha, "source_id": _evaluation_source_id, "provenance": "GROUND_TRUTH_EVAL"}
+
+func _exit_tree() -> void:
+	for probe in _evaluation_probes.values():
+		RenderingServer.call_on_render_thread(probe.release)
+	_evaluation_probes.clear()
+	for body in _evaluation_bodies:
+		PhysicsServer3D.free_rid(body["rid"])
+	_evaluation_bodies.clear()
+	if _evaluation_space.is_valid():
+		PhysicsServer3D.free_rid(_evaluation_space)
+		_evaluation_space = RID()
+
+func _runtime_hash_bytes(data: PackedByteArray) -> String:
+	var context := HashingContext.new()
+	if context.start(HashingContext.HASH_SHA256) != OK or context.update(data) != OK:
+		return ""
+	return context.finish().hex_encode()
+
+func _runtime_scene_identity() -> Dictionary:
+	# Bind the bytes actually loaded into the renderer, not merely a directory
+	# name or an 8-bit image that can hide changes in floating-point geometry.
+	var fields: Dictionary = sf.meta.get("fields", {})
+	var images := {"heightmap": sf.img_height, "mass_areal": sf.img_mass_areal,
+		"density": sf.img_density, "disturbance": sf.img_disturbance, "state_label": sf.img_state}
+	var loaded: Dictionary = {}
+	for key in images:
+		var image: Image = images[key]
+		if image == null:
+			continue
+		var filename: String = sf._file_of(fields, key, key + (".r8" if key == "state_label" else ".rf32"))
+		var path: String = _scene_dir.trim_suffix("/") + "/" + filename
+		var bytes := image.get_data()
+		var digest := _runtime_hash_bytes(bytes)
+		if digest.is_empty() or digest != FileAccess.get_sha256(path):
+			push_error("sidecar: loaded scene raster differs from bound file: " + path)
+			return {}
+		loaded[key] = {"path": path, "sha256": digest, "bytes": bytes.size()}
+	var height_data: PackedFloat32Array = sf.get("_height_data")
+	if _runtime_hash_bytes(height_data.to_byte_array()) != loaded["heightmap"]["sha256"]:
+		push_error("sidecar: CPU and GPU loaded height sources differ")
+		return {}
+	var shaders: Dictionary = {}
+	for child in get_children():
+		if child.get_script() != TerrainScript:
+			continue
+		for name in ["_active_mi", "_far_mi"]:
+			var mesh: MeshInstance3D = child.get(name)
+			var material := mesh.material_override as ShaderMaterial
+			if material == null or material.shader == null or "#include" in material.shader.code:
+				push_error("sidecar: finite scene binding requires self-contained terrain shaders")
+				return {}
+			shaders[name] = material.shader.code.sha256_text()
+	if shaders.size() != 2:
+		push_error("sidecar: finite capture cannot bind both actual terrain shaders")
+		return {}
+	var configuration: Array = []
+	var arguments := OS.get_cmdline_user_args()
+	var i := 0
+	while i < arguments.size():
+		if arguments[i] in ["--capture-out", "--capture-evaluation-pixels"]:
+			i += 2
+		else:
+			configuration.append(arguments[i])
+			i += 1
+	var identity := {"schema_version": "argus.native_loaded_scene/1", "loaded_rasters": loaded,
+		"loaded_metadata_sha256": JSON.stringify(sf.meta).sha256_text(), "terrain_shaders": shaders,
+		"state_fields_sha256": FileAccess.get_sha256("res://state_fields.gd"),
+		"terrain_producer_sha256": FileAccess.get_sha256("res://terrain.gd"),
+		"godot_binary_sha256": FileAccess.get_sha256(OS.get_executable_path()),
+		"public_capture_configuration": configuration}
+	identity["identity_sha256"] = JSON.stringify(identity).sha256_text()
+	return identity
+
+func _runtime_calibration(cams: Array) -> Dictionary:
+	var camera_profiles: Dictionary = {}
+	var camera_origins: Dictionary = {}
+	for entry in cams:
+		var camera: Camera3D = entry["cam"]
+		var sensor_viewport: Viewport = camera.get_viewport()
+		var intrinsic: Dictionary = CameraRigScript.intrinsics(camera.fov, _viewport_size.x, _viewport_size.y)
+		# Godot screen coordinates locate texel centers at u+0.5,v+0.5.
+		# Finite sensor packets use OpenCV integer-center observation coordinates.
+		intrinsic["cx"] = float(intrinsic["cx"]) - 0.5
+		intrinsic["cy"] = float(intrinsic["cy"]) - 0.5
+		camera_origins[String(entry["name"])] = (entry["local_transform"] as Transform3D).origin
+		camera_profiles[String(entry["name"])] = {
+			"intrinsics": intrinsic,
+			"extrinsic_in_base_link": SensorsEmitScript.pose_dict(entry["local_transform"] as Transform3D),
+			"raster": {"scaling_3d_mode": sensor_viewport.scaling_3d_mode,
+				"scaling_3d_scale": sensor_viewport.scaling_3d_scale, "msaa_3d": sensor_viewport.msaa_3d,
+				"screen_space_aa": sensor_viewport.screen_space_aa, "use_taa": sensor_viewport.use_taa}}
+	var stereo_specs: Dictionary = {}
+	for pair_name in ["front", "rear"]:
+		var spec: Dictionary = CameraRigScript.STEREO_PAIRS[pair_name].duplicate(true)
+		var baseline: float = (camera_origins[spec["left"]] as Vector3).distance_to(
+			camera_origins[spec["right"]] as Vector3)
+		if absf(baseline - float(spec["baseline_m"])) > 0.000001:
+			push_error("sidecar: rendered stereo mounts violate the configured fixed baseline")
+			return {}
+		spec["baseline_m"] = baseline
+		stereo_specs[pair_name] = spec
+	var geometry: Dictionary = {}
+	for part in ["rover_body", "wheel", "drum_arm", "drum"]:
+		var path := _rover_assets.path_join(part + ".glb")
+		geometry[part] = {"path": ProjectSettings.globalize_path(path), "sha256": FileAccess.get_sha256(path)}
+	var profile := {"schema_version": "godot_rig_calibration/1", "frame_convention": "godot",
+		"profile_id": "existing_godot_articulated_rig", "cameras": camera_profiles,
+		"pixel_coordinate_convention": "opencv_integer_pixel_centers",
+		"stereo": stereo_specs["front"],
+		"stereo_rear": stereo_specs["rear"],
+		"geometry": geometry, "rover_gauge_m": _rover_gauge, "rover_wheelbase_m": _rover_wheelbase,
+		"source_sha256": {"camera_rig": FileAccess.get_sha256("res://camera_rig.gd"),
+			"sidecar": FileAccess.get_sha256("res://sidecar.gd"),
+			"sensors_emit": FileAccess.get_sha256("res://sensors_emit.gd")}}
+	var digest := JSON.stringify(profile).sha256_text()
+	profile["profile_sha256"] = digest
+	profile["calibration_id"] = "sha256:" + digest
+	return profile
+
+func _runtime_coupling(sample: Dictionary) -> Dictionary:
+	if _capture_coupling == "fixed_chassis":
+		return {"model": "fixed_chassis_control", "status": "OK",
+			"articulation_translation_baseline": "UNAVAILABLE",
+			"idealization": "body anchored once; arm-only self-shadow control"}
+	# Execute the existing authority on native node-angle readback, not a copied
+	# posture lookup or a second GDScript geometry law. This is configuration FK,
+	# not an IMU/wheel stream generated from reference poses.
+	var code := "import sys,json,hashlib; sys.path.insert(0,sys.argv[1]); from stewie.physics import posture_kinematics as p; a=float(sys.argv[2]); b=float(sys.argv[3]); span=float(sys.argv[4]); print(json.dumps({'model':'stewie.physics.posture_kinematics','status':'OK','source_path':p.__file__,'source_sha256':hashlib.sha256(open(p.__file__,'rb').read()).hexdigest(),'arm_front_pitch_rad':a,'arm_back_pitch_rad':b,'chassis_lift_m':p.chassis_lift_m(a,b),'pitch_rad':p.posture_pitch_rad(a,b,arm_span_m=span),'wheel_radius_m':p.WHEEL_RADIUS_M,'arm_length_m':p.ARM_LENGTH_M,'arm_span_m':span,'idealization':'first-order strut FK; wheel-mesh anchored reference; not terrain contact or measured body motion'}))"
+	var output: Array = []
+	var result := OS.execute(_capture_python, PackedStringArray([
+		"-c", code, ProjectSettings.globalize_path("res://../.."),
+		str(sample["arm_front_pitch_rad"]), str(sample["arm_back_pitch_rad"]),
+		str(_rover_wheelbase)]), output, true)
+	if result != 0:
+		push_error("sidecar: authoritative posture FK failed: " + str(output))
+		return {}
+	var parsed = JSON.parse_string("".join(PackedStringArray(output)).strip_edges())
+	if not parsed is Dictionary or not parsed.has("chassis_lift_m") or not parsed.has("pitch_rad") \
+			or not is_finite(float(parsed["chassis_lift_m"])) or not is_finite(float(parsed["pitch_rad"])):
+		push_error("sidecar: authoritative posture FK returned invalid output")
+		return {}
+	parsed["calibration_id"] = "sha256:" + String(parsed["source_sha256"])
+	return parsed
+
+func _write_runtime_json(path: String, value: Dictionary) -> bool:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		push_error("sidecar: cannot write " + path)
+		return false
+	file.store_string(JSON.stringify(value, "  "))
+	file.flush()
+	var error := file.get_error()
+	file.close()
+	if error != OK:
+		push_error("sidecar: write failed for " + path)
+	return error == OK
 
 # Wait the appropriate number of post-draw frames, then save the viewport to `path`.
 func _render_to(path: String) -> bool:
@@ -548,6 +1523,25 @@ func _parse_args() -> void:
 				i += 1; _bench_frames = int(args[i])
 			"--bench-cams":
 				i += 1; _bench_cams = int(args[i])
+			"--capture-runtime":
+				_capture_runtime_mode = true
+				i += 1; _capture_runtime_frames = int(args[i])
+			"--capture-out":
+				i += 1; _capture_out = String(args[i])
+			"--capture-postures":
+				i += 1; _capture_postures_path = String(args[i])
+			"--capture-coupling":
+				i += 1; _capture_coupling = String(args[i])
+			"--capture-python":
+				i += 1; _capture_python = String(args[i])
+			"--capture-native-raster":
+				_capture_native_raster = true
+			"--capture-evaluation-pixels":
+				if _capture_evaluation_pixels != "" or i + 1 >= args.size() \
+						or String(args[i + 1]).is_empty() or String(args[i + 1]).begins_with("--"):
+					_evaluation_arg_error = "--capture-evaluation-pixels requires one absolute JSON path, once"
+					return
+				i += 1; _capture_evaluation_pixels = String(args[i])
 			"--cameras":
 				_cameras_mode = true
 				_drums_up = true                 # the camera module needs the drums lifted out of view
@@ -1282,7 +2276,16 @@ func _build_rover() -> void:
 	root.transform = Transform3D(yaw, Vector3(rx, surf_y, rz))
 	add_child(root)
 	var aabb := _node_world_aabb(root)
-	var drop := surf_y - aabb.position.y      # lift so min.y == surf_y
+	var support_bottom := aabb.position.y
+	if _capture_runtime_frames > 0:
+		# Anchor the apparatus once on wheel geometry, not an arm-dependent
+		# all-parts bounding box. Subsequent support comes only from declared FK.
+		support_bottom = INF
+		for key in origins.keys():
+			var wheel := root.get_node_or_null("wheel_" + String(key))
+			if wheel != null:
+				support_bottom = minf(support_bottom, _node_world_aabb(wheel).position.y)
+	var drop := surf_y - support_bottom
 	root.position.y += drop
 	root.position.y -= _rover_sink            # then drop INTO the terrain (--rover-sink; crater scenarios)
 	root.position.y += _chassis_lift_m        # posture chassis lift (MEERKAT raises the camera vantage)
@@ -1304,6 +2307,8 @@ func _make_joint(node_name: String, glb_res: String, origin: Vector3,
 	pivot.name = node_name
 	var spun := rest_basis * Basis(ROVER_JOINT_AXIS, angle)
 	pivot.transform = Transform3D(spun, origin)
+	pivot.set_meta("joint_rest_basis", rest_basis)
+	pivot.set_meta("joint_axis", ROVER_JOINT_AXIS)
 	mesh.transform = Transform3D(mesh_basis, Vector3.ZERO)
 	pivot.add_child(mesh)
 	return pivot

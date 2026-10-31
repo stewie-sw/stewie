@@ -12,15 +12,17 @@
 > hardware, and does not claim to be. The deployed planner is deterministic on purpose; reinforcement
 > learning is training-only; the Execute playback is a simulated run (no live telemetry).
 >
-> **Baseline.** The requirement matrix (product requirements, section 7, 339 rows) reads **254 verified
-> done** (about 75 percent overall; 78 percent of the 325 in-scope rows, with hardware and host gated
-> rows excluded from that denominator). By priority: P0 107/116, P1 143/188, P2 4/33. These are the live
-> tool output (`STATUS.json`, `release_manifest.json`), not hand counts. The CI coverage floor is 85
-> percent; CI is green on the working branch. Both public hosts are up: the GIS IDE at
-> `artemis.stewie.space/ide/` (the bare `artemis.stewie.space` redirects there) and the single-page
-> cockpit at `app.stewie.space`. The committed matrix is projected read-only onto the in-IDE requirement
-> board, and the generated traceability file is written by the traceability tools. This narrative matrix
-> is hand-maintained; the code wins on any disagreement.
+> **Baseline.** Do not hand-copy requirement totals or completion percentages into this narrative.
+> `STATUS.md`/`STATUS.json` are generated from the current product-requirement matrix and `[REQ:]`
+> citations; `release_manifest.json` carries release traceability. The CI coverage floor is 85 percent,
+> but current CI and public-host health must be checked at use time. The committed matrix is projected
+> read-only onto the in-IDE requirement board. This narrative matrix is hand-maintained; the code and
+> generated artifacts win on any disagreement.
+>
+> **World-state boundary, reconciled 2026-07-28.** The theorem-facing promotion rule is real but
+> offline. Live `POST /twin/resync` does not call it. Durable edit sessions, `TwinStore`, and the
+> world-transaction projection must not be conflated with the unbuilt DA-07--DA-10 operational
+> construction/evidence ledger and atomic accepted-world publication path.
 
 ## GIS mission-control IDE
 
@@ -65,7 +67,7 @@
 | The cheap in-loop observability map channel (route coverage and per-cell uncertainty from conserved truth; a low-coverage dig site triggers observe-more before it commits) | AprilTag 12.7 mm / 7.15 degrees end to end, container-gated, not reproducible in default CI | The dense render to depth to point-cloud perception producer |
 | Terrain scan-match and AprilTag-beacon localization fixes in the closed loop (`lode/autonomy.py`) | | |
 | A typed navigation factor contract: accepted estimator evidence carries factor type, covariance, frame, source, and evidence class (`dart/factors.py`, `dart/evidence_ledger.py`); metric shadow-length and boundary claims are blocked behind a negative-residual artifact | | Truth-free operational SLAM at centimeter parity (the real Katwijk ATE is 3.35 m; map visibility is not operational parity) |
-| | The theorem-facing twin promotion rule constructs a plain observation mean, admits partial fields, consumes per-cell dependency components, and permits physics only to veto (`stewie/twin/promotion.py`). It is an offline research path, not the deployed state merge | Production identity binding from action sources to observation sources, plus independently referenced calibration of graph edges and spatial covariance |
+| | The theorem-facing twin promotion rule constructs a plain observation mean, admits partial fields, consumes per-cell dependency components, and permits physics only to veto (`stewie/twin/promotion.py`). It implements one uncertainty scalar per source and is an offline research path, not the deployed state merge | Per-cell uncertainty fields; production identity binding from action sources to observation sources; independently referenced calibration of graph edges and spatial covariance; live resync routed through a recorded decision and atomic accepted-world publication |
 
 ## Cockpit and UI
 
@@ -84,7 +86,7 @@
 | A full control panel: create, approve, role, revoke, reset, and delete operators, plus invite tokens and an audit log | | The live-execute fault-injection tier; a deployed-browser GIS smoke test |
 | Sandbox and live workspace separation; real rover instructions gated to a live mission plus operator-or-above plus the safing watchdog | | |
 | The command-timeout safing watchdog plus the ROS2 translation layer (`stewie/bridge/ros2_bridge.py`, tested) | | |
-| The digital-twin unification: a completed simulated run folds its conserved terrain delta into terrain memory and records belief and authority in one hash-chained world-transaction log | | |
+| The digital-twin execution loop: a completed simulated run folds its conserved terrain delta into terrain memory and records linked hashes in one world-transaction log | The dependency-aware promotion rule and its mutation gates are exercised as a research module, not through the deployed endpoint | Immutable construction/evidence ledger; durable dependency graph; atomic promotion decision plus accepted-world version; cold-replay-equivalent GIS projections |
 
 ---
 
@@ -93,11 +95,12 @@ and the translation layer are done and tested; what remains is the live rclpy no
 transport, both gated externally on the pit link details (an integration, not a design unknown). The
 end-to-end intern beta is therefore not claimable today.
 
-**On the roadmap (planned, not shipped):** persistence is moving to a hybrid Postgres plus PostGIS store.
-Today the edit-session is a server-owned, versioned, in-memory source of truth (before/after audit plus
-undo); the durable, database-backed layer (Phase 0) is in progress. It is named here as a direction, not
-a claim of a shipped datastore.
+**On the roadmap (planned, not shipped):** persistence is moving toward the hybrid model in
+[the construction-event ledger contract](construction_event_ledger_contract.md). Durable edit sessions
+and a best-effort world-transaction database projection already exist. The immutable executed-action
+and observation ledger, graph-bound candidates, atomic accepted-world publisher, complete cold restore,
+and replay-equivalent GIS projections do not.
 
 **What not to claim:** RL beating greedy on single-objective tasks; the 3D dry-run as live; map
 visibility as operational SLAM parity; the dense reconstruction RMSE tier as in-loop; a durable database
-as shipped. These are the honesty traps the matrix above guards.
+as equivalent to a deployed acceptance ledger. These are the honesty traps the matrix above guards.

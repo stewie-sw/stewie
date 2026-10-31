@@ -301,8 +301,18 @@ static func build(parent: Node, mount: Node3D, world: World3D,  # fov_x_override
 			"image": String(spec["image"]),
 			"sv": sv,
 			"cam": cam,
+			# Exposure metadata reads this calibrated body-relative mount, never a
+			# camera world pose from an evaluation trajectory.
+			"local_transform": mount_xf.affine_inverse() * cam.global_transform,
 		})
 	return out
+
+# Recompose the existing mounts after an apparatus posture update. Cameras remain
+# chassis-mounted; an arm pitch does not create a fictitious camera translation.
+static func sync_mounts(cams: Array, mount: Node3D) -> void:
+	for entry in cams:
+		var cam: Camera3D = entry["cam"]
+		cam.global_transform = mount.global_transform * (entry["local_transform"] as Transform3D)
 
 # World-space origin of the drum-arm joint node `node_name` under `mount` (recursive), or
 # null if it is absent (chassis-only rover). Used to aim the drum-inspection cameras at the

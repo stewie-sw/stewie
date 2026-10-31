@@ -17,10 +17,9 @@ class_name SensorsEmit
 # is C1's job in frames.py, NOT here). We do NOT pre-compose any camera->tag truth
 # transform (C1 computes it from the exact poses we emit).
 #
-# BEHAVIOR-PRESERVING for the existing --cameras path: a no-new-flags --cameras
-# render produces a sensors.json byte-for-byte identical to the prior v1.0 output
-# EXCEPT (a) schema_version '1.0' -> '1.1' and (b) the additive top-level "sun"
-# block. Same field order otherwise.
+# Legacy capture modes retain their mixed diagnostic schema, explicitly marked
+# oracle_input and factor_admissible=false. The finite runtime capture uses
+# build_runtime_packet and a physically separate build_evaluation_packet.
 
 # --- v1.1 frozen constants -------------------------------------------------------
 const SCHEMA_VERSION := "sensor_bridge/1.1"
@@ -235,6 +234,9 @@ static func build_sensors_json(
 
 	var doc := {
 		"schema_version": SCHEMA_VERSION,
+		"evidence_class": "rendered_sensor_sim",
+		"admission": "oracle_input",
+		"factor_admissible": false,
 		"scene": scene,
 		"frame_index": frame_index,
 		"frame_convention": "godot",
@@ -262,3 +264,135 @@ static func sun_block(elevation_deg: float, azimuth_deg: float, time_delta_s: fl
 		"azimuth_deg": azimuth_deg,
 		"time_delta_s": time_delta_s,
 	}
+
+# The estimator-facing capture path assembles this packet directly. It never
+# constructs a mixed world-pose packet and then strips selected truth fields.
+static func build_runtime_packet(capture_id: String, scene: String, frame_index: int,
+		timestamp_s: float, cams: Array, calibration: Dictionary,
+		proprioception: Dictionary, kinematics: Dictionary, illumination: Dictionary,
+		exposure: Dictionary, lights: Array) -> Dictionary:
+	var cameras: Array = []
+	for entry in cams:
+		var cam: Camera3D = entry["cam"]
+		var size: Vector2i = (entry["sv"] as SubViewport).size
+		cameras.append({
+			"name": String(entry["name"]), "frame_id": String(entry["frame_id"]),
+			"image": String(entry["image"]),
+			"sample_id": "%s:%06d:%s" % [capture_id, frame_index, entry["name"]],
+			"timestamp_s": timestamp_s, "clock_domain": "sim_monotonic",
+			"status": "OK", "evidence_class": "rendered_sensor_sim",
+			"calibration_id": calibration["calibration_id"],
+			"width": size.x, "height": size.y,
+			"intrinsics": calibration["cameras"][String(entry["name"])]["intrinsics"],
+			"extrinsic_in_base_link": pose_dict(entry["local_transform"] as Transform3D),
+			"exposure": exposure.duplicate(true),
+			"joint_sample_id": "%s:%06d:joints" % [capture_id, frame_index],
+			"joint_interpolation_interval_s": [timestamp_s, timestamp_s],
+			"projection": {"model": "pinhole", "near_m": cam.near, "far_m": cam.far},
+		})
+	var availability: Dictionary = {}
+	for name in ["imu", "wheel", "joints", "power"]:
+		var channel: Dictionary = proprioception["channels"][name]
+		availability[name] = {"status": channel["status"], "reason": channel.get("reason", "")}
+	return {
+		"schema_version": "sensor_bridge_runtime/1.0",
+		"provenance": "RUNTIME_SENSOR", "evidence_class": "rendered_sensor_sim",
+		"capture_id": capture_id, "scene": scene, "frame_index": frame_index,
+		"timestamp_s": timestamp_s, "clock_domain": "sim_monotonic",
+		"frame_convention": "godot", "frame_id": "base_link",
+		"profile_id": calibration["profile_id"], "profile_sha256": calibration["profile_sha256"],
+		"calibration_id": calibration["calibration_id"],
+		"calibration": calibration,
+		"cameras": cameras, "stereo": calibration["stereo"],
+		"stereo_rear": calibration["stereo_rear"],
+		"proprioception": proprioception, "kinematics": kinematics,
+		"sun": illumination, "lights": lights, "availability": availability,
+		"health": {"status": "DEGRADED", "reason": "kinematic optical apparatus; no native IMU/wheel/power producer"},
+		"clock_mapping": {
+			"source": "Godot _process(delta) accumulated from sidecar startup",
+			"exposure_event": "RenderingServer.frame_pre_draw",
+			"render_completion_event": "RenderingServer.frame_post_draw",
+			"mission_epoch": {"status": "UNAVAILABLE", "reason": "bind explicit epoch/site/backend in study manifest"},
+			"absolute_time_uncertainty_s": null,
+		},
+		"idealizations": [
+			"rendered_sensor_sim, not physical sensor evidence",
+			"instantaneous global shutter; no photon/read noise or rolling shutter model",
+			"joint angles are ideal scene-node encoder readback, not commanded-angle copies",
+			"body pose follows declared coupling only; no contact/settling/dynamics solve",
+			"camera mounts rigid in base_link; any articulation baseline depends on declared support FK",
+			"directional illumination is apparatus configuration, not a measured Sun sensor",
+		],
+	}
+
+static func build_evaluation_packet(capture_id: String, frame_index: int,
+		timestamp_s: float, root: Node3D, target: Node3D, cams: Array) -> Dictionary:
+	var camera_poses: Array = []
+	for entry in cams:
+		camera_poses.append({"name": String(entry["name"]),
+			"pose_in_world": pose_dict((entry["cam"] as Camera3D).global_transform)})
+	var doc := {
+		"schema_version": "sensor_bridge_evaluation_truth/1.0",
+		"provenance": "GROUND_TRUTH_EVAL", "evidence_class": "rendered_sensor_sim",
+		"capture_id": capture_id, "frame_index": frame_index, "timestamp_s": timestamp_s,
+		"clock_domain": "sim_monotonic", "frame_convention": "godot",
+		"rover": pose_dict(root.global_transform),
+		"camera_poses_in_world": camera_poses,
+	}
+	if target != null:
+		doc["lander"] = pose_dict(target.global_transform)
+	else:
+		doc["lander"] = {"status": "UNAVAILABLE", "reason": "no fiducial target instantiated"}
+	return doc
+
+# Keep proprioception/1.1's existing channel and joint sample shape. Optional
+# chassis lift and world camera heights are absent: no such native sensors exist.
+static func joint_proprioception(root: Node3D, timestamp_s: float, sequence_id: int) -> Dictionary:
+	var joints := {"status": "UNAVAILABLE", "reason": "articulated joint nodes absent", "samples": []}
+	var front := root.get_node_or_null("arm_front") as Node3D
+	var back := root.get_node_or_null("arm_back") as Node3D
+	if front != null and back != null:
+		joints = {
+			"status": "OK", "reason": "ideal simulator joint-node readback at exposure",
+			"provenance": "rendered_sensor_sim",
+			"units": {"arm_pitch": "rad", "chassis_lift": "m", "camera_height": "m"},
+			"samples": [{"t": timestamp_s,
+				"arm_front_pitch_rad": _joint_angle(front),
+				"arm_back_pitch_rad": _joint_angle(back)}],
+		}
+	var channels := {"joints": joints}
+	for name in ["imu", "wheel", "power"]:
+		channels[name] = {"status": "UNAVAILABLE",
+			"reason": "render-only sidecar has no native %s producer; not derived from evaluation poses" % name,
+			"samples": []}
+	return {"schema_version": "proprioception/1.1", "clock": "sim_monotonic",
+		"sequence_id": sequence_id, "channels": channels}
+
+static func _joint_angle(joint: Node3D) -> float:
+	var rest: Basis = joint.get_meta("joint_rest_basis")
+	var axis: Vector3 = joint.get_meta("joint_axis")
+	var q := (rest.inverse() * joint.basis).get_rotation_quaternion()
+	return wrapf(2.0 * atan2(Vector3(q.x, q.y, q.z).dot(axis), q.w), -PI, PI)
+
+# Body-relative transforms are native forward-kinematic outputs. No world pose,
+# terrain association or caster-to-shadow correspondence is exported here.
+static func kinematics_snapshot(root: Node3D, timestamp_s: float,
+		sample_id: String, calibration_id: String) -> Dictionary:
+	var links: Dictionary = {}
+	for path in ["arm_front", "arm_back", "arm_front/drum_front", "arm_back/drum_back"]:
+		var link := root.get_node_or_null(path) as Node3D
+		if link == null:
+			continue
+		var relative := link.transform
+		var parent := link.get_parent()
+		while parent != root and parent is Node3D:
+			relative = (parent as Node3D).transform * relative
+			parent = parent.get_parent()
+		links[path] = {"transform_in_base_link": pose_dict(relative),
+			"geometry_id": "drum" if path.contains("/drum_") else "drum_arm"}
+	return {"timestamp_s": timestamp_s, "clock_domain": "sim_monotonic",
+		"frame_id": "base_link", "sample_id": sample_id, "calibration_id": calibration_id,
+		"links": links, "joint_covariance": {
+			"status": "UNAVAILABLE", "reason": "ideal node readback has no calibrated physical encoder covariance"},
+		"body_motion": {"status": "UNAVAILABLE", "reason": "no contact/settling or body-motion sensor producer"},
+		"self_shadow_association": {"status": "UNAVAILABLE", "reason": "must be established from sensor images"}}

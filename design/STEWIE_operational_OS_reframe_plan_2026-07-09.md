@@ -8,6 +8,11 @@ that existing brief under the four-pillar frame rather than re-scoping it from s
 **[FANOUT: <ID>]**. Where no dispatch brief exists yet, the increment is marked **[NEW]**. This document
 does not build anything; it is read-and-plan only.
 
+> **Current reconciliation, 2026-07-28.** The cited backbone is real, but it is not the complete
+> operational acceptance path. Live `/twin/resync` bypasses the theorem-facing promotion rule.
+> DA-07--DA-10 now precede any claim that executed actions, observations, decisions, accepted world,
+> and GIS views form one replayable production loop. See `../docs/construction_event_ledger_contract.md`.
+
 ---
 
 ## 1. Vision source (verbatim)

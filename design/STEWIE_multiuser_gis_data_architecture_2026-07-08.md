@@ -6,14 +6,22 @@
 > actual code and stages it as a TRL-phased progression. Companion to `STEWIE_persistence_db_design_2026-07-07.md`
 > (the backend-DB/schema design) and `STEWIE_qgis_platform_architecture_2026-07-07.md`.
 
+> **Current reconciliation, 2026-07-28.** The central server is the durable home for shared
+> artifacts, ledger records, indexes, and projections; PostGIS is not unconstrained authoritative
+> mutable terrain. Executed construction events and observation evidence are immutable, accepted
+> belief advances only through an atomic recorded decision, and GIS layers are rebuildable views.
+> See `../docs/construction_event_ledger_contract.md` and ADR-0008. DA-04 durable edit sessions now ship;
+> DA-07--DA-10 do not.
+
 ## Why this matters (the workflow it enables)
 
 STEWIE is a lunar mission-control GIS platform. As it grows from one researcher to a lab/robotics team, the
-binding question stops being "does the map render" and becomes "where does the shared truth live, and how do
+binding question stops being "does the map render" and becomes "where do shared canonical records live, and how do
 several people (and the rover, via ROS2) read and write it without clobbering each other." The maintainable
 answer for a GIS shop is the standard one: **local QGIS per workstation for interactive performance + a central
-file server for the heavy shared artifacts + a PostGIS database for the concurrently-edited vector/world-state
-layers.** Each user gets local render speed; everyone works from one dataset; the world model has one home.
+file server for the heavy shared artifacts + a transactional ledger store and PostGIS projection for
+concurrently edited vector intent and world-state views.** Each user gets local render speed; everyone
+works from one canonical record; no workstation or map layer becomes acceptance authority.
 
 ## Topology
 
@@ -30,9 +38,9 @@ layers.** Each user gets local render speed; everyone works from one dataset; th
    │  File store (heavy, read-mostly)   PostGIS (concurrent edits)
    │  ├── rasters: DEMs, imagery,       ├── vector layers (features, keep-outs,
    │  │   orthophotos, COGs             │   mission features, site polygons)
-   │  ├── QGIS projects (.qgz)          ├── world-state (authoritative terrain-memory
+   │  ├── QGIS projects (.qgz)          ├── world-state indexes + accepted-version
    │  ├── GeoPackages (.gpkg)           │   index, transactions, versions)
-   │  ├── sim assets (Godot), ROS       └── permissions, permalinks, edit sessions
+   │  ├── sim assets (Godot), ROS       └── projections, permissions, edit sessions
    │  │   exports, mission recordings
    │  └── backups
    └───────────────────────────────────────────────────────┘
@@ -83,24 +91,26 @@ tree, and the world-transaction journal; adopting them is a *reorganization + mo
 
 ## TRL-phased progression (adopt in order; each phase is shippable)
 
-**Phase 1 — TRL 3–5 (single researcher → small team): files + Git.**
+**Phase 1 — TRL 3–5 (single researcher → small team): files + Git (historical baseline).**
 Shared NAS/Linux file server with the taxonomy above; **shared GeoPackages** for vector interchange; **Git** for
-scripts + configuration (the STEWIE repo). No database yet — matches STEWIE today (100% filesystem + in-memory).
+scripts + configuration (the STEWIE repo). At the audit date there was no application database; DA-04
+has since added durable edit-session storage.
 Deliverable: the folder taxonomy + a `.gpkg` interchange convention + documented mounts.
 
 **Phase 2 — TRL 5–6 (concurrent editing): PostGIS.**
-Stand up **PostGIS** for vectors + world-state (the `postgres`/`db`-profile service already in `compose.yml`;
+Stand up **PostGIS** for vectors + world-state projections (the `postgres`/`db`-profile service already in `compose.yml`;
 set `STEWIE_DATABASE_URL=postgresql+asyncpg://…`). Move the **GW-08 edit session** off the in-memory dict into
-PostGIS (its clearest defect — lost on restart). Keep large rasters on the file server. Add **automated backups**
+durable storage (**now implemented by DA-04**). Keep large rasters on the file server. Add **automated backups**
 (DB dumps + file-store snapshots → `/backups`) and **user permissions** (per-role read/write, mission sign-off
 gated). Deliverable: durable edit sessions + concurrent vector editing + backups + roles.
 
-**Phase 3 — TRL 6+ (live world model): ROS2 writes, near-real-time QGIS.**
-A **central world-model database** is the authoritative mutable terrain/operational state. **ROS2 writes mission
-updates** through the gated ingest bridge (see the AUTODIG/ingest fold, §7.F); **STEWIE updates the terrain after
-every mission** (the SIM execute→remember loop + Terrain Memory, already built); **QGIS/QWC2 visualizes the
-latest world state in near real time** off the same PostGIS/file store. Deliverable: the closed loop
-robot → ROS2 → world model → QGIS, with the world model as the single source of truth.
+**Phase 3 — TRL 6+ (live world model): ROS2 evidence, recorded acceptance, near-real-time QGIS.**
+A central transactional store retains immutable construction/evidence records, decisions, accepted
+versions, and indexes. **ROS2 submits observation evidence** through the gated ingest bridge; the
+conserved authority records executed terrain changes; accepted belief advances through DA-09; and
+**QGIS/QWC2 visualizes version-attributed projections**. Deliverable: the closed loop robot → ROS2
+evidence → dependency-bound candidate → decision → accepted version → QGIS projection, with cold
+replay reproducing the same hashes.
 
 ## Reconciliation with STEWIE's code (no contradictions)
 
@@ -112,8 +122,8 @@ robot → ROS2 → world model → QGIS, with the world model as the single sour
 - The **plan-anywhere resolver** (#30) already reads the global LDEM from a read-only mount — the file-server
   raster split is the shape STEWIE is already built for.
 - The **QGIS Processing provider** (#46) + GeoPackage export are the Phase-1 `.gpkg` interchange path.
-- The one concrete defect this formalizes: **GW-08 edit sessions are in-memory** (lost on restart) →
-  Phase 2 moves them to PostGIS.
+- The original concrete defect—GW-08 edit sessions lost on restart—is closed by DA-04. The current
+  defects are DA-07--DA-10.
 
 ## Non-goals / guardrails
 
