@@ -102,6 +102,22 @@ jobs:
       - run: cargo test --workspace
       - run: cargo run -q -p xtask -- no-stubs
 
+  web:
+    name: web app (contract-type drift, typecheck, vitest, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
+      - run: node --version
+      - run: npm ci --no-audit --no-fund
+      - name: TS contract types regenerate byte-identically from the JSON Schemas (D-R11)
+        run: npm run gen:contracts && git diff --exit-code -- src/contracts
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
   ui-smoke:
     name: cockpit UI smoke (Playwright + real server, py3.11)
     runs-on: ubuntu-latest
