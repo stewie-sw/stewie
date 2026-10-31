@@ -74,6 +74,12 @@ impl Engine {
         Ok(())
     }
 
+    /// The terrain stack's signature (see `TerrainStack::signature`).
+    #[must_use]
+    pub fn stack_signature(&self) -> String {
+        self.stack.signature()
+    }
+
     /// # Errors
     /// No terrain under the observer, or an invalid configuration.
     pub fn horizon(

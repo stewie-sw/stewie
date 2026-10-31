@@ -1,0 +1,182 @@
+{
+  "end_utc": "2027-01-31T00:00:00Z",
+  "generator": "cargo run -p xtask -- web-fixtures",
+  "scenarios": [
+    {
+      "complete_azimuths": 719,
+      "lat_deg": -86.33,
+      "lon_deg": -25.51,
+      "n_az": 720,
+      "name": "haworth (haworth_10km_5m + LDEM_16)",
+      "site": "haworth",
+      "sources": [
+        "haworth_10km_5m",
+        "ldem_16"
+      ],
+      "stack_signature": "regional@5.0m > ldem_16@1895.2m",
+      "windows": {
+        "EARTH": [
+          {
+            "end_s": 699898.7182617188,
+            "start_s": 0.0,
+            "verdict": "Shadow"
+          },
+          {
+            "end_s": 1974781.7504882812,
+            "start_s": 699898.7182617188,
+            "verdict": "Lit"
+          },
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 1974781.7504882812,
+            "verdict": "Shadow"
+          }
+        ],
+        "SUN": [
+          {
+            "end_s": 545594.8608398438,
+            "start_s": 0.0,
+            "verdict": "Lit"
+          },
+          {
+            "end_s": 1835412.6342773438,
+            "start_s": 545594.8608398438,
+            "verdict": "Shadow"
+          },
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 1835412.6342773438,
+            "verdict": "Lit"
+          }
+        ]
+      }
+    },
+    {
+      "complete_azimuths": 682,
+      "lat_deg": -89.823,
+      "lon_deg": 158.213,
+      "n_az": 720,
+      "name": "shackleton_rim (shackleton_rim_10km_5m + LDEM_16)",
+      "site": "shackleton_rim",
+      "sources": [
+        "ldem_16",
+        "shackleton_rim_10km_5m"
+      ],
+      "stack_signature": "regional@5.0m > ldem_16@1895.2m",
+      "windows": {
+        "EARTH": [
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 0.0,
+            "verdict": "Shadow"
+          }
+        ],
+        "SUN": [
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 0.0,
+            "verdict": "Shadow"
+          }
+        ]
+      }
+    },
+    {
+      "complete_azimuths": 719,
+      "lat_deg": -85.6471,
+      "lon_deg": -1.7347,
+      "n_az": 720,
+      "name": "malapert_massif (malapert_massif_10km_5m + LDEM_16)",
+      "site": "malapert_massif",
+      "sources": [
+        "ldem_16",
+        "malapert_massif_10km_5m"
+      ],
+      "stack_signature": "regional@5.0m > ldem_16@1895.2m",
+      "windows": {
+        "EARTH": [
+          {
+            "end_s": 2500568.5913085938,
+            "start_s": 0.0,
+            "verdict": "Lit"
+          },
+          {
+            "end_s": 2544561.2182617188,
+            "start_s": 2500568.5913085938,
+            "verdict": "Shadow"
+          },
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 2544561.2182617188,
+            "verdict": "Lit"
+          }
+        ],
+        "SUN": [
+          {
+            "end_s": 1352719.9584960938,
+            "start_s": 0.0,
+            "verdict": "Shadow"
+          },
+          {
+            "end_s": 2282375.2075195312,
+            "start_s": 1352719.9584960938,
+            "verdict": "Lit"
+          },
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 2282375.2075195312,
+            "verdict": "Shadow"
+          }
+        ]
+      }
+    },
+    {
+      "complete_azimuths": 719,
+      "lat_deg": -86.33,
+      "lon_deg": -25.51,
+      "n_az": 720,
+      "name": "haworth (LDEM_16 only)",
+      "site": "haworth",
+      "sources": [
+        "ldem_16"
+      ],
+      "stack_signature": "ldem_16@1895.2m",
+      "windows": {
+        "EARTH": [
+          {
+            "end_s": 716217.7368164062,
+            "start_s": 0.0,
+            "verdict": "Shadow"
+          },
+          {
+            "end_s": 1960581.6284179688,
+            "start_s": 716217.7368164062,
+            "verdict": "Lit"
+          },
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 1960581.6284179688,
+            "verdict": "Shadow"
+          }
+        ],
+        "SUN": [
+          {
+            "end_s": 568599.2065429688,
+            "start_s": 0.0,
+            "verdict": "Lit"
+          },
+          {
+            "end_s": 1843399.1088867188,
+            "start_s": 568599.2065429688,
+            "verdict": "Shadow"
+          },
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 1843399.1088867188,
+            "verdict": "Lit"
+          }
+        ]
+      }
+    }
+  ],
+  "start_utc": "2027-01-01T00:00:00Z"
+}

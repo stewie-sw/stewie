@@ -38,6 +38,84 @@ fn wasm_golden(root: &Path) -> ExitCode {
     }
 }
 
+/// Real engine output for web tests: windows at three catalog sites, each on its own tile over `LDEM_16`,
+/// plus the Haworth site on `LDEM_16` alone (a different terrain stack).
+fn web_fixtures(root: &Path) -> ExitCode {
+    match comparison(root) {
+        Ok(json) => {
+            let path = root.join("web/src/fixtures/engine_comparison.json");
+            if let Err(e) = fs::create_dir_all(path.parent().unwrap_or(root))
+                .and_then(|()| fs::write(&path, json + "\n"))
+            {
+                eprintln!("{}: {e}", path.display());
+                return ExitCode::FAILURE;
+            }
+            println!("{}", path.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("web-fixtures: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn comparison(root: &Path) -> Result<String, String> {
+    let read = |p: &str| fs::read(root.join(p)).map_err(|e| format!("{p}: {e}"));
+    let text = |p: &str| fs::read_to_string(root.join(p)).map_err(|e| format!("{p}: {e}"));
+    let bodies = text("crates/stewie-contracts/fixtures/bodies.json")?;
+    let sites: serde_json::Value =
+        serde_json::from_str(&text("crates/stewie-contracts/fixtures/sites.json")?)
+            .map_err(|e| e.to_string())?;
+    let (label, img) = (
+        text(".cache/terrain/ldem_16.lbl")?,
+        read(".cache/terrain/ldem_16.img")?,
+    );
+    let (start, end) = ("2027-01-01T00:00:00Z", "2027-01-31T00:00:00Z");
+    let mut out = Vec::new();
+    for (site, tile) in [
+        ("haworth", Some("haworth_10km_5m")),
+        ("shackleton_rim", Some("shackleton_rim_10km_5m")),
+        ("malapert_massif", Some("malapert_massif_10km_5m")),
+        ("haworth", None),
+    ] {
+        let mut e = stewie_wasm::Engine::new(&bodies)?;
+        if let Some(t) = tile {
+            let dir = format!("samples/lunar_dem/{t}");
+            e.add_tile(
+                1,
+                t,
+                &text(&format!("{dir}/metadata.json"))?,
+                &read(&format!("{dir}/heightmap.rf32"))?,
+            )?;
+        }
+        e.add_global(9, "ldem_16", &label, &img)?;
+        let (lat, lon) = (
+            sites[site]["lat_deg"].as_f64().ok_or("site lat")?,
+            sites[site]["lon_deg"].as_f64().ok_or("site lon")?,
+        );
+        let h = e.horizon(lat, lon, 720, 200_000.0, 50.0, 1.5)?;
+        let mut windows = serde_json::Map::new();
+        for body in ["SUN", "EARTH"] {
+            let w = e.windows(body, lat, lon, start, end, 600.0, 1.5, &h)?;
+            let t0 = w.first().map_or(0.0, |x| x.start_tdb);
+            windows.insert(
+                body.into(),
+                w.iter()
+                    .map(|x| serde_json::json!({"start_s": x.start_tdb - t0, "end_s": x.end_tdb - t0, "verdict": format!("{:?}", x.verdict)}))
+                    .collect(),
+            );
+        }
+        out.push(serde_json::json!({
+            "name": tile.map_or_else(|| format!("{site} (LDEM_16 only)"), |t| format!("{site} ({t} + LDEM_16)")),
+            "site": site, "lat_deg": lat, "lon_deg": lon, "sources": h.sources, "stack_signature": e.stack_signature(), "windows": windows,
+            "complete_azimuths": h.complete.iter().filter(|c| **c).count(), "n_az": h.complete.len(),
+        }));
+    }
+    let doc = serde_json::json!({"start_utc": start, "end_utc": end, "generator": "cargo run -p xtask -- web-fixtures", "scenarios": out});
+    serde_json::to_string_pretty(&doc).map_err(|e| e.to_string())
+}
+
 #[derive(Debug)]
 struct Finding {
     path: PathBuf,
@@ -104,8 +182,9 @@ fn main() -> ExitCode {
     match std::env::args().nth(1).as_deref() {
         Some("no-stubs") => {}
         Some("wasm-golden") => return wasm_golden(&root),
+        Some("web-fixtures") => return web_fixtures(&root),
         _ => {
-            eprintln!("usage: cargo run -p xtask -- <no-stubs | wasm-golden>");
+            eprintln!("usage: cargo run -p xtask -- <no-stubs | wasm-golden | web-fixtures>");
             return ExitCode::FAILURE;
         }
     }

@@ -364,6 +364,10 @@ pub trait TerrainSource: fmt::Debug + Send + Sync {
     fn sphere(&self) -> Sphere;
     /// Height [m above the sphere], or `None` where the source has no answer (never extrapolated).
     fn sample_latlon(&self, ll: LatLon) -> Option<f64>;
+    /// True for a whole-body base tier (its identity and version define the stack), false for a regional tile.
+    fn is_global(&self) -> bool {
+        false
+    }
 }
 
 impl TerrainSource for DemTile {
@@ -508,6 +512,9 @@ impl GlobalGrid {
 }
 
 impl TerrainSource for GlobalGrid {
+    fn is_global(&self) -> bool {
+        true
+    }
     fn id(&self) -> &str {
         &self.id
     }
@@ -555,6 +562,7 @@ pub struct SourceDescriptor {
     /// 1 is the highest priority.
     pub priority: u32,
     pub citation: String,
+    pub global: bool,
 }
 
 /// The outcome of resolving a point against a [`TerrainStack`].
@@ -585,6 +593,7 @@ impl TerrainStack {
                     resolution_m: t.resolution_m(),
                     priority,
                     citation: t.citation().to_owned(),
+                    global: t.is_global(),
                 };
                 (d, t)
             })
@@ -600,11 +609,34 @@ impl TerrainStack {
             resolution_m: source.resolution_m(),
             priority,
             citation: source.citation().to_owned(),
+            global: source.is_global(),
         };
         let at = self
             .sources
             .partition_point(|(e, _)| e.priority <= priority);
         self.sources.insert(at, (d, source));
+    }
+
+    /// The stack's sources in priority order.
+    pub fn descriptors(&self) -> impl Iterator<Item = &SourceDescriptor> {
+        self.sources.iter().map(|(d, _)| d)
+    }
+
+    /// The stack's shape: regional tiers by resolution and global tiers by identity, in priority order. Two
+    /// answers are comparable only when their stacks share a signature (navigator: no ranking across
+    /// different terrain stacks).
+    #[must_use]
+    pub fn signature(&self) -> String {
+        self.descriptors()
+            .map(|d| {
+                if d.global {
+                    format!("{}@{:.1}m", d.id, d.resolution_m)
+                } else {
+                    format!("regional@{:.1}m", d.resolution_m)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" > ")
     }
 
     /// The body sphere shared by the stack's sources (`None` for an empty stack).

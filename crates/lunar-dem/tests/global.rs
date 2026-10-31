@@ -104,3 +104,36 @@ fn a_mixed_stack_prefers_the_tile_and_falls_back_to_the_global_grid() {
         Resolved::NotCovered
     ));
 }
+
+#[test]
+fn stack_signature_names_tiers_by_shape_not_by_tile() {
+    let root = stewie_oracle::repo_root().join("samples/lunar_dem");
+    let a = TerrainStack::new(vec![
+        (
+            1,
+            Box::new(DemTile::open(&root.join("haworth_10km_5m"), moon()).unwrap())
+                as Box<dyn TerrainSource>,
+        ),
+        (9, Box::new(ldem16())),
+    ]);
+    let b = TerrainStack::new(vec![
+        (
+            1,
+            Box::new(DemTile::open(&root.join("malapert_massif_10km_5m"), moon()).unwrap())
+                as Box<dyn TerrainSource>,
+        ),
+        (9, Box::new(ldem16())),
+    ]);
+    let c = TerrainStack::new(vec![(9, Box::new(ldem16()) as Box<dyn TerrainSource>)]);
+    assert_eq!(
+        a.signature(),
+        b.signature(),
+        "different sites on the same tier shape are comparable"
+    );
+    assert_ne!(
+        a.signature(),
+        c.signature(),
+        "dropping the regional tier changes the stack"
+    );
+    assert!(a.signature().starts_with("regional@5.0m > ldem_16@"));
+}
