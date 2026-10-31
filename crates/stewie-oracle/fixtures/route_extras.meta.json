@@ -1,0 +1,9 @@
+{
+ "fixture": "route_extras",
+ "generator": "oracle/build_fixtures.py::route_extras (lode.planner_routing inflated legs, haul gains, coverage spirals on the real route_cases window)",
+ "payload_sha256": "75149928a673c7452c01df1a39d71550ae606266fca628b7cd16ad761bb09e1b",
+ "sources": {
+  "lode/planner_routing.py": "5ce65415b2fe381303555cb909495198a2023119419e544b274847023e7ae0c5",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc"
+ }
+}

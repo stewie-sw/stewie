@@ -6,6 +6,7 @@
 //! each kept as its own inspectable term, and never change passability.
 
 pub mod costmap;
+pub mod haul;
 pub mod profile;
 pub mod route;
 

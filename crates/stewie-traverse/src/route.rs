@@ -158,13 +158,14 @@ fn trunc(v: f64) -> i64 {
     clippy::too_many_lines,
     clippy::cast_possible_truncation
 )]
-pub fn route_leg(
+pub fn route_leg_inflated(
     dem: Dem<'_>,
     from: (f64, f64),
     to: (f64, f64),
     opts: &CostmapOptions<'_>,
     margin_m: f64,
     keepouts: &[Keepout],
+    footprint_radius_m: f64,
 ) -> Result<Leg, String> {
     let (cell, (ox, oy)) = (dem.cell_m, dem.origin);
     let (ax, ay, bx, by) = (ox + from.0, oy + from.1, ox + to.0, oy + to.1);
@@ -232,7 +233,12 @@ pub fn route_leg(
         let goal = (clamp(by, r0, ch), clamp(bx, c0, cw));
         let grid_straight = ((goal.1 as f64 - start.1 as f64) * cell)
             .hypot((goal.0 as f64 - start.0 as f64) * cell);
-        if let Some(p) = crate::route::least_cost(&cost, &passable, cw, ch, cell, start, goal) {
+        // inflate hazards by the swept footprint, but keep the endpoints as the plain map has them
+        let mut usable = erode(&passable, cw, ch, cell, footprint_radius_m);
+        for (r, c) in [start, goal] {
+            usable[r * cw + c] = passable[r * cw + c];
+        }
+        if let Some(p) = crate::route::least_cost(&cost, &usable, cw, ch, cell, start, goal) {
             let waypoints = p
                 .cells
                 .iter()
@@ -260,4 +266,56 @@ pub fn route_leg(
         }
         m *= 2.0;
     }
+}
+
+/// [`route_leg_inflated`] for a point agent (no footprint).
+///
+/// # Errors
+/// As [`route_leg_inflated`].
+pub fn route_leg(
+    dem: Dem<'_>,
+    from: (f64, f64),
+    to: (f64, f64),
+    opts: &CostmapOptions<'_>,
+    margin_m: f64,
+    keepouts: &[Keepout],
+) -> Result<Leg, String> {
+    route_leg_inflated(dem, from, to, opts, margin_m, keepouts, 0.0)
+}
+
+/// Configuration-space inflation: a cell stays passable only if every cell within `radius_m` (a disk) is
+/// passable; outside the grid counts as blocked (scipy `minimum_filter(..., mode="constant", cval=0)`).
+#[must_use]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_wrap
+)]
+pub fn erode(
+    passable: &[bool],
+    width: usize,
+    height: usize,
+    cell_m: f64,
+    radius_m: f64,
+) -> Vec<bool> {
+    let rad = (radius_m / cell_m).ceil() as isize;
+    if radius_m <= 0.0 || rad <= 0 {
+        return passable.to_vec();
+    }
+    let r2 = (radius_m / cell_m).powi(2);
+    #[allow(clippy::cast_precision_loss)]
+    let disk: Vec<(isize, isize)> = (-rad..=rad)
+        .flat_map(|dy| (-rad..=rad).map(move |dx| (dy, dx)))
+        .filter(|&(dy, dx)| (dy * dy + dx * dx) as f64 <= r2)
+        .collect();
+    let (cols, rows) = (width as isize, height as isize);
+    (0..passable.len())
+        .map(|i| {
+            let (row, col) = ((i / width) as isize, (i % width) as isize);
+            disk.iter().all(|&(dy, dx)| {
+                let (rr, cc) = (row + dy, col + dx);
+                rr >= 0 && cc >= 0 && rr < rows && cc < cols && passable[(rr * cols + cc) as usize]
+            })
+        })
+        .collect()
 }

@@ -63,6 +63,9 @@ Fixtures:
                      caps, circle/rect/polygon keep-outs, SYNTHETIC illumination and map-uncertainty layers
                      (labelled), an off-DEM endpoint and a keep-out wall that forces window widening; plus
                      one full costmap with every term.
+  route_extras       lode.planner_routing on the same real window: footprint-inflated legs, haul elevation
+                     gain and cumulative ascent (with off-grid points), outward-spiral coverage routes and
+                     their terrain feasibility.
 """
 from __future__ import annotations
 
@@ -983,6 +986,45 @@ def route_cases() -> None:
                                "terms": {kk: v.ravel().tolist() for kk, v in terms.items()}}})
 
 
+def route_extras() -> None:
+    from lode import planner_routing as PR
+    from stewie.physics.worksite import coarse_base_from_bundle
+
+    base, _ = coarse_base_from_bundle(os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    cell, origin = 5.0, (100.0, 50.0)
+    legs_fx = json.load(open(os.path.join(ORACLE_FIXTURES, "route_cases.payload.json"), encoding="utf-8"))["legs"]
+    A, B = tuple(legs_fx[0]["a"]), tuple(legs_fx[0]["b"])
+    C, D = tuple(legs_fx[1]["a"]), tuple(legs_fx[1]["b"])
+    inflated = []
+    r6 = PR.route_leg_inflated((Z, cell), origin, A, B, footprint_radius_m=6.0)[3]
+    mx, my = r6[len(r6) // 2]           # the keep-out sits ON the inflated route, so it must move it
+    for name, a, b, rad, keep in (("r0", A, B, 0.0, []), ("r6", A, B, 6.0, []), ("r15", A, B, 15.0, []),
+                                  ("r10_cross", C, D, 10.0, []),
+                                  ("r6_rect", A, B, 6.0, [{"x0": mx - 25.0, "y0": my - 25.0, "x1": mx + 25.0, "y1": my + 25.0}])):
+        r = PR.route_leg_inflated((Z, cell), origin, a, b, footprint_radius_m=rad, keepouts=keep)
+        inflated.append({"name": name, "a": list(a), "b": list(b), "radius_m": rad, "keepouts": keep, "routed_m": r[0],
+                         "grid_straight_m": r[1], "reached": r[2], "waypoints": [list(p) for p in r[3]]})
+    diag = [tuple(p) for p in legs_fx[0]["waypoints"]]
+    gains = [{"a": list(a), "b": list(b), "gain": PR.haul_elevation_gain_m((Z, cell), origin, a, b)}
+             for a, b in ((A, B), (B, A), (C, D), (A, (5000.0, 0.0)))]
+    ascents = [{"waypoints": [list(p) for p in w], "ascent": PR.haul_cumulative_ascent_m((Z, cell), origin, w)}
+               for w in (diag, diag[::-1], [(-500.0, -500.0)] + diag[:20] + [(9000.0, 9000.0)])]
+    spirals = []
+    for bbox, swath, spacing, close in (((0.0, 0.0, 40.0, 40.0), 5.0, None, True), ((10.0, 20.0, 110.0, 50.0), 7.0, 3.0, True),
+                                        ((0.0, 0.0, 30.0, 12.0), 5.0, None, False), ((150.0, 120.0, 260.0, 230.0), 12.5, None, True)):
+        route = PR.coverage_spiral_route(bbox, swath_m=swath, spacing_m=spacing, close_loops=close)
+        frac, flags = PR.coverage_route_feasible(route, (Z, cell), origin)
+        spirals.append({"bbox": list(bbox), "swath_m": swath, "spacing_m": spacing, "close_loops": close,
+                        "route": [list(p) for p in route], "feasible_frac": frac, "flags": flags})
+    write_fixture(ORACLE_FIXTURES, "route_extras", "oracle/build_fixtures.py::route_extras (lode.planner_routing "
+                  "inflated legs, haul gains, coverage spirals on the real route_cases window)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "lode/planner_routing.py"],
+                  {"window": list(ROUTE_WINDOW), "cell_m": cell, "origin": list(origin), "inflated": inflated,
+                   "gains": gains, "ascents": ascents, "spirals": spirals})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -1057,6 +1099,7 @@ def main() -> None:
     world_log_cases()
     twin_store_cases()
     route_cases()
+    route_extras()
 
 
 if __name__ == "__main__":
