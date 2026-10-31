@@ -270,3 +270,32 @@ pub fn bekker_drive_power(
         entrapped: eq.entrapped,
     })
 }
+
+/// The equilibrium density a virgin cell (at `rho_surface`) reaches in one Bekker pass under `load_n`
+/// (Python `physical_compaction_target_density`, per cell): a pass compacts toward this and no further, so
+/// repeated passes at the same load are idempotent. Uncapped; the caller clamps to `rho_deep`. Slip
+/// deepens the rut; the thinning is mass-conserving.
+#[must_use]
+pub fn compaction_target_density(
+    mass_areal: f64,
+    load_n: f64,
+    contact_len_m: f64,
+    contact_width_m: f64,
+    slip: f64,
+    p: &SoilParams,
+) -> f64 {
+    let rho0 = p.rho_surface;
+    if load_n <= 0.0 {
+        return rho0;
+    }
+    let pressure = load_n / (contact_len_m * contact_width_m).max(1e-9);
+    let k = p.k_c / contact_len_m.min(contact_width_m) + p.k_phi * (rho0 / p.rho_surface).max(1.0);
+    let mut z = (pressure / k).powf(1.0 / p.n);
+    if slip > 0.0 {
+        z *= slip_sinkage_multiplier(slip, p);
+    }
+    let thickness = mass_areal / rho0;
+    let z = z.min(0.999 * thickness);
+    let denom = thickness - z;
+    rho0 * (1.0 + if denom > 1e-12 { z / denom } else { 0.0 })
+}

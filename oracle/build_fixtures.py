@@ -42,6 +42,10 @@ Fixtures:
   excavation_cases   stewie.physics.excavation (McKyes/Reece FEE: N-factors, least-draft rupture angle,
                      specific energy) and stewie.physics.material (cell strength and the per-cell record)
                      over a fixed input grid (synthetic inputs, labelled; the implementation is the real one).
+  rover_ops          stewie.physics.rover on a SYNTHETIC uniform 64x64 grid at 5 cm with a spoil patch
+                     (labelled; wheel-scale ruts have no real fine grid here): step_pose arcs, four-wheel
+                     passes (constant and physical with slip), a single rut, a drum cut with dump,
+                     straight_path edge cases and the yaw wrap.
 """
 from __future__ import annotations
 
@@ -661,6 +665,53 @@ def excavation_cases() -> None:
                   {"n_beta": 900, "factors": factors, "reports": reports, "material": material})
 
 
+def rover_ops() -> None:
+    """SYNTHETIC grid (labelled); every output is the Python implementation's."""
+    from stewie.physics import rover as RV
+    from stewie.physics.column_state import ColumnState, StateLabel
+    from stewie_forge import terramechanics as TM
+
+    cs = ColumnState(64, 64, 0.05)
+    cs.state_label[14:28, 14:30] = StateLabel.SPOIL
+    initial_labels = cs.state_label.ravel().tolist()
+    poses, pose, yaw = [], (20.0, 10.0), 0.3
+    for k in range(30):
+        omega = (0.0, 0.2, -0.4)[k // 10]
+        pose, yaw = RV.step_pose(pose, yaw, 0.3, omega, 0.1, cell_m=cs.cell_m)
+        poses.append([list(pose), yaw])
+    first = RV.four_wheel_pass(cs, [(tuple(p), h) for p, h in poses[:15]], wheel_width_m=0.18, compaction=0.12)
+    load = TM.static_wheel_load_n(payload_kg=10.0)
+    slip = {"LF": 0.2, "RF": 0.0, "LB": 0.0, "RB": 0.0}
+    second = RV.four_wheel_pass(cs, [(tuple(p), h) for p, h in poses[15:]], wheel_width_m=0.18, physical=True,
+                                payload_kg=10.0, slip=slip)
+    path = RV.straight_path(5, 5, 40, 50)
+    RV.wheel_pass(cs, path, wheel_width_m=0.18, compaction=0.12)
+    swath = [(float(r), float(c)) for r, c in RV.straight_path(50, 5, 50, 40)]
+    dump = [(float(r), float(c)) for r, c in RV.straight_path(58, 5, 58, 40)]
+    total0 = cs.total_mass()
+    moved = RV.drum_pass(cs, swath, depth_m=0.03, width_m=0.2, dump_rc=dump)
+    paths = {f"{a},{b},{c},{d},{e}": RV.straight_path(a, b, c, d, e)
+             for a, b, c, d, e in ((0, 0, 3, 1, 1), (0, 0, 5, 2, 1), (2, 7, 9, 1, 2), (0, 0, 1, 3, 4), (4, 4, 4, 4, 1),
+                                    (0, 0, 1, 2, 1), (0, 0, 3, 6, 1))}
+    wraps = [[y, w, list(RV.step_pose((0.0, 0.0), y, 0.3, w, 0.5, cell_m=0.05)[0]), RV.step_pose((0.0, 0.0), y, 0.3, w, 0.5, cell_m=0.05)[1]]
+             for y, w in ((3.1, 0.5), (-3.1, -0.5), (0.0, 0.0), (1.0, 1e-10))]
+    targets = [[m, ld, sl, float(TM.physical_compaction_target_density(np.array([m]), ld, contact_width_m=0.18,
+                                                                        slip=sl)[0])]
+               for m in (0.0, 5.0, 156.0, 400.0) for ld in (0.0, 12.15, 150.0, 300.0) for sl in (0.0, 0.3)]
+    write_fixture(ORACLE_FIXTURES, "rover_ops", "oracle/build_fixtures.py::rover_ops (stewie.physics.rover on a "
+                  "SYNTHETIC 64x64 5 cm grid, labelled)",
+                  ["stewie/physics/rover.py", "packages/stewie-forge/stewie_forge/terramechanics.py"],
+                  {"synthetic": True, "width": 64, "height": 64, "cell_m": 0.05, "initial_labels": initial_labels,
+                   "gauge_m": RV.WHEEL_GAUGE_M, "wheelbase_m": RV.WHEEL_BASE_M, "wheel_width_m": 0.18,
+                   "compaction": 0.12, "poses": poses, "first_lines": first, "second_lines": second,
+                   "physical_load_n": load, "slip": [slip[k] for k in ("LF", "RF", "LB", "RB")], "contact_len_m": 0.10,
+                   "path": path, "swath": swath, "dump": dump, "drum_depth_m": 0.03, "drum_width_m": 0.2,
+                   "drum_moved_kg": moved, "total_kg_before_drum": total0, "total_kg_after_drum": cs.total_mass(),
+                   "mass_areal": cs.mass_areal.ravel().tolist(), "density": cs.density.ravel().tolist(),
+                   "state_label": cs.state_label.ravel().tolist(), "disturbance": cs.disturbance.ravel().tolist(),
+                   "paths": paths, "wraps": wraps, "targets": targets})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -729,6 +780,7 @@ def main() -> None:
     column_ops()
     sandpile_runs()
     excavation_cases()
+    rover_ops()
 
 
 if __name__ == "__main__":

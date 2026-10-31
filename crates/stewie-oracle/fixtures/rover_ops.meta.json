@@ -1,0 +1,9 @@
+{
+ "fixture": "rover_ops",
+ "generator": "oracle/build_fixtures.py::rover_ops (stewie.physics.rover on a SYNTHETIC 64x64 5 cm grid, labelled)",
+ "payload_sha256": "97ac1f796679f11609191850da9ab4f932edd4247efc07e726165413834243a6",
+ "sources": {
+  "packages/stewie-forge/stewie_forge/terramechanics.py": "03596bd2231c84e6d9696f882789bf767564dbd80ce6f492738f424d859ccd13",
+  "stewie/physics/rover.py": "f420b464fbcd1529d3758e9ce1d5573d84745f1a9ceb5b89ad435388223b29a0"
+ }
+}
