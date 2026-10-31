@@ -470,6 +470,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lunar-ephem"
+version = "0.1.0"
+dependencies = [
+ "lunar-frames",
+ "serde",
+ "serde_json",
+ "sha2",
+ "stewie-oracle",
+]
+
+[[package]]
 name = "lunar-frames"
 version = "0.1.0"
 dependencies = [

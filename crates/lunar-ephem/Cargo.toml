@@ -1,0 +1,20 @@
+[package]
+name = "lunar-ephem"
+description = "DE440 Sun and Earth for the Moon from packed Chebyshev segments: no SPICE at runtime."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+lunar-frames = { path = "../lunar-frames" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+
+[lints]
+workspace = true

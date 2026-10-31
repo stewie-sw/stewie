@@ -215,3 +215,4 @@ gis/qwc2/proof/
 
 # Rust build output
 /target/
+/.cache/

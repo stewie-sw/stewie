@@ -51,7 +51,7 @@ jobs:
       - name: AC-01 TS API client drift gate (the generated client must match the live FastAPI OpenAPI)
         run: python scripts/gen_ts_api_client.py --check
       - name: oracle fixtures are reproducible (Rust golden fixtures regenerate byte-identically)
-        run: (cd oracle && python build_fixtures.py) && git diff --exit-code -- crates/stewie-contracts/fixtures crates/stewie-oracle/fixtures
+        run: python pipeline/fetch_spice.py && (cd pipeline && python ephem_pack.py) && (cd oracle && python build_fixtures.py) && git diff --exit-code -- crates/stewie-contracts/fixtures crates/stewie-oracle/fixtures crates/lunar-ephem/data
       - name: Large-file / tracked-artifact policy (MT-01 -- a new large binary must be shrunk/externalized/allowlisted)
         run: python scripts/check_tracked_artifacts.py
       - name: Power-of-10 profile on the conserved core (PRD 19.2; complexity<=10, bounded branching)
@@ -95,6 +95,8 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - name: toolchain (pinned by rust-toolchain.toml; rustup is preinstalled on the runner)
         run: rustup show active-toolchain
+      - name: NAIF kernels for the ephemeris oracle fixtures (manifest-pinned sha256; stdlib-only fetch)
+        run: python3 pipeline/fetch_spice.py
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
