@@ -1,0 +1,13 @@
+{
+ "fixture": "traffic_memory_cases",
+ "generator": "oracle/build_fixtures.py::traffic_memory_cases (stewie.twin.traffic_memory.TrafficMemory folding routed legs on the real Haworth window)",
+ "payload_sha256": "b2595b1fe19b5866b555c7bdf2ca5fcb2a1d700a8dabcac04266cbea7005a8d4",
+ "sources": {
+  "packages/stewie-forge/stewie_forge/bearing.py": "66e43d075b848696a17fcabe1f15bc0f1e0aeab91431ed1b6051fd2b87f7ac06",
+  "packages/stewie-forge/stewie_forge/terramechanics.py": "03596bd2231c84e6d9696f882789bf767564dbd80ce6f492738f424d859ccd13",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/material.py": "2de47cc554a2926778cf082789482073b2de5544d2c2f53cc3e8211077f32827",
+  "stewie/server/traffic_fold.py": "6b908177ac3731d3a9dcd56eaaeff35846d4e389e2342cb80f46634205fb0f7d",
+  "stewie/twin/traffic_memory.py": "8f0a311ee1007738a7a74cfe8d6b12c776d3174e6193a800bc803eaed7d51f81"
+ }
+}

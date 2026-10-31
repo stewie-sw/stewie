@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 serde_json = { version = "1", features = ["float_roundtrip"] }
+stewie-physics = { path = "../stewie-physics" }
 sha2 = "0.10"
 zip = { version = "7", default-features = false }
 

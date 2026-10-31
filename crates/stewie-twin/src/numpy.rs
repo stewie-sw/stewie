@@ -62,6 +62,10 @@ pub enum Array {
         shape: Vec<usize>,
         data: Vec<i64>,
     },
+    U32 {
+        shape: Vec<usize>,
+        data: Vec<u32>,
+    },
     /// A 0-d unicode string (`<U{n}`).
     Str(String),
 }
@@ -131,6 +135,12 @@ fn parse_npy(bytes: &[u8]) -> Result<Array, TwinError> {
             data: words(8)?.map(|c| i64::from_le_bytes(eight(c))).collect(),
             shape,
         }),
+        "<u4" => Ok(Array::U32 {
+            data: words(4)?
+                .map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                .collect(),
+            shape,
+        }),
         u if u.starts_with("<U") && shape.is_empty() => {
             let n: usize = u[2..].parse().map_err(|_| bad(format!("descr {u}")))?;
             if data.len() != 4 * n {
@@ -169,6 +179,11 @@ fn npy_bytes(a: &Array) -> Vec<u8> {
         ),
         Array::I64 { shape: s, data } => (
             "<i8".into(),
+            shape(s),
+            data.iter().flat_map(|v| v.to_le_bytes()).collect(),
+        ),
+        Array::U32 { shape: s, data } => (
+            "<u4".into(),
             shape(s),
             data.iter().flat_map(|v| v.to_le_bytes()).collect(),
         ),
@@ -232,6 +247,16 @@ pub fn write_npz(w: impl Write + Seek, arrays: &[(&str, Array)]) -> Result<(), T
     Ok(())
 }
 
+/// Write `arrays` as an `.npz` at `path` atomically (see [`crate::write_atomic`]).
+///
+/// # Errors
+/// An I/O failure.
+pub fn save_npz(path: &std::path::Path, arrays: &[(&str, Array)]) -> Result<(), TwinError> {
+    let mut buf = std::io::Cursor::new(Vec::new());
+    write_npz(&mut buf, arrays)?;
+    crate::write_atomic(path, &buf.into_inner())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,6 +285,13 @@ mod tests {
                 Array::I64 {
                     shape: vec![1],
                     data: vec![0],
+                },
+            ),
+            (
+                "passes",
+                Array::U32 {
+                    shape: vec![2, 2],
+                    data: vec![0, 1, 3, u32::MAX],
                 },
             ),
         ];

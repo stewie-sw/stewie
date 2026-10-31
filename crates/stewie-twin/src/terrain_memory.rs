@@ -8,7 +8,6 @@
 //! the volume summed as numpy sums, so a Python chain verifies here and a Rust chain verifies there.
 
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
@@ -528,12 +527,7 @@ impl TerrainMemory {
                 },
             ),
         ];
-        let tmp = PathBuf::from(format!("{}.part", path.display()));
-        let mut f = fs::File::create(&tmp).map_err(TwinError::Io)?;
-        numpy::write_npz(&mut f, &arrays)?;
-        f.flush().map_err(TwinError::Io)?;
-        f.sync_all().map_err(TwinError::Io)?;
-        fs::rename(&tmp, path).map_err(TwinError::Io)
+        numpy::save_npz(path, &arrays)
     }
 
     /// Restore a memory written by [`Self::save`] or by the Python. A file from before history retention has
@@ -669,12 +663,7 @@ pub fn save_site(data_dir: &Path, memory: &TerrainMemory) -> Result<PathBuf, Twi
 /// # Errors
 /// An I/O failure.
 pub fn snapshot_site(data_dir: &Path, site: &str) -> Result<Option<Vec<u8>>, TwinError> {
-    let p = terrain_path(data_dir, site);
-    if p.exists() {
-        fs::read(&p).map(Some).map_err(TwinError::Io)
-    } else {
-        Ok(None)
-    }
+    crate::snapshot_file(&terrain_path(data_dir, site))
 }
 
 /// Restore a site's memory to a [`snapshot_site`] snapshot (`None` removes it), atomically.
@@ -682,19 +671,5 @@ pub fn snapshot_site(data_dir: &Path, site: &str) -> Result<Option<Vec<u8>>, Twi
 /// # Errors
 /// An I/O failure.
 pub fn restore_site(data_dir: &Path, site: &str, snapshot: Option<&[u8]>) -> Result<(), TwinError> {
-    let p = terrain_path(data_dir, site);
-    let Some(bytes) = snapshot else {
-        if p.exists() {
-            fs::remove_file(&p).map_err(TwinError::Io)?;
-        }
-        return Ok(());
-    };
-    if let Some(dir) = p.parent() {
-        fs::create_dir_all(dir).map_err(TwinError::Io)?;
-    }
-    let tmp = PathBuf::from(format!("{}.part", p.display()));
-    let mut f = fs::File::create(&tmp).map_err(TwinError::Io)?;
-    f.write_all(bytes).map_err(TwinError::Io)?;
-    f.sync_all().map_err(TwinError::Io)?;
-    fs::rename(&tmp, &p).map_err(TwinError::Io)
+    crate::restore_file(&terrain_path(data_dir, site), snapshot)
 }

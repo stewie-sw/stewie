@@ -1097,6 +1097,74 @@ def terrain_memory_cases() -> None:
                    "pairwise_sums": sums, "rounds": rounds})
 
 
+def traffic_memory_cases() -> None:
+    """TrafficMemory (RW-21c-2) folding real drive traffic: two routed legs on the real Haworth route window
+    (lode.planner_routing, as route_cases), rasterised by the server's own segment sampler, at the real IPEx
+    static wheel loads (dry, then a 20 kg drum); a re-committed event is a no-op (H-09)."""
+    from scipy import ndimage
+
+    from lode import planner_routing as PR
+    from stewie.physics import material as MT
+    from stewie.physics.worksite import coarse_base_from_bundle
+    from stewie.server.traffic_fold import _segment_cells
+    from stewie.specs import constants as K
+    from stewie.twin.traffic_memory import TrafficMemory
+    from stewie_forge.terramechanics import TerramechanicsParams, static_wheel_load_n
+
+    base, _ = coarse_base_from_bundle(os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    cell, origin = 5.0, (100.0, 50.0)
+    _, passable = PR.slope_costmap(Z, cell, max_drop_m=PR.MAX_DROP_M)
+    lab, _ = ndimage.label(passable, structure=np.ones((3, 3)))
+    rr, cc = np.nonzero(lab == np.argmax(np.bincount(lab.ravel())[1:]) + 1)
+
+    def site(fr, fc):        # the main-component cell nearest a fixed fraction of the window (as route_cases)
+        k = int(np.argmin((rr - fr * n) ** 2 + (cc - fc * n) ** 2))
+        return (float(cc[k] * cell - origin[0] + 2.5), float(rr[k] * cell - origin[1] + 2.5))
+
+    routes = [PR.route_leg((Z, cell), origin, site(*a), site(*b))[3]
+              for a, b in (((0.1, 0.1), (0.9, 0.85)), ((0.15, 0.9), (0.85, 0.15)))]
+    assert all(len(r) > 10 for r in routes)
+
+    def cells(route):
+        out = set()
+        for p, q in zip(route[:-1], route[1:]):
+            out |= _segment_cells((p[0] + origin[0], p[1] + origin[1]), (q[0] + origin[0], q[1] + origin[1]),
+                                  cell_m=cell, r0=0, c0=0, rows=n, cols=n)
+        return sorted(out)
+
+    dry, loaded = static_wheel_load_n(0.0), static_wheel_load_n(20.0)
+    tm = TrafficMemory(site="haworth", rows=n, cols=n, cell_m=cell, origin=(0.0, 0.0))
+    events = [("m1", "m1:leg0", cells(routes[0]), dry), ("m1", "m1:leg1", cells(routes[1]), dry),
+              ("m1", "m1:leg0", cells(routes[0]), dry), ("m2", "m2:leg0", cells(routes[0]), loaded)]
+    versions = [tm.apply_path(c, load, mission=m, event_id=e) for m, e, c, load in events]
+    assert versions == [1, 2, 2, 3] and tm.verify_chain()
+    tm.save(os.path.join(ORACLE_FIXTURES, "traffic_memory_haworth.npz"))
+    p = TerramechanicsParams.from_constants()
+    write_fixture(ORACLE_FIXTURES, "traffic_memory_cases", "oracle/build_fixtures.py::traffic_memory_cases "
+                  "(stewie.twin.traffic_memory.TrafficMemory folding routed legs on the real Haworth window)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/twin/traffic_memory.py",
+                   "stewie/server/traffic_fold.py", "stewie/physics/material.py",
+                   "packages/stewie-forge/stewie_forge/terramechanics.py",
+                   "packages/stewie-forge/stewie_forge/bearing.py"],
+                  {"site": "haworth", "rows": n, "cols": n, "cell_m": cell, "mass_areal": tm.mass_areal,
+                   "sigma_c_n": tm.sigma_c_n, "contact_width_m": tm.contact_width_m,
+                   "soil": p.to_dict(), "contact_len_m": p.contact_len_m, "g": float(K.g),
+                   "rho_surface": float(K.RHO_SURFACE), "rho_deep": float(K.RHO_DEEP),
+                   "material": {"phi_loose_deg": MT.PHI_LOOSE_DEG, "phi_dense_deg": MT.PHI_DENSE_DEG,
+                                "cohesion_loose_pa": MT.COHESION_LOOSE_PA, "cohesion_dense_pa": MT.COHESION_DENSE_PA,
+                                "rho_surface": float(MT.K.RHO_SURFACE), "rho_deep": float(MT.K.RHO_DEEP)},
+                   "events": [{"mission": m, "event_id": e, "cells": [list(x) for x in c], "load_n": load}
+                              for m, e, c, load in events],
+                   "versions": versions, "chain": tm.chain, "summary": tm.summary(),
+                   "equilibrium": tm.equilibrium_density().ravel().tolist(),
+                   "densified": tm.densified_density().ravel().tolist(),
+                   "relative": tm.relative_density().ravel().tolist(),
+                   "uplift": tm.bearing_uplift_pa().ravel().tolist(),
+                   "npz": "crates/stewie-oracle/fixtures/traffic_memory_haworth.npz"})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1358,6 +1426,7 @@ def main() -> None:
     worksite_native()
     worksite_refined()
     terrain_memory_cases()
+    traffic_memory_cases()
     world_log_cases()
     twin_store_cases()
     route_cases()
