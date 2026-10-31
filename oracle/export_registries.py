@@ -11,6 +11,7 @@ import dataclasses
 import json
 import os
 
+from stewie.physics import material as M
 from stewie.specs import constants as K
 from stewie.specs.sites import SITES
 from stewie_bodies import BODIES
@@ -53,7 +54,11 @@ def soil_baseline() -> dict:
                              "source": "microwave-sintered simulant 2.23-2.34 g/cm^3 (Lin et al. 2024, J. Eur. Ceram. Soc.)"},
             "z_t_m": {"value": float(K.Z_T), "tag": "CALIB", "source": f"{spec} (z_t 10-15 cm)"},
             "w_ice_max": {"value": float(K.W_ICE_MAX), "tag": "UNKNOWN",
-                          "source": f"{spec} (0-5.6 % PSR, LCROSS-derived)"}}
+                          "source": f"{spec} (0-5.6 % PSR, LCROSS-derived)"},
+            "phi_dense_deg": {"value": float(M.PHI_DENSE_DEG), "tag": "CALIB",
+                              "source": f"{spec} (dense end of phi 30-50 deg), stewie/physics/material.py"},
+            "cohesion_dense_pa": {"value": float(M.COHESION_DENSE_PA), "tag": "CALIB",
+                                  "source": f"{spec} (dense end of c 0.1-1.0 kPa), stewie/physics/material.py"}}
 
 
 def _write(name: str, data: dict) -> str:

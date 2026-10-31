@@ -1,0 +1,2 @@
+# Proper nouns that appear in physics docs (authors, the IPEx rover), not code identifiers.
+doc-valid-idents = ["IPEx", "McKyes", "DeGennaro", ".."]

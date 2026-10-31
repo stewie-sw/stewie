@@ -7,6 +7,8 @@
 
 pub mod bearing;
 pub mod column;
+pub mod excavation;
+pub mod material;
 pub mod sandpile;
 pub mod soil;
 pub mod terra;

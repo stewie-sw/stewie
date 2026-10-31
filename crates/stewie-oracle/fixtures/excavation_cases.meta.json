@@ -1,0 +1,10 @@
+{
+ "fixture": "excavation_cases",
+ "generator": "oracle/build_fixtures.py::excavation_cases (stewie.physics.excavation, stewie.physics.material; synthetic input grid, labelled)",
+ "payload_sha256": "f56b4a4723d340ab734e3ffb17a2ac0c6e57ec1fa1c4c61ab4904aeb97ef5a94",
+ "sources": {
+  "stewie/physics/excavation.py": "408bbef456b6022a57d68fbe3e4ff97d2d932c48b46699673769907278663593",
+  "stewie/physics/material.py": "2de47cc554a2926778cf082789482073b2de5544d2c2f53cc3e8211077f32827",
+  "stewie/specs/constants.py": "3eacdd47e1491b20a3dfc5523f50e1a530630d16e79c1fd78bf36daa85ef1f65"
+ }
+}

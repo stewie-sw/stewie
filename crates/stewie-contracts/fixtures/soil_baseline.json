@@ -1,8 +1,18 @@
 {
+  "cohesion_dense_pa": {
+    "source": "spec section 5.2, stewie/specs/constants.py (dense end of c 0.1-1.0 kPa), stewie/physics/material.py",
+    "tag": "CALIB",
+    "value": 1000.0
+  },
   "k_shear_m": {
     "source": "spec section 5.2, stewie/specs/constants.py (1.0-1.8 cm)",
     "tag": "CALIB",
     "value": 0.018
+  },
+  "phi_dense_deg": {
+    "source": "spec section 5.2, stewie/specs/constants.py (dense end of phi 30-50 deg), stewie/physics/material.py",
+    "tag": "CALIB",
+    "value": 50.0
   },
   "rho_deep": {
     "source": "spec section 5.2, stewie/specs/constants.py (1.8-2.0 g/cm^3)",

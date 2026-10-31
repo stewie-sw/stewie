@@ -39,6 +39,9 @@ Fixtures:
                      under four configurations (8/4-connected, cohesion steepening, a sintered floor as
                      receiver); steps, snapshot count, a mid snapshot and the final fields. A fifth run on a SYNTHETIC
                      flat layer (labelled) reaches rest, which the real crop never does (D-R52).
+  excavation_cases   stewie.physics.excavation (McKyes/Reece FEE: N-factors, least-draft rupture angle,
+                     specific energy) and stewie.physics.material (cell strength and the per-cell record)
+                     over a fixed input grid (synthetic inputs, labelled; the implementation is the real one).
 """
 from __future__ import annotations
 
@@ -616,6 +619,48 @@ def sandpile_runs() -> None:
                    "eps_deg": 0.5, "runs": runs})
 
 
+def excavation_cases() -> None:
+    """Grid inputs are synthetic (labelled); every output is the Python implementation's."""
+    import itertools
+
+    from stewie.physics import excavation as EX, material as MT
+
+    factors = []
+    for phi_deg, beta_deg, rake_deg, delta_deg in itertools.product((20.0, 30.0, 37.0, 45.0),
+                                                                  (0.5, 10.0, 30.0, 50.0, 60.0, 89.0, 95.0),
+                                                                  (45.0, 30.0), (None, 10.0)):
+        phi = math.radians(phi_deg)
+        delta = None if delta_deg is None else math.radians(delta_deg)
+        try:
+            out = list(EX.earthmoving_factors(phi, math.radians(beta_deg), rake_rad=math.radians(rake_deg),
+                                              soil_tool_friction_rad=delta))
+        except ValueError:
+            out = None
+        factors.append({"phi_deg": phi_deg, "beta_deg": beta_deg, "rake_deg": rake_deg,
+                        "delta_rad": EX.SOIL_TOOL_FRICTION_FRAC * phi if delta is None else delta, "n": out})
+    reports = []
+    for d, w, c, rho, g, phi_deg, q in itertools.product((0.02, 0.1), (0.2, 0.5), (0.0, 170.0, 1000.0), (1300.0, 1750.0),
+                                                       (1.62, 9.81), (30.0, 37.0, 50.0), (0.0, 100.0)):
+        phi = math.radians(phi_deg)
+        r = EX.earthmoving_report(depth_m=d, width_m=w, cohesion_pa=c, bulk_density_kg_m3=rho, gravity_ms2=g,
+                                  phi_rad=phi, surcharge_pa=q)
+        reports.append({"depth_m": d, "width_m": w, "c_pa": c, "rho": rho, "g": g, "phi_deg": phi_deg, "q_pa": q,
+                        "rake_rad": EX.RAKE_ANGLE_RAD, "delta_rad": EX.SOIL_TOOL_FRICTION_FRAC * phi,
+                        **{k: r[k] for k in ("draft_n", "n_gamma", "n_c", "n_q", "beta_rad", "specific_energy_j_per_kg")}})
+    dens = [1000.0, 1300.0, 1455.8333740234375, 1600.0, 1920.0, 2300.0]
+    mf = MT.material_fields(np.array(dens), normal_load_n=200.0, contact_area_m2=0.05)
+    material = {"phi_loose_deg": MT.PHI_LOOSE_DEG, "phi_dense_deg": MT.PHI_DENSE_DEG,
+                "cohesion_loose_pa": MT.COHESION_LOOSE_PA, "cohesion_dense_pa": MT.COHESION_DENSE_PA,
+                "rho_surface": float(MT.K.RHO_SURFACE), "rho_deep": float(MT.K.RHO_DEEP), "normal_load_n": 200.0,
+                "contact_area_m2": 0.05, "density": dens,
+                "strength": [list(MT.cell_strength(x)) for x in dens],
+                **{k: np.asarray(v).tolist() for k, v in mf.items()}}
+    write_fixture(ORACLE_FIXTURES, "excavation_cases", "oracle/build_fixtures.py::excavation_cases "
+                  "(stewie.physics.excavation, stewie.physics.material; synthetic input grid, labelled)",
+                  ["stewie/physics/excavation.py", "stewie/physics/material.py", "stewie/specs/constants.py"],
+                  {"n_beta": 900, "factors": factors, "reports": reports, "material": material})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -683,6 +728,7 @@ def main() -> None:
     terramechanics_cases()
     column_ops()
     sandpile_runs()
+    excavation_cases()
 
 
 if __name__ == "__main__":
