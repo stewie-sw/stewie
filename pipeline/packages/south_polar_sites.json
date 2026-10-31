@@ -1,0 +1,469 @@
+{
+ "body": "moon",
+ "ephemeris": {
+  "data": {
+   "bytes": 854568,
+   "path": "moon_de440_2026_2035.bin",
+   "sha256": "3982cc69dbbe6b5fbd78e507bf96e01c09e6fe15b20b420022786de064793137"
+  },
+  "header": {
+   "bytes": 2593,
+   "path": "moon_de440_2026_2035.json",
+   "sha256": "1627b30263377f59ed553ab285b808b849fab46c2af95ec5868654c59bcb4892"
+  },
+  "license": {
+   "statement": "Repacked from NAIF-distributed SPICE kernels by STEWIE pipeline/ephem_pack.py, renamed and annotated as NAIF requires of modified kernels. NAIF: \"SPICE kernels placed on the NAIF server may be downloaded and used by anyone\".",
+   "url": "https://naif.jpl.nasa.gov/naif/rules.html"
+  },
+  "name": "moon_de440_2026_2035",
+  "source": "pipeline/ephem_pack.py over NAIF de440s.bsp, moon_de440_250416.tf, moon_pa_de440_200625.bpc, naif0012.tls, pck00011.tpc",
+  "span_utc": [
+   "2026-01-01T00:00:00Z",
+   "2036-01-01T00:00:00Z"
+  ]
+ },
+ "format": "stewie-package-v1",
+ "layers": [
+  {
+   "id": "ldem_85s_40m_amundsen_rim",
+   "image": {
+    "bytes": 652652,
+    "path": "ldem_85s_40m_amundsen_rim.img",
+    "sha256": "6eb116b2f391390df8a772362b099420c9e0f91b4e3b0f2e4dd3812ad09c8d9f"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4878,
+    "path": "ldem_85s_40m_amundsen_rim.lbl",
+    "sha256": "f9bca77e02721402e213b658a62f18f982ac11237b4563dfe0e8e521d835a260"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    138660.0,
+    40900.0,
+    151660.0,
+    80900.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 1769-2769 cols 7258-7583"
+  },
+  {
+   "id": "ldem_85s_40m_connecting_ridge",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_connecting_ridge.img",
+    "sha256": "41dbcb9652573531ebb6aa45501ecbf308f35222032db11141ba7c21c5a5e89e"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4878,
+    "path": "ldem_85s_40m_connecting_ridge.lbl",
+    "sha256": "5dbb8dce57532ae66abbf48133a47e36b2405affa9090d741f002387d22c7290"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    -38980.0,
+    -30020.0,
+    1020.0,
+    9980.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 3542-4542 cols 2817-3817"
+  },
+  {
+   "id": "ldem_85s_40m_de_gerlache_kocher",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_de_gerlache_kocher.img",
+    "sha256": "30086a6501bf18c881b8a7dca9e1ad65c0263435b6bec3f8d24d0b9a5ba23917"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4880,
+    "path": "ldem_85s_40m_de_gerlache_kocher.lbl",
+    "sha256": "b06499ea934a742e8989dace74fa93286d98e36e525939e8e9aeee5153b085d4"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    -128380.0,
+    -71100.0,
+    -88380.0,
+    -31100.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 4569-5569 cols 582-1582"
+  },
+  {
+   "id": "ldem_85s_40m_de_gerlache_rim",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_de_gerlache_rim.img",
+    "sha256": "9222c49f7865e65687690e4a071665175ac840f218c4f6ac790949ecca7be7e9"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4879,
+    "path": "ldem_85s_40m_de_gerlache_rim.lbl",
+    "sha256": "cfd986a150c09abf77f953c52d875b911161f8565ab5fec912b6bdf5a22abad8"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    -64980.0,
+    -3020.0,
+    -24980.0,
+    36980.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 2867-3867 cols 2167-3167"
+  },
+  {
+   "id": "ldem_85s_40m_faustini_rim",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_faustini_rim.img",
+    "sha256": "9ebca390e4991fe2380f7a9e8415834ac0b04d831ad6bf75ee42c1428ba3d592"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4881,
+    "path": "ldem_85s_40m_faustini_rim.lbl",
+    "sha256": "6e1bdcbb86fa9754e751e351f92a926a3248fc0ad86414776a77914aaadcd705"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    68660.0,
+    460.0,
+    108660.0,
+    40460.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 2780-3780 cols 5508-6508"
+  },
+  {
+   "id": "ldem_85s_40m_haworth",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_haworth.img",
+    "sha256": "50cea3b693281fa6adaed92b2e8c94850f23b232810cb8a2959b198ca1da1e37"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4880,
+    "path": "ldem_85s_40m_haworth.lbl",
+    "sha256": "d8788e839a8ed925c0aa36cfa1b904e19d5c6a03c02398ad32c2f5a72f411a5f"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    -67940.0,
+    80460.0,
+    -27940.0,
+    120460.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 780-1780 cols 2093-3093"
+  },
+  {
+   "id": "ldem_85s_40m_haworth_sfs",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_haworth_sfs.img",
+    "sha256": "094c584560437e405562c61b151dba953ed4d12498cca4dcb1c6470091f0692b"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4880,
+    "path": "ldem_85s_40m_haworth_sfs.lbl",
+    "sha256": "bb7cd6eabe3c8564e93d80dcabf17eb88b331f92cc4ef5558f3e6a270d59069c"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    -54300.0,
+    69300.0,
+    -14300.0,
+    109300.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 1059-2059 cols 2434-3434"
+  },
+  {
+   "id": "ldem_85s_40m_leibnitz_beta",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_leibnitz_beta.img",
+    "sha256": "8833b9f254585c35400733466ef2a7a79bfb89351d3ca566f4441ababcbb3ad1"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4881,
+    "path": "ldem_85s_40m_leibnitz_beta.lbl",
+    "sha256": "292c0d7eb02f60775fb63f07d6bbf72e239895e9bd059ca38e27bdd954de2901"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    45020.0,
+    99980.0,
+    85020.0,
+    139980.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 292-1292 cols 4917-5917"
+  },
+  {
+   "id": "ldem_85s_40m_malapert_massif",
+   "image": {
+    "bytes": 1987986,
+    "path": "ldem_85s_40m_malapert_massif.img",
+    "sha256": "329cfcc2041f3df1cffd24210ef51b6dcff7aafaa89abb4a2e4657aa051d7e7f"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4876,
+    "path": "ldem_85s_40m_malapert_massif.lbl",
+    "sha256": "2415858c5a4d2cd33fa5778c6be74b238fcf03e350bfab8bcd94c9b85097876b"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    -23980.0,
+    111980.0,
+    16020.0,
+    151660.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 0-992 cols 3192-4192"
+  },
+  {
+   "id": "ldem_85s_40m_nobile_rim",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_nobile_rim.img",
+    "sha256": "52b5804264ed20757ada7e66f8f3b269158917184844600d76fc7699f88bf2da"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4881,
+    "path": "ldem_85s_40m_nobile_rim.lbl",
+    "sha256": "58267f3e2bae826ccb783f84df7ae35f85fc80bb9b593e28d6efacd5dec67e01"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    68020.0,
+    85020.0,
+    108020.0,
+    125020.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 666-1666 cols 5492-6492"
+  },
+  {
+   "id": "ldem_85s_40m_nobile_rim2",
+   "image": {
+    "bytes": 884884,
+    "path": "ldem_85s_40m_nobile_rim2.img",
+    "sha256": "d3b4e1e70e13bf6fd7838d5cccef7922c3b9b578bf9da41ec67b59ad2e995773"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4878,
+    "path": "ldem_85s_40m_nobile_rim2.lbl",
+    "sha256": "ec25cc8cd3662634544038dbeef269f1163726ccc6a0fa57f3264ded4db76c2e"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    134020.0,
+    74980.0,
+    151660.0,
+    114980.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 917-1917 cols 7142-7583"
+  },
+  {
+   "id": "ldem_85s_40m_peak_near_shackleton",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_peak_near_shackleton.img",
+    "sha256": "457fb7fa95993f9a841f8d1039c8a47118f5f4f0cbbac819a3bbadf2328836b6"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4879,
+    "path": "ldem_85s_40m_peak_near_shackleton.lbl",
+    "sha256": "e67e66f4600e1caf42b88d4efbaeae0e67b2c7a432bf0add110f176a2a06c5b7"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    8020.0,
+    -32020.0,
+    48020.0,
+    7980.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 3592-4592 cols 3992-4992"
+  },
+  {
+   "id": "ldem_85s_40m_shackleton_rim",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_shackleton_rim.img",
+    "sha256": "376001fbc0cb3e8d3fae94cfbeb14b2c3d3f4fdcf25d4f1df0d4b85204825fbf"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4878,
+    "path": "ldem_85s_40m_shackleton_rim.lbl",
+    "sha256": "d6f66653eddd0f2a54335a9674db57fa1688dda8789018d2d4ceb518cf7d7468"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    -18020.0,
+    -24980.0,
+    21980.0,
+    15020.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 3416-4416 cols 3341-4341"
+  },
+  {
+   "id": "ldem_85s_40m_shoemaker",
+   "image": {
+    "bytes": 2004002,
+    "path": "ldem_85s_40m_shoemaker.img",
+    "sha256": "068571b6a861de5126ccecc328e43b1dbcd7dc0ad8e82da41e1f73a4247618b0"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4881,
+    "path": "ldem_85s_40m_shoemaker.lbl",
+    "sha256": "30940c0a7b21eb8678301030b152435cafd81767b6cf944597e7b2bb7d42845f"
+   },
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "polar_box_m": [
+    55020.0,
+    28980.0,
+    95020.0,
+    68980.0
+   ],
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0; crop rows 2067-3067 cols 5167-6167"
+  },
+  {
+   "id": "ldem_75s_240m",
+   "image": {
+    "bytes": 29062688,
+    "path": "ldem_75s_240m.img",
+    "sha256": "d031efe2611b17dfbf3c158f5e15dc04cd5719349dcbf6384bb21fd97697c490"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4990,
+    "path": "ldem_75s_240m.lbl",
+    "sha256": "ec07239f41d8abc1a3681495b5799b770c7206b5268b76721d69180df0422e02"
+   },
+   "lat_max_deg": -75.0047359642375,
+   "lat_min_deg": -90.0,
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "priority": 2,
+   "resolution_m": 240.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_240m.img",
+   "version": "V2.0"
+  },
+  {
+   "id": "ldem_16",
+   "image": {
+    "bytes": 33177600,
+    "path": "ldem_16.img",
+    "sha256": "a511e40d7a3ea3275945b4da2a1df377133264fab0be94b7434b1cf8907254cb"
+   },
+   "kind": "pds_simple_cylindrical",
+   "label": {
+    "bytes": 5121,
+    "path": "ldem_16.lbl",
+    "sha256": "9aef29463ccc6ed3a3fbe0df3ecd830a99c69e16b564f455507dee2697096579"
+   },
+   "lat_max_deg": 89.96875,
+   "lat_min_deg": -89.96875,
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "priority": 9,
+   "resolution_m": 1895.2094015093426,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_16.img",
+   "version": "V3.1"
+  }
+ ],
+ "name": "south_polar_sites"
+}

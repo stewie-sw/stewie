@@ -39,16 +39,15 @@ fn south_polar_stack() -> TerrainStack {
     ])
 }
 
-#[test]
+/// Run the R5 protocol on `stack`; `near_tier` is the 40 m source each observer must stand on.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-fn long_run_sun_visibility_matches_pgda_product_69() {
+fn r5_on(stack: &TerrainStack, near_tier: &dyn Fn(&str, &str) -> bool) {
     let fx = stewie_oracle::load("pgda_avgvisib").unwrap().payload;
     let p = &fx["protocol"];
     let num = |k: &str| p[k].as_f64().unwrap();
     let eph = Ephemeris::bundled().unwrap();
     let t0 = eph.tdb(&Utc::parse_iso8601(p["start_utc"].as_str().unwrap()).unwrap());
     let t1 = t0 + num("span_days") * 86_400.0;
-    let stack = south_polar_stack();
     let hcfg = HorizonConfig {
         n_az: num("n_az") as usize,
         max_range_m: num("max_range_m"),
@@ -76,11 +75,12 @@ fn long_run_sun_visibility_matches_pgda_product_69() {
         let Resolved::Covered { height_m, source } = stack.resolve(at) else {
             panic!("{name}: not covered");
         };
-        assert_eq!(
-            source.id, "ldem_85s_40m",
-            "{name}: observer on the 40 m tier"
+        assert!(
+            near_tier(&source.id, name),
+            "{name}: observer on {}",
+            source.id
         );
-        let h = horizon(&stack, at, &hcfg).unwrap();
+        let h = horizon(stack, at, &hcfg).unwrap();
         assert!(h.complete.iter().all(|&c| c), "{name}: every ray complete");
         let cfg = VisibilityConfig {
             sample_s: num("step_s"),
@@ -105,4 +105,22 @@ fn long_run_sun_visibility_matches_pgda_product_69() {
         }
     }
     assert!(failures.is_empty(), "outside R5 tolerance: {failures:#?}");
+}
+
+#[test]
+fn long_run_sun_visibility_matches_pgda_product_69() {
+    r5_on(&south_polar_stack(), &|id, _| id == "ldem_85s_40m");
+}
+
+/// The device package (40 m crops around each site over the 240 m tier and `LDEM_16`) must still pass R5:
+/// it is what the browser and tablet answer with (D-R47).
+#[test]
+fn the_device_package_also_meets_r5() {
+    let pkg = stewie_package::Package::open(
+        &stewie_oracle::repo_root().join(".cache/package/south_polar_sites"),
+        moon(),
+    )
+    .unwrap();
+    // crops overlap (Haworth and its SFS site); any 40 m crop is an exact subset of the full grid
+    r5_on(pkg.stack(), &|id, _| id.starts_with("ldem_85s_40m_"));
 }

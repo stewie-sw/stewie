@@ -146,7 +146,8 @@ fn every_point_on_the_moon_resolves_to_a_named_tier() {
         *by_tier.entry(c.source.id.clone()).or_default() += 1;
         // the manifest's bands are truthful: inside a layer's band, that layer or a higher-priority one answers
         for l in &p.manifest().layers {
-            if (l.lat_min_deg..=l.lat_max_deg).contains(&at.lat_deg) {
+            let in_band = matches!((l.lat_min_deg, l.lat_max_deg), (Some(a), Some(b)) if (a..=b).contains(&at.lat_deg));
+            if in_band {
                 assert!(
                     u64::from(c.source.priority) <= l.priority.get(),
                     "{at:?} is in {}'s band but {} answered",

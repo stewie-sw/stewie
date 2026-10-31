@@ -175,15 +175,20 @@ impl Package {
                         .map_err(PackageError::Dem)?,
                 ),
             };
-            if (source.resolution_m() - l.resolution_m).abs() > 1e-6
-                || l.lat_min_deg > l.lat_max_deg
-            {
+            // coverage is a latitude band or a polar box, exactly one (the schema cannot say "one of")
+            let coverage_ok = match (l.lat_min_deg, l.lat_max_deg, &l.polar_box_m) {
+                (Some(a), Some(b), None) => a <= b,
+                (None, None, Some(bx)) => bx[0] < bx[2] && bx[1] < bx[3],
+                _ => false,
+            };
+            if (source.resolution_m() - l.resolution_m).abs() > 1e-6 || !coverage_ok {
                 return Err(PackageError::Manifest(format!(
-                    "{}: manifest says {} m over [{}, {}], the label gives {} m",
+                    "{}: manifest says {} m with coverage band {:?}..{:?} box {:?}; the label gives {} m",
                     l.id.as_str(),
                     l.resolution_m,
                     l.lat_min_deg,
                     l.lat_max_deg,
+                    l.polar_box_m,
                     source.resolution_m()
                 )));
             }

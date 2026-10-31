@@ -563,6 +563,7 @@ dependencies = [
  "lunar-horizon",
  "serde_json",
  "stewie-oracle",
+ "stewie-package",
 ]
 
 [[package]]
