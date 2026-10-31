@@ -60,6 +60,31 @@ def test_the_rule_represents_a_realistically_partial_reading_as_a_patch():
     assert np.array_equal(result.accepted_state[4:, :], partial[4:, :])
 
 
+def test_an_edge_counts_only_where_both_incident_sources_observed():
+    dem = np.fromfile(
+        "samples/lunar_dem/haworth_10km_5m/heightmap.rf32",
+        dtype=np.float32,
+    )
+    n = int(np.sqrt(dem.size))
+    truth = dem.reshape(n, n)[1000:1032, 1000:1032].astype(float)
+    partial = truth.copy()
+    partial[:, :16] = np.nan
+    left_only_edge = np.zeros(truth.shape, dtype=bool)
+    left_only_edge[:, :16] = True
+
+    result = evaluate(
+        [
+            Evidence("full", "observation", truth, 0.05),
+            Evidence("partial", "observation", partial, 0.05),
+        ],
+        dependency_edges={("full", "partial"): left_only_edge},
+    )
+
+    assert result.decision is Decision.PROMOTE
+    assert result.n_correlated == 0
+    assert result.effective_n == pytest.approx(4.0 / 3.0)
+
+
 def test_coverage_uncorrelated_with_dependency_is_harmless():
     """Establishes that partial coverage as such is not the problem."""
     for coverage in (1.0, 0.75, 0.5, 0.25):

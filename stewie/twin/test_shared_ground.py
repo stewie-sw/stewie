@@ -97,6 +97,16 @@ def test_bounded_error_sensitivity_threshold_closes_the_sampled_window():
     assert b_tot == 0
 
 
+def test_no_support_threshold_repairs_harmful_independent_noise():
+    with pytest.raises(ValueError, match="already reaches"):
+        support_threshold_sensitivity(
+            m_agents=2,
+            sigma_o=0.50,
+            tau_m=0.25,
+            assumed_shared_error_bound_m=SHARED,
+        )
+
+
 def test_sensitivity_threshold_fires_after_the_expected_mse_crossover():
     truth = _truth()
     thr = support_threshold_sensitivity(3, SIGMA_O, TAU, SHARED)

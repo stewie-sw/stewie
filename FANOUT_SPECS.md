@@ -1818,3 +1818,31 @@ Briefs for the 6 §7.B rows added folding Aaron's multi-level DEM viz + QGIS/QGI
 - current_state: the SIM execute->remember loop + terrain_memory.py already fold terrain after a run; ros2_bridge.py has /cmd_vel + odom; IN-01 (general live ingest) is the gated seam.
 - files: stewie/bridge/ros2_bridge.py, stewie/twin/terrain_memory.py
 - test_target: stewie/twin/test_world_model_live_update.py
+
+### DA-07 (P0) — atomic
+- goal: Implement the immutable construction-event ledger in `docs/construction_event_ledger_contract.md`: executed terrain-changing actions, not commands or GIS layers, become the replay authority for conserved-state transitions.
+- acceptance: a two-robot dig/dump sequence records command versus execution, identity/time/frame/geometry, backend/configuration, deterministic delta, before/after conserved hashes, mass balance, evidence references, and one caller-stable idempotency key per action; identical retry returns the original event, conflicting retry fails, and cold replay reproduces the conserved hash byte-for-byte without applying a delta twice.
+- current_state: partial: the mass-conserving mutation path, `WorldStateService` hash-chained transaction envelope, SIM execution events, and durable non-authoritative `world_txn` projection exist / MISSING one schema-bound executed-action ledger transaction that commits the event and conserved child together, enforces idempotency/conflict semantics, and replays from a declared base.
+- files: stewie/server/world_state.py, stewie/physics/column_state.py, stewie/twin/construction_ledger.py (NEW), stewie/server/db.py
+- test_target: stewie/twin/test_construction_event_ledger.py::test_two_robot_events_are_idempotent_mass_conserving_and_cold_replayable (NEW)
+
+### DA-08 (P0) — atomic
+- goal: Persist immutable observation evidence and a versioned pair-specific per-cell possible-dependency graph, binding authenticated source/sensor identity, acquisition/validity time, frame/transform, calibration, uncertainty, coverage, artifacts, processing lineage, and construction provenance to one exact promotion candidate.
+- acceptance: candidate construction loads inputs by ID+hash, rejects duplicate/stale/nonfinite/frame- or shape-incompatible evidence and unknown dependency, preserves missing cells, and binds the exact ordered observation set to a graph whose edge reasons are labelled `possible_dependency`; relabelling, mutable "latest" references, or an unbound graph cannot reach the decision service.
+- current_state: partial: `TwinStore` versions observed patches, `shared_terrain.py` derives transient pair-specific overlap provenance, and `promotion.py` validates the research candidate / MISSING durable source/observation identity, artifact/calibration/transform records, an immutable graph version, and a candidate record binding all hashes together.
+- files: stewie/twin/versioned.py, stewie/twin/shared_terrain.py, stewie/twin/promotion.py, stewie/twin/evidence_ledger.py (NEW)
+- test_target: stewie/twin/test_evidence_candidate_ledger.py::test_candidate_binds_immutable_evidence_identity_and_dependency_graph (NEW)
+
+### DA-09 (P0) — atomic
+- goal: Replace direct accepted-state resync with the live promotion gate and atomic accepted-world publication: every promote/abstain/reject decision is immutable, and a promoted child version plus branch-head compare-and-swap commit in the same transaction.
+- acceptance: `/twin/resync` cannot advance the accepted branch without a graph-bound candidate and recorded decision; physics may alter the decision but never promoted bytes or coverage; injected failure cannot leave a decision without its accepted child or vice versa; concurrent stale parents return a conflict instead of last-write-wins; retries cannot publish twice.
+- current_state: partial: the research promotion rule is R1-gated and tested, the observed `TwinStore` and `WorldStateService` journal are versioned, and current resync has compensation / MISSING a distinct accepted-world journal, immutable decision records, atomic decision+child+head publication, and live route wiring (today resync writes observed state and `CurrentTerrainView` gives it precedence).
+- files: stewie/server/routers/twin.py, stewie/server/state.py, stewie/twin/promotion.py, stewie/twin/accepted_world.py (NEW)
+- test_target: stewie/server/test_live_promotion_publication.py::test_resync_cannot_split_decision_from_accepted_world_or_overwrite_concurrently (NEW)
+
+### DA-10 (P1) — atomic
+- goal: Make PostGIS/QGIS/WMS/tile products disposable version-attributed projections of the canonical ledger and accepted world, then prove the complete two-robot action-to-GIS path is cold-replay equivalent.
+- acceptance: the live API executes two overlapping robot actions with partial observation coverage through action→evidence→graph→decision→accepted version→GIS; every response names accepted hash, ledger high-water mark, epistemic class, lunar CRS, units, and projector version; deleting/rebuilding all projections preserves canonical hashes; cold restore reproduces the same decision and conserved/accepted hashes.
+- current_state: partial: GIS serving, layer provenance classes, a PostGIS `world_txn` projection, real terrain routes, and cold-replay primitives exist / MISSING projector manifests/high-water marks, accepted-version attribution on every product, canonical rebuild tooling, and the integrated two-robot live acceptance test.
+- files: stewie/server/gis_layers.py, stewie/server/db.py, stewie/server/routers/world.py, stewie/twin/projection_replay.py (NEW)
+- test_target: stewie/server/test_action_to_gis_replay.py::test_two_robot_live_path_and_rebuilt_projection_are_hash_equivalent (NEW)

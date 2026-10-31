@@ -4,9 +4,10 @@
 stewie core). Each ADR is immutable once accepted: to change a decision, add a new ADR that supersedes it
 (never rewrite history). Format is MADR-lite — Status · Context · Decision · Consequences.
 
-These are not aspirational; every ADR here records a decision already realized in the code and cited to its
-enforcing test or module. The continuity-governance gate (`scripts/continuity_gate.py`) checks this set stays
-present + checked in.
+Each record states its own implementation status. ADRs 0001--0007 describe decisions already realized
+in code. ADR-0008 is an accepted target boundary with explicitly incomplete operational wiring; its
+requirements and acceptance gates prevent the decision from being mistaken for a shipped capability.
+The continuity-governance gate (`scripts/continuity_gate.py`) checks this set stays present and checked in.
 
 | ADR | Boundary | Decision |
 |-----|----------|----------|
@@ -17,4 +18,5 @@ present + checked in.
 | [0005](0005-fail-closed-physics-backend-registry.md) | FORGE ↔ stewie | The physics-backend registry fails closed on a not-yet-conserving backend |
 | [0006](0006-import-boundaries-and-lean-server.md) | stewie packaging | Citable packages carry no heavy/contaminated imports; the server boots lean |
 | [0007](0007-strangler-fig-frontend.md) | stewie frontend | The cockpit migrates strangler-fig behind parity gates — no big-bang rewrite |
+| [0008](0008-construction-event-ledger-and-gis-projections.md) | execution/evidence ↔ world/GIS | Executed actions and promotion evidence are canonical ledger records; GIS layers are derived projections |
 | [0009](0009-native-runtime-assurance-boundary.md) | Runtime qualification | Preserve native terrain; refuse unresolved excavation and generated refinement |

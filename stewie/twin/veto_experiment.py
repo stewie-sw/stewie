@@ -184,21 +184,23 @@ def run_sensor_fault_sweep(truth: np.ndarray, offsets, *, n_trials: int = 20,
 
 
 def analytic_bias_crossing_m(sigma_o: float, sigma_p: float, tau_m: float) -> float:
-    """The bias at which inverse-variance fusion first accepts a harmful state.
+    """Bias-only crossing for inverse-variance fusion.
 
-    Error under a pure prediction bias ``b`` is ``prediction_weight(sigma_o, sigma_p) * b``, so the
-    crossing is ``tau / prediction_weight``. The sweep is checked against this closed form; agreement
-    is what shows the sweep is measuring the mechanism and not a seeding artefact.
+    In the noiseless scalar or spatially uniform case, prediction bias enters
+    as ``prediction_weight(sigma_o, sigma_p) * b``, so the crossing is
+    ``tau / prediction_weight``. With realised random errors this is a
+    reference effect-size crossing, not an exact first harmful sample.
     """
     return tau_m / prediction_weight(sigma_o, sigma_p)
 
 
 def analytic_fault_crossing_m(sigma_o: float, sigma_p: float, tau_m: float) -> float:
-    """The sensor offset at which inverse-variance fusion first accepts a harmful state.
+    """Bias-only sensor-offset crossing for inverse-variance fusion.
 
     The observation enters with weight ``1 - prediction_weight``, so the crossing sits further out
     than fixed precedence's ``tau``: partial trust in the model buys partial protection from a sensor
-    fault, and vice versa. Neither buys both.
+    fault, and vice versa. Neither buys both. With realised random errors this
+    is not an exact first harmful sample.
     """
     return tau_m / (1.0 - prediction_weight(sigma_o, sigma_p))
 
@@ -297,8 +299,8 @@ def run_asymmetric_miscalibration_sweep(truth: np.ndarray, kappas, *, n_trials: 
         acc = {s: SystemResult(s, float(kap), n_trials) for s in out}
         for t in range(n_trials):
             s_a = seed0 + 3931 * ki + 3 * t
-            obs_a = _noisy(truth, float(kap) * sigma_declared, s_a)   # candidate: mis-calibrated
-            obs_b = _noisy(truth, sigma_declared, s_a + 1)            # corroborator: honest
+            obs_a = _noisy(truth, float(kap) * sigma_declared, s_a)  # first source: mis-calibrated
+            obs_b = _noisy(truth, sigma_declared, s_a + 1)  # second source: honest
             phys = _noisy(truth, sigma_p, s_a + 2)
             prior = truth + prior_offset_m
             fp = baseline_fixed_precedence(prior, obs_a)
@@ -538,6 +540,11 @@ def support_threshold_sensitivity(
         tau_m,
         assumed_shared_error_bound_m,
     )
+    if tau_m**2 <= sigma_o**2 / m_agents:
+        raise ValueError(
+            "the independent observation mean already reaches the harm "
+            "threshold in expected MSE; no support cutoff can repair it"
+        )
     d = min(1.0, d)
     return m_agents / (1.0 + d * (m_agents - 1))
 
@@ -549,10 +556,11 @@ def run_stale_evidence_sweep(truth_old: np.ndarray, truth_new: np.ndarray, dug_m
                              ) -> dict[str, list[SystemResult]]:
     """[F5] Evidence that describes a surface which no longer exists.
 
-    An observation made before an action and arriving after it is not wrong about anything -- it is a
-    correct description of a surface that has since been dug away. The rule currently has no way to
-    know that: ``Evidence`` carries no time, so a stale reading and a current one are
-    indistinguishable to it.
+    An observation made before an action and arriving after it is not wrong
+    about anything -- it is a correct description of a surface that has since
+    been dug away. The experiment contrasts ``temporal=False``, where the gate
+    is deliberately not told the intervening modification time, with
+    ``temporal=True``, where ``Evidence.observed_at`` permits stale filtering.
 
     Two situations, and they fail differently:
 

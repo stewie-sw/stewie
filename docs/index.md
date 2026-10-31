@@ -43,6 +43,23 @@ The earlier single-page cockpit stays live at [app.stewie.space](https://app.ste
 spine Plan, Rehearse, Validate, Release, Execute, Report, plus the requirement board. The GIS IDE is
 the direction of travel; the migration onto it is incremental.
 
+## How world state becomes accepted
+
+STEWIE separates four things that a map can otherwise blur together:
+
+1. the conserved simulator state changed only by physics-authority verbs;
+2. immutable executed construction events and sensor/estimator evidence;
+3. a versioned accepted belief published by an explicit promote/abstain/reject decision; and
+4. GIS/PostGIS/QGIS layers derived from named ledger ranges and accepted-world versions.
+
+Saving every robot action is the right requirement; saving each action as an independently
+authoritative GIS layer is not. The target DA-07--DA-10 architecture keeps actions in an immutable
+spatial-temporal ledger and materializes stable or on-demand GIS views by mission, time, asset, action
+type, or accepted-world delta. The current live `/twin/resync` path does not yet run through the
+theorem-facing promotion rule, so this remains an operational integration target. See the
+[construction-event ledger contract](construction_event_ledger_contract.md) and
+[ADR-0008](adr/0008-construction-event-ledger-and-gis-projections.md).
+
 ## The conserved-physics core
 
 At the center is a conserved, mass-exact terramechanics authority (John McCardle's provenance): Bekker
@@ -69,16 +86,15 @@ RASSOR is its TRL-4 precursor (see [the modelled vehicle](vehicle_ipex.md)).
 
 ## Where it is (honest)
 
-The requirement matrix (product requirements, section 7) reads **254 of 339 requirements verified done**
-(about 75 percent overall; 78 percent of the 325 in-scope rows, with hardware and host gated rows
-excluded from that denominator; the counts are the live tool output in `STATUS.json` and
-`release_manifest.json`). By priority: P0 107/116, P1 143/188, P2 4/33. The public deploy is
-**simulation-only**, and mission Release is **director-gated**. The perception loop is closed on a real
+The generated `STATUS.md`/`STATUS.json` report the current requirement and test-citation totals;
+`release_manifest.json` reports release traceability. Do not use a hand-count copied into this page.
+The public deploy, when healthy, is **simulation-only**, and mission Release is
+**director-gated**. The perception loop is closed on a real
 render: a rover observes its own terrain change and reacts to the self-made hazard (reroute or a logged
 refusal) in a deterministic, mass-conserving loop; the cheap in-loop observability channel and the
-end-to-end replay loop are shipped, while the dense reconstruction RMSE tier stays gated. On the roadmap
-(planned, not shipped): a hybrid Postgres plus PostGIS persistence layer, with the durable edit-session
-(Phase 0) in progress. Named and not yet built: a live ROS2 and Gazebo pit with a real rover (the
+end-to-end replay loop are shipped, while the dense reconstruction RMSE tier stays gated. Durable edit
+sessions and a world-transaction database projection exist, but the DA-07--DA-10 operational
+construction/evidence ledger and accepted-world publisher do not. Named and not yet built: a live ROS2 and Gazebo pit with a real rover (the
 containers build; there is no live pit link yet), the PyChrono force oracle (a stub; the Tier-3
 drum-force track needs a PyChrono host), dense-stereo GPU perception, the dense map-channel reward,
 LAC/IPEx arm geometry, camera video, and any live hardware. STEWIE makes no flight claims and never
@@ -117,6 +133,8 @@ and `stewie-ros2-bridge`; the canonical Gymnasium env IDs are `Stewie/*`; enviro
 | [Capability matrix (honest status)](CAPABILITIES.md) | Live and load-bearing / training-only or offline / unbuilt and gated, in one table |
 | [Release policy & evidence](RELEASE.md) | What a release claims and the evidence it must carry |
 | [The world model](world_model.md) | Geometry, material, physics, task, and uncertainty, and the conserved-vs-learned decision |
+| [Construction-event ledger contract](construction_event_ledger_contract.md) | Executed-action/evidence schemas, decision and accepted-world transaction, replay, security, GIS projections, and acceptance gates |
+| [Architecture decisions](adr/README.md) | Load-bearing subsystem-boundary decisions, including ledger-versus-layer authority |
 | [Related work](related_work.md) | Where STEWIE lands across NASA autonomy, lunar mining, world models, autonomous driving, and SLAM |
 | [Robotics curriculum diff](robotics_curriculum_diff.md) | Coverage of the standard robotics corpus versus what the software implements |
 

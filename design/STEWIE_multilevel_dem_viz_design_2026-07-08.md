@@ -4,11 +4,18 @@
 **Source vision:** `scratchpad/aaron_arch_vision_2026-07-08.md` (verbatim).
 **Method note:** every EXISTS/PARTIAL claim below is grounded in a file opened during this screen (file:line cited). Claims I could not confirm are marked *(inferred)*.
 
+> **Current authority correction, 2026-07-28.** QGIS is authoritative for declared cartographic
+> coordinate/measurement semantics, not for physical mutation or accepted belief. Edits enter the
+> backend as intent or evidence; immutable construction/evidence records and a promotion decision
+> produce any accepted-world update; rendered layers are projections. See
+> `../docs/adr/0008-construction-event-ledger-and-gis-projections.md` and
+> `../docs/construction_event_ledger_contract.md`.
+
 ---
 
 ## 1. Vision summary
 
-One DEM, several coordinated levels — not separate 2D and 3D products. The 2D map is where you plan and analyze (slope, cost, traversability, hazards, paths, keep-outs); the 3D view is where you validate terrain geometry, line-of-sight, excavation and rover ops against the same surface. The web architecture keeps *authoritative geospatial truth* in QGIS/QGIS Server (WMS/WFS/WMTS, feature queries, editing) and treats Three.js strictly as a renderer synchronized to the GIS: click-3D returns exact map coordinates, draw-2D appears in 3D, measures use authoritative GIS geometry, edits land in the GIS database, never only in the viewer. Everything is stored planet-fixed (lunar body-fixed / projected lunar CRS); rendering and robot ops use a local frame near the mission area because Three.js GPUs are single-precision — define a local origin, render relative, convert back to global on save. Tool roles: QGIS = planning GIS; QGIS 3D = terrain validation; Godot = mission ops center; Gazebo = physics; RViz2 = robot console. Every mission starts from the DEM and ends with an updated world model.
+One DEM, several coordinated levels — not separate 2D and 3D products. The 2D map is where you plan and analyze (slope, cost, traversability, hazards, paths, keep-outs); the 3D view is where you validate terrain geometry, line-of-sight, excavation and rover ops against the same surface. QGIS/QGIS Server owns cartographic frame, query, and measurement semantics; Three.js is a synchronized renderer. Click-3D returns exact map coordinates, draw-2D appears in 3D, and measures use the declared GIS geometry. Edits submit intent or evidence through backend routes rather than directly mutating accepted terrain. Everything is stored planet-fixed (lunar body-fixed / projected lunar CRS); rendering and robot ops use a local frame near the mission area because Three.js GPUs are single-precision — define a local origin, render relative, convert back to global on save. Tool roles: QGIS = planning GIS; QGIS 3D = terrain validation; Godot = mission ops center; Gazebo = robot/sensor simulation; RViz2 = robot console. Every mission starts from a named world version and ends with recorded executed events, evidence, a decision, and—only if promoted—a new accepted version.
 
 ## 2. Current-state table (screened 2026-07-08)
 

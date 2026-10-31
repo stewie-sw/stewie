@@ -11,6 +11,14 @@ waypoint; it is transforming the surface from a current state into a desired sta
 that five-layer world-model idea onto what STEWIE already implements, and states the one
 real architectural decision: which parts to compute exactly and which to learn.
 
+> **Accepted-state reconciliation, 2026-07-28.** “World model” does not mean one mutable map.
+> Conserved simulated terrain, executed construction events, observations, predictions, candidates,
+> accepted belief, and GIS projections have separate authority. The current theorem-facing
+> dependency-aware promotion rule is an offline research path; live `/twin/resync` bypasses it.
+> DA-07--DA-10 and the
+> [construction-event ledger contract](construction_event_ledger_contract.md) define the unbuilt
+> operational bridge.
+
 ## The shift this project is built around
 
 The state transition is not "robot moves through terrain," it is "robot reshapes terrain into
@@ -18,6 +26,11 @@ infrastructure." That is the project's founding design choice: a conserved physi
 the terrain, and the learned or symbolic components only *command* it. Mass conservation is enforced by
 construction, so the agent can never move mass that is not there or spend energy it does not have, and
 the terrain-matching reward cannot be gamed.
+
+An authority-computed transition establishes the simulator's conserved state, not automatically what
+an operational system should believe about the Moon. Executed actions and sensor observations must be
+retained as immutable evidence; an explicit decision publishes any new accepted-world version. GIS
+layers expose that record but cannot perform the publication.
 
 ## The five layers, mapped to the repo
 

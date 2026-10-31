@@ -174,9 +174,10 @@ func _build_active_zone(mode: int) -> void:
 			var b := iy * n + ix + 1
 			var c := (iy + 1) * n + ix
 			var d := (iy + 1) * n + ix + 1
-			indices.append_array([a, c, b, b, c, d])
+			# Godot front faces are clockwise when viewed from above.
+			indices.append_array([a, b, c, b, d, c])
 
-	# Compute smooth normals from the displaced surface (finite differences).
+	# Area-weighted smooth normals from the clockwise surface triangles.
 	_compute_normals(verts, indices, normals, n)
 
 	var arrays := []
@@ -371,7 +372,7 @@ func _compute_normals(verts: PackedVector3Array, indices: PackedInt32Array,
 	var t := 0
 	while t < indices.size():
 		var ia := indices[t]; var ib := indices[t + 1]; var ic := indices[t + 2]
-		var nrm := (verts[ib] - verts[ia]).cross(verts[ic] - verts[ia])
+		var nrm := (verts[ic] - verts[ia]).cross(verts[ib] - verts[ia])
 		accum[ia] += nrm; accum[ib] += nrm; accum[ic] += nrm
 		t += 3
 	for i in range(accum.size()):

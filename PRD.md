@@ -1,12 +1,22 @@
 # STEWIE PRD: Lunar Construction and Solar-Terrain Autonomy
 
-**Version:** 7.3
-**Date:** 2026-06-29
+**Version:** 7.4
+**Date:** 2026-07-28
 **Status:** CANONICAL — the single source of truth for project design + reference. All other design
 documents are archived (`docs/archive/`) or are upstream STEWIE architecture/roadmap sources
 (maintained privately; public mapping in §16). The granular execution breakdown lives in the private
 workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 **Baseline commit:** `047331250cf443498c25b5bead4bed167668752c`
+
+> **CURRENT WORLD-STATE RECONCILIATION — 2026-07-28.** The conserved authority, observed
+> `TwinStore`, and world-transaction log are real, but the dissertation's dependency-aware,
+> observation-only promotion rule is an offline research path. The live `POST /twin/resync` route
+> currently bypasses it. The target correction is DA-07--DA-10 and
+> `docs/construction_event_ledger_contract.md`: immutable construction and evidence records,
+> graph-bound candidates, atomic decision plus accepted-world publication, and replayable GIS
+> projections. PostGIS/QGIS are persistence and read-model surfaces, never terrain or acceptance
+> authority. No older “closed loop” statement in this historical PRD should be read as proof that
+> live reconciliation already satisfies the dissertation rule.
 
 > **⚠ ARCHITECTURE PIVOT 2026-07-03 — 2D GIS frontend + pluggable physics/body seams (frontend stack SUPERSEDED: the frontend shipped as QWC2/OpenLayers, not the MapLibre rewrite this banner originally proposed).**
 > Aaron's decision, planned by conferring with Codex (max-reasoning). The full plan is
@@ -24,40 +34,32 @@ workspace: `design/STEWIE_ATOMIC_EXECUTION_PLAN_2026-06-09.md`.
 > (AC/RF/GL/PX/BD/MG). The vanilla cockpit stays live and served until React reaches pane-by-pane parity;
 > nothing is retired until then. §6 Target Architecture below is rewritten for the two-process shape.
 
-## 0. Where we are / what's next (2026-06-11 — read this first)
+## 0. Where we are / what's next (reconciled 2026-07-28 — read this first)
 
-**Status (2026-07-01):** STEWIE is one live production platform, deployed on app.stewie.space
-(Cloudflare / cloudflared / docker), CI green on `main`. The ConOps spine Plan · Rehearse · Validate ·
-Release · Execute · Report is shipped, and the operational world-model loop is now CLOSED: a plan
-executes, its conserved terrain delta folds into TerrainMemory, and the next plan reads the remembered
-surface through CurrentTerrainView, all recorded in one hash-chained world-transaction log (DT-01 / the
-§28 slice). The trainer, planner, and digital-twin product is functionally complete; the flight-autonomy,
-arm, live-pit, and Tier-3 tracks remain hardware and host gated.
+STEWIE has a working simulation-only GIS/planning/training spine, conserved terrain authority,
+versioned observed twin, and hash-chained world transactions. Deployed-host health and CI state are
+time-varying and must be checked at use time; this PRD does not certify either.
 
-**Completion snapshot (§7 requirements = 339 — 315 campaign + 24 folded 2026-07-04 from the PRD2 GIS-workbench product target, §7.B; live machine counts in STATUS.json / program_snapshot.json / release_manifest.json).** Raw verification glyphs (2026-07-04): 220 verified-done, 20
-partial, 75 not-started; 239 are cited by a real `[REQ:]` test; hardware/host-gated rows stay excluded from the in-scope denominator. The
-glyphs are ROUGHLY ACCURATE, not a large undercount (a 2026-07-01 audit corrected the earlier
-"~38 done-stale" optimism): 33 rows are cited but read V!=D (STATUS.md "V!=D flagged"), yet a citation
-does NOT mean done -- the implementation glyph confirms ~32 of those are genuinely partial (I=P/N), a
-test legitimately citing a partial row, not a done row awaiting a flip. Excluding the 24 gated rows,
-in-scope verified-done is about 52 percent (86 of ~164). Reconciling the two honest bars: the production
-spine is functional and DEPLOYED (the product works end to end), but by the strict §7 verified-done bar
-many in-scope rows are legitimately partial (hardening, full verification, edge cases), not a glyph-lag
-artifact. The honest remaining work splits three ways:
+The operational world-state loop is **partially closed, not dissertation-complete**. Simulated
+execution can fold conserved terrain into `TerrainMemory`, and planning can read a composed
+`CurrentTerrainView`. Live `/twin/resync`, however, bypasses the dependency-aware, observation-only
+promotion rule. The durable action/evidence binding, decision plus accepted-world transaction, cold
+replay, and version-attributed GIS projection are open DA-07--DA-10 work.
 
-- **Open, in-scope, buildable here:** finish the genuinely-partial in-scope rows (real work + a citing
-  test each; NOT a bulk glyph flip -- only ~1 row, FS-15, is impl-done-but-under-verified); finish FS-24
-  (5 pure modules extracted this session, the DOM app-shell remainder is by design, not a pure-module
-  candidate); the MO-02 live-execute fault-injection tier; GI-01 deployed-browser GIS smoke.
-- **Gated, deferred (not unfinished):** the live rclpy node + P23 intern-beta traverse (needs a ROS host
-  and a real pit); P7 live Chrono producer + Tier-3 drum forces (needs a PyChrono host); the AS-* flight-
-  autonomy stack (the ARGUS / navigation lane); arm geometry (AM-*, VT-03/05, needs LAC/IPEx data); dense
-  range/point-cloud PM-13..16 (stereo by default, LiDAR/RGB-D swappable when sensors are available; GPU or
-  live sensor host required); CP-07 slip-band fold-in (blocked on the PyChrono calibration oracle); the
-  STEWIE-Orbit CCSDS comms stack (intent-only).
-- **Bottom line:** the production trainer/planner/twin is essentially finished and live; "finishing the
-  program" past this point is mostly the marker-pass hygiene plus the externally-gated flight stack, not
-  new in-scope product code.
+Do not copy hand-counted completion numbers from this narrative. `STATUS.md`/`STATUS.json` are generated
+from the current §7 matrix and `[REQ:]` citations; `release_manifest.json` carries the release
+traceability result. A citing test is not by itself a completed requirement, and a working feature is
+not by itself an operational acceptance guarantee.
+
+The honest remaining work splits three ways:
+
+- **World-state critical path:** DA-07 immutable construction events; DA-08 durable observation,
+  identity, and possible-dependency binding; DA-09 live gate and atomic accepted-world publication;
+  DA-10 cold replay and GIS projection equivalence.
+- **Open platform work:** incomplete/partial §7 rows, hardening, and integrated verification shown by
+  the generated status artifacts.
+- **Externally gated work:** live pit/hardware transport, host-specific ROS/GPU/Chrono tiers, missing
+  vehicle geometry/data, and other rows whose `Q=G` reason is recorded in the matrix.
 
 **Done (build history, retained for provenance):** the three rung-4 gaps (pluggable RC contract + SF-01
 safing watchdog #66, telemetry shaping #67, operator/director roles #68); the COLMAP/triage design +
@@ -315,8 +317,8 @@ mapping, localization, route safety, and construction execution.
 This PRD replaces the June 4 v5 document. Historical stage narratives remain available through Git
 history. Current status is based on:
 
-- [`docs/architecture_review_2026-06-06_full.md`](docs/architecture_review_2026-06-06_full.md)
-- [`docs/prd_gap_analysis_2026-06-06.md`](docs/prd_gap_analysis_2026-06-06.md)
+- [`docs/archive/architecture_review_2026-06-06_full.md`](docs/archive/architecture_review_2026-06-06_full.md)
+- [`docs/archive/prd_gap_analysis_2026-06-06.md`](docs/archive/prd_gap_analysis_2026-06-06.md)
 - the current repository and locally executed verification described by those reviews.
 
 The conserved terramechanics authority retains John McCardle's CC0 provenance. STEWIE's product,
@@ -446,7 +448,8 @@ measurement.
 
 The rebuilt system is TWO processes (2026-07-03 pivot): a Python **compute/authority backend** (UNCHANGED --
 the FastAPI sidecar, all 140 routes, DART/LODE/LEAP/FORGE, physics, RL, planner, runtime spine, digital twin)
-and a React **operator frontend** (the 2D GIS cockpit). The layered stack below is the backend
+and a **QWC2/OpenLayers operator frontend** (the adopted 2D GIS cockpit; the earlier React/MapLibre
+rewrite was not adopted). The layered stack below is the backend
 compute stack (L0-L6) plus the new frontend product layers (L7-L8). Physics is now a PLUGGABLE authority (L1)
 and body data is a PROFILE registry (L0). Client state may author intent and view results, but conserved
 terrain mutation happens ONLY through the backend authority path (§6.1, §6.2). Full design:
@@ -454,11 +457,11 @@ terrain mutation happens ONLY through the backend authority path (§6.1, §6.2).
 
 ```text
 L8  Product shells
-    web deployment + Tauri v2 desktop, both the same React/TypeScript app
+    QWC2 web deployment + the retained FastAPI-served cockpit; no shipped Tauri desktop
 
 L7  Operator cockpit + GIS workbench
-    React ConOps panes / MapLibre + deck.gl 2D projected map (no globe) / DuckDB-WASM query workbench /
-    generated API client / route-to-pane registry / provenance + mode + authority labels
+    QWC2/OpenLayers 2D projected map / incrementally migrated ConOps panes /
+    backend-owned routes and layer registry / provenance + mode + authority labels
 
 L6  Mission and fleet planning
     goals / structures / PlanResult / resources / acceptance / Plan IR / body + physics-backend selection
@@ -513,19 +516,35 @@ The architecture must have these single-source runtime artifacts:
     per-route pane ownership, auth, response kind, provenance, and mutation flags.
 14. `SpatialQueryWorkspace` (NEW lane DW): the DuckDB-WASM loaded catalog + query state -- advisory/display
     only until a result is written back through a backend route.
+15. `ConstructionEvent` (DA-07 target): immutable executed-action record carrying command/execution
+    identity, lunar frame, before/after conserved-state hashes, deterministic delta, and mass balance.
+16. `ObservationEvidence` (DA-08 target): immutable sensor/estimator claim bound to source identity,
+    acquisition/valid time, transform, calibration, uncertainty, coverage, raw artifacts, and lineage.
+17. `DependencyGraph` + `PromotionCandidate` (DA-08 target): versioned per-cell
+    possible-dependency evidence and an exact hash-bound candidate; shared action is provenance, not
+    itself a sensor-error mechanism.
+18. `PromotionDecision` (DA-09 target): immutable promote/abstain/reject result, reasons, diagnostics,
+    software/configuration identity, and exact input/output hashes.
+19. `AcceptedWorldVersion` (DA-09 target): immutable child of an accepted parent, atomically published
+    with its decision by branch-head compare-and-swap.
+20. `ProjectionManifest` (DA-10 target): rebuildable GIS/read-model provenance naming its accepted
+    world version, ledger high-water mark, epistemic class, CRS, units, and projector version.
 
 Reports, Plan IR, playback, validation, and autonomy must be views over these artifacts, not
 independent recomputations.
 
 ### 6.2 World-state layering, storage, and backups (added 2026-06-10)
 
-**The rule: every change made on the Moon is a LAYER in world state, never an overwrite.** Two
-change channels, both already event-layered:
+**The rule: every executed change and every accepted belief update is an immutable EVENT or VERSION,
+never an in-place terrain overwrite. GIS layers are derived projections, not canonical events or
+authority.** The current channels are:
 
-| Channel | What changes it | Storage today (implemented) |
+| Channel | What changes it | Storage today and boundary |
 |---|---|---|
-| CONSERVED authority (the physical Moon) | physics verbs only -- dig, dump, drive ruts, compaction | "store history, not terrain": L0 orbital base + the L4 excavation-event log -> terrain DERIVED by replay (stewie/twin world model); mass conservation asserted at 1e-12 |
-| OBSERVED twin (what we believe the surface is) | perception resync patches (POST /twin/resync), operator edits | TwinStore: append-only sha256 hash-chained events, provenance REQUIRED, undo-as-event, byte-exact rebuild proven by test |
+| CONSERVED authority (simulated physical state) | physics verbs only -- dig, dump, drive ruts, compaction | Conserved mutations and world transactions exist; DA-07 adds a durable, schema-bound executed construction-event ledger with command/execution separation and cold replay |
+| OBSERVED evidence (what a sensor/estimator claims) | perception ingest and operator-proposed evidence | `TwinStore` is append-only and replayable in process, but live `/twin/resync` currently writes here without the theorem-facing promotion rule; DA-08 binds evidence and dependency provenance durably |
+| ACCEPTED world (what planning may treat as accepted belief) | recorded promotion decision only | Target DA-09: immutable accepted versions, with decision and branch-head advance atomic; this operational path is not yet built |
+| GIS/read projections | projector from ledger and named world versions | Layer catalog and GIS serving exist; DA-10 makes every projection rebuildable and version-attributed |
 
 Snapshots that exist today: runtime checkpoint/restore (npz, bit-exact by mass-sha test);
 io_fields scene snapshots (atomic); Seam-1 rasters (frozen contract); the hash-anchored evidence
@@ -773,7 +792,11 @@ Lane key: DA data architecture + multi-user deployment.
 | DA-03 | P1 | **PostGIS vector + world-state store (Phase 2).** The `postgres`/`db`-profile PostGIS service stands up and `STEWIE_DATABASE_URL` (async) is wired so vector layers + a world-state index persist in PostGIS (concurrent edits, transactions, versioning); the backend boots against Postgres AND still boots with no DB (file fallback), and a vector feature written by one session is transactionally visible to another. (extends compose postgres + persistence design + objects.py) | N | N | N | NA |
 | DA-04 | P1 | **Durable edit sessions (GW-08 -> persistent store).** The GW-08 keep-out/mission-feature edit session moves off the process-memory `_SESSIONS` dict into the durable store (SQLite fallback or PostGIS), so an in-progress edit session + its versioned before/after audit + undo SURVIVE a backend restart; a session created, mutated, then reloaded after a simulated restart replays identically. (extends stewie/server/edit_session.py; the clearest persistence defect) GLYPH-LAG: already ships — `edit_session.py` write-throughs every mutation to `db.py` (async SQLAlchemy: PostGIS via $STEWIE_DATABASE_URL, per-$STEWIE_DATA_DIR SQLite fallback), and `get_session` reloads durable rows on a cache miss. [REQ:DA-04] `stewie/server/test_da04_durable_edit_session.py` (create→mutate→drop cache = simulated restart→reload replays version, keep-outs, and the whole audit trail byte-for-byte; a post-reload edit + undo persist across a second restart). | D | D | D | NA |
 | DA-05 | P2 | **Automated backups + user permissions (Phase 2).** Scheduled backups (PostGIS dumps + file-store snapshots -> `/backups`, dated, restorable) and per-role read/write permissions (viewer/editor/director, mission sign-off director-gated) so multi-user WRITE is safe; a restore from a backup reproduces the vector + world-state, and a viewer-role write is refused. (extends deploy + the §7.12 access/identity governance lane) | N | N | N | NA |
-| DA-06 | P2 | **Phase-3 live world model -- ROS2 writes + near-real-time QGIS.** The central world-model DB is authoritative mutable state: ROS2 writes mission updates through the gated ingest bridge (IN-01), STEWIE folds terrain after every mission (the SIM execute->remember loop, already built), and QGIS/QWC2 renders the latest world state within one refresh off the same store; a replayed mission updates the world model and the next map read reflects it. (extends IN-01 + the SIM execute->remember loop + DT-04 Terrain Memory) | N | N | N | NA |
+| DA-06 | P2 | **Phase-3 live world model -- ROS2 evidence ingest + near-real-time QGIS projection.** The central store durably records events, evidence, decisions, accepted versions, and indexes; it is not an unconstrained mutable terrain authority. ROS2 submits observations through IN-01/DA-08, construction changes originate in the conserved authority, accepted belief advances only through DA-09, and QGIS/QWC2 renders a version-attributed DA-10 projection within one refresh. A replayed mission reproduces the same conserved and accepted hashes before the next map read reflects them. | N | N | N | NA |
+| DA-07 | P0 | **Immutable construction-event ledger.** Every executed dig/dump/grade/drive-compaction action records command versus execution, asset/task/mission identity, times, lunar frame/geometry, authority backend/configuration, deterministic delta, before/after conserved-state hashes, raw evidence references, and mass balance in one idempotent authority transaction. A retry cannot apply the action twice; a cold replay reproduces the conserved hash. Contract: `docs/construction_event_ledger_contract.md`. | N | N | N | NA |
+| DA-08 | P0 | **Durable observation, identity, and possible-dependency binding.** Every theorem-facing observation is immutable and bound to authenticated source/sensor, acquisition and validity time, transform/frame, calibration, uncertainty, coverage and raw-artifact hashes. A versioned pair-specific per-cell possible-dependency graph records shared action/localization/registration/calibration/preprocessing provenance and is bound to the exact candidate; unknown dependency fails closed. Shared action is never labeled a causal error mechanism without independent evidence. | N | N | N | NA |
+| DA-09 | P0 | **Live promotion gate plus atomic accepted-world publication.** `POST /twin/resync` cannot advance accepted terrain directly: it writes observed evidence or constructs a candidate, the configured rule records promote/abstain/reject, and any accepted child version plus decision and branch-head compare-and-swap commit atomically. Physics may veto but cannot construct/select/weight/fill promoted cells. Fault injection proves no split decision/version commit and concurrency proves no last-write-wins. | N | N | N | NA |
+| DA-10 | P1 | **Replay-equivalent GIS projections and operational acceptance test.** PostGIS/QGIS/WMS/tiles are disposable read models identified by accepted-world hash, ledger high-water mark, epistemic class, lunar CRS, units, and projector version. Deleting and rebuilding every projection preserves canonical hashes. A two-robot, partial-coverage, concurrent-ingest test exercises action→observation→graph→decision→accepted world→GIS through the live API and reproduces the same decision/world hash after cold restore. | N | N | N | NA |
 
 ### 7.1 Contracts and Conserved Authority
 

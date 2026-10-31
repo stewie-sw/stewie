@@ -4,6 +4,12 @@ Source vision: `scratchpad/aaron_autodig_ingest_2026-07-08.md` (Aaron, verbatim 
 Repo screened READ-ONLY at `/mnt/projects/stewie/code/` (every claim cites a file opened during the screen).
 Status vocabulary: **EXISTS** (reuse as-is), **PARTIAL** (structure present, the named piece missing), **NEW** (no implementation).
 
+> **Current reconciliation, 2026-07-28.** Telemetry and effort proxies remain observations, not
+> accepted terrain or regolith truth. The target loop must append immutable construction and
+> observation evidence, bind a versioned possible-dependency graph, record a promotion decision, and
+> atomically publish any accepted-world child. The live `/twin/resync` route does not yet implement
+> that bridge. See `../docs/construction_event_ledger_contract.md` (DA-07--DA-10).
+
 ---
 
 ## 0. The two dissertation-safe wordings (verbatim, from Aaron's note)
@@ -18,7 +24,10 @@ Clean claim (also verbatim): *"Use AUTODIG-style excavation control as the TRL-5
 
 ## 1. AUTODIG as the TRL-5 behavior layer
 
-**Target loop:** `AUTODIG command → excavation actuator electrical response → terramechanics residual → inferred regolith resistance/density proxy → STEWIE world-model update.`
+**Target loop:** `AUTODIG command → executed construction event → excavation electrical observation →
+terramechanics residual → inferred proxy evidence → dependency-bound candidate → promotion decision →
+accepted-world version`. A rejected or abstained candidate remains in the evidence record and never
+silently updates accepted state.
 
 ### 1.1 What exists (screened)
 

@@ -14,9 +14,10 @@ a conservative *possible-dependency relation*, not an estimated correlation
 coefficient.
 
 Scope. This is the concurrency + dependency-detection primitive only. It records WHO changed WHICH
-cells WHEN, detects cell-level space-time overlap, and hands the correlated set to a caller. It does
-not decide what to do about the correlation; that is the promotion policy's job and is deliberately
-not modelled here. Continuous haul-path collision avoidance is likewise out of scope.
+cells WHEN, detects cell-level space-time overlap, and hands the possible-dependency set to a caller.
+It does not decide what stochastic dependence actually follows; that is the observation model's job
+and is deliberately not modelled here. Continuous haul-path collision avoidance is likewise out of
+scope.
 
 Conservation. Concurrent application is additive per cell, which is what the conserved authority
 already does for sequential missions: two vehicles each removing 0.1 m from a cell leave it 0.2 m

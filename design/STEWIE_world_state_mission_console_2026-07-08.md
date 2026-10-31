@@ -5,6 +5,12 @@ mission operations console, not a game UI"). Captured verbatim-in-spirit + audit
 autonomous loop builds the GAPS, not what already exists. **Sequencing:** folded into the product roadmap AFTER
 the quality campaign (#55) is clean; this is the north star, not a stop-everything redirect.
 
+> **Current reconciliation, 2026-07-28.** The UI should expose, but must not collapse, conserved
+> execution, observation evidence, prediction, candidate, decision, accepted world, and GIS
+> projection. The existing backbone does not yet route live resync through the theorem-facing rule.
+> The prerequisite operational seam is DA-07--DA-10 in
+> `../docs/construction_event_ledger_contract.md`.
+
 ## Central thesis (the north star)
 
 **Shift from a COMMAND-driven interface to a WORLD-STATE-driven one.** Every plan should be based on the
@@ -13,10 +19,11 @@ should automatically become part of the historical record used for future planni
 Make the persistent lunar world model the centerpiece. This is what distinguishes STEWIE from a conventional
 robotics mission planner and aligns it with the digital-twin / world-model dissertation direction.
 
-**Good news from the audit:** STEWIE already has the world-state BACKBONE — the observed twin (DT-04/05,
+**Good news from the audit:** STEWIE already has part of the world-state BACKBONE — the observed twin (DT-04/05,
 per-(site,source), versioned + chain-verified), the as-built TerrainMemory, and the SIM **execute→remember**
 loop (a completed run folds its terrain into TerrainMemory + records belief/authority into the DT-01 log). The
-review is mostly about CENTERING that in the UI, not building new world-state machinery.
+review includes CENTERING that in the UI, but the ledger, identity/dependency binding, atomic accepted-world
+publication, and cold replay are genuine backend work rather than UI reorganization.
 
 ## The 7-phase reorg (replaces the one long scrolling panel)
 

@@ -39,10 +39,18 @@ run commands and the cache and TLS rules are in the deploy runbook
 
 ## Load-bearing decisions
 
-- **The conserved-physics world model is the source of truth.** GIS surfaces (QGIS, QGIS Server, OGC,
-  and any imported ArcGIS or GeoJSON layer) are a persistence, query, and interop boundary, never the
-  authority. A layer must pass CRS and frame validation before it can influence planning, and a
-  display-only layer cannot be marked planning-valid.
+- **Authority is separated by claim.** The conserved-physics world model is authoritative for
+  simulated physical mutation. Sensors and estimators produce observation evidence, not truth.
+  Accepted belief advances only through a recorded decision and immutable world version in the target
+  DA-07--DA-10 architecture. GIS surfaces (QGIS, QGIS Server, OGC, and any imported ArcGIS or GeoJSON
+  layer) are persistence, query, and interop projections, never mutation or acceptance authority. A
+  layer must pass CRS and frame validation before it can influence planning, and a display-only layer
+  cannot be marked planning-valid.
+- **Actions are events, not layer authority.** Every executed construction action belongs in an
+  immutable spatial-temporal ledger. Stable GIS layers aggregate or project those events by mission,
+  time, asset, action, or accepted-world delta and carry their source version. See
+  [ADR-0008](adr/0008-construction-event-ledger-and-gis-projections.md) and the
+  [ledger contract](construction_event_ledger_contract.md).
 - **Lunar coordinates stay lunar.** The map works in the Moon south-polar stereographic frame
   (`IAU_2015:30135`), so the pole is the center of the canvas and no WGS84 or Earth claim is made on a
   lunar position. This is what the QWC2 spike proved before the incremental adoption began.
@@ -85,15 +93,18 @@ Two governance and planning layers are specified in the product requirements and
 
 ## Conceptual frame (the dissertation lens)
 
-At the theory level, STEWIE reads as a planetary state inference engine: the physical planet has an
-unknown true state, and everything the platform does reduces uncertainty about it. The world stores
-belief, not reality (every world object carries identity, belief, evidence, confidence, and
-alternatives), every algorithm is an estimator with a common semantic contract, and the world graph
-generalizes to a factor graph. The unification is at the semantic level (belief, evidence, confidence,
-provenance), not the algorithmic level: localization uses factor graphs, terramechanics stays
-deterministic and analytical in FORGE, planning uses graph search, and learned perception uses neural
-networks. This frame centers the navigation dissertation (the articulated-rover state estimator) at the
-core of the platform rather than at its periphery.
+The current dissertation lens is narrower than the platform. Multiple robots modify shared terrain and
+then observe it; their evidence may be dependent through source identity, localization, timing,
+registration, calibration, preprocessing, or shared construction provenance. The research path builds
+a per-cell possible-dependency graph, constructs an observation-only mean, permits physics only to
+veto, and proves a conditional harmful-promotion bound under explicit assumptions.
+
+That research path is not the operational merge today. `POST /twin/resync` still applies an observed
+patch without calling the theorem-facing rule, and `CurrentTerrainView` gives observed cells
+precedence. DA-07--DA-10 close the bridge by binding immutable action/evidence records to a candidate,
+decision, and atomically published accepted-world version. The probability theorem remains
+conditional on calibration and covariance premises; shared action is evidence of possible dependence,
+not itself a causal sensor-error model.
 
 ## Honest status
 
@@ -103,11 +114,15 @@ core of the platform rather than at its periphery.
   perception loop (a rover observes its own terrain change through a real render and reacts to the
   self-made hazard, path-dependent and mass-conserving, at the cheap in-loop tier), and plan-anywhere
   over the global DEM. The deploy is simulation-only and mission Release is director-gated.
-- **Progress:** the requirement matrix (product requirements, section 7) reads 254 of 339 verified done
-  (about 75 percent overall; 78 percent of the 325 in-scope rows; the counts are the live tool output in
-  `STATUS.json` and `release_manifest.json`). The full split is the [capability matrix](CAPABILITIES.md).
-- **On the roadmap (planned, not built):** a hybrid Postgres plus PostGIS persistence layer; the durable
-  edit-session (Phase 0) is in progress.
+- **Research-only integration:** `stewie/twin/promotion.py` implements the per-cell dependency graph,
+  observation-only accepted value, and veto-only physics rule with regression and mutation gates. It
+  does not govern live resync or accepted-world publication.
+- **Progress:** generated `STATUS.md`/`STATUS.json` report current matrix and citation counts, and
+  `release_manifest.json` reports release traceability. This narrative intentionally carries no
+  hand-maintained completion percentage. The full split is the [capability matrix](CAPABILITIES.md).
+- **On the roadmap (planned, not built):** the complete construction/evidence ledger, atomic accepted
+  world publication, cold replay, and version-attributed GIS projections. Durable edit sessions and a
+  world-transaction projection exist; they do not by themselves implement DA-07--DA-10.
 - **Designed, not built:** a live ROS2 and Gazebo pit with a real rover (the containers build; there is
   no live pit link yet), the live Project Chrono producer and the Tier-3 drum-force track (the PyChrono
   force oracle is a stub), dense-stereo GPU and point-cloud perception, the dense map-channel RMSE tier,
@@ -119,6 +134,8 @@ core of the platform rather than at its periphery.
   ([`PRD.md`](https://github.com/stewie-sw/stewie/blob/main/PRD.md)): section 6 is the target
   architecture, section 7 is the requirement matrix, and section 7.B is the GIS mission-workbench target.
 - The honest capability split is the [capability matrix](CAPABILITIES.md).
+- The target operational evidence seam is the
+  [construction-event ledger contract](construction_event_ledger_contract.md).
 - The conserved-vs-learned design decision is the [world model](world_model.md).
 - The modelled vehicle is [IPEx](vehicle_ipex.md); the physics-authority producer is
   [Chrono integration](chrono_integration.md); the render and sensor seam is the

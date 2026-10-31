@@ -2,9 +2,9 @@
  "provenance": {
   "citations_sha256": "bbe18c43af273bc657a16da567eb2ba7c3ef5440f6044132cdf4e3e9f1475401",
   "generated_by": "scripts/gen_program_snapshot.py",
-  "prd_commit": "ff989ba58cb76e7c3de528ecc6cabdc22bf0c5b9",
-  "prd_sha256": "fe7baf7d56c41023d76693ccf391ed3230b4e068dd26af2c8e8dde9a56a1b74f",
-  "specs_sha256": "f3b5784d72066eeaa199c09451bb718604c5030aeaa6564f70fb8f3d20e440eb"
+  "prd_commit": "e1dfee190ac77f059dca5e1f42fb12c5d642deaa",
+  "prd_sha256": "fef20de1f45ef0e1129aa0f0e7fec0d4ff54940fa06a05702ea0c11a9880069f",
+  "specs_sha256": "9f500c3d93a0dfd1f12ed484b730387d6f6f78079979fbec6504c428975f09e8"
  },
  "rows": [
   {
@@ -4597,6 +4597,11 @@
    "Q": "NA",
    "V": "N",
    "X": "P",
+   "brief": {
+    "goal": "Re-qualify the live dig against the drum's sourced bite and hold limits on terrain that resolves the drum. The 2026-10-15 native boundary (ADR 0009) withdrew positive excavation qualification because native 1 m cells cannot resolve the IPEx drums.",
+    "kind": "atomic",
+    "test_target": "[REQ:PX-09] in stewie/runtime/test_native_excavation_boundary.py"
+   },
    "bucket": "buildable",
    "cited": true,
    "id": "PX-09",
@@ -4609,6 +4614,11 @@
    "Q": "NA",
    "V": "N",
    "X": "P",
+   "brief": {
+    "goal": "Re-qualify arm engagement and cutting on terrain that resolves the drum. Arm state, geometry constants and Godot command wiring stay implemented; positive cutting qualification on generated fine terrain was withdrawn by the 2026-10-15 native boundary (ADR 0009).",
+    "kind": "atomic",
+    "test_target": "[REQ:PX-10] in stewie/runtime/test_viz2_arm_gate.py"
+   },
    "bucket": "buildable",
    "cited": true,
    "id": "PX-10",
@@ -4621,6 +4631,11 @@
    "Q": "NA",
    "V": "N",
    "X": "P",
+   "brief": {
+    "goal": "Re-qualify the excavation footprint on measured finer terrain. Native resolution is fixed by source metadata and generated 2 cm / 5 cm refinement is refused (ADR 0009).",
+    "kind": "atomic",
+    "test_target": "[REQ:PX-11] in stewie/runtime/test_native_excavation_boundary.py"
+   },
    "bucket": "buildable",
    "cited": false,
    "id": "PX-11",
@@ -5522,6 +5537,11 @@
    "Q": "NA",
    "V": "N",
    "X": "P",
+   "brief": {
+    "goal": "Frozen training scenarios bound to native measured terrain. The named scenario haworth_pad_a_native binds the measured Haworth SfS section, native 1 m cells and the small IPEx drum to a content fingerprint; the generated-world haworth_pad_a identity is refused, not aliased.",
+    "kind": "atomic",
+    "test_target": "[REQ:TR-01] in stewie/dataset/test_scenario.py"
+   },
    "bucket": "buildable",
    "cited": true,
    "id": "TR-01",
@@ -5532,19 +5552,19 @@
   {
    "I": "D",
    "Q": "NA",
-   "V": "D",
+   "V": "N",
    "X": "NA",
    "brief": {
     "goal": "Phase-3 live world model -- ROS2 writes mission updates through the gated ingest; terrain folds after each mission; QGIS near-real-time.",
     "kind": "atomic",
     "test_target": "stewie/twin/test_world_model_live_update.py"
    },
-   "bucket": "done",
+   "bucket": "buildable",
    "cited": true,
    "id": "TR-02",
    "lane": "TR",
    "pri": "P1",
-   "text": "**Interpretable search-distilled excavation/construction policy \u2014 a decision tree over PHYSICS, auto-researched against the exact conserved sim.** The oracle is MODEL-BASED SEARCH (beam/CEM) run in the exact, mass-conserving, sub-millisecond authority on a frozen scenario (TR-01), which yields optimal maneuver labels WITHOUT needing human demonstrations. Those labels are distilled into a **depth-limited decision tree / rule list** over features that are already real, named telemetry \u2014 `avg_slope_deg`, `drum_fill_frac`, `dig_j_per_kg` (FEE, \u221d depth\u00b2), `dig_reaction_n`, `dig_engagement`, `max_cut_per_pass_m`, `inventory_kg`, `odometry_error_m` \u2014 plus per-cell state from the conserved authority (`derive_height`, `diff_field` = as-built vs virgin, `cell_strength`, `bearing`, `wheel_static_sinkage`, slip). Because the features ARE the physics, a split MEANS something (`slope > 12\u00b0 AND drum_fill > 0.8 \u2192 haul before digging`), and the resulting policy is a **readable operating procedure you can defend to a review board** \u2014 which for a NASA-facing artifact is the deliverable, not a nicety. WHY A TREE AND NOT A NET: this project's own evidence says model-based search + distillation is the lever, not the network class \u2014 **beam search 24 legs > PPO 27 > greedy 28, and the search-distilled MLP hit the optimum (24)**. A tree is simply a different, INTERPRETABLE distillation target for the same proven oracle. **ACCEPTANCE, with the null result pre-committed:** the tree must BEAT GREEDY on passes-to-spec / energy-to-spec / as-built RMSE (\u00b12 cm), and be scored against the beam optimum. **A tie with greedy is a NULL RESULT and MUST be reported as one** \u2014 the prior finding that greedy AND RANDOM both hit 100% on the unconstrained flatten is exactly the trap this row exists to avoid; RL/search only earns its keep under real constraints. Generalization is tested on **HELD-OUT rock seeds** (train seeds 0..N, evaluate unseen draws \u2014 same terrain, different clast field), which is possible ONLY because TR-01 made `rock_seed` live. Trees are axis-aligned, so ENGINEER THE PHYSICS INTO THE FEATURE (hand it `predicted_fee_j_per_kg(candidate_bite)` rather than making it rediscover energy \u221d depth\u00b2) \u2014 using the exact model we already own is the point, not a shortcut. PRIOR ART, stated so this row does not overclaim: **NTRS 20210022218** (ICE-RASSOR *learning excavation*) is NASA replacing the AutoDig PID trencher with deep RL \u2014 so the contribution here is NOT \"apply learning to digging\"; it is (a) an INTERPRETABLE policy instead of a black box and (b) model-based distillation, which this repo's own numbers say beats model-free. NOTE: this path does NOT need human demonstrations \u2014 the oracle is the search \u2014 so it is NOT gated on the observation-paired recorder (that remains necessary only for distilling OPERATOR intuition, where the cost function is wrong: slumping, rock avoidance, approach angle). **MEASURED RESULT \u2014 NULL (2026-07-16), and reported as one per this row's own pre-commit.** On the AS-IMPLEMENTED excavation physics the distilled tree TIES GREEDY, and it does so because all three acceptance metrics are policy-INVARIANT, not because the search was weak. `ipex_specs.dig_energy_per_kg()` is a **CONSTANT** J/kg (ipex_specs.py:167 = P_dig/dig-rate; \"BP-1-calibrated, material/density/ice-independent\", EP-02) with **no depth term** \u2014 the row's assumed `dig_j_per_kg (FEE \u221d depth\u00b2)` is NOT in the code \u2014 so with mass conserved the **energy-to-spec (= const\u00b7cut_mass)** and **passes-to-spec (= ceil(cut_mass/capacity))** are TARGET-determined, and `WorkSite.flatten` is deterministic + mass-exact so the **as-built RMSE** is fixed by the target, not the policy. MEASURED on the real Haworth authority + real Golombek rock field, held out by `rock_seed`: four distinct policies (greedy-highest, greedy-nearest, **RANDOM** \u2014 the exact control the row names \u2014 and shallow-first) tie to float-epsilon on passes/energy/RMSE across seeds 0\u20135. The ONE policy-sensitive term is haul-leg drive energy, dig-dominated to **<0.3%** and itself the SchedulerEnv leg-count problem where this repo already found greedy=beam=optimal. **UNLOCK (so the null is actionable, not a dead end):** implement a SOURCED depth-dependent excavation-force model (real FEE \u2014 Reece/Balovnev/McKyes draft \u221d cut depth) so bite depth becomes a genuine energy lever \u2014 a FORGE physics row, NOT a distillation; inventing the depth\u00b2 term here would fabricate data (forbidden) \u2014 OR retarget the interpretable policy to the MULTI-VEHICLE scheduling layer (parallelism + space-time conflict), where this repo's own M4 note records real headroom. [REQ:TR-02] `lode/test_tr02_excavation_policy.py` (5 gates: depth-independent-constant root cause, real held-out seeds, the cut meets \u00b12 cm + removes real mass, the four-policy tie per seed, dig-dominance) + `lode/tr02_excavation_policy.py`. I=D (experiment + policies + the three metrics on the real conserved authority), X=NA (there is NO beating-greedy policy to expose \u2014 that is the null), V=D (the null is verified + regression-gated). (needs PX-14, TR-01 \u2014 both done)"
+   "text": "**Interpretable search-distilled excavation/construction policy \u2014 a decision tree over PHYSICS, auto-researched against the exact conserved sim.** The oracle is MODEL-BASED SEARCH (beam/CEM) run in the exact, mass-conserving, sub-millisecond authority on a frozen scenario (TR-01), which yields optimal maneuver labels WITHOUT needing human demonstrations. Those labels are distilled into a **depth-limited decision tree / rule list** over features that are already real, named telemetry \u2014 `avg_slope_deg`, `drum_fill_frac`, `dig_j_per_kg` (FEE, \u221d depth\u00b2), `dig_reaction_n`, `dig_engagement`, `max_cut_per_pass_m`, `inventory_kg`, `odometry_error_m` \u2014 plus per-cell state from the conserved authority (`derive_height`, `diff_field` = as-built vs virgin, `cell_strength`, `bearing`, `wheel_static_sinkage`, slip). Because the features ARE the physics, a split MEANS something (`slope > 12\u00b0 AND drum_fill > 0.8 \u2192 haul before digging`), and the resulting policy is a **readable operating procedure you can defend to a review board** \u2014 which for a NASA-facing artifact is the deliverable, not a nicety. WHY A TREE AND NOT A NET: this project's own evidence says model-based search + distillation is the lever, not the network class \u2014 **beam search 24 legs > PPO 27 > greedy 28, and the search-distilled MLP hit the optimum (24)**. A tree is simply a different, INTERPRETABLE distillation target for the same proven oracle. **ACCEPTANCE, with the null result pre-committed:** the tree must BEAT GREEDY on passes-to-spec / energy-to-spec / as-built RMSE (\u00b12 cm), and be scored against the beam optimum. **A tie with greedy is a NULL RESULT and MUST be reported as one** \u2014 the prior finding that greedy AND RANDOM both hit 100% on the unconstrained flatten is exactly the trap this row exists to avoid; RL/search only earns its keep under real constraints. Generalization is tested on **HELD-OUT rock seeds** (train seeds 0..N, evaluate unseen draws \u2014 same terrain, different clast field), which is possible ONLY because TR-01 made `rock_seed` live. Trees are axis-aligned, so ENGINEER THE PHYSICS INTO THE FEATURE (hand it `predicted_fee_j_per_kg(candidate_bite)` rather than making it rediscover energy \u221d depth\u00b2) \u2014 using the exact model we already own is the point, not a shortcut. PRIOR ART, stated so this row does not overclaim: **NTRS 20210022218** (ICE-RASSOR *learning excavation*) is NASA replacing the AutoDig PID trencher with deep RL \u2014 so the contribution here is NOT \"apply learning to digging\"; it is (a) an INTERPRETABLE policy instead of a black box and (b) model-based distillation, which this repo's own numbers say beats model-free. NOTE: this path does NOT need human demonstrations \u2014 the oracle is the search \u2014 so it is NOT gated on the observation-paired recorder (that remains necessary only for distilling OPERATOR intuition, where the cost function is wrong: slumping, rock avoidance, approach angle). **MEASURED RESULT \u2014 NULL (2026-07-16), and reported as one per this row's own pre-commit.** On the AS-IMPLEMENTED excavation physics the distilled tree TIES GREEDY, and it does so because all three acceptance metrics are policy-INVARIANT, not because the search was weak. `ipex_specs.dig_energy_per_kg()` is a **CONSTANT** J/kg (ipex_specs.py:167 = P_dig/dig-rate; \"BP-1-calibrated, material/density/ice-independent\", EP-02) with **no depth term** \u2014 the row's assumed `dig_j_per_kg (FEE \u221d depth\u00b2)` is NOT in the code \u2014 so with mass conserved the **energy-to-spec (= const\u00b7cut_mass)** and **passes-to-spec (= ceil(cut_mass/capacity))** are TARGET-determined, and `WorkSite.flatten` is deterministic + mass-exact so the **as-built RMSE** is fixed by the target, not the policy. MEASURED on the real Haworth authority + real Golombek rock field, held out by `rock_seed`: four distinct policies (greedy-highest, greedy-nearest, **RANDOM** \u2014 the exact control the row names \u2014 and shallow-first) tie to float-epsilon on passes/energy/RMSE across seeds 0\u20135. The ONE policy-sensitive term is haul-leg drive energy, dig-dominated to **<0.3%** and itself the SchedulerEnv leg-count problem where this repo already found greedy=beam=optimal. **UNLOCK (so the null is actionable, not a dead end):** implement a SOURCED depth-dependent excavation-force model (real FEE \u2014 Reece/Balovnev/McKyes draft \u221d cut depth) so bite depth becomes a genuine energy lever \u2014 a FORGE physics row, NOT a distillation; inventing the depth\u00b2 term here would fabricate data (forbidden) \u2014 OR retarget the interpretable policy to the MULTI-VEHICLE scheduling layer (parallelism + space-time conflict), where this repo's own M4 note records real headroom. [REQ:TR-02] `lode/test_tr02_excavation_policy.py` (5 gates: depth-independent-constant root cause, real held-out seeds, the cut meets \u00b12 cm + removes real mass, the four-policy tie per seed, dig-dominance) + `lode/tr02_excavation_policy.py`. I=D (experiment + policies + the three metrics on the real conserved authority), X=NA (there is NO beating-greedy policy to expose \u2014 that is the null), V=D (the null is verified + regression-gated). (needs PX-14, TR-01 \u2014 both withdrawn to V=N by the 2026-10-15 native qualification boundary, ADR 0009; the null was measured on generated fine terrain, so it no longer stands on a qualified foundation)"
   },
   {
    "I": "D",
@@ -5946,11 +5966,11 @@
   }
  ],
  "summary": {
-  "briefs": 190,
+  "briefs": 194,
   "buckets": {
-   "buildable": 89,
+   "buildable": 90,
    "concurrent": 0,
-   "done": 293,
+   "done": 292,
    "gated": 31
   },
   "by_lane": {
@@ -6211,7 +6231,7 @@
     "total": 4
    },
    "TR": {
-    "done": 2,
+    "done": 1,
     "total": 3
    },
    "TS": {
@@ -6245,7 +6265,7 @@
     "total": 124
    },
    "P1": {
-    "done": 165,
+    "done": 164,
     "total": 230
    },
    "P2": {
@@ -6258,9 +6278,9 @@
    }
   },
   "cited": 316,
-  "done_pct": 70.9,
+  "done_pct": 70.7,
   "in_scope": 382,
-  "in_scope_done_pct": 76.7,
+  "in_scope_done_pct": 76.4,
   "total": 413
  },
  "workflow_spine": [
