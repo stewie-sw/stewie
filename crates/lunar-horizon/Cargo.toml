@@ -1,0 +1,19 @@
+[package]
+name = "lunar-horizon"
+description = "Terrain horizon (720 great-circle rays, curvature, observer height) and Sun/Earth disk visibility."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+lunar-dem = { path = "../lunar-dem" }
+lunar-frames = { path = "../lunar-frames" }
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[lints]
+workspace = true

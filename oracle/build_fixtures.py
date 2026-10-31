@@ -9,6 +9,10 @@ Fixtures:
   ephem_topocentric  10,000 epochs over 2026-2035 at three catalog sites: SPICE str2et (UTC -> TDB) and
                      the apparent (LT+S) Sun and Earth vectors seen from the site (spkcpo, MOON_ME_DE440_ME421).
                      Needs the NAIF kernels (pipeline/fetch_spice.py).
+  horizon_profiles   720-azimuth terrain horizons (navigator R4 semantics) from two observers on each of three
+                     real tiles: great-circle rays on the IAU 2015 lunar sphere, pyproj projection into the
+                     tile, bilinear heights, exact spherical elevation (curvature), each ray stopping where
+                     the tile's coverage ends (reach < max range means an unknown sector, not open sky).
 """
 from __future__ import annotations
 
@@ -98,10 +102,86 @@ def ephem_topocentric() -> None:
                   {"moon_radius_km": radius_km, "sites": sites, "samples": samples})
 
 
+HORIZON_TILES = ("haworth_10km_5m", "shackleton_rim_10km_5m", "haworth_sfs_2km_1m")
+HORIZON_N_AZ = 720
+HORIZON_MAX_RANGE_M = 200_000.0
+HORIZON_EYE_M = 1.5
+
+
+def _bilinear(z: np.ndarray, fx: np.ndarray, fy: np.ndarray) -> np.ndarray:
+    """Bilinear heights at fractional (col, row); NaN outside the hull of cell centres."""
+    h, w = z.shape
+    out = np.full(fx.shape, np.nan)
+    ok = (fx >= 0) & (fy >= 0) & (fx <= w - 1) & (fy <= h - 1)
+    c0 = np.minimum(np.floor(fx[ok]).astype(int), w - 2)
+    r0 = np.minimum(np.floor(fy[ok]).astype(int), h - 2)
+    tx, ty = fx[ok] - c0, fy[ok] - r0
+    out[ok] = ((1 - ty) * ((1 - tx) * z[r0, c0] + tx * z[r0, c0 + 1])
+               + ty * ((1 - tx) * z[r0 + 1, c0] + tx * z[r0 + 1, c0 + 1]))
+    return out
+
+
+def _horizon(z, cell, x0, y1, fwd, radius, lat0, lon0, h_obs):
+    """One 720-ray horizon: (elev_deg, reach_m) per azimuth (clockwise from north)."""
+    steps = np.arange(1, int(HORIZON_MAX_RANGE_M / cell) + 1) * cell
+    delta = steps / radius
+    phi1, lam1 = np.radians(lat0), np.radians(lon0)
+    elev, reach = [], []
+    for k in range(HORIZON_N_AZ):
+        az = np.radians(360.0 * k / HORIZON_N_AZ)
+        phi2 = np.arcsin(np.sin(phi1) * np.cos(delta) + np.cos(phi1) * np.sin(delta) * np.cos(az))
+        lam2 = lam1 + np.arctan2(np.sin(az) * np.sin(delta) * np.cos(phi1),
+                                 np.cos(delta) - np.sin(phi1) * np.sin(phi2))
+        e, n = fwd.transform(np.degrees(lam2), np.degrees(phi2))
+        ht = _bilinear(z, (np.asarray(e) - (x0 + cell / 2)) / cell, ((y1 - cell / 2) - np.asarray(n)) / cell)
+        covered = ~np.isnan(ht)
+        stop = int(np.argmin(covered)) if not covered.all() else len(steps)
+        if stop == 0:
+            elev.append(None)
+            reach.append(0.0)
+            continue
+        rt = radius + ht[:stop]
+        ro = radius + h_obs
+        ang = np.arctan2(rt * np.cos(delta[:stop]) - ro, rt * np.sin(delta[:stop]))
+        elev.append(float(np.degrees(ang.max())))
+        reach.append(float(steps[stop - 1]))
+    return elev, reach
+
+
+def horizon_profiles() -> None:
+    from pyproj import Transformer
+
+    radius = float(json.load(open(os.path.join(REPO, "crates", "stewie-contracts", "fixtures", "bodies.json"),
+                                  encoding="utf-8"))["moon"]["ellipsoid_radius_m"])
+    profiles, sources = [], ["crates/stewie-contracts/fixtures/bodies.json"]
+    for name in HORIZON_TILES:
+        bundle_dir = os.path.join(REPO, "samples", "lunar_dem", name)
+        meta = json.load(open(os.path.join(bundle_dir, "metadata.json"), encoding="utf-8"))
+        z, cell = site_dem.load_haworth_dem(bundle_dir)
+        g, b = meta["grid"], meta["world_bounds_m"]
+        crs = site_dem.bundle_crs(bundle_dir)
+        fwd = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
+        inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
+        for row, col in ((g["height"] // 2, g["width"] // 2), (g["height"] // 4, (3 * g["width"]) // 4)):
+            e = b["x0"] + cell * (col + 0.5)
+            n = b["y1"] - cell * (row + 0.5)
+            lon0, lat0 = inv.transform(e, n)
+            h_obs = float(z[row, col]) + HORIZON_EYE_M
+            elev, reach = _horizon(z, cell, b["x0"], b["y1"], fwd, radius, lat0, lon0, h_obs)
+            profiles.append({"tile": name, "row": int(row), "col": int(col), "lat_deg": float(lat0),
+                             "lon_deg": float(lon0), "eye_m": HORIZON_EYE_M, "step_m": cell,
+                             "elev_deg": elev, "reach_m": reach})
+        sources += [f"samples/lunar_dem/{name}/metadata.json", f"samples/lunar_dem/{name}/heightmap.rf32"]
+    write_fixture(ORACLE_FIXTURES, "horizon_profiles", "oracle/build_fixtures.py::horizon_profiles "
+                  "(NumPy + pyproj; spherical great-circle rays, bilinear heights, curvature)",
+                  sources, {"n_az": HORIZON_N_AZ, "max_range_m": HORIZON_MAX_RANGE_M, "profiles": profiles})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
     ephem_topocentric()
+    horizon_profiles()
 
 
 if __name__ == "__main__":

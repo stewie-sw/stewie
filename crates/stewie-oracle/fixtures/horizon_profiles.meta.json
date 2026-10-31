@@ -1,0 +1,14 @@
+{
+ "fixture": "horizon_profiles",
+ "generator": "oracle/build_fixtures.py::horizon_profiles (NumPy + pyproj; spherical great-circle rays, bilinear heights, curvature)",
+ "payload_sha256": "78c7cfa832925e611ed9a64f0669caea580a8b1bab9d292d85385bc7f3a54cab",
+ "sources": {
+  "crates/stewie-contracts/fixtures/bodies.json": "ffa69a4774b9b990071c0807ae035f5aac1a16a624369065478883153bc8aa57",
+  "samples/lunar_dem/haworth_10km_5m/heightmap.rf32": "7d13e9c376da950e230564b1f51a73f9f74069af3c1655b0e02ce612f10519d0",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "samples/lunar_dem/haworth_sfs_2km_1m/heightmap.rf32": "686dc62484c1d69edf041219a03306946c9742287049f28beed74830659f750c",
+  "samples/lunar_dem/haworth_sfs_2km_1m/metadata.json": "f0c6ef1492212be12639e910f8ce2fe44e618a6a4230632235efe1083edf6b5f",
+  "samples/lunar_dem/shackleton_rim_10km_5m/heightmap.rf32": "f9931470ece3cc88c634869c3ab33f5728f0c1184b4dc6f721690214363e69e1",
+  "samples/lunar_dem/shackleton_rim_10km_5m/metadata.json": "3d0e2c339bec4d8a38be9a465fd5724590669370f42b7216fb7462120fc21b4d"
+ }
+}

@@ -85,6 +85,7 @@ pub struct DemTile {
     height: usize,
     cell_m: f64,
     bounds: [f64; 4],
+    sphere: Sphere,
     proj: PolarStereographic,
 }
 
@@ -171,8 +172,63 @@ impl DemTile {
             height,
             cell_m: meta.grid.cell_m,
             bounds: [w.x0, w.y0, w.x1, w.y1],
+            sphere,
             proj: PolarStereographic::south(sphere),
         })
+    }
+
+    /// A tile from an in-memory grid (row-major, north-up) in the south polar stereographic frame of
+    /// `sphere`, e.g. one decoded by the data pipeline. `bounds` is `[x0, y0, x1, y1]` in metres.
+    ///
+    /// # Errors
+    /// [`DemError::Contract`] when the grid, cell size and bounds disagree or the grid is smaller than 2 x 2.
+    #[allow(clippy::cast_precision_loss)] // grid dimensions are far below 2^52
+    pub fn from_grid(
+        id: &str,
+        z: Vec<f32>,
+        width: usize,
+        height: usize,
+        cell_m: f64,
+        bounds: [f64; 4],
+        sphere: Sphere,
+    ) -> Result<Self, DemError> {
+        let here = PathBuf::from(id);
+        if width < 2
+            || height < 2
+            || z.len() != width * height
+            || !(cell_m.is_finite() && cell_m > 0.0)
+        {
+            return Err(contract(
+                &here,
+                format!(
+                    "grid {width}x{height} with {} values at {cell_m} m",
+                    z.len()
+                ),
+            ));
+        }
+        let [x0, y0, x1, y1] = bounds;
+        let tol = cell_m * 1e-6;
+        if (width as f64 * cell_m - (x1 - x0)).abs() > tol
+            || (height as f64 * cell_m - (y1 - y0)).abs() > tol
+        {
+            return Err(contract(&here, "bounds do not span the grid"));
+        }
+        Ok(Self {
+            id: id.to_owned(),
+            citation: format!("in-memory grid {id}"),
+            z,
+            width,
+            height,
+            cell_m,
+            bounds,
+            sphere,
+            proj: PolarStereographic::south(sphere),
+        })
+    }
+
+    #[must_use]
+    pub fn sphere(&self) -> Sphere {
+        self.sphere
     }
 
     #[must_use]
@@ -321,6 +377,12 @@ impl TerrainStack {
             .collect();
         sources.sort_by_key(|(d, _)| d.priority);
         Self { sources }
+    }
+
+    /// The body sphere shared by the stack's sources (`None` for an empty stack).
+    #[must_use]
+    pub fn sphere(&self) -> Option<Sphere> {
+        self.sources.first().map(|(_, t)| t.sphere)
     }
 
     #[must_use]
