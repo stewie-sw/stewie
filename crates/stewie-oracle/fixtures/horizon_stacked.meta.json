@@ -1,0 +1,12 @@
+{
+ "fixture": "horizon_stacked",
+ "generator": "oracle/build_fixtures.py::horizon_stacked (tile then LDEM_16 per sample; spherical rays; 50 m step; 200 km)",
+ "payload_sha256": "9ed7a9193e384a86809bb2f956376f98d93c8eb33b813a5d30695f183ef433bd",
+ "sources": {
+  ".cache/terrain/ldem_16.img": "a511e40d7a3ea3275945b4da2a1df377133264fab0be94b7434b1cf8907254cb",
+  ".cache/terrain/ldem_16.lbl": "9aef29463ccc6ed3a3fbe0df3ecd830a99c69e16b564f455507dee2697096579",
+  "crates/stewie-contracts/fixtures/bodies.json": "ffa69a4774b9b990071c0807ae035f5aac1a16a624369065478883153bc8aa57",
+  "samples/lunar_dem/haworth_10km_5m/heightmap.rf32": "7d13e9c376da950e230564b1f51a73f9f74069af3c1655b0e02ce612f10519d0",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc"
+ }
+}

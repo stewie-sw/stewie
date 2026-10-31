@@ -1,7 +1,7 @@
 //! lunar-horizon against the NumPy/pyproj oracle (`horizon_profiles`: six observers on three real tiles)
 //! and against analytic cases on synthetic in-memory tiles (labelled synthetic).
 
-use lunar_dem::{DemTile, TerrainStack};
+use lunar_dem::{DemTile, TerrainSource, TerrainStack};
 use lunar_frames::{LatLon, PolarStereographic, Sphere};
 use lunar_horizon::{HorizonConfig, HorizonError, disk_fraction_visible, horizon};
 
@@ -27,7 +27,10 @@ fn real_horizons_match_the_oracle_within_r4() {
     let n_az = usize::try_from(fx["n_az"].as_u64().unwrap()).unwrap();
     let mut worst = 0.0f64;
     for p in fx["profiles"].as_array().unwrap() {
-        let stack = TerrainStack::new(vec![(1, tile(p["tile"].as_str().unwrap()))]);
+        let stack = TerrainStack::new(vec![(
+            1,
+            Box::new(tile(p["tile"].as_str().unwrap())) as Box<dyn TerrainSource>,
+        )]);
         let cfg = HorizonConfig {
             n_az,
             max_range_m: fx["max_range_m"].as_f64().unwrap(),
@@ -91,7 +94,7 @@ fn synthetic_tile(f: impl Fn(f64, f64) -> f32) -> (DemTile, LatLon) {
 #[test]
 fn flat_sphere_gives_the_analytic_curvature_dip() {
     let (t, centre) = synthetic_tile(|_, _| 0.0);
-    let stack = TerrainStack::new(vec![(1, t)]);
+    let stack = TerrainStack::new(vec![(1, Box::new(t) as Box<dyn TerrainSource>)]);
     let cfg = HorizonConfig {
         n_az: 8,
         max_range_m: 4000.0,
@@ -120,7 +123,7 @@ fn a_cone_apex_gives_its_exact_spherical_elevation() {
         let z = (400.0 * (1.0 - d / 1500.0)).max(0.0) as f32;
         z
     });
-    let stack = TerrainStack::new(vec![(1, t)]);
+    let stack = TerrainStack::new(vec![(1, Box::new(t) as Box<dyn TerrainSource>)]);
     let cfg = HorizonConfig {
         n_az: 720,
         max_range_m: 5000.0,
@@ -143,7 +146,10 @@ fn a_cone_apex_gives_its_exact_spherical_elevation() {
 
 #[test]
 fn an_observer_outside_coverage_cannot_be_assessed() {
-    let stack = TerrainStack::new(vec![(1, tile("haworth_10km_5m"))]);
+    let stack = TerrainStack::new(vec![(
+        1,
+        Box::new(tile("haworth_10km_5m")) as Box<dyn TerrainSource>,
+    )]);
     let cfg = HorizonConfig {
         n_az: 8,
         max_range_m: 1000.0,
@@ -175,4 +181,60 @@ fn disk_fraction_is_bounded_monotone_and_half_at_the_line() {
         assert!((0.0..=1.0).contains(&f) && f >= prev);
         prev = f;
     }
+}
+
+#[test]
+fn the_global_base_tier_completes_rays_and_matches_the_stacked_oracle() {
+    let fx = stewie_oracle::load("horizon_stacked").unwrap().payload;
+    let d = stewie_oracle::repo_root().join(".cache/terrain");
+    let global =
+        lunar_dem::GlobalGrid::open(&d.join("ldem_16.img"), &d.join("ldem_16.lbl"), moon())
+            .unwrap();
+    let stack = TerrainStack::new(vec![
+        (
+            1,
+            Box::new(tile(fx["tile"].as_str().unwrap())) as Box<dyn TerrainSource>,
+        ),
+        (9, Box::new(global)),
+    ]);
+    let n_az = usize::try_from(fx["n_az"].as_u64().unwrap()).unwrap();
+    let cfg = HorizonConfig {
+        n_az,
+        max_range_m: fx["max_range_m"].as_f64().unwrap(),
+        step_m: fx["step_m"].as_f64().unwrap(),
+        eye_height_m: fx["eye_m"].as_f64().unwrap(),
+    };
+    let at = LatLon {
+        lat_deg: fx["lat_deg"].as_f64().unwrap(),
+        lon_deg: fx["lon_deg"].as_f64().unwrap(),
+    };
+    let h = horizon(&stack, at, &cfg).unwrap();
+    let want = fx["elev_deg"].as_array().unwrap();
+    let reach = fx["reach_m"].as_array().unwrap();
+    let mut worst = 0.0f64;
+    let mut complete = 0;
+    for k in 0..n_az {
+        worst = worst.max((h.elev_deg[k].unwrap() - want[k].as_f64().unwrap()).abs());
+        let r = reach[k].as_f64().unwrap();
+        assert!(
+            (h.reach_m[k] - r).abs() <= cfg.step_m,
+            "reach az {k}: {} vs {r}",
+            h.reach_m[k]
+        );
+        assert_eq!(h.complete[k], r >= cfg.max_range_m, "complete flag az {k}");
+        complete += usize::from(h.complete[k]);
+    }
+    assert!(worst < 1e-6, "worst {worst} deg");
+    assert!(
+        complete > n_az / 2,
+        "most rays reach 200 km on the base tier ({complete}/{n_az})"
+    );
+    assert!(
+        complete < n_az,
+        "rays across the south polar cap stop where LDEM_16 has no answer"
+    );
+    assert_eq!(
+        h.sources,
+        vec!["haworth_10km_5m".to_owned(), "ldem_16".to_owned()]
+    );
 }

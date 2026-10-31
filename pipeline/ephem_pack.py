@@ -9,7 +9,7 @@ constants are read from the LSK so the device converts UTC to TDB exactly as SPI
 Every segment is checked at off-node epochs against SPICE before the file is written; a fit worse than
 MAX_FIT_ERR_RAD aborts the build.
 
-    python pipeline/fetch_spice.py && python pipeline/ephem_pack.py
+    python pipeline/fetch.py && python pipeline/ephem_pack.py
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import numpy as np
 import spiceypy as sp
 from numpy.polynomial import chebyshev as C
 
-import fetch_spice
+import fetch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.normpath(os.path.join(HERE, "..", "crates", "lunar-ephem", "data"))
@@ -39,7 +39,7 @@ MAX_FIT_ERR_RAD = 1e-9          # 2e-4 arcsec: far inside the 0.005 deg (8.7e-5 
 
 
 def load_kernels() -> dict[str, str]:
-    paths = fetch_spice.fetch()
+    paths = fetch.fetch("spice_kernels.json")
     sp.kclear()
     for p in paths.values():
         sp.furnsh(p)
@@ -111,7 +111,7 @@ def pack() -> tuple[str, str]:
         "radii_m": {t: [float(v) * 1000.0 for v in sp.bodvrd(t, "RADII", 3)[1]] for t in TARGETS},
         "fit_max_err_rad": {t: worst[t] for t in SERIES},
         "bin_sha256": hashlib.sha256(blob).hexdigest(),
-        "kernels": {os.path.basename(p): fetch_spice._sha256(p) for p in sorted(kernels.values())},
+        "kernels": {os.path.basename(p): fetch.sha256(p) for p in sorted(kernels.values())},
         "generator": "pipeline/ephem_pack.py",
     }
     json_path = os.path.join(OUT_DIR, f"{NAME}.json")

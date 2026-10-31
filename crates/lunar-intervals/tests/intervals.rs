@@ -141,3 +141,48 @@ fn a_span_outside_the_ephemeris_is_an_error() {
     let t = e.tdb(&Utc::parse_iso8601("2037-01-01T00:00:00Z").unwrap());
     assert!(visibility_windows(&e, &h, site, Body::Sun, t, t + 86_400.0, &cfg).is_err());
 }
+
+#[test]
+fn a_complete_horizon_yields_lit_windows() {
+    let hz = stewie_oracle::load("horizon_stacked").unwrap().payload;
+    let n = hz["elev_deg"].as_array().unwrap().len();
+    let reach: Vec<f64> = hz["reach_m"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_f64().unwrap())
+        .collect();
+    let max = hz["max_range_m"].as_f64().unwrap();
+    #[allow(clippy::cast_precision_loss)]
+    let h = Horizon {
+        az_deg: (0..n).map(|k| 360.0 * k as f64 / n as f64).collect(),
+        elev_deg: hz["elev_deg"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(serde_json::Value::as_f64)
+            .collect(),
+        complete: reach.iter().map(|r| *r >= max).collect(),
+        reach_m: reach,
+        sources: vec!["haworth_10km_5m".into(), "ldem_16".into()],
+    };
+    let e = Ephemeris::bundled().unwrap();
+    let site = LatLon {
+        lat_deg: hz["lat_deg"].as_f64().unwrap(),
+        lon_deg: hz["lon_deg"].as_f64().unwrap(),
+    };
+    let cfg = VisibilityConfig {
+        sample_s: 600.0,
+        tolerance_s: 0.1,
+        eye_height_m: 1.5,
+        ground_height_m: hz["ground_m"].as_f64().unwrap(),
+        moon: moon(),
+    };
+    let t0 = e.tdb(&Utc::parse_iso8601("2027-01-01T00:00:00Z").unwrap());
+    let w = visibility_windows(&e, &h, site, Body::Sun, t0, t0 + 60.0 * 86_400.0, &cfg).unwrap();
+    assert!(
+        w.iter().any(|x| x.verdict == Verdict::Lit),
+        "a complete horizon must allow Lit"
+    );
+    assert!(w.iter().any(|x| x.verdict == Verdict::Shadow));
+}

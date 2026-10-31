@@ -8,7 +8,7 @@ Fixtures:
                      (dem_origin_to_latlon, pyproj in the bundle's own polar-stereographic CRS).
   ephem_topocentric  10,000 epochs over 2026-2035 at three catalog sites: SPICE str2et (UTC -> TDB) and
                      the apparent (LT+S) Sun and Earth vectors seen from the site (spkcpo, MOON_ME_DE440_ME421).
-                     Needs the NAIF kernels (pipeline/fetch_spice.py).
+                     Needs the NAIF kernels (pipeline/fetch.py).
   horizon_profiles   720-azimuth terrain horizons (navigator R4 semantics) from two observers on each of three
                      real tiles: great-circle rays on the IAU 2015 lunar sphere, pyproj projection into the
                      tile, bilinear heights, exact spherical elevation (curvature), each ray stopping where
@@ -17,6 +17,11 @@ Fixtures:
                      over the known horizon (SPICE spkcpo LT+S apparent direction, PCK radii, Earth polar
                      radius for a conservative limb, horizon linear in azimuth) and its zero crossings,
                      bisected to 0.01 s between 600 s samples.
+  global_ldem_samples
+                     PDS LOLA LDEM_16 (simple cylindrical, label-driven): bilinear heights at every catalog
+                     site, at the 0/360 longitude seam, near the poles and at 200 random points.
+  horizon_stacked    the Haworth-centre horizon over a two-source stack (the 5 m tile, then LDEM_16 where
+                     the tile ends), 720 azimuths, 50 m step, out to 200 km: the base tier completes rays.
 """
 from __future__ import annotations
 
@@ -27,10 +32,10 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pipeline"))  # fetch_spice
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pipeline"))  # fetch
 
 import export_registries  # noqa: E402
-import fetch_spice  # noqa: E402
+import fetch  # noqa: E402
 from fixture_io import REPO, write_fixture  # noqa: E402
 from stewie.specs.sites import SITES  # noqa: E402
 from stewie.terrain import site_dem  # noqa: E402
@@ -80,7 +85,7 @@ EPHEM_EPOCHS = 10_000
 def ephem_topocentric() -> None:
     import spiceypy as sp                              # oracle-only dependency (dev lock)
 
-    kernels = fetch_spice.fetch()
+    kernels = fetch.fetch("spice_kernels.json")
     sp.kclear()
     for path in kernels.values():
         sp.furnsh(path)
@@ -214,7 +219,7 @@ def _limb_margin_fn(sp, horizon, lat, lon, obs_km):
 def visibility_windows() -> None:
     import spiceypy as sp
 
-    kernels = fetch_spice.fetch()
+    kernels = fetch.fetch("spice_kernels.json")
     sp.kclear()
     for path in kernels.values():
         sp.furnsh(path)
@@ -259,12 +264,120 @@ def visibility_windows() -> None:
                    "cases": cases})
 
 
+def _pds_label(path: str) -> dict:
+    """KEY = value pairs of a PDS3 label (comments, quotes and <units> stripped)."""
+    out = {}
+    for line in open(path, encoding="ascii", errors="replace"):
+        line = line.split("/*", 1)[0].strip()
+        if "=" in line:
+            k, v = (x.strip() for x in line.split("=", 1))
+            out[k] = v.split("<", 1)[0].strip().strip('"')
+    return out
+
+
+class _PdsGrid:
+    """LOLA LDEM simple-cylindrical grid read straight from the IMG, independent of the Rust reader."""
+
+    def __init__(self, img: str, lbl: str):
+        lab = _pds_label(lbl)
+        self.lines, self.samples = int(lab["LINES"]), int(lab["LINE_SAMPLES"])
+        self.scale, self.res = float(lab["SCALING_FACTOR"]), float(lab["MAP_RESOLUTION"])
+        self.l0, self.s0 = float(lab["LINE_PROJECTION_OFFSET"]), float(lab["SAMPLE_PROJECTION_OFFSET"])
+        self.lon_c, self.west = float(lab["CENTER_LONGITUDE"]), float(lab["WESTERNMOST_LONGITUDE"])
+        self.dn = np.fromfile(img, dtype="<i2").reshape(self.lines, self.samples)
+
+    def height(self, lat: float, lon: float):
+        row = self.l0 - lat * self.res
+        col = self.s0 + ((((lon - self.west) % 360.0) + self.west) - self.lon_c) * self.res
+        if not (0.0 <= row <= self.lines - 1):
+            return None
+        r0 = min(int(math.floor(row)), self.lines - 2)
+        c0 = int(math.floor(col))
+        ty, tx = row - r0, col - c0
+        c0w, c1w = c0 % self.samples, (c0 + 1) % self.samples
+        z = self.dn
+        v = ((1 - ty) * ((1 - tx) * float(z[r0, c0w]) + tx * float(z[r0, c1w]))
+             + ty * ((1 - tx) * float(z[r0 + 1, c0w]) + tx * float(z[r0 + 1, c1w])))
+        return v * self.scale
+
+
+def global_ldem_samples() -> None:
+    files = fetch.fetch("terrain_sources.json")
+    g = _PdsGrid(files["ldem_16.img"], files["ldem_16.lbl"])
+    pts = [(s.lat_deg, s.lon_deg) for s in SITES.values()]
+    pts += [(0.0, 0.0), (0.0, 359.99), (0.0, -0.01), (12.3, 180.0), (-45.0, -179.99), (89.96, 10.0),
+            (-89.96, 250.0), (89.99, 10.0), (-89.99, 10.0)]
+    rng = np.random.default_rng(20261031)                 # sampling locations only; heights come from LOLA
+    pts += [(float(a), float(b)) for a, b in zip(rng.uniform(-89.9, 89.9, 200), rng.uniform(-180, 360, 200))]
+    samples = [{"lat_deg": a, "lon_deg": b, "height_m": g.height(a, b)} for a, b in pts]
+    write_fixture(ORACLE_FIXTURES, "global_ldem_samples", "oracle/build_fixtures.py::global_ldem_samples "
+                  "(numpy over the PDS IMG, label-driven bilinear, longitude wrap, no answer in the polar caps)",
+                  [".cache/terrain/ldem_16.img", ".cache/terrain/ldem_16.lbl",
+                   "crates/stewie-contracts/fixtures/sites.json"], {"samples": samples})
+
+
+STACK_STEP_M = 50.0
+
+
+def horizon_stacked() -> None:
+    from pyproj import Transformer
+
+    files = fetch.fetch("terrain_sources.json")
+    g = _PdsGrid(files["ldem_16.img"], files["ldem_16.lbl"])
+    radius = float(json.load(open(os.path.join(REPO, "crates", "stewie-contracts", "fixtures", "bodies.json"),
+                                  encoding="utf-8"))["moon"]["ellipsoid_radius_m"])
+    name = "haworth_10km_5m"
+    bundle_dir = os.path.join(REPO, "samples", "lunar_dem", name)
+    meta = json.load(open(os.path.join(bundle_dir, "metadata.json"), encoding="utf-8"))
+    z, cell = site_dem.load_haworth_dem(bundle_dir)
+    b, gr = meta["world_bounds_m"], meta["grid"]
+    crs = site_dem.bundle_crs(bundle_dir)
+    fwd = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
+    inv = Transformer.from_crs(crs, crs.geodetic_crs, always_xy=True)
+    row, col = gr["height"] // 2, gr["width"] // 2
+    lon0, lat0 = inv.transform(b["x0"] + cell * (col + 0.5), b["y1"] - cell * (row + 0.5))
+    h_obs = float(z[row, col]) + HORIZON_EYE_M
+    steps = np.arange(1, int(HORIZON_MAX_RANGE_M / STACK_STEP_M) + 1) * STACK_STEP_M
+    delta = steps / radius
+    phi1, lam1 = np.radians(lat0), np.radians(lon0)
+    elev, reach, from_global = [], [], 0
+    for k in range(HORIZON_N_AZ):
+        az = np.radians(360.0 * k / HORIZON_N_AZ)
+        phi2 = np.arcsin(np.sin(phi1) * np.cos(delta) + np.cos(phi1) * np.sin(delta) * np.cos(az))
+        lam2 = lam1 + np.arctan2(np.sin(az) * np.sin(delta) * np.cos(phi1),
+                                 np.cos(delta) - np.sin(phi1) * np.sin(phi2))
+        lat2, lon2 = np.degrees(phi2), np.degrees(lam2)
+        e, n = fwd.transform(lon2, lat2)
+        ht = _bilinear(z, (np.asarray(e) - (b["x0"] + cell / 2)) / cell, ((b["y1"] - cell / 2) - np.asarray(n)) / cell)
+        for i in np.nonzero(np.isnan(ht))[0]:
+            v = g.height(float(lat2[i]), float(lon2[i]))
+            ht[i] = np.nan if v is None else v
+            from_global += v is not None
+        covered = ~np.isnan(ht)
+        stop = int(np.argmin(covered)) if not covered.all() else len(steps)
+        rt = radius + ht[:stop]
+        ang = np.arctan2(rt * np.cos(delta[:stop]) - (radius + h_obs), rt * np.sin(delta[:stop]))
+        elev.append(float(np.degrees(ang.max())) if stop else None)
+        reach.append(float(steps[stop - 1]) if stop else 0.0)
+    write_fixture(ORACLE_FIXTURES, "horizon_stacked", "oracle/build_fixtures.py::horizon_stacked "
+                  "(tile then LDEM_16 per sample; spherical rays; 50 m step; 200 km)",
+                  [f"samples/lunar_dem/{name}/metadata.json", f"samples/lunar_dem/{name}/heightmap.rf32",
+                   ".cache/terrain/ldem_16.img", ".cache/terrain/ldem_16.lbl",
+                   "crates/stewie-contracts/fixtures/bodies.json"],
+                  {"tile": name, "lat_deg": float(lat0), "lon_deg": float(lon0), "eye_m": HORIZON_EYE_M,
+                   "ground_m": float(z[row, col]), "step_m": STACK_STEP_M, "n_az": HORIZON_N_AZ,
+                   "max_range_m": HORIZON_MAX_RANGE_M, "samples_from_global": int(from_global),
+                   "elev_deg": elev, "reach_m": reach})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
     ephem_topocentric()
     horizon_profiles()
     visibility_windows()
+    global_ldem_samples()
+    horizon_stacked()
 
 
 if __name__ == "__main__":

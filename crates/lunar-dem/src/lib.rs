@@ -333,6 +333,181 @@ impl DemTile {
     }
 }
 
+/// Anything that answers "terrain height here?" in the body's frame: a local tile, a global grid.
+pub trait TerrainSource: fmt::Debug + Send + Sync {
+    fn id(&self) -> &str;
+    fn citation(&self) -> &str;
+    /// Nominal ground sample distance [m].
+    fn resolution_m(&self) -> f64;
+    fn sphere(&self) -> Sphere;
+    /// Height [m above the sphere], or `None` where the source has no answer (never extrapolated).
+    fn sample_latlon(&self, ll: LatLon) -> Option<f64>;
+}
+
+impl TerrainSource for DemTile {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn citation(&self) -> &str {
+        &self.citation
+    }
+    fn resolution_m(&self) -> f64 {
+        self.cell_m
+    }
+    fn sphere(&self) -> Sphere {
+        self.sphere
+    }
+    fn sample_latlon(&self, ll: LatLon) -> Option<f64> {
+        DemTile::sample_latlon(self, ll)
+    }
+}
+
+/// A PDS simple-cylindrical global DEM (LOLA LDEM): 16-bit LSB heights scaled by the label, read whole.
+#[derive(Debug)]
+pub struct GlobalGrid {
+    id: String,
+    citation: String,
+    dn: Vec<i16>,
+    lines: usize,
+    samples: usize,
+    scale: f64,
+    res_ppd: f64,
+    line_offset: f64,
+    sample_offset: f64,
+    center_lon: f64,
+    west_lon: f64,
+    sphere: Sphere,
+}
+
+/// `KEY = value` pairs of a PDS3 label, comments, quotes and `<units>` stripped.
+fn pds_label(text: &str) -> std::collections::BTreeMap<String, String> {
+    text.lines()
+        .filter_map(|line| {
+            let line = line.split("/*").next().unwrap_or("").trim();
+            let (k, v) = line.split_once('=')?;
+            let v = v.split('<').next().unwrap_or("").trim().trim_matches('"');
+            Some((k.trim().to_owned(), v.to_owned()))
+        })
+        .collect()
+}
+
+impl GlobalGrid {
+    /// Open an LDEM image and its label on `sphere`.
+    ///
+    /// # Errors
+    /// I/O failure, a label that is not 16-bit LSB simple cylindrical, an OFFSET that is not the body
+    /// sphere, or an image whose size disagrees with the label.
+    pub fn open(img: &Path, lbl: &Path, sphere: Sphere) -> Result<Self, DemError> {
+        let text = fs::read_to_string(lbl).map_err(io(lbl))?;
+        let lab = pds_label(&text);
+        let get = |k: &str| {
+            lab.get(k)
+                .ok_or_else(|| contract(lbl, format!("label lacks {k}")))
+        };
+        let num = |k: &str| -> Result<f64, DemError> {
+            get(k)?
+                .parse::<f64>()
+                .map_err(|e| contract(lbl, format!("{k}: {e}")))
+        };
+        let int = |k: &str| -> Result<usize, DemError> {
+            get(k)?
+                .parse::<usize>()
+                .map_err(|e| contract(lbl, format!("{k}: {e}")))
+        };
+        if get("SAMPLE_TYPE")? != "LSB_INTEGER"
+            || get("SAMPLE_BITS")? != "16"
+            || get("MAP_PROJECTION_TYPE")? != "SIMPLE CYLINDRICAL"
+        {
+            return Err(contract(
+                lbl,
+                "only 16-bit LSB simple-cylindrical LDEMs are supported",
+            ));
+        }
+        let id = img
+            .file_stem()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        let offset = num("OFFSET")?;
+        if (offset - sphere.radius_m()).abs() > 1e-6 {
+            return Err(DemError::DatumMismatch {
+                bundle: id,
+                bundle_radius_m: offset,
+                body_radius_m: sphere.radius_m(),
+            });
+        }
+        let (lines, samples) = (int("LINES")?, int("LINE_SAMPLES")?);
+        let bytes = fs::read(img).map_err(io(img))?;
+        if bytes.len() != lines * samples * 2 {
+            return Err(DemError::SizeMismatch {
+                bundle: id,
+                expected_bytes: lines * samples * 2,
+                actual_bytes: bytes.len(),
+            });
+        }
+        let dn = bytes
+            .chunks_exact(2)
+            .map(|b| i16::from_le_bytes([b[0], b[1]]))
+            .collect();
+        Ok(Self {
+            citation: format!(
+                "LRO LOLA {} ({}), PDS Geosciences Node",
+                get("PRODUCT_ID").map_or(id.as_str(), String::as_str),
+                get("PRODUCT_VERSION_ID").map_or("", String::as_str)
+            ),
+            id,
+            dn,
+            lines,
+            samples,
+            scale: num("SCALING_FACTOR")?,
+            res_ppd: num("MAP_RESOLUTION")?,
+            line_offset: num("LINE_PROJECTION_OFFSET")?,
+            sample_offset: num("SAMPLE_PROJECTION_OFFSET")?,
+            center_lon: num("CENTER_LONGITUDE")?,
+            west_lon: num("WESTERNMOST_LONGITUDE")?,
+            sphere,
+        })
+    }
+}
+
+impl TerrainSource for GlobalGrid {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn citation(&self) -> &str {
+        &self.citation
+    }
+    fn resolution_m(&self) -> f64 {
+        2.0 * std::f64::consts::PI * self.sphere.radius_m() / 360.0 / self.res_ppd
+    }
+    fn sphere(&self) -> Sphere {
+        self.sphere
+    }
+    /// Bilinear between pixel centres, wrapping in longitude; `None` within half a pixel of a pole.
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_possible_wrap
+    )] // pixel indices are far below 2^62; longitude wrap needs a signed modulo
+    fn sample_latlon(&self, ll: LatLon) -> Option<f64> {
+        let row = self.line_offset - ll.lat_deg * self.res_ppd;
+        let lon = (ll.lon_deg - self.west_lon).rem_euclid(360.0) + self.west_lon;
+        let col = self.sample_offset + (lon - self.center_lon) * self.res_ppd;
+        if !(row >= 0.0 && row <= (self.lines - 1) as f64) {
+            return None;
+        }
+        let r0 = (row.floor() as usize).min(self.lines - 2);
+        let c0f = col.floor();
+        let (ty, tx) = (row - r0 as f64, col - c0f);
+        let n = self.samples as i64;
+        let c0 = (c0f as i64).rem_euclid(n) as usize;
+        let c1 = (c0f as i64 + 1).rem_euclid(n) as usize;
+        let z = |r: usize, c: usize| f64::from(self.dn[r * self.samples + c]);
+        let v = (1.0 - ty) * ((1.0 - tx) * z(r0, c0) + tx * z(r0, c1))
+            + ty * ((1.0 - tx) * z(r0 + 1, c0) + tx * z(r0 + 1, c1));
+        Some(v * self.scale)
+    }
+}
+
 /// Identity of a terrain source inside a stack: what answered, at what resolution, and why it ranks.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceDescriptor {
@@ -357,20 +532,20 @@ pub enum Resolved<'a> {
 /// Terrain sources ordered by priority; each point resolves to the highest-priority source covering it.
 #[derive(Debug)]
 pub struct TerrainStack {
-    sources: Vec<(SourceDescriptor, DemTile)>,
+    sources: Vec<(SourceDescriptor, Box<dyn TerrainSource>)>,
 }
 
 impl TerrainStack {
     #[must_use]
-    pub fn new(tiles: Vec<(u32, DemTile)>) -> Self {
-        let mut sources: Vec<_> = tiles
+    pub fn new(sources: Vec<(u32, Box<dyn TerrainSource>)>) -> Self {
+        let mut sources: Vec<_> = sources
             .into_iter()
             .map(|(priority, t)| {
                 let d = SourceDescriptor {
-                    id: t.id.clone(),
-                    resolution_m: t.cell_m,
+                    id: t.id().to_owned(),
+                    resolution_m: t.resolution_m(),
                     priority,
-                    citation: t.citation.clone(),
+                    citation: t.citation().to_owned(),
                 };
                 (d, t)
             })
@@ -382,7 +557,7 @@ impl TerrainStack {
     /// The body sphere shared by the stack's sources (`None` for an empty stack).
     #[must_use]
     pub fn sphere(&self) -> Option<Sphere> {
-        self.sources.first().map(|(_, t)| t.sphere)
+        self.sources.first().map(|(_, t)| t.sphere())
     }
 
     #[must_use]

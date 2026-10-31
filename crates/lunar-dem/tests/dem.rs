@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use lunar_dem::{DemError, DemTile, Resolved, TerrainStack};
+use lunar_dem::{DemError, DemTile, Resolved, TerrainSource, TerrainStack};
 use lunar_frames::{LatLon, Sphere};
 
 fn moon() -> Sphere {
@@ -126,15 +126,18 @@ fn stack_resolves_by_priority_falls_through_and_names_the_source() {
     let stack = TerrainStack::new(vec![
         (
             1,
-            DemTile::open(&bundle("haworth_sfs_2km_1m"), moon()).unwrap(),
+            Box::new(DemTile::open(&bundle("haworth_sfs_2km_1m"), moon()).unwrap())
+                as Box<dyn TerrainSource>,
         ),
         (
             2,
-            DemTile::open(&bundle("haworth_10km_5m"), moon()).unwrap(),
+            Box::new(DemTile::open(&bundle("haworth_10km_5m"), moon()).unwrap())
+                as Box<dyn TerrainSource>,
         ),
         (
             3,
-            DemTile::open(&bundle("shackleton_rim_10km_5m"), moon()).unwrap(),
+            Box::new(DemTile::open(&bundle("shackleton_rim_10km_5m"), moon()).unwrap())
+                as Box<dyn TerrainSource>,
         ),
     ]);
     let haworth = DemTile::open(&bundle("haworth_10km_5m"), moon()).unwrap();

@@ -3,7 +3,7 @@ check: fmt-check clippy test no-stubs
 
 # Regenerate every oracle fixture; CI fails if the committed fixtures differ.
 oracle:
-    PYTHONNOUSERSITE=1 .venv/bin/python pipeline/fetch_spice.py
+    PYTHONNOUSERSITE=1 .venv/bin/python pipeline/fetch.py
     cd pipeline && PYTHONNOUSERSITE=1 ../.venv/bin/python ephem_pack.py
     cd oracle && PYTHONNOUSERSITE=1 ../.venv/bin/python build_fixtures.py
 

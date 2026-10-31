@@ -1,0 +1,18 @@
+{
+ "cache_subdir": "terrain",
+ "description": "Public LOLA gridded DEMs (PDS Geosciences Node, LRO LOLA RDR V3.1) for the global base terrain tier. Fetched into code/.cache/terrain by pipeline/fetch.py.",
+ "entries": {
+  "ldem_16.img": {
+   "bytes": 33177600,
+   "sha256": "a511e40d7a3ea3275945b4da2a1df377133264fab0be94b7434b1cf8907254cb",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_16.img"
+  },
+  "ldem_16.lbl": {
+   "bytes": 5121,
+   "sha256": "9aef29463ccc6ed3a3fbe0df3ecd830a99c69e16b564f455507dee2697096579",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_16.lbl"
+  }
+ },
+ "local_dir_default": "/mnt/projects/datasets/lola_gdr",
+ "local_dir_env": "STEWIE_TERRAIN_DIR"
+}
