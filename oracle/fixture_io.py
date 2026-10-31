@@ -27,7 +27,7 @@ def sha256_file(path: str) -> str:
 def write_fixture(out_dir: str, name: str, generator: str, sources: list[str], payload: dict) -> str:
     """Write <name>.payload.json and <name>.meta.json; `sources` are repo-relative real input files."""
     os.makedirs(out_dir, exist_ok=True)
-    body = json.dumps(payload, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
+    body = json.dumps(payload, indent=1, sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n"
     payload_path = os.path.join(out_dir, f"{name}.payload.json")
     with open(payload_path, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(body)

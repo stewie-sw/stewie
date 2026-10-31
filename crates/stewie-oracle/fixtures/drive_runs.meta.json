@@ -1,0 +1,12 @@
+{
+ "fixture": "drive_runs",
+ "generator": "oracle/build_fixtures.py::drive_runs (stewie.physics.drive and stability; real Haworth crop plus SYNTHETIC ramp/rock grids, labelled)",
+ "payload_sha256": "356c52f7034ad9b5c3094eba0998c7ee173f4d7b4aa1bcacaf1e37f53ddc519a",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/drive.py": "a4cba2b9227e4e3b7add1b4913bcc4120d2fbd67c100928b1d3cca4d9854f885",
+  "stewie/physics/rover.py": "f420b464fbcd1529d3758e9ce1d5573d84745f1a9ceb5b89ad435388223b29a0",
+  "stewie/physics/slip.py": "bfb6938e63fdc0e0dbfbc01f6200bc4d783c982213fba611652e4840ecf096a0",
+  "stewie/physics/stability.py": "5c30002a4e5f77580c5a6ae9621c2dc70345b15cd583190f080e0d966d0a4e3f"
+ }
+}

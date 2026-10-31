@@ -49,6 +49,10 @@ Fixtures:
   conform_cases      stewie.physics.rover.conform_pose on the REAL Haworth crop heights (5 m cells): rest
                      plane, pitch/roll, contacts and per-wheel normal loads at several poses and payloads,
                      with and without SYNTHETIC rocks (labelled) under a wheel, one past the climb limit.
+  drive_runs         stewie.physics.drive.drive_step loops: a plain drive on the REAL Haworth crop; a SYNTHETIC
+                     5 cm ramp steepening to 40 deg (material, skid-steer, a dig reaction) driven to
+                     entrapment; a SYNTHETIC flat grid with rocks (labelled). Per-step telemetry, final fields;
+                     plus stability() over a tilt grid with NaN and a CG offset.
 """
 from __future__ import annotations
 
@@ -756,6 +760,71 @@ def conform_cases() -> None:
                    "g": float(K.g), "cases": cases, "reactions": reactions})
 
 
+def drive_runs() -> None:
+    from stewie.physics import drive as DR, stability as ST
+    from stewie.physics.column_state import ColumnState
+    from stewie.specs import constants as K
+    from stewie_forge.terramechanics import TerramechanicsParams
+
+    def run(name, cs, rc, yaw, twists, *, material=False, skid=False, payload=0.0, clasts=None, dig=None):
+        start_kg = cs.total_mass()
+        steps = []
+        for i, (v, w) in enumerate(twists):
+            rc, yaw, t = DR.drive_step(cs, rc, yaw, v, w, dt=0.1, payload_kg=payload, material=material,
+                                       clasts=clasts, skid_steer=skid,
+                                       dig_reaction_n=(dig(i) if dig else 0.0))
+            steps.append({k: t[k] for k in ("rc", "yaw", "v_achieved", "omega_achieved", "slip", "entrapped",
+                                            "slope_rad", "sinkage_m", "contact_len_m")}
+                         | ({k: t[k] for k in ("slip_left", "slip_right", "v_left_ach", "v_right_ach", "scrub_factor") if k in t}
+                            if skid else {}))
+        return {"name": name, "width": cs.width, "height": cs.height, "cell_m": cs.cell_m, "material": material,
+                "skid": skid, "payload_kg": payload, "clasts": clasts or [], "twists": twists,
+                "dig_reaction": [dig(i) if dig else 0.0 for i in range(len(twists))], "steps": steps,
+                "total_kg_start": start_kg, "total_kg_end": cs.total_mass(),
+                "mass_areal": cs.mass_areal.ravel().tolist(), "density": cs.density.ravel().tolist(),
+                "state_label": cs.state_label.ravel().tolist()}
+
+    runs = []
+    real = _real_crop_state()
+    runs.append({**run("real_crop", real, (16.0, 16.0), 0.4, [(0.3, (0.0, 0.3, -0.2)[i // 14]) for i in range(40)],
+                       payload=5.0), "start": "real"})
+    # SYNTHETIC ramp (labelled): slope rises linearly 0 -> 40 deg along +col
+    W = H = 64
+    cell = 0.05
+    slope = np.radians(np.linspace(0.0, 40.0, W))
+    prof = np.concatenate([[0.0], np.cumsum(np.tan(slope[:-1]) * cell)])
+    ramp = ColumnState(W, H, cell, datum=np.tile(prof, (H, 1)))
+    runs.append({**run("synthetic_ramp", ramp, (32.0, 4.0), 0.0, [(0.3, 0.1)] * 120, material=True, skid=True,
+                       dig=lambda i: 3.0 if 10 <= i < 20 else 0.0), "start": "ramp", "ramp_profile": prof.tolist()})
+    # SYNTHETIC gentle tilt (labelled), 2 deg along +col and 1 deg along +row: exactly flat ground puts the
+    # slope at numpy-lstsq noise (~1e-16), where slip_for_demand's 1e-6 bisection floor makes slip jump from 0
+    # to 1e-6 (D-R57); a real tilt keeps both implementations off that discontinuity.
+    tilt = (np.arange(W)[None, :] * np.tan(np.radians(2.0)) + np.arange(H)[:, None] * np.tan(np.radians(1.0))) * cell
+    tilted = ColumnState(W, H, cell, datum=tilt)
+    rocks = [{"center_m": [1.2, 0.08, 1.6], "radius_m": 0.12}, {"center_m": [1.9, 0.1, 1.45], "radius_m": 0.2}]
+    for rk in rocks:
+        rk["center_m"][1] += float(np.interp(rk["center_m"][0] / cell, np.arange(W), tilt[int(rk["center_m"][2] / cell)]))
+    runs.append({**run("synthetic_rocks", tilted, (32.0, 10.0), 0.05, [(0.3, -0.15)] * 60, skid=True, payload=20.0,
+                       clasts=rocks), "start": "tilted", "tilt_datum": tilt.ravel().tolist()})
+    stab = []
+    for pitch in (0.0, 20.0, 30.0, 40.0, -45.0, float("nan")):
+        for roll in (0.0, 25.0, -50.0):
+            for dx in (0.0, 0.1):
+                r = ST.stability(pitch, roll, gauge_m=0.57, wheelbase_m=0.40, cg_height_m=0.30, cg_dx_m=dx)
+                # JSON has no NaN/Infinity: the fail-closed NaN case records its non-finite outputs as null
+                r = {k: (v if not isinstance(v, float) or math.isfinite(v) else None) for k, v in r.items()}
+                stab.append({"pitch_deg": None if pitch != pitch else pitch, "roll_deg": roll, "cg_dx_m": dx, **r})
+    base = TerramechanicsParams.from_constants()
+    write_fixture(ORACLE_FIXTURES, "drive_runs", "oracle/build_fixtures.py::drive_runs (stewie.physics.drive "
+                  "and stability; real Haworth crop plus SYNTHETIC ramp/rock grids, labelled)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/physics/drive.py",
+                   "stewie/physics/stability.py", "stewie/physics/rover.py", "stewie/physics/slip.py"],
+                  {"soil": base.to_dict(), "g": float(K.g), "mass_kg": K.ROVER_MASS_DRY_KG, "n_wheels": K.N_WHEELS,
+                   "cg_height_m": K.CG_HEIGHT_M, "wheel_radius_m": 0.18, "wheel_width_m": 0.18, "contact_len_m": 0.10,
+                   "track_m": 0.5207, "gauge_m": 0.57, "wheelbase_m": 0.40, "runs": runs, "stability": stab,
+                   "tip_limit_deg": ST.tip_tilt_limit_deg(gauge_m=0.57, wheelbase_m=0.40, cg_height_m=0.30)})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -826,6 +895,7 @@ def main() -> None:
     excavation_cases()
     rover_ops()
     conform_cases()
+    drive_runs()
 
 
 if __name__ == "__main__":
