@@ -1,0 +1,18 @@
+[package]
+name = "stewie-plugins"
+description = "The on-demand plugin host (D-R01): discover plugin manifests, start a plugin as an isolated process, and talk stewie-plugin-v1 over stdin/stdout. No plugin installed means 'not available', never a fake result."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+stewie-contracts = { path = "../stewie-contracts" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[dev-dependencies]
+stewie-contracts = { path = "../stewie-contracts" }
+
+[lints]
+workspace = true

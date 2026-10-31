@@ -121,6 +121,16 @@ fn a_changed_byte_or_an_escaping_path_refuses_the_whole_package() {
         Package::open(&tmp, moon()),
         Err(PackageError::Manifest(_))
     ));
+    fs::remove_file(tmp.join("manifest.json")).unwrap();
+    fs::write(
+        tmp.join("manifest.json"),
+        manifest.replacen("\"stewie-package-v1\"", "\"stewie-package-v0\"", 1),
+    )
+    .unwrap();
+    assert!(
+        matches!(Package::open(&tmp, moon()), Err(PackageError::Manifest(m)) if m.contains("format")),
+        "another manifest format is refused"
+    );
     fs::remove_dir_all(&tmp).unwrap();
 }
 

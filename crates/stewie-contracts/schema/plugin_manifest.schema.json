@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/plugin_manifest.schema.json",
+  "title": "PluginManifest",
+  "description": "An on-demand plugin (D-R01): a separate process the core starts only when asked, speaking stewie-plugin-v1 (one JSON object per line on stdin/stdout). `command` is the argv, its first element relative to the manifest's directory. The core never links a plugin; when none is installed it reports 'not available'.",
+  "type": "object", "additionalProperties": false,
+  "required": ["name", "kind", "version", "protocol", "command", "capabilities"],
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "kind": { "enum": ["renderer", "simulator", "middleware", "inference"] },
+    "version": { "type": "string", "minLength": 1 },
+    "protocol": { "const": "stewie-plugin-v1" },
+    "command": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "capabilities": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}

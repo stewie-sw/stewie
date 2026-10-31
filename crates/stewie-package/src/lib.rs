@@ -153,6 +153,13 @@ impl Package {
         })?;
         let manifest: PackageManifest =
             serde_json::from_str(&text).map_err(|e| PackageError::Manifest(e.to_string()))?;
+        // the schema's `const` is not enforced by the generated type, so the format is checked here
+        if manifest.format.as_str() != Some("stewie-package-v1") {
+            return Err(PackageError::Manifest(format!(
+                "format {} is not stewie-package-v1",
+                manifest.format
+            )));
+        }
         let mut stack = TerrainStack::new(Vec::new());
         for l in &manifest.layers {
             let image = verified(dir, &l.image)?;

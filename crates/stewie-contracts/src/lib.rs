@@ -74,3 +74,9 @@ pub mod rover_profile {
     #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
     typify::import_types!(schema = "schema/rover_profile.schema.json");
 }
+
+/// An on-demand plugin's manifest (D-R01, RW-50).
+pub mod plugin_manifest {
+    #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
+    typify::import_types!(schema = "schema/plugin_manifest.schema.json");
+}
