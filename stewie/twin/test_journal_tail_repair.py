@@ -23,6 +23,7 @@ Run: <venv>/bin/python -m pytest stewie/twin/test_journal_tail_repair.py -q
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -30,96 +31,111 @@ import pytest
 from stewie.twin.journal_io import replay_journal
 from stewie.twin.versioned import TwinStore
 
-_TORN = '{"seq": 1, "provenance": "torn-mid-fsy'
+@pytest.fixture(scope="module")
+def real_base():
+    """20x20 unchanged crop [968:988,968:988] from the measured Haworth SfS raster."""
+    bundle = Path(__file__).resolve().parents[2] / "samples/lunar_dem/haworth_sfs_2km_1m"
+    meta = json.loads((bundle / "metadata.json").read_text())
+    grid = meta["grid"]
+    heights = np.memmap(bundle / "heightmap.rf32", dtype="<f4", mode="r",
+                        shape=(grid["height"], grid["width"]))
+    return heights[968:988, 968:988].copy(), grid["cell_m"]
 
 
-def _store(jp):
-    return TwinStore(np.zeros((20, 20)), cell_m=5.0, journal_path=jp)
+def _store(jp, real_base):
+    return TwinStore(real_base[0], cell_m=real_base[1], journal_path=jp)
 
 
-def _restore(jp):
-    return TwinStore.from_journal(np.zeros((20, 20)), cell_m=5.0, journal_path=jp)
+def _restore(jp, real_base):
+    return TwinStore.from_journal(real_base[0], cell_m=real_base[1], journal_path=jp)
 
 
-def test_write_after_torn_tail_recovery_survives_the_next_restore(tmp_path):
+def test_write_after_torn_tail_recovery_survives_the_next_restore(tmp_path, real_base):
     """The SR-05 sequence end to end, on the real TwinStore."""
     jp = str(tmp_path / "j.jsonl")
-    tw = _store(jp)
-    tw.apply_patch(np.ones((3, 3)), origin_rc=(0, 0), provenance="a")
+    tw = _store(jp, real_base)
+    tw.apply_patch(real_base[0][:3, :3], origin_rc=(0, 0), provenance="a")
+    torn = Path(jp).read_text()[:100]
     with open(jp, "a") as fh:                       # a crash mid-fsync tears the final record
-        fh.write(_TORN)
+        fh.write(torn)
 
-    recovered = _restore(jp)                        # tolerated (this much already worked)
+    recovered = _restore(jp, real_base)                        # tolerated (this much already worked)
     assert recovered.version == 1
 
-    v = recovered.apply_patch(np.full((3, 3), 2.0), origin_rc=(5, 5), provenance="after-recovery")
+    v = recovered.apply_patch(real_base[0][5:8, 5:8], origin_rc=(5, 5), provenance="after-recovery")
     assert v == 2                                   # the write reports success ...
 
-    again = _restore(jp)                            # ... and must STILL be there (pre-fix: silently v1)
+    again = _restore(jp, real_base)                            # ... and must STILL be there (pre-fix: silently v1)
     assert again.version == 2, "the post-recovery write was lost by the next cold restore"
     assert any(e.get("provenance") == "after-recovery" for e in again.events)
 
-    again.apply_patch(np.full((3, 3), 3.0), origin_rc=(9, 9), provenance="third")
-    final = _restore(jp)                            # pre-fix: ValueError, interior corruption -> twin dead
+    again.apply_patch(real_base[0][9:12, 9:12], origin_rc=(9, 9), provenance="third")
+    final = _restore(jp, real_base)                            # pre-fix: ValueError, interior corruption -> twin dead
     assert final.version == 3
     assert [e.get("provenance") for e in final.events] == ["a", "after-recovery", "third"]
 
 
-def test_the_torn_bytes_are_actually_gone_from_the_file(tmp_path):
+def test_the_torn_bytes_are_actually_gone_from_the_file(tmp_path, real_base):
     """Truncation is the mechanism -- assert the file, not just the replay."""
     jp = str(tmp_path / "j.jsonl")
-    tw = _store(jp)
-    tw.apply_patch(np.ones((3, 3)), origin_rc=(0, 0), provenance="a")
+    tw = _store(jp, real_base)
+    tw.apply_patch(real_base[0][:3, :3], origin_rc=(0, 0), provenance="a")
+    torn = Path(jp).read_text()[:100]
     with open(jp, "a") as fh:
-        fh.write(_TORN)
-    _restore(jp)
+        fh.write(torn)
+    _restore(jp, real_base)
     body = open(jp).read()
-    assert "torn-mid-fsy" not in body, "the torn record was left in the journal"
+    assert len(body.splitlines()) == 1, "the torn record was left in the journal"
+    assert list(tmp_path.glob("j.jsonl.recovery-*"))
     assert body.endswith("\n"), "the repaired journal must be newline-terminated for the next append"
     for ln in body.splitlines():
         if ln.strip():
             json.loads(ln)                          # every surviving line is a complete record
 
 
-def test_interior_corruption_is_still_refused_and_the_file_is_untouched(tmp_path):
+def test_interior_corruption_is_still_refused_and_the_file_is_untouched(tmp_path, real_base):
     """Interior corruption is real history loss: surface it, and do not "repair" it away."""
     jp = str(tmp_path / "j.jsonl")
-    tw = _store(jp)
-    tw.apply_patch(np.ones((3, 3)), origin_rc=(0, 0), provenance="a")
-    tw.apply_patch(np.full((3, 3), 2.0), origin_rc=(5, 5), provenance="b")
+    tw = _store(jp, real_base)
+    tw.apply_patch(real_base[0][:3, :3], origin_rc=(0, 0), provenance="a")
+    tw.apply_patch(real_base[0][5:8, 5:8], origin_rc=(5, 5), provenance="b")
     lines = open(jp).read().splitlines()
     with open(jp, "w") as fh:                        # corrupt the FIRST of two -> interior
-        fh.write("{not json\n" + lines[1] + "\n")
+        fh.write(lines[0][:100] + "\n" + lines[1] + "\n")
     before = open(jp).read()
     with pytest.raises(ValueError, match="interior line"):
-        _restore(jp)
+        _restore(jp, real_base)
     assert open(jp).read() == before, "a refused restore must not modify the journal"
 
 
-def test_complete_final_record_without_a_newline_is_terminated(tmp_path):
+def test_complete_final_record_without_a_newline_is_terminated(tmp_path, real_base):
     """The other half of the concatenation bug: a COMPLETE last record missing its line terminator."""
     jp = str(tmp_path / "j.jsonl")
-    tw = _store(jp)
-    tw.apply_patch(np.ones((3, 3)), origin_rc=(0, 0), provenance="a")
+    tw = _store(jp, real_base)
+    tw.apply_patch(real_base[0][:3, :3], origin_rc=(0, 0), provenance="a")
     body = open(jp).read()
     assert body.endswith("\n")
     with open(jp, "w") as fh:
         fh.write(body.rstrip("\n"))                  # strip the terminator, record still complete
 
-    recovered = _restore(jp)
+    recovered = _restore(jp, real_base)
     assert recovered.version == 1, "a complete final record must not be discarded"
-    recovered.apply_patch(np.full((3, 3), 2.0), origin_rc=(5, 5), provenance="b")
-    again = _restore(jp)
+    recovered.apply_patch(real_base[0][5:8, 5:8], origin_rc=(5, 5), provenance="b")
+    again = _restore(jp, real_base)
     assert again.version == 2, "the next append was grafted onto the unterminated record"
 
 
-def test_replay_journal_on_a_missing_file_is_zero(tmp_path):
-    assert replay_journal(str(tmp_path / "absent.jsonl"), lambda _r: None, what="x") == 0
+def test_replay_journal_on_a_missing_file_is_zero(tmp_path, real_base):
+    seen = []
+    assert replay_journal(str(tmp_path / "absent.jsonl"), seen.append, what="x") == 0
+    assert seen == []
 
 
-def test_replay_journal_counts_applied_records(tmp_path):
+def test_replay_journal_counts_applied_records(tmp_path, real_base):
     p = tmp_path / "j.jsonl"
-    p.write_text('{"a": 1}\n\n{"a": 2}\n')            # blank padding is not a record
-    seen: list[dict] = []
-    assert replay_journal(str(p), seen.append, what="x") == 2
-    assert [r["a"] for r in seen] == [1, 2]
+    twin = _store(str(p), real_base)
+    twin.apply_patch(real_base[0][:3, :3], origin_rc=(0, 0), provenance="unchanged Haworth source crop")
+    twin.apply_patch(real_base[0][5:8, 5:8], origin_rc=(5, 5), provenance="unchanged Haworth source crop")
+    seen = []
+    assert replay_journal(str(p), seen.append, what="twin journal") == 2
+    assert seen == twin.events

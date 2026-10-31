@@ -1,27 +1,7 @@
-"""[REQ:TR-01] FROZEN SCENARIOS — a named, pinned, content-hashed slice of a real lunar site.
+"""Named native-terrain scenarios with fingerprints of their actual runtime worlds.
 
-WHY THIS EXISTS. You cannot train on a world that moves. Recording human demonstrations (or agent rollouts)
-only means something if the world those runs happened in is the SAME world you later train and evaluate in.
-viz2's world was already deterministic -- the terrain comes from a real DEM, the spawn is a deterministic
-flattest-interior search, and the rock field is a seeded Golombek draw -- but two things were missing, and
-both are quietly fatal to a training set:
-
-  1. **You could not NAME or CHOOSE a section.** The spawn was implicit (whatever the flattest-interior
-     search picked). To pin a section you had to remember raw IAU_2015:30135 coordinates.
-  2. **Nothing PROVED the world was unchanged.** There was no fingerprint. If a code change perturbed the
-     terrain window, the spawn, or the rock draw, every previously recorded demonstration would silently
-     become invalid -- still replayable, still plausible-looking, but recorded in a world that no longer
-     exists. Silent invalidation is the worst failure mode a dataset can have.
-
-A Scenario fixes both: it is an immutable declaration of a world (site + section + resolution + rock seed),
-and `world_fingerprint()` hashes what that declaration actually PRODUCES -- the real terrain heights in the
-window, the resolved spawn, and the real clast field. Pin the fingerprint in a test and any drift in the
-world fails LOUDLY, at the moment it happens, instead of poisoning a dataset months later.
-
-It also repairs a dead knob: the rock field was seeded `world_seed=0` HARDCODED in the runtime, while the
-stream's `world_seed` config only ever reached the *procedural* (synthetic) bundle path. So on a real site
-the seed did nothing. A scenario declares its `rock_seed` and the runtime honours it -- which is also what
-makes rock-layout domain randomisation possible later (same terrain, different draw).
+Generated-refinement scenarios are retired, not silently relabeled as measured worlds.
+Recorded runs must match both the scenario identity and its resolved world fingerprint.
 """
 from __future__ import annotations
 
@@ -47,9 +27,8 @@ class Scenario:
     site: str                                   # the REAL DEM bundle under samples/lunar_dem/
     start_xy: tuple[float, float] | None = None  # IAU_2015:30135 metres; None = deterministic auto-spawn
     start_yaw: float = 0.0
-    fine_cell_m: float = 0.05
-    drum: str = "large"
-    rock_seed: int = 0                          # the Golombek draw; now LIVE (was hardcoded 0)
+    fine_cell_m: float | None = None
+    drum: str = "small"
 
     @property
     def bundle_dir(self) -> str:
@@ -86,7 +65,7 @@ def build_runtime(sc: Scenario, session_dir: str):
     from stewie.runtime.viz2_runtime import Viz2Runtime
     return Viz2Runtime(
         sc.bundle_dir, session_dir=session_dir, fine_cell_m=sc.fine_cell_m,
-        start_xy=sc.start_xy, start_yaw=sc.start_yaw, drum=sc.drum, rock_seed=sc.rock_seed)
+        start_xy=sc.start_xy, start_yaw=sc.start_yaw, drum=sc.drum)
 
 
 def world_fingerprint(sc: Scenario, session_dir: str) -> str:

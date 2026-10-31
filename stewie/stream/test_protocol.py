@@ -16,13 +16,6 @@ from stewie.stream import protocol
 
 
 # ── parse_config ──────────────────────────────────────────────────────────────────────────
-def test_config_defaults_to_real_haworth():
-    cfg = protocol.parse_config("{}")
-    assert cfg["mode"] == "real"
-    assert cfg["site"] == protocol.DEFAULT_SITE
-    assert cfg["fine_cell_m"] in (0.05, 0.02)
-    assert cfg["sun_az"] == protocol.DEFAULT_SUN_AZ
-    assert cfg["sun_el"] == protocol.DEFAULT_SUN_EL
 
 
 def test_config_real_site_and_sun_override():
@@ -38,13 +31,9 @@ def test_config_rejects_site_path_escape():
             protocol.parse_config({"mode": "real", "site": bad})
 
 
-def test_config_procedural_carries_seed_and_params():
-    cfg = protocol.parse_config(
-        {"mode": "procedural", "world_seed": 7, "params": {"amplitude_m": 3.0}, "fine": 0.02})
-    assert cfg["mode"] == "procedural"
-    assert cfg["world_seed"] == 7
-    assert cfg["params"] == {"amplitude_m": 3.0}
-    assert cfg["fine_cell_m"] == 0.02
+def test_config_refuses_generated_terrain():
+    with pytest.raises(protocol.ConfigError):
+        protocol.parse_config({"mode": "procedural"})
 
 
 def test_config_bad_mode_and_bad_json_raise():
@@ -54,10 +43,6 @@ def test_config_bad_mode_and_bad_json_raise():
         protocol.parse_config("{not json")
 
 
-def test_config_fine_snaps_to_allowed():
-    # a stray fine value snaps to the nearest allowed runtime cell size
-    assert protocol.parse_config({"fine": 0.049})["fine_cell_m"] == 0.05
-    assert protocol.parse_config({"fine": 0.021})["fine_cell_m"] == 0.02
 
 
 # ── normalize_input ───────────────────────────────────────────────────────────────────────

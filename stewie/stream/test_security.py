@@ -156,7 +156,6 @@ def test_single_token_link_works_across_every_surface(monkeypatch):
         "/stream",
         "/bundles",
         "/preview/heightmap?site=haworth_sfs_2km_1m",
-        "/preview/procedural?seed=1",
     ]
     for path in surfaces:
         sep = "&" if "?" in path else "?"
@@ -266,7 +265,7 @@ def test_preview_and_bundles_data_xhrs_are_not_rate_limited(monkeypatch):
     monkeypatch.setenv(security.ENV_MAX_CONN_PER_MIN, "2")
     client = TestClient(app)
     for _ in range(5):
-        assert client.get("/preview/procedural?seed=1").status_code == 200
+        assert client.get("/preview/heightmap?site=haworth_sfs_2km_1m").status_code == 200
 
 
 def test_ws_rate_limit_closes_on_limit_plus_one(monkeypatch):

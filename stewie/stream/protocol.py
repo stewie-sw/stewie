@@ -4,11 +4,9 @@ Two pure, unit-tested functions define the browser<->server contract (the SAME c
 future three.js setup screen must speak):
 
   * ``parse_config(raw)`` — the FIRST WS message, a JSON session config:
-        {"mode": "real"|"procedural",
-         "site": "<sample bundle name>",     # real mode; default haworth_sfs_2km_1m
-         "world_seed": <int>,                # procedural mode
-         "params": {H, feature_wavelength_m, amplitude_m, octaves},   # procedural mode
-         "fine": 0.05|0.02,                  # runtime fine-cell size (0.02 is gated/heavy)
+        {"mode": "real",
+         "site": "<sample bundle name>",     # default haworth_sfs_2km_1m
+         "fine": null,                      # native resolution, resolved from bundle metadata
          "sun": {"az": <deg>, "el": <deg>}}
     Returns a normalized dict with every field resolved to a concrete value.
 
@@ -30,9 +28,6 @@ from typing import Any
 
 #: The real sample bundles the stream may open (mode=real). Segregated from procedural output.
 DEFAULT_SITE = "haworth_sfs_2km_1m"
-
-#: Fine-cell sizes the runtime accepts. 0.02 m is heavier (gated) but not refused here.
-_ALLOWED_FINE = (0.05, 0.02)
 
 #: Default hard sun for a fresh session (grazing polar band; overridable per config / per frame).
 DEFAULT_SUN_AZ = 135.0
@@ -112,8 +107,8 @@ def parse_config(raw: str | bytes | dict) -> dict[str, Any]:
         raise ConfigError("config must be a JSON object")
 
     mode = str(cfg.get("mode", "real")).lower()
-    if mode not in ("real", "procedural"):
-        raise ConfigError(f"mode must be 'real' or 'procedural', got {mode!r}")
+    if mode != "real":
+        raise ConfigError("only measured real-terrain bundles are permitted")
 
     sun = cfg.get("sun") or {}
     if not isinstance(sun, dict):
@@ -140,19 +135,19 @@ def parse_config(raw: str | bytes | dict) -> dict[str, Any]:
         out["site"] = site
         # [REQ:TR-03] the operator's chosen worksite section (30135 m). None -> the safe flattest fallback.
         out["start_xy"] = _parse_start_xy(cfg.get("start_xy"))
-    else:  # procedural
-        out["world_seed"] = int(cfg.get("world_seed", 0))
-        params = cfg.get("params") or {}
-        if not isinstance(params, dict):
-            raise ConfigError("procedural params must be an object")
-        out["params"] = params  # validated downstream by procedural_bundle._normalize_params
     return out
 
 
-def _resolve_fine(value: Any) -> float:
-    f = _finite_float(value, _ALLOWED_FINE[0])
-    # snap to the nearest allowed fine size (defensive; a stray value never reaches the runtime raw)
-    return min(_ALLOWED_FINE, key=lambda a: abs(a - f))
+def _resolve_fine(value: Any) -> float | None:
+    if value is None or value == "native":
+        return None
+    try:
+        f = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ConfigError("fine must be native or a positive source cell size") from exc
+    if isinstance(value, bool) or not math.isfinite(f) or f <= 0:
+        raise ConfigError("fine must be native or a positive source cell size")
+    return f
 
 
 def normalize_input(msg: str | bytes | dict) -> dict[str, Any]:

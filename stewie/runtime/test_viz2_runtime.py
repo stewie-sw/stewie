@@ -144,7 +144,7 @@ def _sloped_start_xy() -> tuple[float, float]:
 
 
 def _runtime(session_dir, **kw) -> Viz2Runtime:
-    kw.setdefault("fine_cell_m", 0.05)
+    kw.setdefault("fine_cell_m", None)
     kw.setdefault("tile_base_cells", 4)
     return Viz2Runtime(SFS, session_dir=str(session_dir), **kw)
 
@@ -351,25 +351,27 @@ def test_union_coverage_skipping_intermediate_manifest(tmp_path):
     """NB-1 union coverage: drive two DISJOINT footprints; a client that applies ONLY the newest
     manifest (skipping every intermediate) still reproduces the authority at BOTH regions, because
     each manifest covers the dirty UNION since the consumer's last ACK."""
+    import queue
+    from stewie.bridge.stream import StreamSession
+
+    # Step the real publisher synchronously; native metre cells need more travel than a link timeout permits.
     rt = _runtime(tmp_path, start_xy=_tile_center_xy_from_bundle(), start_yaw=0.0,
-                  keyframe_interval=10_000)          # only the connect keyframe exists
-    with rt:
-        assert rt.wait_ready(10.0)
-        c = Client(rt.port)
-        c.handshake(rt.token)
-        c.twist(0.3, 0.0)
-        frames = c.drain(seconds=2.0, ack=False)      # deliberately NEVER ack -> union keeps growing
-        c.close()
-    tele = [f["payload"] for f in frames if f.get("payload", {}).get("type") == "telemetry"]
-    assert len(tele) >= 5
-    # the drive produced two DISJOINT step footprints (early vs late) — the NB-1 premise
-    first_bb = tele[1]["dirty"][0]
-    last_bb = tele[-1]["dirty"][0]
-    r0, c0, r1, c1 = first_bb
-    R0, C0, R1, C1 = last_bb
-    disjoint = (r1 <= R0 or R1 <= r0 or c1 <= C0 or C1 <= c0)
+                  tile_base_cells=16, keyframe_interval=10_000)
+    session = StreamSession(window=2048, ack_deadline_s=60)
+    outbound = queue.Queue()
+    tele = []
+    for tick in range(1000):
+        rt._step_and_publish(session, outbound, 0, 0.3, 0.0, force_kf=(tick == 0))
+        frame = outbound.get_nowait()
+        tele.append(frame["payload"])
+        first_bb, last_bb = tele[0]["dirty"][0], tele[-1]["dirty"][0]
+        r0, c0, r1, c1 = first_bb
+        R0, C0, R1, C1 = last_bb
+        disjoint = r1 <= R0 or R1 <= r0 or c1 <= C0 or C1 <= c0
+        if disjoint:
+            break
     assert disjoint, f"footprints not disjoint: {first_bb} vs {last_bb}"
-    assert not any(t["telem"]["recentered"] for t in tele)   # single window (no keyframe reset)
+    assert not any(t["telem"]["recentered"] for t in tele)
 
     # a client that applies ONLY keyframe + the newest delta (skipping all intermediates)
     H, W = rt.window_shape()
@@ -392,15 +394,25 @@ def test_union_coverage_skipping_intermediate_manifest(tmp_path):
 def test_keyframe_emitted_on_recenter(tmp_path):
     """Driving far enough to slide the streaming window forces a full-window keyframe (window origin
     moved) — carried from v2, the union-reset the client resyncs from."""
-    rt = _runtime(tmp_path, start_xy=_tile_center_xy_from_bundle(), start_yaw=0.0,
-                  keyframe_interval=10_000)
+    centre = _tile_center_xy_from_bundle()
+    # WorkSite rounds to the nearest base cell; the tile transition is half a cell before its edge.
+    start = (centre[0] + 1.45, centre[1])
+    rt = _runtime(tmp_path, start_xy=start, start_yaw=0.0, keyframe_interval=10_000)
+    frames = []
     with rt:
         assert rt.wait_ready(10.0)
         c = Client(rt.port)
-        c.handshake(rt.token)
-        c.twist(0.3, 0.0)
-        frames = c.drain(seconds=6.0)                 # >4 m -> crosses a base tile -> recenter
-        c.close()
+        try:
+            c.handshake(rt.token)
+            deadline = time.monotonic() + 4.0
+            while time.monotonic() < deadline:
+                c.twist(0.3, 0.0)
+                batch = c.drain(seconds=0.2)
+                frames.extend(batch)
+                if any(f.get("payload", {}).get("telem", {}).get("recentered") for f in batch):
+                    break
+        finally:
+            c.close()
     tele = [f["payload"] for f in frames if f.get("payload", {}).get("type") == "telemetry"]
     recentered = [t for t in tele if t["telem"]["recentered"]]
     assert recentered, "the drive never recentered"

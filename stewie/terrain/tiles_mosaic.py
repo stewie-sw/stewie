@@ -1,6 +1,9 @@
 """Demand-driven, bounded, evictable corridor LOD over a global-frame tiled base
 (L0 contract §5; eval §2/§7/§8; the HEADLINE of John's runtime-fill decision).
 
+At native resolution (``k=1``), tiles copy the base fields without refinement or procedural features.
+Native pages preserve field precision and use a separate cache namespace.
+
 THE DECISION this implements (L0 §0). The 2 cm fine fill is generated AT RUNTIME around the
 rover's LIVE pose — NOT a precomputed trail. The rover may explore ANY part of the 10 km. Three
 hard consequences (L0 §0.1-3), each enforced here:
@@ -145,7 +148,7 @@ class TileMosaic:
     base_cell_m : float
         Base cell size [m] (e.g. 5.0).
     fine_cell_m : float
-        Fine cell size [m] (e.g. 0.02). ``base_cell_m/fine_cell_m`` must be a positive integer.
+        Fine cell size [m]. An integer base/fine ratio is required; ratio 1 copies native fields exactly.
     tile_base_cells : int
         Tile side in BASE cells (a fine tile = ``tile_base_cells*k`` fine cells per side). Sized
         so a fine tile is a manageable raster (default 8 base cells -> at k=250, 2000² fine =
@@ -236,20 +239,21 @@ class TileMosaic:
     # -- demand-driven fine refine around the LIVE pose (L0 §0.1) ----------
 
     def _generate_fine_tile(self, tr: int, tc: int) -> FineTile:
-        """Deterministically refine tile (tr,tc) to fine via overlay_residual (global-anchored).
+        """Copy native base fields, or refine finer tiles through the global-anchored overlay.
 
-        Reads the tile's base window, computes its GLOBAL origin, and runs the
-        conservation-grade overlay seeded by global coordinate (coord_seed inside fbm_global).
-        Reproducible: same (tr,tc, world_seed) -> byte-identical fine fields, regardless of when
-        or how many times it is generated (L0 §0.2).
+        Both base readers return owned window copies. Native tiles need no further allocation.
+        Refined tiles retain the deterministic overlay and feature hook.
         """
         region = self._tile_region(tr, tc)
         base_block = self.base.window(region)
         wx0, wy0 = self.base.window_origin_m(region)
-        fine_fields = dem_overlay.overlay_residual(
-            base_block, self.k, wx0, wy0,
-            params=self.overlay_params, world_seed=self.world_seed,
-            fine_cell_m=self.fine_cell_m, feature_fn=self.feature_fn)
+        if self.k == 1:
+            fine_fields = base_block
+        else:
+            fine_fields = dem_overlay.overlay_residual(
+                base_block, self.k, wx0, wy0,
+                params=self.overlay_params, world_seed=self.world_seed,
+                fine_cell_m=self.fine_cell_m, feature_fn=self.feature_fn)
         self._gen_count += 1
         r0, c0, r1, c1 = region
         return FineTile(tile_rc=(tr, tc), region_rc=[r0, c0, r1, c1],
@@ -262,15 +266,15 @@ class TileMosaic:
         # fingerprint the generation parameters into the path (audit M06): a page_dir reused across
         # a different seed/cell-size/tiling silently served STALE terrain
         fp = f"s{getattr(self, 'world_seed', 0)}_c{self.fine_cell_m:g}_t{self.tile_base_cells}"
+        if self.k == 1:
+            fp = f"native_{fp}"
         return os.path.join(self.page_dir, f"tile_{fp}_{tr}_{tc}")
 
     def _load_paged(self, tr: int, tc: int) -> FineTile | None:
         """Load a previously paged-out fine tile from disk, if present (else None).
 
-        PRECISION NOTE (audit L09): paging round-trips through the float32 on-disk raster format, so
-        a reloaded tile equals a regenerated one to float32 precision, NOT bit-exactly in float64.
-        The L0 byte-identical determinism claim holds for REGENERATION (a pure function of coordinate
-        + seed); paged reloads are float32-rounded by design (the frozen raster contract)."""
+        Native pages retain float64 fields, including the reconstructed datum.
+        Refined pages retain the existing float32 raster format and its rounding."""
         if self.page_dir is None:
             return None
         d = self._page_path(tr, tc)
@@ -279,9 +283,15 @@ class TileMosaic:
         region = self._tile_region(tr, tc)
         r0, c0, r1, c1 = region
         kh, kw = (r1 - r0) * self.k, (c1 - c0) * self.k
-        reader = dem_io.MemmapBaseReader(d, height=kh, width=kw,
-                                         base_cell_m=self.fine_cell_m)
-        fields = reader.window((0, 0, kh, kw))
+        if self.k == 1:
+            with np.load(os.path.join(d, "fields.npz"), allow_pickle=False) as page:
+                fields = {name: page[name] for name in dem_io.BASE_FIELD_NAMES}
+            if any(field.shape != (kh, kw) for field in fields.values()):
+                raise ValueError(f"{d}: native page shape does not match tile bounds")
+        else:
+            reader = dem_io.MemmapBaseReader(d, height=kh, width=kw,
+                                             base_cell_m=self.fine_cell_m)
+            fields = reader.window((0, 0, kh, kw))
         wx0, wy0 = self.base.window_origin_m(region)
         return FineTile(tile_rc=(tr, tc), region_rc=[r0, c0, r1, c1],
                         world_x0=wx0, world_y0=wy0, fields=fields,
@@ -352,7 +362,16 @@ class TileMosaic:
         if self.page_dir is None:
             return
         d = self._page_path(*key)
-        dem_io.write_base_rasters(d, tile.fields)
+        if self.k == 1:
+            import io
+            from stewie.twin.io_fields import atomic_write_bytes
+
+            os.makedirs(d, exist_ok=True)
+            with io.BytesIO() as buffer:
+                np.savez(buffer, allow_pickle=False, **tile.fields)
+                atomic_write_bytes(os.path.join(d, "fields.npz"), buffer.getvalue())
+        else:
+            dem_io.write_base_rasters(d, tile.fields)
 
     def evict(self, keep_bbox) -> None:
         """LRU page-out every resident fine tile whose base region falls OUTSIDE ``keep_bbox``.

@@ -208,9 +208,7 @@ def route_least_cost(cost, passable, cell_m, start_rc, goal_rc):
     if not (passable[sr, sc] and passable[gr, gc]):
         return [], math.inf, False
     dist = np.full((H, W), math.inf)
-    glen = np.full((H, W), math.inf)
     dist[sr, sc] = 0.0
-    glen[sr, sc] = 0.0
     prev = {}
     pq = [(0.0, sr, sc)]
     while pq:
@@ -219,15 +217,15 @@ def route_least_cost(cost, passable, cell_m, start_rc, goal_rc):
             continue
         if (r, c) == (gr, gc):
             break
+        current_cost = cost[r, c]
         for dr, dc, seg in _ROUTE_NB:
             nr, nc = r + dr, c + dc
             if 0 <= nr < H and 0 <= nc < W and passable[nr, nc]:
                 if dr != 0 and dc != 0 and not (passable[r + dr, c] and passable[r, c + dc]):
                     continue                              # H-04: no diagonal corner-cut between blocked orthogonals
-                nd = d + seg * cell_m * 0.5 * (cost[r, c] + cost[nr, nc])
+                nd = d + seg * cell_m * 0.5 * (current_cost + cost[nr, nc])
                 if nd < dist[nr, nc]:
                     dist[nr, nc] = nd
-                    glen[nr, nc] = glen[r, c] + seg * cell_m
                     prev[(nr, nc)] = (r, c)
                     heapq.heappush(pq, (nd, nr, nc))
     if not math.isfinite(dist[gr, gc]):
@@ -236,7 +234,12 @@ def route_least_cost(cost, passable, cell_m, start_rc, goal_rc):
     while path[-1] != (sr, sc):
         path.append(prev[path[-1]])
     path.reverse()
-    return path, float(glen[gr, gc]), True
+    # Geometric length is needed only for the selected path, not every relaxed cell.
+    length_m = 0.0
+    for (r, c), (nr, nc) in zip(path, path[1:]):
+        seg = math.sqrt(2) if r != nr and c != nc else 1.0
+        length_m += seg * cell_m
+    return path, float(length_m), True
 
 
 def _crop_illum(illum_cost, r0, r1, c0, c1):
@@ -263,6 +266,7 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
     and WAYPOINTS the terrain-following polyline as LOCAL (x, y) coords (preserved for Plan IR / 2D / 3D
     / playback -- NOT discarded). reached=False (waypoints []) when no safe corridor exists; the caller
     marks the plan infeasible rather than driving a straight line through the hazard.
+    Endpoints outside the supplied DEM bounds are unreachable, never clamped onto its edge.
 
     SN-05: ``illum_cost`` is an OPTIONAL DEM-aligned (same H, W as ``Z``) illumination route-cost field
     (e.g. ``dart.illumination_cost.illumination_cost(...)['total']`` rasterized onto the DEM grid). When
@@ -304,6 +308,9 @@ def route_leg(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_alpha=2.0
         if map_unc_cost.shape != Z.shape:
             raise ValueError(f"map_unc_cost shape {map_unc_cost.shape} must match the DEM shape {Z.shape}")
     straight = math.hypot(bx - ax, by - ay)
+    if not (0 <= ax < W * cell and 0 <= bx < W * cell
+            and 0 <= ay < H * cell and 0 <= by < H * cell):
+        return (straight, straight, False, [], {}) if return_terms else (straight, straight, False, [])
     # H-05: adaptive search window. A valid corridor can leave the endpoint bounding box by far more
     # than the initial margin, so when no route is found we DOUBLE the crop margin and retry, up to the
     # full DEM. Only when the window already spans the whole DEM and still finds nothing is the leg
@@ -554,6 +561,7 @@ def route_leg_inflated(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_
     reproduces the point-rover route_leg exactly (byte-identical). Returns (routed_m, grid_straight_m,
     reached, waypoints) with the same contract as the point router. The endpoints themselves are not
     eroded (a site placed on a valid pad is reachable even if its immediate cell touches the inflation).
+    Endpoints outside the supplied DEM bounds are unreachable, as in the point router.
 
     SN-05: ``illum_cost`` (DEM-aligned (H, W) illumination route-cost field) + ``illum_weight`` thread
     through to the slope costmap exactly as in the point router -- a SEPARABLE, severity-weighted soft cost
@@ -589,6 +597,9 @@ def route_leg_inflated(dem, dem_origin, a_xy, b_xy, *, max_slope_deg=25.0, slip_
         if map_unc_cost.shape != Z.shape:
             raise ValueError(f"map_unc_cost shape {map_unc_cost.shape} must match the DEM shape {Z.shape}")
     straight = math.hypot(bx - ax, by - ay)
+    if not (0 <= ax < W * cell and 0 <= bx < W * cell
+            and 0 <= ay < H * cell and 0 <= by < H * cell):
+        return (straight, straight, False, [], {}) if return_terms else (straight, straight, False, [])
     m = float(margin_m)
     while True:
         c0 = max(0, int((min(ax, bx) - m) / cell))

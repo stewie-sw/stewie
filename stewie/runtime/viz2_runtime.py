@@ -89,33 +89,6 @@ _R8 = "u1"
 _DRIVE_FIELDS = ("height", "density", "state_label", "disturbance")
 
 
-_ROCKFIELD_MOD = None
-
-
-def _rockfield_module():
-    """The Golombek rock-field generator, loaded ONCE per process.
-
-    This used to be re-executed on EVERY Viz2Runtime construction: `spec_from_file_location` +
-    `module_from_spec` + `exec_module`, producing a brand-new module object each time and never caching it
-    in sys.modules. A process that builds many runtimes (a scenario fingerprint loop, a dataset build, the
-    test suite) therefore re-imported and re-initialised it -- and its numeric dependencies -- once per
-    world. That is pure waste, and repeated re-execution of modules that pull in native extensions is a
-    known source of native instability, which matters here: a full-suite run took a SIGSEGV inside an
-    unrelated native reader (see the flaky-crash task). Caching it is correct regardless of whether it was
-    the cause; it makes construction cheaper and the process quieter.
-    """
-    global _ROCKFIELD_MOD
-    if _ROCKFIELD_MOD is None:
-        import importlib.util
-        repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        spec = importlib.util.spec_from_file_location(
-            "viz2_rockfield_clasts", os.path.join(repo, "scripts", "viz2_rockfield_clasts.py"))
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        _ROCKFIELD_MOD = mod
-    return _ROCKFIELD_MOD
-
-
 def apply_manifest(dst: dict[str, np.ndarray], manifest_path: str) -> dict:
     """Apply one generation manifest's absolute-value crops into ``dst`` (the viz2 client's role, in
     Python). ``dst`` maps field name -> a full-window array; each field's crop is blitted at the
@@ -141,13 +114,13 @@ class Viz2Runtime:
 
     def __init__(self, bundle_dir: str, *, session_dir: str,
                  model_id: str = LIVE_DEFAULT_MODEL_ID, body: str = "moon",
-                 fine_cell_m: float = 0.05, tile_base_cells: int = 4,
+                 fine_cell_m: float | None = None, tile_base_cells: int = 4,
                  start_xy: tuple[float, float] | None = None, start_yaw: float = 0.0,
-                 rate_hz: float = 15.0, dt: float = 0.1,
+                 rate_hz: float = 15.0, dt: float | None = None,
                  ack_deadline_s: float = 2.0, window: int = 64,
                  keyframe_interval: int = 90, retain_generations: int = 256,
                  dig_depth_m: float = 0.02, dig_half_cells: int | None = None,
-                 drum: str = "large", rock_seed: int = 0,
+                 drum: str = "small",
                  host: str = "127.0.0.1"):
         # --- backend governance FIRST (R-M3): resolve mutation authority ONLY through the strict LIVE
         # resolver; a refused model raises PhysicsModelRefused before any world/socket is built. The
@@ -156,6 +129,9 @@ class Viz2Runtime:
         self.model_id = str(model_id)
         self.body = str(body)
         self.backend = resolve_live_backend(self.model_id, body=self.body)
+        bundle_metadata = self._configure_native_runtime(bundle_dir, fine_cell_m, rate_hz, dt,
+                                                          ack_deadline_s, drum)
+        fine_cell_m = float(bundle_metadata["grid"]["cell_m"])
 
         # --- the conserved session world: a datum-verified streaming WorkSite (Phase B1) ---
         self.ws = WorkSite.from_haworth_bundle(
@@ -168,10 +144,6 @@ class Viz2Runtime:
         # (and any world-frame overlay) around where the rover actually starts.
         self.start_xy = (float(start_xy[0]), float(start_xy[1]))
 
-        self.dt = float(dt)
-        self.rate_hz = float(rate_hz)
-        self._period = 1.0 / self.rate_hz
-        self.ack_deadline_s = float(ack_deadline_s)
         self.window = int(window)
         self.keyframe_interval = int(keyframe_interval)
         self.retain_generations = int(retain_generations)
@@ -182,10 +154,7 @@ class Viz2Runtime:
         # mass into the drum ledger), so derive_height() drops and the window mesh's VERTEX shader
         # displaces the trench — the visible carved rut the NB-2 render-geometry contract proves.
         self.dig_depth_m = float(dig_depth_m)
-        # Selected bucket drum (flight-representative "large" by default): its REAL width feeds the FEE
-        # excavation-force model (tool width w) and its scoop height sets the <=50% anti-bridging cut cap.
-        # Resolved BEFORE the dig footprint, which is now derived from it.
-        self.drum = str(drum) if str(drum) in DRUM_DIMENSIONS_M else "large"
+        # Small and medium drums belong to the IPEx profile; the large drum belongs to RASSOR.
         self._drum_width_m = float(DRUM_DIMENSIONS_M[self.drum]["width"])
         self._drum_radius_m = 0.5 * float(DRUM_DIMENSIONS_M[self.drum]["diameter"])
         self._max_cut_per_pass_m = float(max_cut_per_pass_m(self.drum))
@@ -199,14 +168,6 @@ class Viz2Runtime:
         # what does and does not follow: two drums cut two footprints, so mass-in doubles -- but the tank
         # doubles too, so PASSES-TO-FULL IS UNCHANGED. What actually doubles is THROUGHPUT: every haul
         # carries twice the regolith. That is the real reason the machine has two drums.
-        #
-        # A SOURCED TENSION, SURFACED RATHER THAN CLAMPED: at two drums the vehicle hold is
-        #   small 7.60 / medium 14.60 / large 49.96 kg
-        # and PX-09 asserted every hold sits inside the 30 kg/cycle RDS envelope "by construction" -- which
-        # is now FALSE for the large drum. It is also a category error that predates this row: ipex_specs
-        # says plainly "IPEx uses the small..medium range; the large drum is the RASSOR 2.0 drum", so the
-        # IPEx RDS envelope never applied to it. test_viz2_dig_reaction.py ASSERTS the breach so it stays
-        # visible; a spec mismatch you can see is worth more than one you cannot.
         self._vehicle_capacity_kg = 2.0 * self._drum_capacity_kg
         # [REQ:PX-11] The excavation FOOTPRINT is a PHYSICAL dimension -- the drum's width -- not a cell
         # count. It used to be a fixed `dig_half_cells=6`, so the operator's "cell size" toggle (a RENDER
@@ -244,12 +205,6 @@ class Viz2Runtime:
         # rover with its drum raised for transport carves nothing. Clamped to the render rig's travel.
         self._arm_front_offset_rad = 0.0
         self._arm_back_offset_rad = 0.0
-        # [REQ:TR-01] the Golombek rock draw. This used to be HARDCODED to 0 in _seed_rockfield while
-        # the stream's `world_seed` config only reached the PROCEDURAL bundle path -- so on a real
-        # site the seed was a dead knob. A frozen scenario must DECLARE its rock field (and be able to
-        # vary it for domain randomisation), so the seed is now live. Default 0 => byte-identical to
-        # every world produced before this change.
-        self.rock_seed = int(rock_seed)
         self.host = str(host)
 
         # --- session directory + generation store ---
@@ -259,11 +214,13 @@ class Viz2Runtime:
         os.makedirs(self.generations_dir, exist_ok=True)
         self.token_path = os.path.join(self.session_dir, "viz2_session.json")
 
-        # --- rock field: seed the spatial-k Golombek boulders around the spawn ONCE, set them on the
-        #     WorkSite so the conserved drive PHYSICALLY rides over / is blocked by them (drive_step D4
-        #     clasts), and write the SAME list as clasts.json for the Godot display -- one source, so a
-        #     rock the rover SEES is the rock it FEELS.
-        self._seed_rockfield(str(bundle_dir))
+        # Bundle geometry is evidence; statistical rock draws are not measured obstacles.
+        clasts = bundle_metadata["clasts"]
+        if not isinstance(clasts, list):
+            raise ValueError("bundle clasts must be a list")
+        self.ws.clasts = clasts
+        atomic_write_bytes(os.path.join(self.session_dir, "clasts.json"),
+                           json.dumps({"clasts": clasts}).encode())
 
         # --- authenticated loopback-TCP seam (bound now; token minted; 0600 file) ---
         self.token = secrets.token_hex(32)
@@ -282,12 +239,14 @@ class Viz2Runtime:
         out of __init__ to keep the constructor under the Power-of-10 statement budget (no behaviour change)."""
         # --- shared actor/socket state (guarded by _lock) ---
         self._lock = threading.RLock()
-        self._inbound: queue.Queue[tuple[int, dict]] = queue.Queue()
+        self._inbound: queue.Queue[tuple[int, float, dict]] = queue.Queue(maxsize=self.window)
         self._current_epoch = 0
         self._epoch_counter = 0
         self._current_session: StreamSession | None = None
         self._current_outbound: queue.Queue[dict] | None = None
         self._latest_twist: tuple[float, float] = (0.0, 0.0)
+        self._last_twist_at: float | None = None
+        self._simulation_t_s = 0.0
         self._safe_stopped = False
         self._force_keyframe = False
         self._pending_dig = False
@@ -350,6 +309,29 @@ class Viz2Runtime:
         self._actor_thread: threading.Thread | None = None
         self._accept_thread: threading.Thread | None = None
         self._conn_threads: list[threading.Thread] = []
+
+    def _configure_native_runtime(self, bundle_dir: str, fine_cell_m: float | None, rate_hz: float,
+                                  dt: float | None, ack_deadline_s: float, drum: str) -> dict:
+        """Validate source resolution, clock, and vehicle profile before building a session world."""
+        self.rate_hz = float(rate_hz)
+        self.ack_deadline_s = float(ack_deadline_s)
+        if not math.isfinite(self.rate_hz) or self.rate_hz <= 0:
+            raise ValueError("rate_hz must be finite and positive")
+        if not math.isfinite(self.ack_deadline_s) or self.ack_deadline_s <= 0:
+            raise ValueError("ack_deadline_s must be finite and positive")
+        self._period = 1.0 / self.rate_hz
+        self.dt = self._period if dt is None else float(dt)
+        if not math.isfinite(self.dt) or not math.isclose(self.dt, self._period):
+            raise ValueError("real-time runtime requires dt == 1 / rate_hz")
+        with open(os.path.join(bundle_dir, "metadata.json")) as fh:
+            bundle_metadata = json.load(fh)
+        native_cell_m = float(bundle_metadata["grid"]["cell_m"])
+        if fine_cell_m is not None and float(fine_cell_m) != native_cell_m:
+            raise ValueError("runtime requires native DEM resolution; generated terrain is not permitted")
+        if drum not in ("small", "medium"):
+            raise ValueError("IPEx runtime requires a small or medium drum")
+        self.drum = drum
+        return bundle_metadata
 
     def _flattest_interior_spawn(self) -> tuple[float, float]:
         """[REQ:AS-15] Spawn on the FLATTEST interior spot of the REAL DEM -- NOT the blind geometric
@@ -493,6 +475,7 @@ class Viz2Runtime:
             self._current_session = sess
             self._current_outbound = outbound
             self._latest_twist = (0.0, 0.0)
+            self._last_twist_at = None
             self._safe_stopped = False
             self._force_keyframe = True                     # keyframe on (re)connect
             return epoch, outbound
@@ -542,7 +525,10 @@ class Viz2Runtime:
             except (ValueError, UnicodeDecodeError):
                 continue
             if isinstance(msg, dict):
-                self._inbound.put((epoch, msg))
+                try:
+                    self._inbound.put_nowait((epoch, time.monotonic(), msg))
+                except queue.Full:
+                    break
         return buf
 
     def _read_line(self, conn: socket.socket) -> bytes | None:
@@ -580,6 +566,14 @@ class Viz2Runtime:
                 self._pending_dump = False
                 v, omega = (0.0, 0.0) if self._safe_stopped else self._latest_twist
             if sess is not None:
+                if sess.tick(now=t0):
+                    self._on_trip(epoch, outbound)
+                    continue
+                if (v or omega) and self._last_twist_at is not None:
+                    if t0 - self._last_twist_at >= self.ack_deadline_s:
+                        self._make_safe_stop(epoch)()
+                        self._on_trip(epoch, outbound, reason="command_expired")
+                        continue
                 self._step_and_publish(sess, outbound, epoch, v, omega, force_kf, do_dig, do_dump)
             # maintain the fixed rate (real timing, no faking)
             rest = self._period - (time.monotonic() - t0)
@@ -592,6 +586,9 @@ class Viz2Runtime:
         # #2: the drive resists any pending unbalanced dig reaction from the PRIOR tick's dig (raises slip /
         # can entrap), then the single-tick impulse is consumed. A dig LATER in this same tick re-arms it.
         telem, dirty = self.ws.step(v, omega, self.dt, dig_reaction_n=self._active_dig_reaction_n)
+        self._simulation_t_s += self.dt
+        telem["simulation_t_s"] = self._simulation_t_s
+        telem["step_dt_s"] = self.dt
         self._active_dig_reaction_n = 0.0
         self._last_applied_twist = (v, omega)
         self._accumulate_metrics(telem, self.dt)          # #31 aggregate exec metrics from the real telem
@@ -655,12 +652,13 @@ class Viz2Runtime:
         if sess.tick(now=time.monotonic()):
             self._on_trip(epoch, outbound)
 
-    def _on_trip(self, epoch: int, outbound: queue.Queue | None) -> None:
+    def _on_trip(self, epoch: int, outbound: queue.Queue | None,
+                 reason: str = "deadman_link_stall") -> None:
         """Deadman terminal: the safe-stop is already held (the on_safe_stop callback zeroed the
         twist); emit a raw safe-stop notice (the tripped session's send() refuses, so this rides
         out-of-band) and CLOSE the session. Recovery is a fresh authenticated connection."""
         if outbound is not None:
-            outbound.put({"type": "safe_stop", "reason": "deadman_link_stall", "epoch": epoch})
+            outbound.put({"type": "safe_stop", "reason": reason, "epoch": epoch})
         with self._lock:
             if epoch == self._current_epoch:
                 self._current_session = None
@@ -670,9 +668,9 @@ class Viz2Runtime:
     def _drain_inbound(self) -> None:
         """Apply queued socket messages of the CURRENT epoch; DROP stale-epoch frames (fencing). Twist
         bounds (M-04) are checked here at ingest so ws.step never sees an out-of-bound command."""
-        while True:
+        for _ in range(self.window):
             try:
-                epoch, msg = self._inbound.get_nowait()
+                epoch, received_at, msg = self._inbound.get_nowait()
             except queue.Empty:
                 return
             with self._lock:
@@ -682,17 +680,16 @@ class Viz2Runtime:
                 self._rejected_stale += 1                    # stale-client fencing (plan §2b.3)
                 continue
             cmd = str(msg.get("cmd", ""))
+            if cmd != "ack" and time.monotonic() - received_at >= self.ack_deadline_s:
+                self._rejected_stale += 1
+                continue
             if cmd == "twist":
-                self._ingest_twist(msg)
+                self._ingest_twist(msg, received_at=received_at)
             elif cmd == "arm":
                 # [REQ:PX-10] the render rig's arm pose is now AUTHORITATIVE state: it gates the dig.
                 self._ingest_arm(msg)
-            elif cmd == "dig":
-                # arm a conserved dig for the next actor tick (applied on the actor thread only).
-                self._pending_dig = True
-            elif cmd == "dump":
-                # arm a conserved dump for the next actor tick (applied on the actor thread only).
-                self._pending_dump = True
+            elif cmd in {"dig", "dump"}:
+                self._ingest_excavation_command(cmd)
             elif cmd == "ack" and sess is not None:
                 seq_raw = msg.get("seq")
                 if seq_raw is None:
@@ -705,6 +702,20 @@ class Viz2Runtime:
                 gen = self._seq_to_gen.get(seq)
                 if gen is not None and gen > self._last_acked_gen:
                     self._last_acked_gen = gen               # union-coverage floor advances
+
+    def _ingest_excavation_command(self, cmd: str) -> None:
+        """Arm only operations whose footprint the native source resolves."""
+        if self.ws.fine_cell_m > self._drum_width_m:
+            self._rejected_bounds += 1
+            if self._current_outbound is not None:
+                self._current_outbound.put({
+                    "type": "command_refused", "cmd": cmd,
+                    "reason": "native terrain does not resolve the drum footprint"})
+            return
+        if cmd == "dig":
+            self._pending_dig = True
+        else:
+            self._pending_dump = True
 
     def _ingest_arm(self, msg: dict) -> None:
         """[REQ:PX-10] Adopt the operator's arm pose (rad offsets on the dig posture). Bounds-checked at
@@ -729,7 +740,7 @@ class Viz2Runtime:
         go to ~0 for the RIGHT reason -- two drums actually cutting -- never because a term was zeroed)."""
         return dig_engagement(self._arm_front_offset_rad if which == "front" else self._arm_back_offset_rad)
 
-    def _ingest_twist(self, msg: dict) -> None:
+    def _ingest_twist(self, msg: dict, *, received_at: float | None = None) -> None:
         v, omega = msg.get("v", 0.0), msg.get("omega", 0.0)
         # M-04 (the process.py pattern): a non-finite / over-bound twist is REFUSED at ingest, never
         # applied — so one command can never teleport the footprint or poison the shared pose.
@@ -743,32 +754,7 @@ class Viz2Runtime:
         with self._lock:
             if not self._safe_stopped:
                 self._latest_twist = (float(v), float(omega))
-
-    def _seed_rockfield(self, bundle_dir: str) -> None:
-        """Generate the spatial-k Golombek rock field around the spawn and SET it on the WorkSite so the
-        conserved drive rides over / is blocked by rocks (drive_step clasts D4), plus write the same list
-        to clasts.json for the Godot display. Best-effort: any failure -> no rocks (drive still works;
-        drive_step(clasts=None) is the byte-identical clast-free seam). To bound the per-tick ride-over
-        scan, only the largest boulders are handed to the physics; the display shows the full field."""
-        try:
-            mod = _rockfield_module()
-            cell = self.ws.base_cell_m
-            bw, bh = self.ws.base.width, self.ws.base.height
-            n = max(8, min(int(round(140.0 / cell)), bw, bh))
-            c0 = int(min(max(0, round((self.start_xy[0] - self.ws.world_x0) / cell - n / 2)), bw - n))
-            r0 = int(min(max(0, round((self.start_xy[1] - self.ws.world_y0) / cell - n / 2)), bh - n))
-            result = mod.build_clasts(bundle_dir, r0, c0, n, d_min_m=0.15, d_max_m=0.8,
-                                      world_seed=self.rock_seed)   # [REQ:TR-01] was hardcoded 0
-            clasts = result.get("clasts") or []
-            # ALL boulders go to the physics now (small ride-over with a bump, >wheel-radius block/pitch);
-            # the window-local filter is vectorized + O(nearby), so the full field is cheap per tick.
-            self.ws.clasts = clasts or None
-            with open(os.path.join(self.session_dir, "clasts.json"), "w") as fh:
-                json.dump(result, fh)                        # display: the SAME full field
-            print("viz2_runtime: rock field %d clasts -> physics(ride-over/block) + display"
-                  % len(clasts), flush=True)
-        except Exception as exc:
-            print("viz2_runtime: rockfield skipped (%s: %s)" % (type(exc).__name__, exc), flush=True)
+                self._last_twist_at = time.monotonic() if received_at is None else received_at
 
     def _accumulate_metrics(self, telem: dict, dt: float) -> None:
         """#31: fold ONE tick's real drive telem into the deterministic aggregate metrics. Wheel odometry
@@ -856,6 +842,8 @@ class Viz2Runtime:
         arm gate), PX-13 (the two-drum reaction). NOTE the sim's density is UNIFORM, so this does NOT model
         `denser -> shallower`; the regulation is against the target and the drum's fill, which are real.
         """
+        if self.ws.fine_cell_m > self._drum_width_m:
+            raise ValueError("native terrain does not resolve the drum footprint")
         _DAMPING = 0.7                                     # [CALIB] proportional gain (see the docstring)
         sensor = self._drum_sensor if noise_frac <= 0.0 else DrumSensor.calibrated(
             [f * self._vehicle_capacity_kg for f in (0.0, 0.25, 0.5, 0.75, 1.0)],
@@ -922,6 +910,8 @@ class Viz2Runtime:
 
         Returns the dirty bboxes (one per engaged drum) or ``[]`` when nothing cut.
         """
+        if self.ws.fine_cell_m > self._drum_width_m:
+            raise ValueError("native terrain does not resolve the drum footprint")
         if self.ws.pose_xy is None:
             return []
         # Which drums are actually in the ground? Each arm gates its own.
@@ -1104,6 +1094,8 @@ class Viz2Runtime:
         bulked SPOIL over a footprint-sized box, so a berm rises (a real height gain the window mesh's
         vertex shader displaces — the positive side of the E2 diff drape). Returns the dump's dirty bbox
         (fine-cell ``[r0,c0,r1,c1]``) or ``[]`` when the pose is unseated / the drum is empty."""
+        if self.ws.fine_cell_m > self._drum_width_m:
+            raise ValueError("native terrain does not resolve the drum footprint")
         if self.ws.pose_xy is None or self.ws.inventory_kg <= 0.0:
             return []
         H, W = self._window_shape

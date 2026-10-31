@@ -41,6 +41,13 @@
 > commit while recorded as live (SR-10). Still OPEN from that register: SR-11 (the viz2 GPU unit
 > executes the working tree; its unit file lives outside the repo) and roughly 45 MEDIUM/LOW entries.
 
+> **Native runtime qualification, 2026-10-15:** the isolated integration candidate uses the measured source grid.
+> It refuses generated refinement and unresolved dig, dump, and AutoDig operations. Earlier positive
+> fine-excavation and training claims are retired; PX-09 through PX-14 are not physically qualified.
+> Core terrain cut/fill arithmetic remains implemented, but is not a validated drum-scale operation.
+> The candidate is not deployed. Hardware, renderer, and sensor calibration remain unqualified.
+
+
 ## GIS mission-control IDE
 
 | Shipped and load-bearing | Training-only or offline | Unbuilt and gated |

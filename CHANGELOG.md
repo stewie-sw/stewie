@@ -11,6 +11,23 @@ exported version lives in `stewie.__version__` and `pyproject [project].version`
 
 ## [Unreleased]
 
+### Native-runtime assurance candidate, 2026-10-15
+
+- Use the sourced 15-degree nominal slope limit for streamed routes instead of the previous 25-degree allowance.
+
+- Repair terminal journal damage only after validating history and preserving a durable recovery backup.
+- Preserve native DEM fields through recentering and lossless paging.
+- Remove generated geometry and random rocks from the streamed runtime.
+- Match simulation time to frame rate, bound inbound work, and stop on stale commands or missing acknowledgments.
+- Refuse excavation below the available terrain resolution.
+- Remove a redundant routing array while preserving valid path outputs.
+- Reject outside endpoints and incomplete missions; retain every route waypoint at handoff.
+- Replace generated setup choices with native terrain and repair setup landmarks and keyboard-accessible controls.
+- Introduce `haworth_pad_a_native`; reject the retired generated-world scenario identity without rewriting recordings.
+- Verify 46 scoped checks and actual CPU control, routing, scenario, and browser paths.
+- Leave GPU, physical calibration, hard real-time guarantees, and full-suite qualification explicitly open.
+
+
 ### Added
 - Platform restructure, phase 1 (2026-07-03): the monorepo dependency graph is now **acyclic** and the
   first extracted package ships. BD-04 inverted the `bodies → physics` edge (the body → `TerramechanicsParams`

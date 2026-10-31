@@ -32,6 +32,24 @@ build.*
 The lineage is NASA's IPEx program and the JHU APL Lunar Autonomy Challenge. STEWIE is an independent
 stack, with its own physics, GIS, planner, and render seams, and is not the official challenge entry.
 
+## Native-runtime assurance candidate
+
+This isolated candidate changes the runtime contract. It is not deployed or flight-qualified.
+
+- The streamed runtime uses native DEM resolution and bundle clasts, without generated refinement or random rocks.
+- Haworth provides 1 m heights. Soil parameters remain literature-derived, not measured site calibration.
+- Excavation commands are refused when the native grid cannot resolve the drum footprint.
+- Simulation steps match the configured frame rate. Expired commands and missing feedback stop the actor.
+- Route handoff preserves every grid waypoint and refuses incomplete or out-of-bounds missions.
+- The frozen scenario is `haworth_pad_a_native`. The retired `haworth_pad_a` identity is not silently migrated.
+- Existing generated-world recordings must not be relabeled as native-world training evidence.
+
+Verification artifacts live beside this candidate in `../evidence/`.
+The final scoped gate passed 46 checks. This does not replace the full repository gate.
+Legacy fine-resolution excavation acceptance requires suitable measured terrain before it can qualify this runtime.
+GPU rendering, browser-to-rover freshness, sensor-driven policy execution, and target-vehicle physical validation remain unqualified.
+
+
 ## The front door: a GIS mission-control IDE
 
 The primary surface is a GIS mission workbench, live at **<https://artemis.stewie.space/ide/>** — the

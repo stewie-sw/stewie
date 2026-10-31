@@ -115,7 +115,7 @@ def test_the_argv_the_server_builds_is_ACTUALLY_PARSEABLE_by_the_runtime_it_spaw
     from stewie.stream import app as app_mod
 
     argv = app_mod.build_runtime_argv(
-        bundle=SFS, session_dir="/tmp/x", fine_cell_m=0.05, start_xy=SLOPED_XY)
+        bundle=SFS, session_dir="/tmp/x", fine_cell_m=None, start_xy=SLOPED_XY)
     args = build_parser().parse_args(argv[2:])          # argv[0]=python, argv[1]=viz2_serve.py
     assert args.start_xy, "the stream server drops the operator's chosen section on the floor"
 
@@ -132,7 +132,7 @@ def test_the_argv_the_server_builds_is_ACTUALLY_PARSEABLE_by_the_runtime_it_spaw
 
     # and no chosen section -> NO flag at all, so the runtime's safe flattest fallback still runs
     argv_none = app_mod.build_runtime_argv(
-        bundle=SFS, session_dir="/tmp/x", fine_cell_m=0.05, start_xy=None)
+        bundle=SFS, session_dir="/tmp/x", fine_cell_m=None, start_xy=None)
     assert not any(a.startswith("--start-xy") for a in argv_none), \
         "an unchosen spawn must leave the safe fallback to the runtime"
     assert build_parser().parse_args(argv_none[2:]).start_xy == ""
@@ -143,7 +143,7 @@ def test_the_chosen_section_is_the_section_you_actually_drive() -> None:
     re-running the flattest search."""
     from stewie.runtime.viz2_runtime import Viz2Runtime
     with tempfile.TemporaryDirectory() as d:
-        rt = Viz2Runtime(SFS, session_dir=d, fine_cell_m=0.05, start_xy=SLOPED_XY)
+        rt = Viz2Runtime(SFS, session_dir=d, fine_cell_m=None, start_xy=SLOPED_XY)
         try:
             assert rt.start_xy == pytest.approx(SLOPED_XY), "the runtime ignored the operator's section"
         finally:
@@ -162,7 +162,7 @@ def test_the_selection_is_NOT_cosmetic_it_delivers_real_terrain() -> None:
     reliefs = {}
     for name, xy in (("flattest_default", None), ("operator_chosen", SLOPED_XY)):
         with tempfile.TemporaryDirectory() as d:
-            rt = Viz2Runtime(SFS, session_dir=d, fine_cell_m=0.05, start_xy=xy)
+            rt = Viz2Runtime(SFS, session_dir=d, fine_cell_m=None, start_xy=xy)
             try:
                 H = rt.ws._require_fine().derive_height()
                 reliefs[name] = float(np.max(H) - np.min(H))

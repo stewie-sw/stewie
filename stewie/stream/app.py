@@ -113,7 +113,7 @@ def _subproc_env() -> dict[str, str]:
     return env
 
 
-def build_runtime_argv(*, bundle: str, session_dir: str, fine_cell_m: float,
+def build_runtime_argv(*, bundle: str, session_dir: str, fine_cell_m: float | None,
                        start_xy: tuple[float, float] | None = None,
                        seconds: float | None = None) -> list[str]:
     """[REQ:TR-03] The argv that spawns the conserved runtime.
@@ -131,8 +131,9 @@ def build_runtime_argv(*, bundle: str, session_dir: str, fine_cell_m: float,
         STREAM_PY, str(REPO_ROOT / "stewie" / "runtime" / "viz2_serve.py"),
         "--bundle", str(bundle), "--session-dir", str(session_dir),
         "--seconds", str(RUNTIME_SECONDS if seconds is None else seconds),
-        "--fine-cell-m", str(fine_cell_m),
     ]
+    if fine_cell_m is not None:
+        argv += ["--fine-cell-m", str(fine_cell_m)]
     if start_xy is not None:
         # `--start-xy=<x>,<y>` as ONE argv element, NOT ["--start-xy", "<x>,<y>"]. Haworth's x is NEGATIVE
         # (~-33450 in IAU_2015:30135), so the value begins with '-' and argparse reads it as an OPTION:
@@ -181,15 +182,7 @@ class StreamSession:
                 raise FileNotFoundError(
                     f"real site {self.cfg['site']!r} not found under {SAMPLES_DIR}")
             return str(bundle)
-        # procedural: generate a LABELED-SYNTHETIC bundle (segregated under out/procedural_sandbox/)
-        from stewie.terrain.procedural_bundle import generate_procedural_bundle
-        name = f"stream_seed{self.cfg['world_seed']}_{int(time.time())}"
-        generate_procedural_bundle(
-            name, world_seed=self.cfg["world_seed"], params=self.cfg.get("params") or None,
-            extent_m=256.0, cell_m=1.0, write_previews=True)
-        bundle_dir = str(REPO_ROOT / "out" / "procedural_sandbox" / name)
-        self._proc_bundle_dir = bundle_dir
-        return bundle_dir
+        raise protocol.ConfigError("generated terrain is not permitted")
 
     def _resolve_start_xy(self, bundle: str) -> tuple[float, float] | None:
         """[REQ:TR-03] The operator's chosen worksite section, checked against the DEM that will actually
@@ -210,45 +203,6 @@ class StreamSession:
                 f"(x {wb['x0']}..{wb['x1']}, y {wb['y0']}..{wb['y1']})")
         return (float(start_xy[0]), float(start_xy[1]))
 
-    # -- rock field ---------------------------------------------------------------------------
-    def _generate_rockfield(self, bundle: str) -> str | None:
-        """Spatial-k Golombek rock field over the REAL DEM window around the resolved spawn, written as
-        a scene-frame clast JSON for ``viz2_root.gd --clasts``. Real data only (boulders drawn from the
-        sourced size-frequency law over the real heightfield's morphology). Best-effort: any failure ->
-        no rocks and the drive still works."""
-        # the runtime now seeds the rock field, SETS it on its WorkSite (physics ride-over/block), and
-        # writes clasts.json into the session dir -- prefer that ONE source so a rock seen == a rock felt.
-        _rt = os.path.join(self.session_dir, "clasts.json")
-        if os.path.isfile(_rt):
-            return _rt
-        if self.cfg.get("mode") != "real":
-            return None
-        try:
-            import importlib.util
-            tok = json.loads(Path(self.session_dir, "viz2_session.json").read_text().splitlines()[0])
-            sx, sy = tok["start_xy"]
-            x0, y0, cell = tok["world_x0"], tok["world_y0"], tok["base_cell_m"]
-            bw, bh = int(tok["base_w"]), int(tok["base_h"])
-            n = max(8, min(int(round(140.0 / cell)), bw, bh))       # ~140 m field around the spawn
-            c0 = int(min(max(0, round((sx - x0) / cell - n / 2)), bw - n))
-            r0 = int(min(max(0, round((sy - y0) / cell - n / 2)), bh - n))
-            spec = importlib.util.spec_from_file_location(
-                "viz2_rockfield_clasts", str(REPO_ROOT / "scripts" / "viz2_rockfield_clasts.py"))
-            if spec is None or spec.loader is None:
-                raise RuntimeError("cannot load the viz2_rockfield_clasts module spec/loader")
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            result = mod.build_clasts(bundle, r0, c0, n, d_min_m=0.15, d_max_m=0.8, world_seed=0)
-            out = os.path.join(self.session_dir, "clasts.json")
-            with open(out, "w") as fh:
-                json.dump(result, fh)
-            n_clasts = len(result.get("clasts", []))
-            print("viz2-stream: rock field seeded — %d clasts over [%d:%d,%d:%d]"
-                  % (n_clasts, r0, r0 + n, c0, c0 + n), flush=True)
-            return out if n_clasts > 0 else None
-        except Exception as exc:
-            print("viz2-stream: rock field skipped (%s: %s)" % (type(exc).__name__, exc), flush=True)
-            return None
 
     # -- frame seam ---------------------------------------------------------------------------
     async def _on_godot(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -262,6 +216,12 @@ class StreamSession:
 
     async def start(self, *, connect_timeout: float = 90.0) -> None:
         bundle = self._resolve_bundle()
+        with open(os.path.join(bundle, "metadata.json")) as fh:
+            native_cell_m = float(json.load(fh)["grid"]["cell_m"])
+        requested_cell_m = self.cfg["fine_cell_m"]
+        if requested_cell_m is not None and requested_cell_m != native_cell_m:
+            raise protocol.ConfigError("requested cell size must equal the native DEM resolution")
+        self.cfg["fine_cell_m"] = native_cell_m
         start_xy = self._resolve_start_xy(bundle)
 
         # 1) the localhost frame seam (server accepts, Godot connects)
@@ -275,9 +235,8 @@ class StreamSession:
             env=_subproc_env(), start_new_session=True)
         await self._await_token(timeout=20.0)
 
-        # 2b) seed the DISPLAY rock field (spatial-k Golombek over the REAL DEM) around the resolved
-        #     spawn the runtime just wrote, so the drive view shows real-statistics boulders.
-        clasts_path = self._generate_rockfield(bundle)
+        # Render the same bundle clasts used by the authority, without a generated fallback.
+        clasts_path = os.path.join(self.session_dir, "clasts.json")
 
         # 3) Godot on the host GPU: drives THROUGH the runtime (--live) + streams frames (--stream)
         godot = _resolve_godot()
@@ -400,6 +359,9 @@ class StreamSession:
                     await ws.send_text(json.dumps({"type": "error", "error": "SAFE latched — rearm before planning"}))
                     continue
                 goals = self._plan_goals(obj.get("plan_request"))     # QWC2 /ide mission, or None -> survey
+                if obj["plan_request"] is not True and goals is None:
+                    await ws.send_text(json.dumps({"type": "error", "error": "invalid or oversized route request"}))
+                    continue
                 # off the event loop: _planner_route reloads the DEM + runs up to 12 A* searches, which
                 # would otherwise stall the single uvicorn worker for every session (council: perf/security).
                 route = await asyncio.to_thread(self._planner_route, goals)
@@ -517,13 +479,11 @@ class StreamSession:
         """Parse a plan_request into goal waypoints in IAU_2015:30135 metres (the authoritative frame,
         GW-12). Accepts {"waypoints": [[x, y], ...]} already in 30135 metres (the QWC2 /ide map frame)
         or {"waypoints_lonlat": [[lon, lat], ...]} (GeoJSON selenographic, converted via the shared
-        transform). `True` / anything else -> None, i.e. fall back to the built-in survey pattern."""
+        transform). Only an explicit True requests the built-in survey pattern."""
         if not isinstance(pr, dict):
             return None
-        # HARDENED (council: security+robustness): bounded, finite, never raises. A malformed waypoint
-        # must NOT crash pump_input (it runs before _planner_route's own guard). Cap the list so one
-        # message cannot spin the A* planner over an unbounded set.
-        _CAP = 64
+        # Reject invalid missions without silently dropping or truncating their goals.
+        _CAP = 12
 
         def _pair(p) -> tuple | None:
             if not (isinstance(p, (list, tuple)) and len(p) >= 2):
@@ -535,38 +495,40 @@ class StreamSession:
             return (a, b) if math.isfinite(a) and math.isfinite(b) else None
 
         wl = pr.get("waypoints")
-        if isinstance(wl, list) and wl:
-            out = [pr2 for pr2 in (_pair(p) for p in wl[:_CAP]) if pr2 is not None]
-            return out or None
+        if isinstance(wl, list) and 0 < len(wl) <= _CAP:
+            out = [_pair(p) for p in wl]
+            return out if all(p is not None for p in out) else None
         ll = pr.get("waypoints_lonlat")
-        if isinstance(ll, list) and ll:
+        if isinstance(ll, list) and 0 < len(ll) <= _CAP:
             from stewie.dataset.dem_source import latlon_to_proj
             out = []
-            for p in ll[:_CAP]:
+            for p in ll:
                 lonlat = _pair(p)
                 if lonlat is None:
-                    continue
+                    return None
                 try:
                     x, y = latlon_to_proj(lonlat[1], lonlat[0])   # GeoJSON is [lon, lat]; latlon_to_proj(lat, lon)
                 except Exception:
-                    continue
-                if math.isfinite(x) and math.isfinite(y):
-                    out.append((x, y))
+                    return None
+                if not (math.isfinite(x) and math.isfinite(y)):
+                    return None
+                out.append((x, y))
             return out or None
         return None
 
     def _planner_route(self, goals_world: list | None = None, max_legs: int = 12) -> list | None:
         """council #14 / GIS fold: a REAL slope-gated route over the region's DEM via lode.route_leg
-        (A* on the slope costmap, max 25 deg). When goals_world is given (waypoints in IAU_2015:30135
+        (Dijkstra using the nominal vehicle slope limit). When goals_world is given (waypoints in IAU_2015:30135
         metres, e.g. a mission authored in the QWC2 /ide), route spawn -> those goals; otherwise fall
         back to a built-in survey pattern. Returns the terrain-following polyline as world [[x, z], ...]
         in the Godot frame (== DEM world frame), or None if unavailable. Real-mode only."""
-        if self.cfg.get("mode") != "real":
+        if self.cfg.get("mode") != "real" or goals_world == []:
             return None
         try:
             import numpy as np
             from stewie.physics.worksite import coarse_base_from_bundle
             from lode.planner_routing import route_leg
+            from stewie.specs.ipex_specs import NOMINAL_SLOPE_DEG
             tok = json.loads(Path(self.session_dir, "viz2_session.json").read_text().splitlines()[0])
             sx, sy = float(tok["start_xy"][0]), float(tok["start_xy"][1])
             base, meta = coarse_base_from_bundle(self._resolve_bundle())
@@ -580,20 +542,25 @@ class StreamSession:
                 return min(max(v, 30.0), hi - 30.0)
             legs = [(slx, sly)]
             if goals_world:                                  # external mission (QWC2 /ide) in 30135 metres
-                for gx, gy in goals_world:                   # -> DEM-local, clamped to the interior
-                    legs.append((_clamp(gx - x0, W * cell), _clamp(gy - y0, H * cell)))
+                for gx, gy in goals_world:
+                    if not (0 <= gx - x0 < W * cell and 0 <= gy - y0 < H * cell):
+                        return None
+                    legs.append((gx - x0, gy - y0))
             else:                                            # built-in survey pattern (plan_request: true)
                 for dx, dz in ((60.0, 0.0), (60.0, 60.0), (0.0, 60.0)):
                     legs.append((_clamp(slx + dx, W * cell), _clamp(sly + dz, H * cell)))
+            if len(legs) - 1 > max_legs:
+                return None
             world: list = []
-            for i in range(min(max_legs, len(legs) - 1)):
+            for i in range(len(legs) - 1):
                 _rm, _sm, reached, wps = route_leg((Z, cell), (0.0, 0.0), legs[i], legs[i + 1],
-                                                   max_slope_deg=25.0)
+                                                   max_slope_deg=NOMINAL_SLOPE_DEG)
                 if not reached or not wps:
-                    continue
-                for j in range(0, len(wps), 8):             # downsample the dense polyline
-                    world.append([float(wps[j][0]) + x0, float(wps[j][1]) + y0])
-                world.append([float(wps[-1][0]) + x0, float(wps[-1][1]) + y0])
+                    return None
+                for x, y in wps:
+                    point = [float(x) + x0, float(y) + y0]
+                    if not world or point != world[-1]:
+                        world.append(point)
             return world if len(world) >= 2 else None
         except Exception as exc:                            # never crash the input pump on a plan miss
             print(f"viz2: planner route failed: {exc}", flush=True)
@@ -755,24 +722,6 @@ async def preview_heightmap(site: str = Query(previews.DEFAULT_SITE)) -> dict:
         return previews.real_heightmap_preview(site)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/preview/procedural")
-async def preview_procedural(
-    seed: int = Query(0),
-    H: float = Query(previews._normalize_params({})["H"]),
-    wavelength: float = Query(previews._normalize_params({})["feature_wavelength_m"]),
-    amplitude: float = Query(previews._normalize_params({})["amplitude_m"]),
-    octaves: int = Query(previews._normalize_params({})["octaves"]),
-) -> dict:
-    """The SYNTHETIC preview: the REAL ``fbm_global`` field for (seed, H, wavelength, amplitude,
-    octaves), labelled SYNTHETIC (citation null). Bit-exact with a direct ``fbm_global`` call."""
-    params = {"H": H, "feature_wavelength_m": wavelength,
-              "amplitude_m": amplitude, "octaves": octaves}
-    try:
-        return previews.procedural_heightmap_preview(seed, params)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

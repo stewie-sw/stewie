@@ -122,7 +122,7 @@
 // First WS message = session config. Subsequent messages = per-frame control (normalized intent).
 // The setup screen (GET /) assembles a config and opens this view as /stream#cfg=<base64(JSON)>.
 // Absent that (opened standalone), fall back to the built-in real-Haworth default.
-const DEFAULT_CONFIG = { mode: "real", site: "haworth_sfs_2km_1m", fine: 0.05, sun: { az: 135, el: 18 } };
+const DEFAULT_CONFIG = { mode: "real", site: "haworth_sfs_2km_1m", sun: { az: 135, el: 18 } };
 function readConfig() {
   try {
     const h = new URLSearchParams(location.hash.slice(1));

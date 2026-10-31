@@ -1,29 +1,14 @@
-"""[REQ:] viz2 setup-screen backend — /bundles + /preview/heightmap + /preview/procedural.
-
-Gate on exit code: pytest stewie/stream/test_previews.py
-
-Real data only. Asserts the three producers the three.js setup screen consumes:
-  * /bundles lists the REAL samples/lunar_dem bundles with their REAL citations and NO synthetic;
-  * /preview/heightmap?site=haworth_sfs_2km_1m returns a non-empty REAL heightmap whose stats match
-    the on-disk bundle;
-  * /preview/procedural runs the REAL fbm_global (bit-exact with a direct call), is labelled
-    SYNTHETIC with a null citation, and changes when the seed changes.
-No mock terrain, no fabricated stats — every value is read off the real bundles / the real generator.
-"""
+"""Setup routes serve measured lunar terrain; procedural preview is retired."""
 from __future__ import annotations
 
 import json
 import os
-import shutil
-import tempfile
 
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from stewie.stream import previews
 from stewie.stream.app import app
-from stewie.terrain.procgen_seed import fbm_global
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SAMPLES = os.path.join(REPO_ROOT, "samples", "lunar_dem")
@@ -55,33 +40,6 @@ def test_bundles_lists_real_sites_with_real_citations_no_synthetic(client: TestC
     assert sum(1 for b in rows if b["default"]) == 1
 
 
-def test_bundles_excludes_a_real_synthetic_bundle(tmp_path):
-    """The shared dem_site_compare filter must drop a genuinely-synthetic bundle even if it sits in
-    the site root. Uses the REAL procedural generator (no fabricated metadata)."""
-    from stewie.terrain.procedural_bundle import generate_procedural_bundle
-    root = str(tmp_path / "sites")
-    os.makedirs(root)
-    # a REAL bundle: only its metadata.json is needed for enumeration
-    real_meta = json.load(open(os.path.join(SAMPLES, "haworth_10km_5m", "metadata.json")))
-    os.makedirs(os.path.join(root, "haworth_10km_5m"))
-    with open(os.path.join(root, "haworth_10km_5m", "metadata.json"), "w") as fh:
-        json.dump(real_meta, fh)
-    # a REAL synthetic bundle produced by the actual generator, then its metadata dropped into root
-    sandbox = tempfile.mkdtemp(prefix="viz2_syn_test_")
-    try:
-        generate_procedural_bundle(os.path.join(sandbox, "syn_site"), world_seed=3,
-                                   extent_m=32.0, cell_m=1.0, write_previews=False)
-        syn_meta = json.load(open(os.path.join(sandbox, "syn_site", "metadata.json")))
-        os.makedirs(os.path.join(root, "syn_site"))
-        with open(os.path.join(root, "syn_site", "metadata.json"), "w") as fh:
-            json.dump(syn_meta, fh)
-    finally:
-        shutil.rmtree(sandbox, ignore_errors=True)
-
-    rows = previews.list_real_bundles(root=root)
-    names = {b["name"] for b in rows}
-    assert "haworth_10km_5m" in names          # real bundle listed
-    assert "syn_site" not in names             # synthetic bundle EXCLUDED (guardrail)
 
 
 # ── /preview/heightmap (real) ─────────────────────────────────────────────────────────────────
@@ -140,43 +98,10 @@ def test_preview_heightmap_metadata_only_bundle(client: TestClient):
 
 
 # ── /preview/procedural (synthetic, real fbm_global) ─────────────────────────────────────────
-def test_preview_procedural_matches_direct_fbm_global(client: TestClient):
-    seed = 7
-    H, wl, amp, oct_ = 0.9, 40.0, 8.0, 6
-    r = client.get(f"/preview/procedural?seed={seed}&H={H}&wavelength={wl}&amplitude={amp}&octaves={oct_}")
-    assert r.status_code == 200
-    d = r.json()
-    # labelled SYNTHETIC, null citation (guardrail)
-    assert d["synthetic"] is True
-    assert d["label"] == "SYNTHETIC"
-    assert d["citation"] is None
-    assert "PROCEDURAL" in d["source"]
-    assert d["provenance"]["synthetic"] is True and d["provenance"]["citation"] is None
-    # bit-exact with a DIRECT fbm_global call using the module's documented preview window
-    got = np.array(d["z"], dtype=np.float64).reshape(d["n"], d["ncols"])
-    ref = fbm_global(
-        previews.PREVIEW_WORLD_X0, previews.PREVIEW_WORLD_Y0, previews.PREVIEW_N,
-        previews.PREVIEW_CELL_M, H=H, nu0=amp * amp, world_seed=seed, octaves=oct_,
-        base_wavelength_m=wl, lacunarity=previews.PREVIEW_LACUNARITY,
-        base_cell_class=previews.PREVIEW_BASE_CELL_CLASS)
-    assert got.shape == ref.shape == (previews.PREVIEW_N, previews.PREVIEW_N)
-    assert np.array_equal(got, ref), "preview heightmap is not bit-exact with fbm_global"
 
 
-def test_preview_procedural_seed_changes_terrain(client: TestClient):
-    base = "H=0.9&wavelength=40&amplitude=8&octaves=6"
-    a = np.array(client.get(f"/preview/procedural?seed=1&{base}").json()["z"])
-    b = np.array(client.get(f"/preview/procedural?seed=2&{base}").json()["z"])
-    assert a.shape == b.shape
-    assert not np.array_equal(a, b), "changing the world_seed must change the terrain"
-    assert float(np.abs(a - b).max()) > 1e-3
 
 
-def test_preview_procedural_rejects_bad_params(client: TestClient):
-    # H out of (0,1] and octaves < 1 are rejected by the real _normalize_params validation
-    assert client.get("/preview/procedural?seed=0&H=1.5&wavelength=40&amplitude=8&octaves=6").status_code == 400
-    assert client.get("/preview/procedural?seed=0&H=0.9&wavelength=0&amplitude=8&octaves=6").status_code == 400
-    assert client.get("/preview/procedural?seed=0&H=0.9&wavelength=40&amplitude=8&octaves=0").status_code == 400
 
 
 def test_root_serves_setup_and_stream_serves_view(client: TestClient):
@@ -188,3 +113,9 @@ def test_root_serves_setup_and_stream_serves_view(client: TestClient):
     # self-hosted three.js is served (no external CDN)
     v = client.get("/vendor/three.module.min.js")
     assert v.status_code == 200 and len(v.content) > 100_000
+
+
+def test_procedural_preview_is_retired(client: TestClient):
+    response = client.get("/preview/procedural?seed=1")
+    assert response.status_code == 404
+    assert "z" not in response.json()

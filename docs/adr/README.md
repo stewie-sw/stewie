@@ -17,3 +17,4 @@ present + checked in.
 | [0005](0005-fail-closed-physics-backend-registry.md) | FORGE ↔ stewie | The physics-backend registry fails closed on a not-yet-conserving backend |
 | [0006](0006-import-boundaries-and-lean-server.md) | stewie packaging | Citable packages carry no heavy/contaminated imports; the server boots lean |
 | [0007](0007-strangler-fig-frontend.md) | stewie frontend | The cockpit migrates strangler-fig behind parity gates — no big-bang rewrite |
+| [0009](0009-native-runtime-assurance-boundary.md) | Runtime qualification | Preserve native terrain; refuse unresolved excavation and generated refinement |

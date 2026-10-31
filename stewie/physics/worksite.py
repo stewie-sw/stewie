@@ -10,6 +10,7 @@ Three layers (contract):
                   (DEM block + sourced procedural overlay; ``page_dir`` persists worked tiles).
   * ``fine``    : the rover-following WORKED fine ``ColumnState`` window — OUR OWN copy
                   (never the aliased ``Tile.cs``), the authoritative worked store.
+  * Native resolution copies base fields exactly. It bypasses procedural overlays and datum smoothing.
   * ``inventory_kg`` : the GLOBAL drum ledger; carries mass across windows (dig here, dump there).
 
 Mass invariant: ``fine.grid_mass() + inventory_kg`` is constant across flatten/dump/relax/
@@ -137,17 +138,6 @@ class WorkSite:
         # (coarse_base_from_bundle, which asserts derive_height()==saved heightmap, CT-06) sets this.
         # step() refuses to mutate terrain whose DEM round-trip was never confirmed.
         self.datum_verified = bool(datum_verified)
-        # T-08 (default ON since 2026-06-14): continuous (BILINEAR) resample of the coarse base datum at
-        # fine resolution, replacing the piecewise-constant np.repeat DEM datum (5 m terraces with ~88 deg
-        # sub-cell cliffs that saturate drive slip and pollute repose/rendering). Datum carries NO mass
-        # (height = datum + mass_areal/density), so this is conservation-NEUTRAL by construction —
-        # grid_mass() is identical to the bit with the flag on or off (verified by direct equality). The
-        # procgen overlay lives in mass_areal (set_height_via_mass), so it is preserved untouched, and
-        # bilinear sampling is a pure function of GLOBAL fine-cell position -> seam-free across window
-        # crops. Round-trip identity is carried by the conserved mass/state fields, NOT by requiring a
-        # piecewise-constant elevation. Pass ``smooth_datum=False`` only to exercise the legacy
-        # refine/coarsen bit-exact-datum check.
-        self.smooth_datum = bool(smooth_datum)
 
         # The streaming VIRGIN fine source: a read-only reader over the coarse base
         # (needs `datum`, not heightmap) wrapped in a TileMosaic.
@@ -166,7 +156,9 @@ class WorkSite:
 
         # Tiling params for the streaming active window (mirror the mosaic's base-tile grid).
         self.tile_base_cells = int(tile_base_cells)
-        self.k = int(round(self.base_cell_m / self.fine_cell_m))   # fine cells per base cell
+        self.k = self.mosaic.k
+        # T-08 smoothing removes refined terraces, but native cells must retain their measured heights.
+        self.smooth_datum = bool(smooth_datum) and self.k > 1
         self._n_tile_rows = -(-base.height // self.tile_base_cells)  # ceil
         self._n_tile_cols = -(-base.width // self.tile_base_cells)
 
@@ -227,15 +219,18 @@ class WorkSite:
     # -- construction --------------------------------------------------------
 
     @classmethod
-    def from_haworth_bundle(cls, bundle_dir: str, *, fine_cell_m: float = 0.05,
+    def from_haworth_bundle(cls, bundle_dir: str, *, fine_cell_m: float | None = 0.05,
                             tile_base_cells: int = 4, world_seed: int = 0,
                             page_dir: str | None = None,
                             smooth_datum: bool = True) -> "WorkSite":
         """Load the committed coarse Haworth base and build the streaming mosaic over it.
         ``world_x0/world_y0`` come from the bundle ``world_bounds_m`` (global placement).
-        ``smooth_datum`` (T-08: DEFAULT True) selects continuous bilinear datum sampling; pass
-        ``False`` only for the legacy piecewise-constant refine/coarsen bit-exactness check."""
+        ``smooth_datum`` selects bilinear datum sampling only below the base cell size.
+        Equal cell sizes preserve the native fields without overlays or smoothing.
+        ``fine_cell_m=None`` selects the bundle's native grid cell size."""
         base, meta = coarse_base_from_bundle(bundle_dir)   # asserts derive_height()==heightmap (CT-06)
+        if fine_cell_m is None:
+            fine_cell_m = base.cell_m
         wb = meta.get("world_bounds_m", {"x0": 0.0, "y0": 0.0})
         return cls(base, world_x0=float(wb["x0"]), world_y0=float(wb["y0"]),
                    fine_cell_m=fine_cell_m, tile_base_cells=tile_base_cells,

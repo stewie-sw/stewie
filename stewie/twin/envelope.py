@@ -272,12 +272,16 @@ class TransactionLog:
         log = cls(journal_path=None)                         # replay WITHOUT re-journalling
 
         def _apply(rec: dict[str, Any]) -> None:
-            log._append(rec["authority_sha"], int(rec["twin_version"]), rec["twin_hash"],
+            txn = log._append(rec["authority_sha"], int(rec["twin_version"]), rec["twin_hash"],
                         rec["plan_id"], rec["belief"], rec["mission"], rec["site"], rec["body"],
                         float(rec["mission_t_s"]), rec["provenance"],
                         float(rec.get("uncertainty_m", 0.0)),
                         rec.get("packet_sha", ""), rec.get("vehicle_sha", ""),  # DT-01 (old recs: "")
                         expected_chain=rec["chain_hash"])
+
+            if (rec["seq"], rec["prev_hash"], rec["world_sha"]) != (
+                    txn.seq, txn.prev_hash, txn.world_sha):
+                raise ValueError("world transaction replay hash mismatch -- the journal was altered")
 
         # SR-05: torn tail tolerated AND truncated, so the re-armed writer below cannot append onto a
         # partial record (which silently lost the next commit, then bricked the log on the restore after).

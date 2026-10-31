@@ -28,7 +28,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--bundle", required=True, help="DEM bundle dir (e.g. samples/lunar_dem/haworth_sfs_2km_1m)")
     ap.add_argument("--session-dir", required=True, help="session dir for the token file + generation manifests")
     ap.add_argument("--seconds", type=float, default=60.0, help="max wall-time to hold the runtime alive")
-    ap.add_argument("--fine-cell-m", type=float, default=0.05, help="fine window cell size (0.05 default / 0.02 gated)")
+    ap.add_argument("--fine-cell-m", type=float, default=None,
+                    help="must equal the source DEM cell size; omitted selects native resolution")
     # NOTE the callers MUST use the `--start-xy=<x>,<y>` form: Haworth's x is negative in IAU_2015:30135.
     ap.add_argument("--start-xy", default="", help='"x,y" global-metre start pose; empty -> base-grid centre')
     return ap

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from typing import Any, Callable
 
 
@@ -46,44 +47,51 @@ def replay_journal(journal_path: str, apply_record: Callable[[dict[str, Any]], A
     Raises ValueError if a line fails to parse anywhere but the tail -- that is genuine history loss and
     is surfaced rather than silently skipped. The file is NOT modified in that case.
 
+    Repairs preserve original bytes in an fsynced recovery backup. Requires exclusive writer access.
     Returns the number of records applied.
     """
     if not os.path.exists(journal_path):
         return 0
-    with open(journal_path, encoding="utf-8") as fh:
-        raw_lines = fh.readlines()                # keepends: offsets stay exact
-
+    with open(journal_path, "rb") as fh:
+        original = fh.read()
+    lines = original.splitlines(keepends=True)
     applied = 0
-    good_end = 0                                  # byte offset just past the last COMPLETE record
-    need_newline = False                          # last good record lacked its line terminator
-    torn = False
-    last = len(raw_lines) - 1
-    for i, raw in enumerate(raw_lines):
-        s = raw.strip()
-        if not s:                                 # blank padding is not a record; keep its bytes
+    good_end = 0
+    for i, raw in enumerate(lines):
+        if not raw.strip():
             good_end += len(raw)
             continue
         try:
-            rec = json.loads(s)
-        except json.JSONDecodeError:
-            if i == last:                         # a crash mid-fsync tears the FINAL line only
-                torn = True
+            rec = json.loads(raw)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            if not any(rest.strip() for rest in lines[i + 1:]):
                 break
             raise ValueError(f"{what} corrupt at interior line {i} (not the tail) "
                              "-- refusing a partial silent restore")
         apply_record(rec)
         applied += 1
         good_end += len(raw)
-        need_newline = not raw.endswith("\n")
 
-    if torn or need_newline:
-        # SR-05: leave the file exactly at the end of the last complete record, newline-terminated, so
-        # the re-armed writer cannot graft its next append onto a partial one.
-        with open(journal_path, "r+", encoding="utf-8") as fh:
-            fh.truncate(good_end)
-            if need_newline:
-                fh.seek(good_end)
-                fh.write("\n")
+    if good_end < len(original) or (original and not original.endswith(b"\n")):
+        directory = os.path.dirname(os.path.abspath(journal_path))
+        with tempfile.NamedTemporaryFile(
+                mode="wb", prefix=os.path.basename(journal_path) + ".recovery-",
+                dir=directory, delete=False) as backup:
+            backup.write(original)
+            backup.flush()
+            os.fsync(backup.fileno())
+        # Preserve the original durably before repairing any bytes; recovery requires exclusive access.
+        directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+        with open(journal_path, "r+b") as fh:
+            if good_end < len(original):
+                fh.truncate(good_end)
+            else:
+                fh.seek(0, os.SEEK_END)
+                fh.write(b"\n")
             fh.flush()
             os.fsync(fh.fileno())
     return applied
