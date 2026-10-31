@@ -1,0 +1,19 @@
+[package]
+name = "lunar-frames"
+description = "Body-fixed frames, local east-north-up and polar stereographic projection for STEWIE (rover and EVA)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+stewie-contracts = { path = "../stewie-contracts" }
+serde_json = "1"
+proptest = "1"
+
+[lints]
+workspace = true
