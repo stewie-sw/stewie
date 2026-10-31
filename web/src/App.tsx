@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from "react";
 import sites from "../../crates/stewie-contracts/fixtures/sites.json";
 import type { SiteCatalog } from "./contracts/site";
+import { MapView } from "./map/MapView";
 import { type AppStore, type Mode, isUtc } from "./store/store";
 
 const MODES: { id: Mode; label: string }[] = [
@@ -40,6 +41,7 @@ export function App({ store }: { store: AppStore }) {
           />
         </label>
       </header>
+      {(state.mode === "planning" || state.mode === "field") && <MapView catalog={CATALOG} />}
       <section aria-label="Sites">
         <h2>Sites</h2>
         <ul>
