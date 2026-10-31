@@ -9,8 +9,11 @@ publish.workspace = true
 
 [dependencies]
 lunar-dem = { path = "../lunar-dem" }
+lunar-ephem = { path = "../lunar-ephem" }
+lunar-frames = { path = "../lunar-frames" }
 
 [dev-dependencies]
+stewie-contracts = { path = "../stewie-contracts" }
 stewie-oracle = { path = "../stewie-oracle" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 

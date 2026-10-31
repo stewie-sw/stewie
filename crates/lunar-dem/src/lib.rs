@@ -308,6 +308,16 @@ impl DemTile {
         )
     }
 
+    /// Selenographic position of a fractional grid coordinate (cell centres at integer `row`, `col`).
+    #[must_use]
+    pub fn grid_latlon(&self, row: f64, col: f64) -> LatLon {
+        let [x0, _, _, y1] = self.bounds;
+        self.proj.inverse(
+            x0 + self.cell_m * (col + 0.5),
+            y1 - self.cell_m * (row + 0.5),
+        )
+    }
+
     #[must_use]
     pub fn cell_center_latlon(&self, row: usize, col: usize) -> LatLon {
         let (e, n) = self.cell_center_projected(row, col);

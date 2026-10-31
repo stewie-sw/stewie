@@ -1130,7 +1130,10 @@ name = "stewie-traverse"
 version = "0.1.0"
 dependencies = [
  "lunar-dem",
+ "lunar-ephem",
+ "lunar-frames",
  "serde_json",
+ "stewie-contracts",
  "stewie-oracle",
 ]
 
