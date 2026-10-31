@@ -94,6 +94,7 @@ struct Header {
     n_segments: usize,
     degree: usize,
     lsk: Lsk,
+    radii_m: std::collections::BTreeMap<String, [f64; 3]>,
     bin_sha256: String,
 }
 
@@ -273,6 +274,21 @@ impl Ephemeris {
             et = tt + l.k * (m + l.eb * m.sin()).sin();
         }
         et
+    }
+
+    /// Angular radius [deg] of `body` at `distance_m`, using its smallest PCK radius so an upper-limb
+    /// visibility test is never optimistic (R7).
+    ///
+    /// # Errors
+    /// [`EphemError::MissingTarget`] when the package has no radii for `body`.
+    pub fn angular_radius_deg(&self, body: Body, distance_m: f64) -> Result<f64, EphemError> {
+        let r = self
+            .header
+            .radii_m
+            .get(body.naif_name())
+            .ok_or(EphemError::MissingTarget(body.naif_name()))?;
+        let min_r = r[0].min(r[1]).min(r[2]);
+        Ok((min_r / distance_m).asin().to_degrees())
     }
 
     /// Body position [m] relative to the Moon's centre in `MOON_ME_DE440_ME421`, light-time corrected (LT).

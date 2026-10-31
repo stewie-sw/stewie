@@ -13,10 +13,15 @@ Fixtures:
                      real tiles: great-circle rays on the IAU 2015 lunar sphere, pyproj projection into the
                      tile, bilinear heights, exact spherical elevation (curvature), each ray stopping where
                      the tile's coverage ends (reach < max range means an unknown sector, not open sky).
+  visibility_windows 60 days at the real Haworth-centre observer: the upper-limb margin of the Sun and the Earth
+                     over the known horizon (SPICE spkcpo LT+S apparent direction, PCK radii, Earth polar
+                     radius for a conservative limb, horizon linear in azimuth) and its zero crossings,
+                     bisected to 0.01 s between 600 s samples.
 """
 from __future__ import annotations
 
 import json
+import math
 import os
 import sys
 
@@ -177,11 +182,89 @@ def horizon_profiles() -> None:
                   sources, {"n_az": HORIZON_N_AZ, "max_range_m": HORIZON_MAX_RANGE_M, "profiles": profiles})
 
 
+VIS_START, VIS_END, VIS_SAMPLE_S = "2027-01-01T00:00:00", "2027-03-02T00:00:00", 600.0
+
+
+def _limb_margin_fn(sp, horizon, lat, lon, obs_km):
+    """margin(et, body) = upper-limb elevation minus the known horizon at the body's azimuth [deg]."""
+    elev = np.array(horizon["elev_deg"], dtype=float)
+    n = len(elev)
+    phi, lam = np.radians(lat), np.radians(lon)
+    east = np.array([-np.sin(lam), np.cos(lam), 0.0])
+    north = np.array([-np.sin(phi) * np.cos(lam), -np.sin(phi) * np.sin(lam), np.cos(phi)])
+    up = np.array([np.cos(phi) * np.cos(lam), np.cos(phi) * np.sin(lam), np.sin(phi)])
+    radius_km = {b: min(sp.bodvrd(b, "RADII", 3)[1]) for b in ("SUN", "EARTH")}
+
+    def margin(et: float, body: str) -> float:
+        v, _lt = sp.spkcpo(body, et, "MOON_ME_DE440_ME421", "OBSERVER", "LT+S", obs_km, "MOON",
+                           "MOON_ME_DE440_ME421")
+        v = np.asarray(v[:3])
+        e, nn, u = float(v @ east), float(v @ north), float(v @ up)
+        az = math.degrees(math.atan2(e, nn)) % 360.0
+        el = math.degrees(math.atan2(u, math.hypot(e, nn)))
+        ang = math.degrees(math.asin(radius_km[body] / float(np.linalg.norm(v))))
+        k = az / (360.0 / n)
+        k0 = int(math.floor(k)) % n
+        f = k - math.floor(k)
+        return el + ang - ((1 - f) * elev[k0] + f * elev[(k0 + 1) % n])
+
+    return margin
+
+
+def visibility_windows() -> None:
+    import spiceypy as sp
+
+    kernels = fetch_spice.fetch()
+    sp.kclear()
+    for path in kernels.values():
+        sp.furnsh(path)
+    hz = json.load(open(os.path.join(ORACLE_FIXTURES, "horizon_profiles.payload.json"), encoding="utf-8"))
+    prof = next(p for p in hz["profiles"] if p["tile"] == "haworth_10km_5m" and p["row"] == 1000)
+    bundle_dir = os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m")
+    z, _cell = site_dem.load_haworth_dem(bundle_dir)
+    ground = float(z[prof["row"], prof["col"]])
+    radius_km = sp.bodvrd("MOON", "RADII", 3)[1][0]
+    lat, lon = prof["lat_deg"], prof["lon_deg"]
+    r = radius_km + (ground + prof["eye_m"]) / 1000.0
+    phi, lam = np.radians(lat), np.radians(lon)
+    obs = r * np.array([np.cos(phi) * np.cos(lam), np.cos(phi) * np.sin(lam), np.sin(phi)])
+    margin = _limb_margin_fn(sp, prof, lat, lon, obs)
+    t0, t1 = sp.str2et(VIS_START), sp.str2et(VIS_END)
+    ts = np.arange(t0, t1 + 0.5 * VIS_SAMPLE_S, VIS_SAMPLE_S)
+    ts[-1] = min(ts[-1], t1)
+    cases = []
+    for body in ("SUN", "EARTH"):
+        m = [margin(float(t), body) for t in ts]
+        out = []
+        for i in range(len(ts) - 1):
+            if (m[i] < 0) != (m[i + 1] < 0):
+                lo, hi, mlo = float(ts[i]), float(ts[i + 1]), m[i]
+                while hi - lo > 0.01:
+                    mid = 0.5 * (lo + hi)
+                    mm = margin(mid, body)
+                    if (mm < 0) == (mlo < 0):
+                        lo, mlo = mid, mm
+                    else:
+                        hi = mid
+                out.append(0.5 * (lo + hi))
+        cases.append({"body": body, "crossings_tdb": out})
+    write_fixture(ORACLE_FIXTURES, "visibility_windows", "oracle/build_fixtures.py::visibility_windows "
+                  "(spiceypy spkcpo LT+S, PCK radii, horizon_profiles haworth centre, bisection 0.01 s)",
+                  [f".cache/spice/{n}" for n in sorted(kernels)]
+                  + ["samples/lunar_dem/haworth_10km_5m/heightmap.rf32",
+                     "crates/stewie-oracle/fixtures/horizon_profiles.payload.json"],
+                  {"start_utc": VIS_START + "Z", "end_utc": VIS_END + "Z", "sample_s": VIS_SAMPLE_S,
+                   "eye_m": prof["eye_m"], "ground_m": ground, "site": {"lat_deg": lat, "lon_deg": lon},
+                   "horizon": {"tile": prof["tile"], "elev_deg": prof["elev_deg"], "reach_m": prof["reach_m"]},
+                   "cases": cases})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
     ephem_topocentric()
     horizon_profiles()
+    visibility_windows()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,20 @@
+[package]
+name = "lunar-intervals"
+description = "Rise/set crossings and lit/shadow/unknown windows for the Sun and Earth over a terrain horizon."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+lunar-ephem = { path = "../lunar-ephem" }
+lunar-frames = { path = "../lunar-frames" }
+lunar-horizon = { path = "../lunar-horizon" }
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[lints]
+workspace = true

@@ -108,6 +108,7 @@ def pack() -> tuple[str, str]:
         "n_segments": n_seg, "degree": DEGREE, "layout": "[segment][target][axis][coefficient] <f8",
         "span_utc": [START_UTC + "Z", END_UTC + "Z"],
         "lsk": lsk_constants(),
+        "radii_m": {t: [float(v) * 1000.0 for v in sp.bodvrd(t, "RADII", 3)[1]] for t in TARGETS},
         "fit_max_err_rad": {t: worst[t] for t in SERIES},
         "bin_sha256": hashlib.sha256(blob).hexdigest(),
         "kernels": {os.path.basename(p): fetch_spice._sha256(p) for p in sorted(kernels.values())},
