@@ -1,0 +1,14 @@
+{
+ "fixture": "worksite_native",
+ "generator": "oracle/build_fixtures.py::worksite_native (stewie.physics.worksite.WorkSite on the real Haworth 5 m bundle, fine_cell_m=None)",
+ "payload_sha256": "72a99ef88ed7a41b77776606270de4a71fd9789231ba2da35ad3ea4e9ac1d6b8",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/column_state.py": "eb3c84f6b087be119b75543af7db1809612476208052c7d1a62b574398cfdf35",
+  "stewie/physics/drive.py": "a4cba2b9227e4e3b7add1b4913bcc4120d2fbd67c100928b1d3cca4d9854f885",
+  "stewie/physics/rover.py": "f420b464fbcd1529d3758e9ce1d5573d84745f1a9ceb5b89ad435388223b29a0",
+  "stewie/physics/sandpile.py": "011b95534372966d3ef1078301cd8d7ceaa4178c9a82a5bd4e262f630c9a7152",
+  "stewie/physics/worksite.py": "edb4197977c5ad5cf237bbfc3488f11edd85c3c7c9cd437354922a795ec7b58f",
+  "stewie/terrain/tiles_mosaic.py": "e2cad158ecd762c76229cf99ab88265bdc8ca52da5bb452afd25f751bd95fa68"
+ }
+}

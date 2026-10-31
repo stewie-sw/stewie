@@ -209,6 +209,11 @@ impl ColumnState {
         self.drum_inventory
     }
 
+    /// The worksite's transient drum register: primed from its global ledger before a dump, cleared after.
+    pub(crate) fn set_drum_inventory(&mut self, kg: f64) {
+        self.drum_inventory = kg;
+    }
+
     #[must_use]
     pub fn cell_area(&self) -> f64 {
         self.cell_m * self.cell_m

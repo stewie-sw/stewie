@@ -15,6 +15,7 @@ pub mod sandpile;
 pub mod soil;
 pub mod stability;
 pub mod terra;
+pub mod worksite;
 
 use std::fmt;
 

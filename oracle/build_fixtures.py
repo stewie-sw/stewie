@@ -839,6 +839,107 @@ def drive_runs() -> None:
                    "tip_limit_deg": ST.tip_tilt_limit_deg(gauge_m=0.57, wheelbase_m=0.40, cg_height_m=0.30)})
 
 
+def worksite_native() -> None:
+    """WorkSite on the real Haworth 5 m bundle at its native cell (fine_cell_m=None, k=1): the streaming path
+    (recenter, per-tick step, flatten, page out, dump, relax, page back, edge clamp) and the single-window path
+    (open_window, drive, flatten, dump, relax). No clasts (D-R54: the Python climb radius differs)."""
+    import math
+
+    from stewie.physics.worksite import WorkSite
+    from stewie.specs import constants as K
+    from stewie_forge.terramechanics import TerramechanicsParams
+
+    bundle = os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m")
+    names = ("mass_areal", "density", "datum", "state_label", "disturbance")
+
+    def window(ws):
+        f = ws.fine
+        return {"origin": list(ws.window_world_origin), "region": list(ws.window_region_rc),
+                "width": f.width, "height": f.height,
+                **{n: getattr(f, n).ravel().tolist() for n in names},
+                "inventory_kg": ws.inventory_kg, "peak_inventory_kg": ws.peak_inventory_kg,
+                "cut_total_kg": ws.cut_total_kg, "placed_total_kg": ws.placed_total_kg,
+                "total_mass": ws.total_mass(), "residual": ws.conservation_residual(),
+                "recenters": ws.recenters,
+                "store": sorted([[t[0], t[1], float(np.asarray(v["mass_areal"]).sum())]
+                                 for t, v in ws.worked_store.items()])}
+
+    def tick(ws, v, w):
+        t, dirty = ws.step(v, w, 0.1)
+        return {k: t[k] for k in ("v_achieved", "omega_achieved", "slip", "entrapped", "sinkage_m",
+                                  "bounds_clamped", "recentered", "pose_xy")} | {"yaw": ws.yaw, "dirty": dirty}
+
+    ws = WorkSite.from_haworth_bundle(bundle, fine_cell_m=None)
+    assert ws.k == 1 and not ws.smooth_datum
+    start = ws.base_rc_to_xy((1000.0, 1000.0))
+    far = ws.base_rc_to_xy((1000.0, 1012.0))
+    ckpt, ticks = {}, []
+    ws.recenter(start)
+    ckpt["first"] = window(ws)
+    ticks += [tick(ws, 0.25, 0.05) for _ in range(12)]
+    h = ws.fine.derive_height()
+    cut = np.zeros(h.shape, dtype=bool)
+    cut[4:8, 4:8] = True
+    cut_target = float(np.median(h[cut]))
+    moved = ws.flatten(cut, cut_target)
+    ckpt["flattened"] = window(ws)
+    ws.recenter(far)
+    ckpt["paged_out"] = window(ws)
+    spot = np.zeros(ws.fine.derive_height().shape, dtype=bool)
+    spot[5:7, 5:7] = True
+    placed = ws.dump(spot, kg=0.5 * ws.inventory_kg)
+    relax_steps, _ = ws.relax(max_steps=400, theta_r=K.THETA_R, transfer_fraction=0.6)
+    ckpt["dumped"] = window(ws)
+    ws.recenter(start)
+    ckpt["returned"] = window(ws)
+    virgin = ws.window_virgin_height().ravel().tolist()
+    diff = ws.diff_field().ravel().tolist()
+    edge_y = ws.base_rc_to_xy((1000.0, 0.0))[1]
+    ws.set_pose((ws.world_x0 + 0.05, edge_y), yaw=math.pi)
+    edge = [tick(ws, 0.25, 0.0) for _ in range(2)]
+    ckpt["edge"] = window(ws)
+    assert moved > 0 and placed > 0 and ws.recenters >= 4 and ws.worked_store
+    assert edge[-1]["bounds_clamped"] and relax_steps < 400
+    assert ckpt["dumped"]["residual"] < 1e-6 * ckpt["dumped"]["total_mass"]
+
+    one = WorkSite.from_haworth_bundle(bundle, fine_cell_m=None)
+    one.open_window((1000.0, 1000.0))
+    twists = [(0.2, 0.0)] * 10
+    drove = one.drive(twists, start_rc=(2.0, 2.0))
+    oh = one.fine.derive_height()
+    all_cells = np.ones(oh.shape, dtype=bool)
+    one_target = float(oh.mean())
+    one_moved = one.flatten(all_cells, one_target)
+    corner = np.zeros(oh.shape, dtype=bool)
+    corner[0, 0] = True
+    one_placed = one.dump(corner)
+    one_steps, _ = one.relax(max_steps=400, theta_r=K.THETA_R, transfer_fraction=0.6)
+    single = window(one)
+    assert one_moved > 0 and one_placed > 0
+    write_fixture(ORACLE_FIXTURES, "worksite_native", "oracle/build_fixtures.py::worksite_native "
+                  "(stewie.physics.worksite.WorkSite on the real Haworth 5 m bundle, fine_cell_m=None)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/physics/worksite.py",
+                   "stewie/physics/drive.py", "stewie/physics/rover.py", "stewie/physics/sandpile.py",
+                   "stewie/physics/column_state.py", "stewie/terrain/tiles_mosaic.py"],
+                  {"bundle": "samples/lunar_dem/haworth_10km_5m", "tile_base_cells": ws.tile_base_cells,
+                   "soil": TerramechanicsParams.from_constants().to_dict(), "g": float(K.g),
+                   "mass_kg": K.ROVER_MASS_DRY_KG, "n_wheels": K.N_WHEELS, "cg_height_m": K.CG_HEIGHT_M,
+                   "wheel_radius_m": 0.18, "wheel_width_m": 0.18, "contact_len_m": 0.10, "track_m": 0.5207,
+                   "gauge_m": 0.57, "wheelbase_m": 0.40,
+                   "v_max": ws.v_max, "omega_max": ws.omega_max, "theta_r": float(K.THETA_R),
+                   "transfer_fraction": 0.6, "dt": 0.1,
+                   "world": [ws.world_x0, ws.world_y0, ws.world_x1, ws.world_y1],
+                   "start_xy": list(start), "far_xy": list(far), "tick_cmd": [0.25, 0.05], "ticks": ticks,
+                   "cut_target_m": cut_target, "moved_kg": moved, "placed_kg": placed, "relax_steps": relax_steps,
+                   "virgin_height": virgin, "diff": diff, "edge_pose": [ws.world_x0 + 0.05, edge_y, math.pi],
+                   "edge_ticks": edge, "checkpoints": ckpt,
+                   "single": {"base_rc": [1000.0, 1000.0], "twists": twists, "start_rc": [2.0, 2.0],
+                              "drive": {k: drove[k] for k in ("commanded_dist_m", "achieved_dist_m", "final_rc",
+                                                              "final_yaw", "any_entrapped")},
+                              "target_m": one_target, "moved_kg": one_moved, "placed_kg": one_placed,
+                              "relax_steps": one_steps, "window": single}})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1097,6 +1198,7 @@ def main() -> None:
     rover_ops()
     conform_cases()
     drive_runs()
+    worksite_native()
     world_log_cases()
     twin_store_cases()
     route_cases()

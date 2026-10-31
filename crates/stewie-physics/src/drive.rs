@@ -10,6 +10,7 @@ use crate::material::MaterialModel;
 use crate::rover::{self, Clast, Compaction, ConformSetup};
 use crate::soil::SoilParams;
 use crate::terra::{self, DriveCase};
+use stewie_contracts::rover_profile::RoverProfile;
 
 /// Rigid-wheel contact chord [m] for a wheel of radius `r` sunk by `z`: `2*sqrt(r z - z^2/4)`, `z <= 2r`.
 #[must_use]
@@ -64,6 +65,25 @@ pub struct Vehicle {
     pub cg_height_m: f64,
     /// Skid-steer kinematic track [m].
     pub track_m: f64,
+}
+
+impl Vehicle {
+    /// The vehicle a rover profile describes; each figure keeps its tag and source in the profile (RW-30r).
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // a wheel count
+    pub fn from_profile(p: &RoverProfile) -> Self {
+        Self {
+            mass_kg: p.mass_dry_kg.value,
+            n_wheels: p.n_wheels.value as u32,
+            gauge_m: p.track_gauge_m.value,
+            wheelbase_m: p.wheelbase_m.value,
+            wheel_radius_m: p.wheel_radius_m.value,
+            wheel_width_m: p.contact_width_m.value,
+            nominal_contact_len_m: p.contact_len_m.value,
+            cg_height_m: p.cg_height_m.value,
+            track_m: p.skid_steer_track_m.value,
+        }
+    }
 }
 
 /// Per-side skid-steer outcome.
