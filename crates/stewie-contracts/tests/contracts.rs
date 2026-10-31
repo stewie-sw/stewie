@@ -179,10 +179,12 @@ fn rover_profile_validates_and_a_profile_missing_any_field_is_rejected() {
 /// A source line that compiles a reserve number in (comments and string literals excluded).
 fn compiles_a_reserve(line: &str) -> bool {
     let l = line.to_lowercase();
-    l.contains("reserve")
-        && l.chars().any(|c| c.is_ascii_digit())
-        && !l.trim_start().starts_with("//")
-        && !l.contains('"')
+    // a numeric literal starts with a digit not glued to an identifier (so `f64` is not a number)
+    let b = l.as_bytes();
+    let literal = (0..b.len()).any(|i| {
+        b[i].is_ascii_digit() && (i == 0 || !(b[i - 1].is_ascii_alphanumeric() || b[i - 1] == b'_'))
+    });
+    l.contains("reserve") && literal && !l.trim_start().starts_with("//") && !l.contains('"')
 }
 
 /// RW-30: battery reserves come only from mission configuration; no crate compiles one in.
@@ -190,6 +192,10 @@ fn compiles_a_reserve(line: &str) -> bool {
 fn no_reserve_default_is_compiled_into_any_crate() {
     // vacuity guard: the predicate does catch the pattern it exists for (synthetic lines, labelled)
     assert!(compiles_a_reserve("    let battery_reserve_frac = 0.10;"));
+    assert!(
+        !compiles_a_reserve("    let terms = |reserve: Input<f64>| {"),
+        "a type name is not a number"
+    );
     assert!(!compiles_a_reserve("    // reserve 10% before recharge"));
     let mut hits = Vec::new();
     let mut stack = vec![repo().join("crates")];

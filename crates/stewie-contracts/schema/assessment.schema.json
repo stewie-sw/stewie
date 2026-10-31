@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/assessment.schema.json",
+  "title": "AssessmentEvidence",
+  "description": "The evidence record every assessment carries (navigator R8): the three-state answer, the binding check, every check with its margin and unit, each input with its value, data version and whether it is simulated, the assumptions and rule revision, and the constraint groups not assessed. States are worded as the navigator requires: 'meets modeled constraints', never 'all constraints met'.",
+  "type": "object", "additionalProperties": false,
+  "required": ["template", "rule_revision", "assessed_at_tdb", "state", "binding", "simulated", "assumptions", "not_assessed", "checks"],
+  "properties": {
+    "template": { "type": "string", "minLength": 1 },
+    "rule_revision": { "type": "string", "minLength": 1 },
+    "assessed_at_tdb": { "type": "number" },
+    "state": { "$ref": "#/definitions/State" },
+    "binding": { "type": ["string", "null"] },
+    "simulated": { "type": "boolean" },
+    "assumptions": { "type": "array", "items": { "type": "string" } },
+    "not_assessed": { "type": "array", "items": { "type": "string" } },
+    "checks": { "type": "array", "items": { "$ref": "#/definitions/Check" } }
+  },
+  "definitions": {
+    "State": { "enum": ["meets modeled constraints", "violates", "cannot assess"] },
+    "Check": {
+      "type": "object", "additionalProperties": false,
+      "required": ["group", "kind", "state", "margin", "unit", "detail", "inputs"],
+      "properties": {
+        "group": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["hard", "soft"] },
+        "state": { "$ref": "#/definitions/State" },
+        "margin": { "type": ["number", "null"] },
+        "unit": { "type": "string" },
+        "detail": { "type": "string" },
+        "inputs": { "type": "array", "items": { "$ref": "#/definitions/Input" } }
+      }
+    },
+    "Input": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["name", "status", "value", "version", "as_of_tdb", "simulated"],
+          "properties": { "name": { "type": "string" }, "status": { "const": "known" }, "value": {}, "version": { "type": "string" },
+                          "as_of_tdb": { "type": "number" }, "simulated": { "type": "boolean" } } },
+        { "type": "object", "additionalProperties": false, "required": ["name", "status", "why"],
+          "properties": { "name": { "type": "string" }, "status": { "enum": ["missing", "unmodeled"] }, "why": { "type": "string" } } }
+      ]
+    }
+  }
+}
