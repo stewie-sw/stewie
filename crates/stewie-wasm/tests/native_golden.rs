@@ -29,3 +29,22 @@ fn engine_refuses_an_unknown_body_and_a_bad_instant() {
             .is_err()
     );
 }
+
+#[test]
+fn horizon_json_round_trips_and_rejects_ragged_arrays() {
+    let e = scenario::Inputs::from_repo().unwrap().engine().unwrap();
+    let h = e
+        .horizon(
+            -86.318_398_660_548_35,
+            -25.414_052_740_154_946,
+            72,
+            20_000.0,
+            50.0,
+            1.5,
+        )
+        .unwrap();
+    let json = serde_json::json!({"az_deg": h.az_deg, "elev_deg": h.elev_deg, "reach_m": h.reach_m, "complete": h.complete, "sources": h.sources}).to_string();
+    assert_eq!(stewie_wasm::horizon_from_json(&json).unwrap(), h);
+    let ragged = json.replacen("\"reach_m\":[", "\"reach_m\":[1.0,", 1);
+    assert!(stewie_wasm::horizon_from_json(&ragged).is_err());
+}

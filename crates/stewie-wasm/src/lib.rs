@@ -182,6 +182,58 @@ impl Engine {
     }
 }
 
+/// Rebuild a [`Horizon`] from the JSON the `horizon` binding returns (the browser hands it back).
+///
+/// # Errors
+/// Missing or mistyped fields, or arrays of different lengths.
+pub fn horizon_from_json(json: &str) -> Result<Horizon, String> {
+    let v: serde_json::Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
+    let nums = |k: &str| -> Result<Vec<f64>, String> {
+        v[k].as_array()
+            .ok_or(format!("horizon.{k} missing"))?
+            .iter()
+            .map(|x| x.as_f64().ok_or(format!("horizon.{k} not numeric")))
+            .collect()
+    };
+    let elev: Vec<Option<f64>> = v["elev_deg"]
+        .as_array()
+        .ok_or("horizon.elev_deg missing")?
+        .iter()
+        .map(serde_json::Value::as_f64)
+        .collect();
+    let complete: Vec<bool> = v["complete"]
+        .as_array()
+        .ok_or("horizon.complete missing")?
+        .iter()
+        .map(|x| x.as_bool().ok_or("horizon.complete not boolean"))
+        .collect::<Result<_, _>>()?;
+    let sources: Vec<String> = v["sources"]
+        .as_array()
+        .ok_or("horizon.sources missing")?
+        .iter()
+        .map(|x| {
+            x.as_str()
+                .map(str::to_owned)
+                .ok_or("horizon.sources not strings")
+        })
+        .collect::<Result<_, _>>()?;
+    let (az, reach) = (nums("az_deg")?, nums("reach_m")?);
+    if [elev.len(), reach.len(), complete.len()]
+        .iter()
+        .any(|n| *n != az.len())
+        || az.is_empty()
+    {
+        return Err("horizon arrays differ in length or are empty".into());
+    }
+    Ok(Horizon {
+        az_deg: az,
+        elev_deg: elev,
+        reach_m: reach,
+        complete,
+        sources,
+    })
+}
+
 /// The R10 determinism scenario: real Haworth tile over LOLA `LDEM_16`.
 pub mod scenario {
     use serde::Serialize;
@@ -389,6 +441,38 @@ mod bindings {
                 .horizon(lat, lon, n_az, max_range_m, step_m, eye_m)
                 .map_err(|e| JsError::new(&e))?;
             Ok(serde_json::json!({"az_deg": h.az_deg, "elev_deg": h.elev_deg, "reach_m": h.reach_m, "complete": h.complete, "sources": h.sources}).to_string())
+        }
+
+        #[wasm_bindgen(js_name = stackSignature)]
+        pub fn stack_signature(&self) -> String {
+            self.0.stack_signature()
+        }
+
+        /// Windows of `body` over a horizon (as returned by `horizon`), as JSON
+        /// `[{start_s, end_s, verdict}]` with times in seconds from `start_utc`.
+        #[allow(clippy::too_many_arguments)] // mirrors the native signature
+        pub fn windows(
+            &self,
+            body: &str,
+            lat: f64,
+            lon: f64,
+            start_utc: &str,
+            end_utc: &str,
+            sample_s: f64,
+            eye_m: f64,
+            horizon_json: &str,
+        ) -> Result<String, JsError> {
+            let h = super::horizon_from_json(horizon_json).map_err(|e| JsError::new(&e))?;
+            let w = self
+                .0
+                .windows(body, lat, lon, start_utc, end_utc, sample_s, eye_m, &h)
+                .map_err(|e| JsError::new(&e))?;
+            let t0 = w.first().map_or(0.0, |x| x.start_tdb);
+            let out: Vec<_> = w
+                .iter()
+                .map(|x| serde_json::json!({"start_s": x.start_tdb - t0, "end_s": x.end_tdb - t0, "verdict": format!("{:?}", x.verdict)}))
+                .collect();
+            Ok(serde_json::Value::from(out).to_string())
         }
 
         #[wasm_bindgen(js_name = azEl)]

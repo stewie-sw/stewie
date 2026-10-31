@@ -1,0 +1,35 @@
+{
+  "name": "stewie-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "STEWIE web app: rover operations and EVA navigation over one store and clock (RW-70, D-R10).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "gen:contracts": "node scripts/gen-contracts.mjs",
+    "build:engine": "cargo build --manifest-path ../Cargo.toml -p stewie-wasm --target wasm32-unknown-unknown --release && wasm-bindgen --target web --out-dir src/engine/pkg ../target/wasm32-unknown-unknown/release/stewie_wasm.wasm"
+  },
+  "dependencies": {
+    "ol": "10.11.0",
+    "proj4": "2.22.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-router-dom": "7.18.4"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "ajv": "8.20.0",
+    "jsdom": "30.1.3",
+    "json-schema-to-typescript": "16.0.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}

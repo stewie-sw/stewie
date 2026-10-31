@@ -1,6 +1,8 @@
 import { useState, useSyncExternalStore } from "react";
 import sites from "../../crates/stewie-contracts/fixtures/sites.json";
 import type { SiteCatalog } from "./contracts/site";
+import type { EngineApi } from "./engine/api";
+import { SiteExplorer } from "./explorer/SiteExplorer";
 import { MapView } from "./map/MapView";
 import { type AppStore, type Mode, isUtc } from "./store/store";
 
@@ -13,7 +15,8 @@ const MODES: { id: Mode; label: string }[] = [
 
 const CATALOG: SiteCatalog = sites;
 
-export function App({ store }: { store: AppStore }) {
+/** `engineFor` supplies the engine for a terrain bundle; without it (no Worker support) the explorer is not shown. */
+export function App({ store, engineFor }: { store: AppStore; engineFor?: (bundle: string | null) => EngineApi }) {
   const state = useSyncExternalStore(store.subscribe, store.get);
   const [draft, setDraft] = useState<string | null>(null);
   const shown = draft ?? state.utc;
@@ -42,6 +45,7 @@ export function App({ store }: { store: AppStore }) {
         </label>
       </header>
       {(state.mode === "planning" || state.mode === "field") && <MapView catalog={CATALOG} />}
+      {state.mode === "planning" && engineFor && <Explorer store={state} engineFor={engineFor} />}
       <section aria-label="Sites">
         <h2>Sites</h2>
         <ul>
@@ -60,4 +64,10 @@ export function App({ store }: { store: AppStore }) {
       </section>
     </div>
   );
+}
+
+function Explorer({ store, engineFor }: { store: { selectedSites: string[]; utc: string }; engineFor: (bundle: string | null) => EngineApi }) {
+  const site = store.selectedSites.map((n) => CATALOG[n]).find((s) => s !== undefined);
+  if (!site) return <p>Select a site to explore its sky and light.</p>;
+  return <SiteExplorer api={engineFor(site.bundle)} site={site} utc={store.utc} />;
 }
