@@ -1,12 +1,15 @@
 //! Per-segment route profile (navigator N23, DAG RW-31): along a route's waypoints, each segment's
 //! length, rise and signed slope from the DEM, its travel time from the agent's speed model, and at
-//! every node the arrival time and where the Sun and the Earth stand (apparent azimuth and elevation from
-//! the ephemeris). The speed model belongs to the agent profile (the rover's sourced drive speed; the EVA
+//! every node the arrival time, where the Sun and the Earth stand (apparent azimuth and elevation from the
+//! ephemeris) and whether each is visible over that node's terrain horizon (Lit, Shadow or Unknown). The speed model belongs to the agent profile (the rover's sourced drive speed; the EVA
 //! walking model is blocked on sourced data, D-R35). A non-positive or non-finite speed makes the whole
 //! profile unassessable, never a guess.
 
+use lunar_dem::TerrainStack;
 use lunar_ephem::{AzEl, Body, Ephemeris, az_el};
 use lunar_frames::{LatLon, Sphere, body_fixed};
+use lunar_horizon::{HorizonConfig, horizon};
+use lunar_intervals::{Verdict, verdict_at};
 
 use crate::route::Dem;
 
@@ -23,13 +26,16 @@ pub struct Segment {
     pub t_end_s: f64,
 }
 
-/// Where the Sun and the Earth stand at a node when the agent arrives.
+/// Where the Sun and the Earth stand at a node when the agent arrives, and whether each clears the node's
+/// terrain horizon.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NodeSky {
     pub site: LatLon,
     pub tdb: f64,
     pub sun: AzEl,
     pub earth: AzEl,
+    pub sun_verdict: Verdict,
+    pub earth_verdict: Verdict,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,13 +48,16 @@ pub struct Profile {
 }
 
 /// Where the route sits on the Moon: grid `(row, col)` to selenographic position, the body sphere, the
-/// ephemeris and the departure epoch (TDB seconds).
+/// ephemeris, the departure epoch (TDB seconds), and the terrain each node's horizon is cast over (its eye
+/// height is the frame's).
 pub struct SkyFrame<'a> {
     pub to_latlon: &'a dyn Fn(f64, f64) -> LatLon,
     pub moon: Sphere,
     pub ephemeris: &'a Ephemeris,
     pub depart_tdb: f64,
     pub eye_height_m: f64,
+    pub terrain: &'a TerrainStack,
+    pub horizon: HorizonConfig,
 }
 
 impl std::fmt::Debug for SkyFrame<'_> {
@@ -67,6 +76,8 @@ pub enum ProfileError {
     OffDem((f64, f64)),
     /// A node's time is outside the ephemeris span.
     Ephemeris(String),
+    /// A node's horizon could not be cast (no terrain under it, or a bad horizon configuration).
+    Horizon(String),
 }
 
 /// Bilinear DEM height at a local point (grid nodes sit at `col * cell`, `row * cell` in DEM metres).
@@ -126,6 +137,10 @@ pub fn profile(
     }
     let mut nodes = Vec::new();
     if let Some(f) = sky {
+        let hcfg = HorizonConfig {
+            eye_height_m: f.eye_height_m,
+            ..f.horizon.clone()
+        };
         for (k, &(x, y)) in waypoints.iter().enumerate() {
             let site = (f.to_latlon)(
                 (y + dem.origin.1) / dem.cell_m,
@@ -139,11 +154,19 @@ pub fn profile(
                     .map(|v| az_el(v, site))
                     .map_err(|e| ProfileError::Ephemeris(e.to_string()))
             };
+            let h = horizon(f.terrain, site, &hcfg)
+                .map_err(|e| ProfileError::Horizon(e.to_string()))?;
+            let seen = |b| {
+                verdict_at(f.ephemeris, &h, site, pos, b, tdb)
+                    .map_err(|e| ProfileError::Ephemeris(e.to_string()))
+            };
             nodes.push(NodeSky {
                 site,
                 tdb,
                 sun: dir(Body::Sun)?,
                 earth: dir(Body::Earth)?,
+                sun_verdict: seen(Body::Sun)?,
+                earth_verdict: seen(Body::Earth)?,
             });
         }
     }

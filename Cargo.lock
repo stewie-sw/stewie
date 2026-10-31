@@ -1091,6 +1091,7 @@ dependencies = [
  "jsonschema",
  "lunar-intervals",
  "serde_json",
+ "stewie-contracts",
 ]
 
 [[package]]
@@ -1150,6 +1151,8 @@ dependencies = [
  "lunar-dem",
  "lunar-ephem",
  "lunar-frames",
+ "lunar-horizon",
+ "lunar-intervals",
  "serde_json",
  "stewie-contracts",
  "stewie-oracle",

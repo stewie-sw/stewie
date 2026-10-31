@@ -242,6 +242,12 @@ fn compiles_a_reserve(line: &str) -> bool {
     l.contains("reserve") && literal && !l.trim_start().starts_with("//") && !l.contains('"')
 }
 
+/// Shipped crate source: everything under `crates/` except integration-test directories, whose SYNTHETIC
+/// mission inputs (labelled) stand in for mission configuration (D-R80).
+fn is_shipped(p: &Path) -> bool {
+    !p.components().any(|c| c.as_os_str() == "tests")
+}
+
 /// RW-30: battery reserves come only from mission configuration; no crate compiles one in.
 #[test]
 fn no_reserve_default_is_compiled_into_any_crate() {
@@ -252,6 +258,8 @@ fn no_reserve_default_is_compiled_into_any_crate() {
         "a type name is not a number"
     );
     assert!(!compiles_a_reserve("    // reserve 10% before recharge"));
+    assert!(is_shipped(Path::new("crates/stewie-assess/src/eva.rs")));
+    assert!(!is_shipped(Path::new("crates/stewie-assess/tests/eva.rs")));
     let mut hits = Vec::new();
     let mut stack = vec![repo().join("crates")];
     while let Some(dir) = stack.pop() {
@@ -259,7 +267,7 @@ fn no_reserve_default_is_compiled_into_any_crate() {
             let p = e.path();
             if p.is_dir() {
                 stack.push(p);
-            } else if p.extension().is_some_and(|x| x == "rs") {
+            } else if p.extension().is_some_and(|x| x == "rs") && is_shipped(&p) {
                 for (n, line) in fs::read_to_string(&p).unwrap().lines().enumerate() {
                     if compiles_a_reserve(line) {
                         hits.push(format!("{}:{}", p.display(), n + 1));

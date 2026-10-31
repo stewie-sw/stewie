@@ -1,14 +1,17 @@
 //! The route profile (N23): a SYNTHETIC 10 deg ramp (labelled) gives the analytic along-track slope in
 //! every direction; segment times are contiguous and sum to the total; an unusable speed or an off-DEM
 //! waypoint is refused; and on the REAL Haworth window a routed leg, timed at the rover profile's sourced
-//! drive speed, places every node at its georeferenced cell with the Sun and Earth at its arrival time.
+//! drive speed, places every node at its georeferenced cell with the Sun and Earth at its arrival time, and
+//! gives each node the same Sun and Earth verdict as the visibility windows over that node's horizon.
 
-use lunar_dem::DemTile;
+use lunar_dem::{DemTile, GlobalGrid, TerrainSource, TerrainStack};
 use lunar_ephem::{Body, Ephemeris, Utc, az_el};
 use lunar_frames::{Sphere, body_fixed};
+use lunar_horizon::{HorizonConfig, horizon};
+use lunar_intervals::{Verdict, VisibilityConfig, visibility_windows};
 use serde_json::Value;
 use stewie_traverse::costmap::CostmapOptions;
-use stewie_traverse::profile::{ProfileError, SkyFrame, profile};
+use stewie_traverse::profile::{NodeSky, ProfileError, SkyFrame, profile};
 use stewie_traverse::route::{Dem, route_leg};
 
 #[track_caller]
@@ -113,6 +116,69 @@ fn no_speed_and_off_dem_are_refused() {
     ));
 }
 
+/// 2-degree azimuth bins out to 20 km at 50 m steps, eye 1 m (the frame's eye height overrides it).
+fn horizon_cfg() -> HorizonConfig {
+    HorizonConfig {
+        n_az: 180,
+        max_range_m: 20_000.0,
+        step_m: 50.0,
+        eye_height_m: 1.0,
+        start_m: 0.0,
+    }
+}
+
+/// The REAL Haworth 5 m tile over `LDEM_16`, so 20 km horizon rays complete.
+fn haworth_over_ldem16(moon: Sphere) -> TerrainStack {
+    let root = stewie_oracle::repo_root();
+    let cache = root.join(".cache/terrain");
+    let tile = DemTile::open(&root.join("samples/lunar_dem/haworth_10km_5m"), moon).unwrap();
+    let global =
+        GlobalGrid::open(&cache.join("ldem_16.img"), &cache.join("ldem_16.lbl"), moon).unwrap();
+    TerrainStack::new(vec![
+        (1, Box::new(tile) as Box<dyn TerrainSource>),
+        (9, Box::new(global)),
+    ])
+}
+
+/// A node's Sun and Earth verdicts equal the visibility windows over the same horizon at its arrival.
+fn window_verdicts_agree(
+    eph: &Ephemeris,
+    terrain: &TerrainStack,
+    hcfg: &HorizonConfig,
+    node: &NodeSky,
+    ground_m: f64,
+    moon: Sphere,
+) {
+    let h = horizon(terrain, node.site, hcfg).unwrap();
+    let cfg = VisibilityConfig {
+        sample_s: 60.0,
+        tolerance_s: 1.0,
+        eye_height_m: hcfg.eye_height_m,
+        ground_height_m: ground_m,
+        moon,
+    };
+    for (body, got) in [
+        (Body::Sun, node.sun_verdict),
+        (Body::Earth, node.earth_verdict),
+    ] {
+        let ws = visibility_windows(
+            eph,
+            &h,
+            node.site,
+            body,
+            node.tdb - 600.0,
+            node.tdb + 600.0,
+            &cfg,
+        )
+        .unwrap();
+        let w = ws
+            .iter()
+            .find(|w| w.start_tdb <= node.tdb && node.tdb <= w.end_tdb)
+            .unwrap();
+        assert_eq!(got, w.verdict, "{body:?} at {:?}", node.site);
+    }
+}
+
 #[test]
 #[allow(
     clippy::cast_possible_truncation,
@@ -171,12 +237,15 @@ fn a_real_route_is_timed_and_its_sky_placed_at_each_georeferenced_node() {
     let to_ll = |row: f64, col: f64| tile.grid_latlon(wr + row, wc + col);
     let eph = Ephemeris::bundled().unwrap();
     let depart = eph.tdb(&Utc::parse_iso8601("2027-01-15T00:00:00Z").unwrap());
+    let terrain = haworth_over_ldem16(moon);
     let sky = SkyFrame {
         to_latlon: &to_ll,
         moon,
         ephemeris: &eph,
         depart_tdb: depart,
         eye_height_m: 1.0,
+        terrain: &terrain,
+        horizon: horizon_cfg(),
     };
     let p = profile(dem, &route.waypoints, &|_| speed, Some(&sky)).unwrap();
     assert_eq!(p.sky.len(), route.waypoints.len());
@@ -211,5 +280,11 @@ fn a_real_route_is_timed_and_its_sky_placed_at_each_georeferenced_node() {
             node.sun.el_deg.abs() < 10.0,
             "near the south pole the Sun grazes the horizon"
         );
+        if [0, p.sky.len() / 2, p.sky.len() - 1].contains(&k) {
+            window_verdicts_agree(&eph, &terrain, &sky.horizon, node, ground, moon);
+        }
     }
+    // vacuity: the 5 m tile over LDEM_16 completes the rays, so some node has a definite Sun verdict
+    let definite = p.sky.iter().filter(|n| n.sun_verdict != Verdict::Unknown);
+    assert!(definite.count() > 0, "every Sun verdict is Unknown");
 }

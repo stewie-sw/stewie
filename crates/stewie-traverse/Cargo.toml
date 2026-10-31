@@ -11,6 +11,8 @@ publish.workspace = true
 lunar-dem = { path = "../lunar-dem" }
 lunar-ephem = { path = "../lunar-ephem" }
 lunar-frames = { path = "../lunar-frames" }
+lunar-horizon = { path = "../lunar-horizon" }
+lunar-intervals = { path = "../lunar-intervals" }
 
 [dev-dependencies]
 stewie-contracts = { path = "../stewie-contracts" }

@@ -17,6 +17,8 @@
 use lunar_intervals::{Verdict, Window};
 use serde_json::{Value, json};
 
+pub mod eva;
+
 /// One input to a check.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Input<T> {

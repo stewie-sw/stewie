@@ -150,6 +150,31 @@ fn observer<'a>(
     })
 }
 
+/// The verdict for `body` at one instant from an observer at `position_m` (body-fixed) over `site`, by the same
+/// rule as the windows: `Shadow` below the known horizon, `Lit` only where its sector is complete, else `Unknown`.
+///
+/// # Errors
+/// An empty horizon, or an epoch outside the ephemeris.
+pub fn verdict_at(
+    eph: &Ephemeris,
+    horizon: &Horizon,
+    site: LatLon,
+    position_m: [f64; 3],
+    body: Body,
+    tdb: f64,
+) -> Result<Verdict, IntervalError> {
+    if horizon.az_deg.is_empty() {
+        return Err(IntervalError::EmptyHorizon);
+    }
+    Observer {
+        eph,
+        horizon,
+        site,
+        position_m,
+    }
+    .verdict(body, tdb)
+}
+
 /// Sample times from `t0` to `t1` inclusive, `step` apart (the last step may be shorter).
 fn sample_times(t0: f64, t1: f64, step: f64) -> Vec<f64> {
     let mut ts = Vec::new();
