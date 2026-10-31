@@ -46,6 +46,9 @@ Fixtures:
                      (labelled; wheel-scale ruts have no real fine grid here): step_pose arcs, four-wheel
                      passes (constant and physical with slip), a single rut, a drum cut with dump,
                      straight_path edge cases and the yaw wrap.
+  conform_cases      stewie.physics.rover.conform_pose on the REAL Haworth crop heights (5 m cells): rest
+                     plane, pitch/roll, contacts and per-wheel normal loads at several poses and payloads,
+                     with and without SYNTHETIC rocks (labelled) under a wheel, one past the climb limit.
 """
 from __future__ import annotations
 
@@ -712,6 +715,47 @@ def rover_ops() -> None:
                    "paths": paths, "wraps": wraps, "targets": targets})
 
 
+def conform_cases() -> None:
+    from stewie.physics import rover as RV
+    from stewie.specs import constants as K
+
+    hm = _real_crop_state().derive_height()
+    cell = 5.0
+    cases = []
+    for center in ((10.3, 12.7), (16.0, 16.0), (0.2, 31.5), (25.5, 5.5)):
+        for heading in (0.0, 0.7, -2.0, 3.14):
+            for payload in (0.0, 30.0):
+                for rocks in ("none", "shoulder", "tall"):
+                    clasts = []
+                    if rocks != "none":
+                        lf = RV.wheel_contact_points(center, heading, cell_m=cell)["LF"]
+                        x, z = lf[1] * cell, lf[0] * cell
+                        dem = RV._bilinear_height(hm, lf[0], lf[1])
+                        r = 0.25 if rocks == "shoulder" else 0.9
+                        clasts = [{"center_m": [x + 0.05, dem - 0.1, z - 0.05], "radius_m": r}]   # SYNTHETIC rock
+                    out = RV.conform_pose(hm, center, heading, cell_m=cell, clasts=clasts, payload_kg=payload)
+                    cases.append({"center": list(center), "heading": heading, "payload_kg": payload, "clasts": clasts,
+                                  **out})
+    # SYNTHETIC tilts (labelled) past the ~33.7 deg lift-off pitch, so the clamp-and-renormalise branch runs
+    reactions = []
+    for pitch in (-60.0, -35.0, 0.0, 20.0, 50.0):
+        for roll in (-55.0, 0.0, 40.0):
+            for weight in (48.6, 97.2):
+                pr, rr = math.radians(pitch), math.radians(roll)
+                cos_t = 1.0 / math.sqrt(1.0 + math.tan(pr) ** 2 + math.tan(rr) ** 2)
+                out = RV._wheel_normal_reactions(weight, cos_t, pr, rr, wheelbase_m=RV.WHEEL_BASE_M,
+                                                 gauge_m=RV.WHEEL_GAUGE_M, cg_height_m=K.CG_HEIGHT_M)
+                reactions.append({"weight_n": weight, "cos_tilt": cos_t, "pitch_rad": pr, "roll_rad": rr,
+                                  "loads": [out[k] for k in ("LF", "RF", "LB", "RB")]})
+    write_fixture(ORACLE_FIXTURES, "conform_cases", "oracle/build_fixtures.py::conform_cases "
+                  "(stewie.physics.rover.conform_pose on the real Haworth crop; rocks SYNTHETIC, labelled)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/physics/rover.py", "stewie/specs/constants.py"],
+                  {"width": hm.shape[1], "height": hm.shape[0], "cell_m": cell, "heightmap": hm.ravel().tolist(),
+                   "climb_limit_m": RV.WHEEL_RADIUS_M, "min_grad_cells": 2.5, "gauge_m": RV.WHEEL_GAUGE_M,
+                   "wheelbase_m": RV.WHEEL_BASE_M, "cg_height_m": K.CG_HEIGHT_M, "mass_dry_kg": K.ROVER_MASS_DRY_KG,
+                   "g": float(K.g), "cases": cases, "reactions": reactions})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -781,6 +825,7 @@ def main() -> None:
     sandpile_runs()
     excavation_cases()
     rover_ops()
+    conform_cases()
 
 
 if __name__ == "__main__":

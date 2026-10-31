@@ -1,0 +1,10 @@
+{
+ "fixture": "conform_cases",
+ "generator": "oracle/build_fixtures.py::conform_cases (stewie.physics.rover.conform_pose on the real Haworth crop; rocks SYNTHETIC, labelled)",
+ "payload_sha256": "a4f161d418f94b33581425c1001ff471ed06388703556d2564bace4b0172db4a",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/rover.py": "f420b464fbcd1529d3758e9ce1d5573d84745f1a9ceb5b89ad435388223b29a0",
+  "stewie/specs/constants.py": "3eacdd47e1491b20a3dfc5523f50e1a530630d16e79c1fd78bf36daa85ef1f65"
+ }
+}
