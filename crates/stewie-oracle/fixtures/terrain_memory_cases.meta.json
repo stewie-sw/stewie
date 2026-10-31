@@ -1,0 +1,10 @@
+{
+ "fixture": "terrain_memory_cases",
+ "generator": "oracle/build_fixtures.py::terrain_memory_cases (stewie.twin.terrain_memory.TerrainMemory with WorkSite deltas on the real Haworth 5 m bundle)",
+ "payload_sha256": "cfb927e1d8eed3f137e063e5667cbd2b53b770aa334e71aa5e128f47dabf96d3",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/worksite.py": "edb4197977c5ad5cf237bbfc3488f11edd85c3c7c9cd437354922a795ec7b58f",
+  "stewie/twin/terrain_memory.py": "d3f12f7d939d9d8d93703eacac1296333171f24c33c60a1a2f9a2bf0918b0233"
+ }
+}

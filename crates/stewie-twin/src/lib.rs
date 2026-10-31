@@ -3,7 +3,9 @@
 //! `json.dumps(obj, sort_keys=True)`.
 
 pub mod journal;
+pub mod numpy;
 pub mod pyjson;
+pub mod terrain_memory;
 pub mod twin_store;
 pub mod world_log;
 

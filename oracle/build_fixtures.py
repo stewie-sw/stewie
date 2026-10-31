@@ -1016,6 +1016,87 @@ def worksite_refined() -> None:
                    "checkpoints": ckpt, "single": {"base_rc": [1000.0, 1000.0], "window": single}})
 
 
+def terrain_memory_cases() -> None:
+    """TerrainMemory (RW-21c) over real worked terrain: each mission delta is a WorkSite diff on the real Haworth 5 m
+    bundle (cut, then dump and relax), folded into a site grid, clipped, reverted and imprinted on a real DEM crop;
+    a 1 m memory (WorkSite at k=5) imprints onto the 5 m DEM by volume-conserving block aggregation. Also pins
+    numpy's pairwise float64 sum and Python round(x, 6) on real heights, which the chain hashes depend on."""
+    from stewie.physics.worksite import WorkSite, coarse_base_from_bundle
+    from stewie.twin.terrain_memory import TerrainMemory
+
+    bundle = os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m")
+    base, _ = coarse_base_from_bundle(bundle)
+    heights = base.derive_height()
+
+    def worked(fine_cell_m):
+        ws = WorkSite.from_haworth_bundle(bundle, fine_cell_m=fine_cell_m)
+        ws.mosaic.overlay_params = {"fbm_nu0": 0.0, "smooth": "bilinear"}
+        ws.recenter(ws.base_rc_to_xy((1000.0, 1000.0)))
+        h = ws.fine.derive_height()
+        n = h.shape[0] // 3
+        cut = np.zeros(h.shape, dtype=bool)
+        cut[n:2 * n, n:2 * n] = True
+        moved = ws.flatten(cut, float(np.median(h[cut])))
+        d_cut = ws.diff_field().copy()
+        spot = np.zeros(h.shape, dtype=bool)
+        spot[2 * n:2 * n + n // 2, n:n + n // 2] = True
+        ws.dump(spot)
+        ws.relax(max_steps=400)
+        return moved, d_cut, ws.diff_field() - d_cut
+
+    moved, d1, d2 = worked(None)                              # 12 x 12 at 5 m
+    tm = TerrainMemory(site="haworth", rows=20, cols=20, cell_m=5.0, origin=(10.0, -5.0))
+    placed = [tm.apply_subgrid(d1, sub_origin=(20.0, 5.0), cell_m=5.0, mission="m1 cut", mass_moved_kg=moved),
+              tm.apply_subgrid(d2, sub_origin=(70.0, 45.0), cell_m=5.0, mission="m2 dump", mass_moved_kg=0.5 * moved)]
+    d3 = np.zeros((20, 20))
+    d3[3:15, 3:15] = -0.25 * d1
+    tm.apply(d3, mission="m3 trim", mass_moved_kg=0.0)
+    assert placed[0]["clipped"] is False and placed[1]["clipped"] is True and placed[1]["placed_cells"] > 0
+    assert tm.verify_chain()
+    dem = heights[990:1030, 980:1020].copy()                  # 40 x 40 real DEM crop
+    before_revert = {"chain": tm.chain, "summary": tm.summary(), "cumulative": tm.cumulative_delta().ravel().tolist(),
+                     "delta_at": [tm.delta_at(v).ravel().tolist() for v in (1, 2, 3)],
+                     "cumulative_at_2": tm.cumulative_delta_at(2).ravel().tolist(),
+                     "height_at_1": tm.height_at(heights[0:20, 0:20], 1).ravel().tolist(),
+                     "imprint": tm.imprint_on_dem(dem, dem_cell=5.0, dem_origin=(-5.0, 15.0)).ravel().tolist()}
+    tm.save(os.path.join(ORACLE_FIXTURES, "terrain_memory_haworth.npz"))   # in the gate's fixture snapshot
+    tm.revert_to(2)
+    after_revert = {"chain": tm.chain, "summary": tm.summary(), "cumulative": tm.cumulative_delta().ravel().tolist()}
+
+    fmoved, f1, _ = worked(1.0)                               # 60 x 60 at 1 m (k = 5)
+    fine = TerrainMemory(site="haworth fine", rows=60, cols=60, cell_m=1.0, origin=(3.0, 2.0))
+    fine.apply(f1, mission="fine cut", mass_moved_kg=fmoved)
+    resampled = fine.imprint_on_dem_resampled(dem, dem_cell=5.0, dem_origin=(12.0, 7.0))
+    assert abs((resampled - dem).sum() * 25.0 - f1.sum() * 1.0) < 1e-9 * max(1.0, abs(f1.sum()))
+
+    # real heights carry at most 24 significant bits (f32 rasters), so their f64 sums are exact in any order;
+    # scaled by 0.1 they are not, which makes the sum below depend on numpy's pairwise grouping
+    flat = heights.ravel() * 0.1
+    sums = [{"n": n, "sum": float(flat[:n].sum())} for n in (1, 7, 8, 9, 100, 128, 129, 1000, 8192, 8193, 100_000,
+                                                              flat.size)]
+    rounds = [{"x": x, "r": round(x, 6)} for x in [float(v) * 25.0 for v in flat[:200:7]] + [float(d1.sum()) * 25.0,
+                                                                                             -1e-7, 2.5e-7, 1234.5678905]]
+    write_fixture(ORACLE_FIXTURES, "terrain_memory_cases", "oracle/build_fixtures.py::terrain_memory_cases "
+                  "(stewie.twin.terrain_memory.TerrainMemory with WorkSite deltas on the real Haworth 5 m bundle)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/twin/terrain_memory.py",
+                   "stewie/physics/worksite.py"],
+                  {"site": "haworth", "rows": 20, "cols": 20, "cell_m": 5.0, "origin": [10.0, -5.0],
+                   "missions": [{"kind": "subgrid", "delta": d1.ravel().tolist(), "rows": 12, "cols": 12,
+                                 "sub_origin": [20.0, 5.0], "mission": "m1 cut", "mass_moved_kg": moved},
+                                {"kind": "subgrid", "delta": d2.ravel().tolist(), "rows": 12, "cols": 12,
+                                 "sub_origin": [70.0, 45.0], "mission": "m2 dump", "mass_moved_kg": 0.5 * moved},
+                                {"kind": "full", "delta": d3.ravel().tolist(), "mission": "m3 trim",
+                                 "mass_moved_kg": 0.0}],
+                   "placed": placed, "base_0_20": heights[0:20, 0:20].ravel().tolist(),
+                   "dem": dem.ravel().tolist(), "dem_shape": [40, 40], "dem_origin": [-5.0, 15.0],
+                   "before_revert": before_revert, "after_revert": after_revert,
+                   "npz": "crates/stewie-oracle/fixtures/terrain_memory_haworth.npz",
+                   "fine": {"rows": 60, "cols": 60, "cell_m": 1.0, "origin": [3.0, 2.0], "delta": f1.ravel().tolist(),
+                            "mission": "fine cut", "mass_moved_kg": fmoved, "dem_origin": [12.0, 7.0],
+                            "resampled": resampled.ravel().tolist(), "chain": fine.chain},
+                   "pairwise_sums": sums, "rounds": rounds})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1276,6 +1357,7 @@ def main() -> None:
     drive_runs()
     worksite_native()
     worksite_refined()
+    terrain_memory_cases()
     world_log_cases()
     twin_store_cases()
     route_cases()

@@ -54,7 +54,7 @@ pub struct Snapshot {
     pub vehicle_sha: String,
 }
 
-fn sha256_hex(parts: &[&[u8]]) -> String {
+pub(crate) fn sha256_hex(parts: &[&[u8]]) -> String {
     let mut h = Sha256::new();
     for p in parts {
         h.update(p);
