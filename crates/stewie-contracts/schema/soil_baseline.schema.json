@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/soil_baseline.schema.json",
+  "title": "SoilBaseline",
+  "description": "Soil constants the body registry does not carry: the Janosi-Hanamoto shear modulus, the slip-sinkage coefficients and the compacted-density ceiling. Each value keeps its honesty tag ([CALIB], [UNKNOWN]) and source note. Exported from stewie/specs/constants.py.",
+  "type": "object", "additionalProperties": false,
+  "required": ["k_shear_m", "slip_c1", "slip_c2", "rho_deep"],
+  "properties": {
+    "k_shear_m": { "$ref": "#/definitions/Tagged" },
+    "slip_c1": { "$ref": "#/definitions/Tagged" },
+    "slip_c2": { "$ref": "#/definitions/Tagged" },
+    "rho_deep": { "$ref": "#/definitions/Tagged" }
+  },
+  "definitions": {
+    "Tagged": {
+      "type": "object", "additionalProperties": false,
+      "required": ["value", "tag", "source"],
+      "properties": {
+        "value": { "type": "number", "exclusiveMinimum": 0 },
+        "tag": { "type": "string", "enum": ["MEASURED", "CALIB", "UNKNOWN"] },
+        "source": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

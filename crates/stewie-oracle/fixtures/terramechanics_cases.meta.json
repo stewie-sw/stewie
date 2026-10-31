@@ -1,0 +1,12 @@
+{
+ "fixture": "terramechanics_cases",
+ "generator": "oracle/build_fixtures.py::terramechanics_cases (stewie_forge.terramechanics, stewie_forge.bearing, stewie.physics.slip, body_params; synthetic input grid, labelled)",
+ "payload_sha256": "929d8dead31f49c51c1acf15736f2f7bbfea226d32e6c7f22cfbe5ef12ce32c9",
+ "sources": {
+  "crates/stewie-contracts/fixtures/bodies.json": "ffa69a4774b9b990071c0807ae035f5aac1a16a624369065478883153bc8aa57",
+  "packages/stewie-forge/stewie_forge/bearing.py": "66e43d075b848696a17fcabe1f15bc0f1e0aeab91431ed1b6051fd2b87f7ac06",
+  "packages/stewie-forge/stewie_forge/terramechanics.py": "03596bd2231c84e6d9696f882789bf767564dbd80ce6f492738f424d859ccd13",
+  "stewie/physics/body_params.py": "394983ae2f3ce5f2c12636810953e5a00416d91cd8f06f20d872466780eab56a",
+  "stewie/physics/slip.py": "bfb6938e63fdc0e0dbfbc01f6200bc4d783c982213fba611652e4840ecf096a0"
+ }
+}

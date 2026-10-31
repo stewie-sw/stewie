@@ -1,0 +1,18 @@
+[package]
+name = "stewie-physics"
+description = "The single physics authority: soil parameters from the body registry, Bekker and Wong-Reece terramechanics, slip-sinkage, Terzaghi/Vesic bearing."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+stewie-contracts = { path = "../stewie-contracts" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+
+[lints]
+workspace = true

@@ -62,3 +62,9 @@ pub mod package_manifest {
     #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
     typify::import_types!(schema = "schema/package_manifest.schema.json");
 }
+
+/// Soil constants beyond the body registry, each with its honesty tag.
+pub mod soil_baseline {
+    #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
+    typify::import_types!(schema = "schema/soil_baseline.schema.json");
+}

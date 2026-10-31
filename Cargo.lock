@@ -1117,6 +1117,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "stewie-physics"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "stewie-contracts",
+ "stewie-oracle",
+]
+
+[[package]]
 name = "stewie-wasm"
 version = "0.1.0"
 dependencies = [

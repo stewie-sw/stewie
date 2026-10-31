@@ -28,6 +28,10 @@ Fixtures:
   pgda_avgvisib      PGDA product 69 AVGVISIB_85S_060M (average solar visibility, hourly over 18.6 years) at
                      the pixel nearest each catalog site inside the map: value, 3x3 range, pixel-centre
                      lat/lon. The validation protocol for RW-61 (R5) rides along in the payload.
+  terramechanics_cases
+                     stewie_forge terramechanics/bearing and stewie.physics slip over a fixed input grid
+                     (synthetic inputs, labelled; the implementation is the real one), with the parameter set
+                     params_for_body gives each body, including the microgravity refusal.
 """
 from __future__ import annotations
 
@@ -411,6 +415,90 @@ def pgda_avgvisib() -> None:
                    "sites": sites, "outside_product": outside})
 
 
+def terramechanics_cases() -> None:
+    """Grid inputs are synthetic (labelled); every output is the Python implementation's."""
+    from stewie.physics import body_params, slip as SL
+    from stewie_forge import bearing as BR, terramechanics as TM
+
+    bodies, refused = {}, []
+    for name in ("moon", "mars", "earth", "ceres", "bp1_testbed", "bennu", "phobos"):
+        try:
+            prm = body_params.params_for_body(name)
+            bodies[name] = {"params": prm.to_dict(), "analog": False}
+        except ValueError:
+            refused.append(name)
+            bodies[name] = {"params": body_params.params_for_body(name, allow_analog=True).to_dict(),
+                            "analog": True}
+    cases: dict[str, list] = {k: [] for k in ("bekker", "contact", "density_factor", "slip_multiplier",
+                                               "traction", "thrust", "slip_for_demand", "resistance",
+                                               "equilibrium", "drive_power", "bearing")}
+    for name in ("moon", "mars", "earth"):
+        p = body_params.params_for_body(name)
+        for pr in (0.0, 50.0, 500.0, 5000.0, 50000.0):
+            for b in (0.04, 0.1, 0.18, 0.5):
+                for st in (1.0, 1.3, 1.48):
+                    cases["bekker"].append({"body": name, "pressure_pa": pr, "b_m": b, "stiffening": st,
+                                            "z_m": TM.bekker_pressure_sinkage(pr, b_m=b, k_c=p.k_c, k_phi=p.k_phi,
+                                                                             n=p.n_sinkage, stiffening=st)})
+        for load in (0.0, 5.0, 12.15, 24.3, 100.0):
+            for dens in (None, 1300.0, 1600.0, 1920.0):
+                for cl, cw in ((0.10, 0.18), (0.04, 0.20)):
+                    cases["contact"].append({"body": name, "load_n": load, "density": dens, "len_m": cl, "width_m": cw,
+                                             "z_m": TM.wheel_static_sinkage(load, params=p, density=dens,
+                                                                            contact_len_m=cl, contact_width_m=cw)})
+        for sl in (-0.1, 0.0, 0.1, 0.5, 0.9, 0.95, 0.99):
+            cases["slip_multiplier"].append({"body": name, "slip": sl,
+                                             "m": TM.slip_sinkage_multiplier(sl, c1=p.slip_c1, c2=p.slip_c2)})
+        for nl in (0.0, 12.15, 100.0):
+            for area in (0.018, 0.008):
+                h = SL.traction_budget(nl, cohesion=p.cohesion, phi_rad=p.phi_rad, contact_area_m2=area)
+                cases["traction"].append({"body": name, "normal_n": nl, "area_m2": area, "h_max_n": h})
+                if h <= 0.0:
+                    continue
+                for sl in (0.0, 1e-9, 0.01, 0.1, 0.5, 0.99):
+                    cases["thrust"].append({"body": name, "slip": sl, "h_max_n": h, "len_m": 0.10,
+                                            "h_n": SL.developed_thrust(sl, h, contact_len_m=0.10, k_shear=p.k_shear)})
+                for frac in (0.0, 0.1, 0.5, 0.9, 0.999, 1.0, 1.2):
+                    s_, ent = SL.slip_for_demand(frac * h, h, contact_len_m=0.10, k_shear=p.k_shear)
+                    cases["slip_for_demand"].append({"body": name, "demand_n": frac * h, "h_max_n": h,
+                                                     "len_m": 0.10, "slip": s_, "entrapped": ent})
+        for z in (0.0, 0.001, 0.01, 0.05):
+            for w in (0.18, 0.04):
+                cases["resistance"].append({"body": name, "z_m": z, "width_m": w,
+                                            "r_n": SL.compaction_resistance(z, contact_width_m=w, k_c=p.k_c,
+                                                                            k_phi=p.k_phi, n=p.n_sinkage)})
+        for wt in (30.0 * 1.62, 60.0 * 1.62, 30.0 * 9.81):
+            for deg in (0, 5, 10, 15, 20, 25, 30, 35):
+                for frac, extra, dens in ((1.0, 0.0, None), (0.5, 0.0, None), (1.0, 20.0, None), (1.0, 0.0, 1600.0)):
+                    eq = SL.slip_sinkage_equilibrium(wt, math.radians(deg), n_wheels=4, contact_len_m=0.10,
+                                                     contact_width_m=0.18, params=p, density=dens, demand_frac=frac,
+                                                     extra_demand_n=extra, s_entrap=0.95, z_entrap_m=0.36)
+                    cases["equilibrium"].append({"body": name, "weight_n": wt, "slope_deg": deg, "demand_frac": frac,
+                                                 "extra_n": extra, "density": dens, **eq})
+        for deg in (-10.0, 0.0, 10.0, 20.0):
+            d = SL.bekker_drive_power_w(mass_kg=30.0, g_ms2=1.62, slope_deg=deg, v_ms=0.3, efficiency=0.5, params=p,
+                                        n_wheels=4, contact_len_m=0.10, contact_width_m=0.18)
+            cases["drive_power"].append({"body": name, "slope_deg": deg, **d})
+    for z in (0.0, 0.001, 0.01, 0.05, 0.2):
+        for t in (0.0, 0.05, 0.1, 0.3):
+            cases["density_factor"].append({"z_m": z, "thickness_m": t, "f": TM.sinkage_to_density_factor(z, t)})
+    for deg in (0.0, 10.0, 30.0, 35.0, 45.0):
+        for c in (0.0, 170.0, 1000.0):
+            for gam in (1300.0 * 1.62, 1600.0 * 9.81):
+                for wb, dd in ((0.5, 0.0), (2.0, 0.3)):
+                    phi = math.radians(deg)
+                    cases["bearing"].append({"phi_deg": deg, "c_pa": c, "gamma_n_m3": gam, "width_m": wb, "depth_m": dd,
+                                             "factors": list(BR.bearing_capacity_factors(phi)),
+                                             "q_ult_pa": BR.ultimate_bearing_capacity_pa(c, phi, gam, wb, surcharge_depth_m=dd),
+                                             "q_allow_pa": BR.allowable_bearing_pa(c, phi, gam, wb, surcharge_depth_m=dd)})
+    write_fixture(ORACLE_FIXTURES, "terramechanics_cases", "oracle/build_fixtures.py::terramechanics_cases "
+                  "(stewie_forge.terramechanics, stewie_forge.bearing, stewie.physics.slip, body_params; "
+                  "synthetic input grid, labelled)",
+                  ["packages/stewie-forge/stewie_forge/terramechanics.py", "packages/stewie-forge/stewie_forge/bearing.py",
+                   "stewie/physics/slip.py", "stewie/physics/body_params.py", "crates/stewie-contracts/fixtures/bodies.json"],
+                  {"bodies": bodies, "refused_without_analog": refused, "cases": cases})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -475,6 +563,7 @@ def main() -> None:
     horizon_stacked()
     polar_ldem_samples()
     pgda_avgvisib()
+    terramechanics_cases()
 
 
 if __name__ == "__main__":

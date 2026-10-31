@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
-use stewie_contracts::{body, dem_bundle, site};
+use stewie_contracts::{body, dem_bundle, package_manifest, site, soil_baseline};
 
 fn crate_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -123,4 +123,29 @@ fn site_catalog_validates_and_every_named_bundle_exists() {
             assert!(m.is_file(), "site {name} names missing bundle {b}");
         }
     }
+}
+
+#[test]
+fn soil_baseline_validates_and_an_untagged_value_is_rejected() {
+    let doc = load(&crate_dir().join("fixtures/soil_baseline.json"));
+    let v = validator("soil_baseline.schema.json");
+    assert!(v.is_valid(&doc));
+    let b: soil_baseline::SoilBaseline = serde_json::from_value(doc.clone()).unwrap();
+    assert!((b.k_shear_m.value - 0.018).abs() < 1e-15);
+    let mut untagged = doc; // synthetic mutation of the real file
+    untagged["slip_c1"]["tag"] = Value::from("GUESS");
+    assert!(!v.is_valid(&untagged));
+    assert!(serde_json::from_value::<soil_baseline::SoilBaseline>(untagged).is_err());
+}
+
+#[test]
+fn committed_package_manifest_validates_and_an_escaping_path_is_rejected() {
+    let doc = load(&repo().join("pipeline/packages/lola_base.json"));
+    let v = validator("package_manifest.schema.json");
+    assert!(v.is_valid(&doc));
+    serde_json::from_value::<package_manifest::PackageManifest>(doc.clone()).unwrap();
+    let mut escape = doc; // synthetic mutation of the real manifest
+    escape["layers"][0]["image"]["path"] = Value::from("../ldem_16.img");
+    assert!(!v.is_valid(&escape));
+    assert!(serde_json::from_value::<package_manifest::PackageManifest>(escape).is_err());
 }

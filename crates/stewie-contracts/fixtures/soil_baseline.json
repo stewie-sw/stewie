@@ -1,0 +1,22 @@
+{
+  "k_shear_m": {
+    "source": "spec section 5.2, stewie/specs/constants.py (1.0-1.8 cm)",
+    "tag": "CALIB",
+    "value": 0.018
+  },
+  "rho_deep": {
+    "source": "spec section 5.2, stewie/specs/constants.py (1.8-2.0 g/cm^3)",
+    "tag": "CALIB",
+    "value": 1920.0
+  },
+  "slip_c1": {
+    "source": "spec section 5.2, stewie/specs/constants.py (c1 ~0.4)",
+    "tag": "UNKNOWN",
+    "value": 0.4
+  },
+  "slip_c2": {
+    "source": "spec section 5.2, stewie/specs/constants.py (c2 ~0.3)",
+    "tag": "UNKNOWN",
+    "value": 0.3
+  }
+}
