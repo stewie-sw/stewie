@@ -1,0 +1,626 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/dem_bundle.schema.json",
+  "title": "DemBundle",
+  "description": "metadata.json of a STEWIE terrain bundle under samples/: a real DEM crop (terrain input) and, for scene bundles, recorded scene state. Heights are float32 little-endian, row-major.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scene_name",
+    "producer",
+    "grid",
+    "world_bounds_m",
+    "gravity_m_s2",
+    "fields",
+    "ice_present",
+    "height_range_m",
+    "clasts",
+    "active_zone",
+    "quadtree",
+    "notes"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "contract_revision": {
+      "type": "string"
+    },
+    "scene_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "producer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "grid": {
+      "$ref": "#/definitions/Grid"
+    },
+    "world_bounds_m": {
+      "$ref": "#/definitions/WorldBounds"
+    },
+    "gravity_m_s2": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "fields": {
+      "$ref": "#/definitions/Fields"
+    },
+    "ice_present": {
+      "type": "boolean"
+    },
+    "height_range_m": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "clasts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Clast"
+      }
+    },
+    "active_zone": {
+      "$ref": "#/definitions/ActiveZone"
+    },
+    "quadtree": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/QuadNode"
+      }
+    },
+    "base_cell_m": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "fine_cell_m": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Recorded refinement target; ignored by the Rust reader, which serves native resolution only (ADR 0009, D-R24)."
+    },
+    "local_datum_offset_m": {
+      "type": "number"
+    },
+    "regolith_model": {
+      "$ref": "#/definitions/RegolithModel"
+    },
+    "dem_provenance": {
+      "$ref": "#/definitions/DemProvenance"
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "time_series": {
+      "$ref": "#/definitions/TimeSeries"
+    },
+    "wheel_tracks": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/WheelTrack"
+      }
+    },
+    "drum_marks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DrumMark"
+      }
+    },
+    "quadtree_lod": {
+      "$ref": "#/definitions/QuadtreeLod"
+    },
+    "refinement": {
+      "$ref": "#/definitions/Refinement"
+    },
+    "quadtree_nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/QuadTreeNode"
+      }
+    },
+    "active_leaves": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/CellBox"
+      }
+    },
+    "touched_leaves": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/CellBox"
+      }
+    },
+    "rover_rc": {
+      "$ref": "#/definitions/RowCol"
+    }
+  },
+  "definitions": {
+    "RowCol": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "Grid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height",
+        "cell_m",
+        "order"
+      ],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cell_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "order": {
+          "type": "string",
+          "enum": [
+            "row-major-C"
+          ]
+        }
+      }
+    },
+    "WorldBounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x0",
+        "y0",
+        "x1",
+        "y1"
+      ],
+      "properties": {
+        "x0": {
+          "type": "number"
+        },
+        "y0": {
+          "type": "number"
+        },
+        "x1": {
+          "type": "number"
+        },
+        "y1": {
+          "type": "number"
+        }
+      }
+    },
+    "FieldSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "dtype"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dtype": {
+          "type": "string",
+          "enum": [
+            "<f4",
+            "u1"
+          ]
+        },
+        "units": {
+          "type": "string"
+        },
+        "enum": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "heightmap"
+      ],
+      "properties": {
+        "heightmap": {
+          "$ref": "#/definitions/FieldSpec"
+        },
+        "mass_areal": {
+          "$ref": "#/definitions/FieldSpec"
+        },
+        "density": {
+          "$ref": "#/definitions/FieldSpec"
+        },
+        "disturbance": {
+          "$ref": "#/definitions/FieldSpec"
+        },
+        "state_label": {
+          "$ref": "#/definitions/FieldSpec"
+        }
+      }
+    },
+    "Clast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "center_m",
+        "radius_m"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "center_m": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 3
+        },
+        "radius_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "buried_frac": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "shape": {
+          "type": "string"
+        }
+      }
+    },
+    "ActiveZone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min_rc",
+        "max_rc"
+      ],
+      "properties": {
+        "min_rc": {
+          "$ref": "#/definitions/RowCol"
+        },
+        "max_rc": {
+          "$ref": "#/definitions/RowCol"
+        }
+      }
+    },
+    "QuadNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "row0",
+        "col0",
+        "size",
+        "label"
+      ],
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "row0": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "col0": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "QuadTreeNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "row0",
+        "col0",
+        "size",
+        "leaf"
+      ],
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "row0": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "col0": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "leaf": {
+          "type": "boolean"
+        }
+      }
+    },
+    "RegolithModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uniform_mantle": {
+          "type": "boolean"
+        },
+        "mantle_thickness_m": {
+          "type": "number"
+        },
+        "mantle_density_kg_m3": {
+          "type": "number"
+        },
+        "mantle_density_source": {
+          "type": "string"
+        },
+        "mantle_areal_kg_m2": {
+          "type": "number"
+        },
+        "note": {
+          "type": "string"
+        },
+        "surface_density": {
+          "type": "number"
+        },
+        "regolith_thickness_m": {
+          "type": "number"
+        },
+        "cut_depth_full_m": {
+          "type": "number"
+        },
+        "maturity_albedo_ratio": {
+          "type": "number"
+        }
+      }
+    },
+    "DemProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "frame",
+        "citation"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "frame": {
+          "type": "string"
+        },
+        "z_semantics": {
+          "type": "string"
+        },
+        "native_cell_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "crop_window_row0_col0": {
+          "$ref": "#/definitions/RowCol"
+        },
+        "crop_extent_km": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "crop_center_m": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "relief_p98_p2_m": {
+          "type": "number"
+        },
+        "sphere_radius_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "citation": {
+          "type": "string"
+        },
+        "license_basis": {
+          "type": "string"
+        },
+        "instrument": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        }
+      }
+    },
+    "TimeSeries": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "frame_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "frame_cadence_steps": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "frame_dirs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mass_conserved_kg": {
+          "type": "number"
+        },
+        "mass_drift_kg": {
+          "type": "number"
+        },
+        "drum_excavated_kg": {
+          "type": "number"
+        }
+      }
+    },
+    "WheelTrack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "points",
+        "width_m"
+      ],
+      "properties": {
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RowCol"
+          }
+        },
+        "width_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "heading_rad": {
+          "type": "number"
+        }
+      }
+    },
+    "DrumMark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drum",
+        "swath"
+      ],
+      "properties": {
+        "drum": {
+          "type": "string"
+        },
+        "swath": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RowCol"
+          }
+        },
+        "depth_m": {
+          "type": "number"
+        },
+        "width_m": {
+          "type": "number"
+        },
+        "phase": {
+          "type": "number"
+        },
+        "teeth_count": {
+          "type": "integer"
+        },
+        "teeth_pitch_m": {
+          "type": "number"
+        }
+      }
+    },
+    "QuadtreeLod": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_leaf": {
+          "type": "integer"
+        },
+        "refine_factor": {
+          "type": "number"
+        },
+        "footprint_radius_cells": {
+          "type": "number"
+        },
+        "field_size": {
+          "type": "integer"
+        },
+        "per_frame_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "Refinement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "base_cell_m": {
+          "type": "number"
+        },
+        "fine_cell_m": {
+          "type": "number"
+        },
+        "refine_where": {
+          "type": "string"
+        },
+        "fine_min_leaf": {
+          "type": "integer"
+        }
+      }
+    },
+    "CellBox": {
+      "type": "array",
+      "description": "[row0, col0, row1, col1] in grid cells",
+      "items": {
+        "type": "integer"
+      },
+      "minItems": 4,
+      "maxItems": 4
+    }
+  }
+}

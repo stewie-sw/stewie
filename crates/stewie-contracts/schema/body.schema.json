@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/body.schema.json",
+  "title": "BodyRegistry",
+  "description": "Planetary bodies and their sourced surface constants (one source for gravity, radius and Bekker soil values). Unsourced values are null, never defaulted.",
+  "type": "object",
+  "additionalProperties": { "$ref": "#/definitions/Body" },
+  "definitions": {
+    "Body": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "label", "g", "bekker_regime", "bulk_density", "cohesion_pa", "friction_deg", "repose_deg", "bekker", "confidence", "g_note", "role", "provenance", "ellipsoid_radius_m", "crs"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "label": { "type": "string" },
+        "g": { "type": "number", "exclusiveMinimum": 0 },
+        "bekker_regime": { "type": "string", "enum": ["gravity-loaded", "microgravity"] },
+        "bulk_density": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "cohesion_pa": { "type": ["number", "null"], "minimum": 0 },
+        "friction_deg": { "type": ["number", "null"], "minimum": 0, "maximum": 90 },
+        "repose_deg": { "type": ["number", "null"], "minimum": 0, "maximum": 90 },
+        "bekker": { "oneOf": [ { "$ref": "#/definitions/Bekker" }, { "type": "null" } ] },
+        "confidence": { "type": "string" },
+        "g_note": { "type": "string" },
+        "role": { "type": "string" },
+        "provenance": { "type": "string" },
+        "ellipsoid_radius_m": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "crs": { "type": ["string", "null"] }
+      }
+    },
+    "Bekker": {
+      "type": "object", "additionalProperties": false, "required": ["k_c", "k_phi", "n"],
+      "properties": {
+        "k_c": { "type": "number", "description": "cohesive modulus [N/m^2]" },
+        "k_phi": { "type": "number", "description": "frictional modulus [N/m^3]" },
+        "n": { "type": "number", "exclusiveMinimum": 0, "description": "sinkage exponent" }
+      }
+    }
+  }
+}

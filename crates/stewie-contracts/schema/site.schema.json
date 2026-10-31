@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/site.schema.json",
+  "title": "SiteCatalog",
+  "description": "Sourced lunar site catalog. Coordinates are selenographic (IAU_2015:30100). bundle names a samples/lunar_dem/ bundle when one is imported, else null.",
+  "type": "object",
+  "additionalProperties": { "$ref": "#/definitions/Site" },
+  "definitions": {
+    "Site": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "label", "lat_deg", "lon_deg", "artemis_candidate", "bundle", "note"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "label": { "type": "string" },
+        "lat_deg": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lon_deg": { "type": "number", "minimum": -180, "maximum": 360 },
+        "artemis_candidate": { "type": "boolean" },
+        "bundle": { "type": ["string", "null"] },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

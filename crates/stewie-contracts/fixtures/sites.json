@@ -1,0 +1,128 @@
+{
+  "amundsen_rim": {
+    "artemis_candidate": true,
+    "bundle": null,
+    "label": "Amundsen Rim",
+    "lat_deg": -84.4,
+    "lon_deg": 69.0,
+    "name": "amundsen_rim",
+    "note": ""
+  },
+  "connecting_ridge": {
+    "artemis_candidate": true,
+    "bundle": "connecting_ridge_10km_5m",
+    "label": "Connecting Ridge (Site01)",
+    "lat_deg": -89.292,
+    "lon_deg": -117.7676,
+    "name": "connecting_ridge",
+    "note": "PGDA Product 78 Site01; 10 km / 5 m tile, imported 2026-07-07"
+  },
+  "de_gerlache_kocher": {
+    "artemis_candidate": true,
+    "bundle": "de_gerlache_kocher_10km_5m",
+    "label": "de Gerlache-Kocher Massif (Site42)",
+    "lat_deg": -86.0495,
+    "lon_deg": -115.2393,
+    "name": "de_gerlache_kocher",
+    "note": "PGDA Product 78 Site42; 10 km / 5 m tile, imported 2026-07-09"
+  },
+  "de_gerlache_rim": {
+    "artemis_candidate": true,
+    "bundle": "de_gerlache_rim_10km_5m",
+    "label": "de Gerlache Rim (Site11)",
+    "lat_deg": -88.4138,
+    "lon_deg": -69.3063,
+    "name": "de_gerlache_rim",
+    "note": "PGDA Product 78 Site11; 10 km / 5 m tile, imported 2026-07-07"
+  },
+  "faustini_rim": {
+    "artemis_candidate": true,
+    "bundle": null,
+    "label": "Faustini Rim A",
+    "lat_deg": -87.0,
+    "lon_deg": 77.0,
+    "name": "faustini_rim",
+    "note": ""
+  },
+  "haworth": {
+    "artemis_candidate": true,
+    "bundle": "haworth_10km_5m",
+    "label": "Haworth (work site)",
+    "lat_deg": -86.33,
+    "lon_deg": -25.51,
+    "name": "haworth",
+    "note": "the imported 10 km / 5 m LOLA bundle; the committed STEWIE work site"
+  },
+  "haworth_sfs": {
+    "artemis_candidate": false,
+    "bundle": "haworth_sfs_2km_1m",
+    "label": "Haworth SfS (1 m drive site)",
+    "lat_deg": -86.8465,
+    "lon_deg": -21.0083,
+    "name": "haworth_sfs",
+    "note": "real LRO NAC Shape-from-Shading 1 m DEM; 2 km @ 1 m crop inside the SfS footprint; the driveable viz2 work site (Alexandrov & Beyer 2018), imported 2026-07-10"
+  },
+  "leibnitz_beta": {
+    "artemis_candidate": true,
+    "bundle": "leibnitz_beta_10km_5m",
+    "label": "Leibnitz Beta Plateau (Site20)",
+    "lat_deg": -85.5017,
+    "lon_deg": 28.4444,
+    "name": "leibnitz_beta",
+    "note": "PGDA Product 78 Site20; 10 km / 5 m tile, imported 2026-07-07"
+  },
+  "malapert_massif": {
+    "artemis_candidate": true,
+    "bundle": "malapert_massif_10km_5m",
+    "label": "Malapert Massif (Site23)",
+    "lat_deg": -85.6471,
+    "lon_deg": -1.7347,
+    "name": "malapert_massif",
+    "note": "PGDA Product 78 Site23; 10 km / 5 m tile, imported 2026-07-07"
+  },
+  "nobile_rim": {
+    "artemis_candidate": true,
+    "bundle": "nobile_rim1_10km_5m",
+    "label": "Nobile Rim 1 (Site06)",
+    "lat_deg": -85.484,
+    "lon_deg": 39.965,
+    "name": "nobile_rim",
+    "note": "PGDA Product 78 Site06; max-relief 10 km tile, imported 2026-06-10"
+  },
+  "nobile_rim2": {
+    "artemis_candidate": true,
+    "bundle": "nobile_rim2_10km_5m",
+    "label": "Nobile Rim 2 (DM2)",
+    "lat_deg": -84.0382,
+    "lon_deg": 58.3314,
+    "name": "nobile_rim2",
+    "note": "PGDA Product 78 DM2; 10 km / 5 m tile, imported 2026-07-07"
+  },
+  "peak_near_shackleton": {
+    "artemis_candidate": true,
+    "bundle": "peak_near_shackleton_10km_5m",
+    "label": "Peak near Shackleton (Site07)",
+    "lat_deg": -88.9953,
+    "lon_deg": 113.2011,
+    "name": "peak_near_shackleton",
+    "note": "PGDA Product 78 Site07; 10 km / 5 m tile, imported 2026-07-07"
+  },
+  "shackleton_rim": {
+    "artemis_candidate": true,
+    "bundle": "shackleton_rim_10km_5m",
+    "label": "Shackleton rim (Site04)",
+    "lat_deg": -89.823,
+    "lon_deg": 158.213,
+    "name": "shackleton_rim",
+    "note": "PGDA Product 78 Site04; max-relief 10 km tile (4.4 km relief), imported 2026-06-10"
+  },
+  "shoemaker": {
+    "artemis_candidate": true,
+    "bundle": null,
+    "label": "Shoemaker Crater",
+    "lat_deg": -87.0462,
+    "lon_deg": 56.8443,
+    "name": "shoemaker",
+    "note": "PGDA Product 78 Shoemaker; 10 km / 5 m tile, imported 2026-07-07"
+  }
+}
