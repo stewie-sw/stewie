@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/astronaut_profile.schema.json",
+  "title": "AstronautProfile",
+  "description": "A suited-crew EVA agent profile as data (RW-30h, D-R78): metabolic rates by activity, level-ground suited walking and its consumables, and metabolic rate against grade at lunar gravity, each with its honesty tag and page-cited source. FIGURE_READ marks a value read off a plotted figure; it must carry its reading uncertainty. Walking speed against slope is NOT here (no source): it comes only from mission configuration, as do reserves.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "label",
+    "metabolic_w",
+    "level_walk_speed_ms",
+    "level_walk_speed_sd_ms",
+    "level_walk_metabolic_w",
+    "level_walk_o2_kg_per_hr",
+    "level_walk_cooling_water_kg_per_hr",
+    "apollo_o2_kg_per_hr",
+    "apollo_cooling_water_kg_per_hr",
+    "grade_vo2"
+  ],
+  "definitions": {
+    "Tag": {
+      "type": "string",
+      "enum": [
+        "SOURCED",
+        "FIGURE_READ"
+      ]
+    },
+    "Tagged": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "tag",
+        "source"
+      ],
+      "properties": {
+        "value": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "tag": {
+          "$ref": "#/definitions/Tag"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uncertainty": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Reading uncertainty, same unit as value; required for FIGURE_READ."
+        }
+      }
+    },
+    "Activities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alsep_deployment",
+        "geology_station",
+        "overhead",
+        "lrv_operations",
+        "all_activities"
+      ],
+      "properties": {
+        "alsep_deployment": {
+          "$ref": "#/definitions/Tagged"
+        },
+        "geology_station": {
+          "$ref": "#/definitions/Tagged"
+        },
+        "overhead": {
+          "$ref": "#/definitions/Tagged"
+        },
+        "lrv_operations": {
+          "$ref": "#/definitions/Tagged"
+        },
+        "all_activities": {
+          "$ref": "#/definitions/Tagged"
+        }
+      }
+    },
+    "GradePoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grade_pct",
+        "vo2_ml_min_kg"
+      ],
+      "properties": {
+        "grade_pct": {
+          "type": "number",
+          "minimum": 0
+        },
+        "vo2_ml_min_kg": {
+          "$ref": "#/definitions/Tagged"
+        }
+      }
+    }
+  },
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "metabolic_w": {
+      "$ref": "#/definitions/Activities",
+      "description": "Metabolic rate [W] by lunar-surface activity."
+    },
+    "level_walk_speed_ms": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "level_walk_speed_sd_ms": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "level_walk_metabolic_w": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "level_walk_o2_kg_per_hr": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "level_walk_cooling_water_kg_per_hr": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "apollo_o2_kg_per_hr": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "apollo_cooling_water_kg_per_hr": {
+      "$ref": "#/definitions/Tagged"
+    },
+    "grade_vo2": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/definitions/GradePoint"
+      },
+      "description": "VO2 [ml/min/kg] against treadmill grade [%] at lunar gravity, grades strictly increasing from 0."
+    }
+  }
+}

@@ -6,7 +6,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
-use stewie_contracts::{body, dem_bundle, package_manifest, rover_profile, site, soil_baseline};
+use stewie_contracts::{
+    astronaut_profile, body, dem_bundle, package_manifest, rover_profile, site, soil_baseline,
+};
 
 fn crate_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -174,6 +176,59 @@ fn rover_profile_validates_and_a_profile_missing_any_field_is_rejected() {
     let mut untagged = doc;
     untagged["cg_height_m"]["tag"] = Value::from("GUESS");
     assert!(!v.is_valid(&untagged));
+}
+
+#[test]
+fn astronaut_profile_carries_its_cited_values_and_rejects_a_missing_or_untagged_field() {
+    let doc = load(&crate_dir().join("fixtures/eva_crew.json"));
+    let v = validator("astronaut_profile.schema.json");
+    assert!(v.is_valid(&doc));
+    let p: astronaut_profile::AstronautProfile = serde_json::from_value(doc.clone()).unwrap();
+    astronaut_profile::check(&p).unwrap();
+    // the SI values are the printed figures times exact factors (D-R78, EVA_SOURCES.md)
+    assert!(
+        (p.level_walk_speed_ms.value - 3.9 * 0.447_04).abs() < 1e-12,
+        "3.9 mph"
+    );
+    assert!(
+        (p.metabolic_w.all_activities.value - 980.0 / 3.6).abs() < 1e-9,
+        "980 kJ/hr"
+    );
+    assert!(
+        (p.level_walk_o2_kg_per_hr.value - 0.4 * 0.453_592_37).abs() < 1e-12,
+        "0.4 lb/hr"
+    );
+    let last = p.grade_vo2.last().unwrap();
+    assert!(
+        (last.grade_pct - 30.0).abs() < 1e-12 && (last.vo2_ml_min_kg.value - 21.5).abs() < 1e-12
+    );
+    let keys: Vec<String> = doc.as_object().unwrap().keys().cloned().collect();
+    assert_eq!(keys.len(), 11);
+    for k in keys {
+        let mut missing = doc.clone(); // synthetic mutation of the real profile
+        missing.as_object_mut().unwrap().remove(&k);
+        assert!(!v.is_valid(&missing), "{k} is required");
+    }
+    let mut guessed = doc.clone();
+    guessed["level_walk_speed_ms"]["tag"] = Value::from("ASSUMPTION");
+    assert!(!v.is_valid(&guessed), "only SOURCED or FIGURE_READ");
+    let mut unbounded = doc.clone();
+    unbounded["grade_vo2"][1]["vo2_ml_min_kg"]
+        .as_object_mut()
+        .unwrap()
+        .remove("uncertainty");
+    let p: astronaut_profile::AstronautProfile = serde_json::from_value(unbounded).unwrap();
+    assert!(
+        astronaut_profile::check(&p).is_err(),
+        "FIGURE_READ without uncertainty"
+    );
+    let mut unordered = doc;
+    unordered["grade_vo2"][2]["grade_pct"] = Value::from(5.0);
+    let p: astronaut_profile::AstronautProfile = serde_json::from_value(unordered).unwrap();
+    assert!(
+        astronaut_profile::check(&p).is_err(),
+        "grades must increase"
+    );
 }
 
 /// A source line that compiles a reserve number in (comments and string literals excluded).

@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew}.json
 """
 from __future__ import annotations
 
@@ -106,6 +106,39 @@ def rover_ipex() -> dict:
             "drums": drums}
 
 
+def eva_crew() -> dict:
+    """The suited-crew EVA profile (RW-30h, Aaron D-R78): every figure copied from the cited page, converted to SI by an
+    exact factor; the printed value and unit stay in its source. Walking speed against slope has no source and is
+    deliberately absent: it is a required mission-config input. Evidence: design/evidence_2026-10-31_eva/EVA_SOURCES.md."""
+    mph, lb, btu_hr = 0.44704, 0.45359237, 0.29307107      # m/s, kg, W per unit (exact definitions; Btu IT)
+    tn = "NASA TN D-7883 (Waligora & Horrigan 1975, NTRS 19750010199) Table I, mean row, p. 9"
+    wb = "Norcross et al. 2008, 10-km walkback (NTRS 20080014853), slide 14; MKIII suit, simulated 1/6 g, level, self-paced"
+    tp = ("NASA/TP-2010-216125 (Norcross et al., NTRS 20110003409) Fig. 16, p. 22; MKIII, 121 kg suit, lunar g, "
+          "29.6 kPa trend line, read off the plot")
+
+    def v(value, tag, source, uncertainty=None):
+        out = {"value": float(value), "tag": tag, "source": source}
+        if uncertainty is not None:
+            out["uncertainty"] = float(uncertainty)
+        return out
+
+    rates = {"alsep_deployment": 1024, "geology_station": 1024, "overhead": 1130, "lrv_operations": 518,
+             "all_activities": 980}
+    return {"name": "eva_crew",
+            "label": "Suited crew member (Apollo A7L lunar-surface rates; MKIII 1/6-g walking tests)",
+            "metabolic_w": {k: v(kj / 3.6, "SOURCED", f"{tn}: {kj} kJ/hr") for k, kj in rates.items()},
+            "level_walk_speed_ms": v(3.9 * mph, "SOURCED", f"{wb}: 3.9 mph mean"),
+            "level_walk_speed_sd_ms": v(0.5 * mph, "SOURCED", f"{wb}: 0.5 mph SD"),
+            "level_walk_metabolic_w": v(2374 * btu_hr, "SOURCED", f"{wb}: 2374 Btu/hr mean"),
+            "level_walk_o2_kg_per_hr": v(0.4 * lb, "SOURCED", f"{wb}: O2 usage 0.4 lb/hr"),
+            "level_walk_cooling_water_kg_per_hr": v(3.1 * lb, "SOURCED", f"{wb}: cooling water 3.1 lb/hr"),
+            "apollo_o2_kg_per_hr": v(0.15 * lb, "SOURCED", f"{wb}: Apollo comparison, O2 usage 0.15 lb/hr"),
+            "apollo_cooling_water_kg_per_hr": v(0.98 * lb, "SOURCED", f"{wb}: Apollo comparison, cooling water 0.98 lb/hr"),
+            "grade_vo2": [{"grade_pct": g, "vo2_ml_min_kg": v(vo2, "FIGURE_READ", f"{tp}: {label}", 1.0)}
+                          for g, vo2, label in ((0.0, 15.5, "Level"), (10.0, 16.0, "10%"), (20.0, 18.0, "20%"),
+                                                (30.0, 21.5, "30%"))]}
+
+
 def _write(name: str, data: dict) -> str:
     path = os.path.normpath(os.path.join(_OUT, name))
     with open(path, "w", encoding="utf-8") as fh:
@@ -119,6 +152,7 @@ def main() -> None:
     print(_write("sites.json", sites()))
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
+    print(_write("eva_crew.json", eva_crew()))
 
 
 if __name__ == "__main__":

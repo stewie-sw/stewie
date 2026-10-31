@@ -1,0 +1,104 @@
+{
+  "apollo_cooling_water_kg_per_hr": {
+    "source": "Norcross et al. 2008, 10-km walkback (NTRS 20080014853), slide 14; MKIII suit, simulated 1/6 g, level, self-paced: Apollo comparison, cooling water 0.98 lb/hr",
+    "tag": "SOURCED",
+    "value": 0.4445205226
+  },
+  "apollo_o2_kg_per_hr": {
+    "source": "Norcross et al. 2008, 10-km walkback (NTRS 20080014853), slide 14; MKIII suit, simulated 1/6 g, level, self-paced: Apollo comparison, O2 usage 0.15 lb/hr",
+    "tag": "SOURCED",
+    "value": 0.0680388555
+  },
+  "grade_vo2": [
+    {
+      "grade_pct": 0.0,
+      "vo2_ml_min_kg": {
+        "source": "NASA/TP-2010-216125 (Norcross et al., NTRS 20110003409) Fig. 16, p. 22; MKIII, 121 kg suit, lunar g, 29.6 kPa trend line, read off the plot: Level",
+        "tag": "FIGURE_READ",
+        "uncertainty": 1.0,
+        "value": 15.5
+      }
+    },
+    {
+      "grade_pct": 10.0,
+      "vo2_ml_min_kg": {
+        "source": "NASA/TP-2010-216125 (Norcross et al., NTRS 20110003409) Fig. 16, p. 22; MKIII, 121 kg suit, lunar g, 29.6 kPa trend line, read off the plot: 10%",
+        "tag": "FIGURE_READ",
+        "uncertainty": 1.0,
+        "value": 16.0
+      }
+    },
+    {
+      "grade_pct": 20.0,
+      "vo2_ml_min_kg": {
+        "source": "NASA/TP-2010-216125 (Norcross et al., NTRS 20110003409) Fig. 16, p. 22; MKIII, 121 kg suit, lunar g, 29.6 kPa trend line, read off the plot: 20%",
+        "tag": "FIGURE_READ",
+        "uncertainty": 1.0,
+        "value": 18.0
+      }
+    },
+    {
+      "grade_pct": 30.0,
+      "vo2_ml_min_kg": {
+        "source": "NASA/TP-2010-216125 (Norcross et al., NTRS 20110003409) Fig. 16, p. 22; MKIII, 121 kg suit, lunar g, 29.6 kPa trend line, read off the plot: 30%",
+        "tag": "FIGURE_READ",
+        "uncertainty": 1.0,
+        "value": 21.5
+      }
+    }
+  ],
+  "label": "Suited crew member (Apollo A7L lunar-surface rates; MKIII 1/6-g walking tests)",
+  "level_walk_cooling_water_kg_per_hr": {
+    "source": "Norcross et al. 2008, 10-km walkback (NTRS 20080014853), slide 14; MKIII suit, simulated 1/6 g, level, self-paced: cooling water 3.1 lb/hr",
+    "tag": "SOURCED",
+    "value": 1.4061363470000001
+  },
+  "level_walk_metabolic_w": {
+    "source": "Norcross et al. 2008, 10-km walkback (NTRS 20080014853), slide 14; MKIII suit, simulated 1/6 g, level, self-paced: 2374 Btu/hr mean",
+    "tag": "SOURCED",
+    "value": 695.75072018
+  },
+  "level_walk_o2_kg_per_hr": {
+    "source": "Norcross et al. 2008, 10-km walkback (NTRS 20080014853), slide 14; MKIII suit, simulated 1/6 g, level, self-paced: O2 usage 0.4 lb/hr",
+    "tag": "SOURCED",
+    "value": 0.18143694800000001
+  },
+  "level_walk_speed_ms": {
+    "source": "Norcross et al. 2008, 10-km walkback (NTRS 20080014853), slide 14; MKIII suit, simulated 1/6 g, level, self-paced: 3.9 mph mean",
+    "tag": "SOURCED",
+    "value": 1.743456
+  },
+  "level_walk_speed_sd_ms": {
+    "source": "Norcross et al. 2008, 10-km walkback (NTRS 20080014853), slide 14; MKIII suit, simulated 1/6 g, level, self-paced: 0.5 mph SD",
+    "tag": "SOURCED",
+    "value": 0.22352
+  },
+  "metabolic_w": {
+    "all_activities": {
+      "source": "NASA TN D-7883 (Waligora & Horrigan 1975, NTRS 19750010199) Table I, mean row, p. 9: 980 kJ/hr",
+      "tag": "SOURCED",
+      "value": 272.22222222222223
+    },
+    "alsep_deployment": {
+      "source": "NASA TN D-7883 (Waligora & Horrigan 1975, NTRS 19750010199) Table I, mean row, p. 9: 1024 kJ/hr",
+      "tag": "SOURCED",
+      "value": 284.44444444444446
+    },
+    "geology_station": {
+      "source": "NASA TN D-7883 (Waligora & Horrigan 1975, NTRS 19750010199) Table I, mean row, p. 9: 1024 kJ/hr",
+      "tag": "SOURCED",
+      "value": 284.44444444444446
+    },
+    "lrv_operations": {
+      "source": "NASA TN D-7883 (Waligora & Horrigan 1975, NTRS 19750010199) Table I, mean row, p. 9: 518 kJ/hr",
+      "tag": "SOURCED",
+      "value": 143.88888888888889
+    },
+    "overhead": {
+      "source": "NASA TN D-7883 (Waligora & Horrigan 1975, NTRS 19750010199) Table I, mean row, p. 9: 1130 kJ/hr",
+      "tag": "SOURCED",
+      "value": 313.88888888888886
+    }
+  },
+  "name": "eva_crew"
+}

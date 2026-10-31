@@ -75,6 +75,57 @@ pub mod rover_profile {
     typify::import_types!(schema = "schema/rover_profile.schema.json");
 }
 
+/// A suited-crew EVA profile as data (RW-30h, D-R78), every figure tagged with its page-cited source.
+pub mod astronaut_profile {
+    #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
+    typify::import_types!(schema = "schema/astronaut_profile.schema.json");
+
+    /// Rules JSON Schema cannot express here: a FIGURE_READ value carries its reading uncertainty, and the
+    /// grade table starts at level ground with strictly increasing grades.
+    ///
+    /// # Errors
+    /// Returns a description of the first violated rule.
+    pub fn check(p: &AstronautProfile) -> Result<(), String> {
+        let m = &p.metabolic_w;
+        let mut all = vec![
+            ("alsep_deployment", &m.alsep_deployment),
+            ("geology_station", &m.geology_station),
+            ("overhead", &m.overhead),
+            ("lrv_operations", &m.lrv_operations),
+            ("all_activities", &m.all_activities),
+            ("level_walk_speed_ms", &p.level_walk_speed_ms),
+            ("level_walk_speed_sd_ms", &p.level_walk_speed_sd_ms),
+            ("level_walk_metabolic_w", &p.level_walk_metabolic_w),
+            ("level_walk_o2_kg_per_hr", &p.level_walk_o2_kg_per_hr),
+            (
+                "level_walk_cooling_water_kg_per_hr",
+                &p.level_walk_cooling_water_kg_per_hr,
+            ),
+            ("apollo_o2_kg_per_hr", &p.apollo_o2_kg_per_hr),
+            (
+                "apollo_cooling_water_kg_per_hr",
+                &p.apollo_cooling_water_kg_per_hr,
+            ),
+        ];
+        all.extend(p.grade_vo2.iter().map(|g| ("grade_vo2", &g.vo2_ml_min_kg)));
+        if let Some((k, _)) = all
+            .iter()
+            .find(|(_, t)| t.tag == Tag::FigureRead && t.uncertainty.is_none())
+        {
+            return Err(format!(
+                "{k}: a FIGURE_READ value must carry its uncertainty"
+            ));
+        }
+        let grades: Vec<f64> = p.grade_vo2.iter().map(|g| g.grade_pct).collect();
+        if grades.first() != Some(&0.0) || grades.windows(2).any(|w| w[1] <= w[0]) {
+            return Err(format!(
+                "grade_vo2 grades {grades:?} must start at 0 and increase"
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// An on-demand plugin's manifest (D-R01, RW-50).
 pub mod plugin_manifest {
     #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
