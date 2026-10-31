@@ -1,0 +1,19 @@
+[package]
+name = "lunar-dem"
+description = "Reads real STEWIE DEM bundles; heights, slope, bilinear sampling, geodetic lookup, and a priority terrain stack."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+lunar-frames = { path = "../lunar-frames" }
+stewie-contracts = { path = "../stewie-contracts" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+
+[lints]
+workspace = true

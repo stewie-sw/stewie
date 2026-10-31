@@ -12,7 +12,7 @@ publish.workspace = true
 [dev-dependencies]
 stewie-oracle = { path = "../stewie-oracle" }
 stewie-contracts = { path = "../stewie-contracts" }
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
 proptest = "1"
 
 [lints]
