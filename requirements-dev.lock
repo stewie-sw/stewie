@@ -841,6 +841,7 @@ numpy==2.4.6 \
     #   matplotlib
     #   opencv-python-headless
     #   scipy
+    #   spiceypy
     #   trimesh
 opencv-python-headless==4.13.0.92 \
     --hash=sha256:0525a3d2c0b46c611e2130b5fdebc94cf404845d8fa64d2f3a3b679572a5bd22 \
@@ -1473,6 +1474,14 @@ six==1.17.0 \
     # via
     #   python-dateutil
     #   rfc3339-validator
+spiceypy==6.0.3 \
+    --hash=sha256:2818fdd9cdaf5f898be8cad257a4cabc0126f649a46272a1be088aa55990bcc5 \
+    --hash=sha256:303352c3881264c7177c4f7dfc163fcb4fb638226b670a9892799fd648be3e5e \
+    --hash=sha256:435404915f282e1002b59ae3a682a1e3558411d6f7dd5483aecbb1daaea8b574 \
+    --hash=sha256:5b7338651525c605738f41b1ff3bd363ee2bc09380b574c671e0651b2298ca4b \
+    --hash=sha256:c64ec3ce9699ba41a955abcf2d86ca4e971ce8424fbe5c3ba0464f878581cf8b \
+    --hash=sha256:f579c85384fe0db50ca79eba019a5784ef24ca259010db0c0c4444ac0578776e
+    # via stewie (pyproject.toml)
 sqlalchemy==2.0.51 \
     --hash=sha256:0378d055e9e8cd6ce4d8dff683bdd3d7d413533c4ee51d67a2b1e0f9eacc0f23 \
     --hash=sha256:0592bdadf86ddcabfd72d9ab66ea8a5d8d2cc6be1cc51fa7e66c03868ac5eac1 \

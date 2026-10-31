@@ -54,7 +54,8 @@ dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.6", "mypy>=1.8", "matplotlib", "py
        # the GW-08 durable edit-session store (server.db) + its SQLite test backend (aiosqlite); the tests
        # import edit_session -> server.db at collection, and run against the SQLite fallback (no Postgres in CI)
        "sqlalchemy[asyncio]>=2,<3", "aiosqlite>=0.19",
-       "pytest-xdist>=3"]   # parallel test execution (`-n auto`); see [tool.pytest.ini_options] addopts
+       "pytest-xdist>=3",
+       "spiceypy>=6,<7"]   # RW-12 ephemeris oracle (DE440 via NAIF SPICE); also un-skips stewie/specs/test_solar.py   # parallel test execution (`-n auto`); see [tool.pytest.ini_options] addopts
 
 [project.urls]
 Homepage = "https://github.com/stewie-sw/stewie"
