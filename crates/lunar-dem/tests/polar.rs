@@ -25,7 +25,11 @@ fn grid(name: &str) -> PolarGrid {
 #[test]
 fn polar_heights_match_the_numpy_oracle() {
     let fx = stewie_oracle::load("polar_ldem_samples").unwrap().payload;
-    for (name, cell_m) in [("ldem_85s_40m", 40.0), ("ldem_75s_240m", 240.0)] {
+    for (name, cell_m) in [
+        ("ldem_85s_40m", 40.0),
+        ("ldem_75s_240m", 240.0),
+        ("ldem_75n_240m", 240.0),
+    ] {
         let g = grid(name);
         assert!((g.resolution_m() - cell_m).abs() < 1e-12);
         let (mut covered, mut outside) = (0, 0);

@@ -22,9 +22,9 @@ Fixtures:
                      site, at the 0/360 longitude seam, near the poles and at 200 random points.
   horizon_stacked    the Haworth-centre horizon over a two-source stack (the 5 m tile, then LDEM_16 where
                      the tile ends), 720 azimuths, 50 m step, out to 200 km: the base tier completes rays.
-  polar_ldem_samples PDS LOLA LDEM_85S_40M and LDEM_75S_240M (polar stereographic, label-driven, pyproj on the
-                     label's sphere): bilinear heights at every catalog site, at the pole and at 200 random
-                     points, None outside the grid.
+  polar_ldem_samples PDS LOLA LDEM_85S_40M, LDEM_75S_240M and LDEM_75N_240M (polar stereographic, label-driven,
+                     pyproj on the label's sphere): bilinear heights at every catalog site, at the pole and at
+                     200 random points (mirrored for the north cap), None outside the grid.
   pgda_avgvisib      PGDA product 69 AVGVISIB_85S_060M (average solar visibility, hourly over 18.6 years) at
                      the pixel nearest each catalog site inside the map: value, 3x3 range, pixel-centre
                      lat/lon. The validation protocol for RW-61 (R5) rides along in the payload.
@@ -362,12 +362,13 @@ class _PdsPolar:
 
 def polar_ldem_samples() -> None:
     files = fetch.fetch("terrain_sources.json")
-    pts = [(s.lat_deg, s.lon_deg) for s in SITES.values()]
-    pts += [(-90.0, 0.0), (-89.9999, 123.0), (-85.0, 45.0), (-84.0, 0.0), (-75.0, 45.0), (-60.0, 10.0)]
+    south = [(s.lat_deg, s.lon_deg) for s in SITES.values()]
+    south += [(-90.0, 0.0), (-89.9999, 123.0), (-85.0, 45.0), (-84.0, 0.0), (-75.0, 45.0), (-60.0, 10.0)]
     rng = np.random.default_rng(20261031)                 # sampling locations only; heights come from LOLA
-    pts += [(float(a), float(b)) for a, b in zip(rng.uniform(-90.0, -74.0, 200), rng.uniform(-180, 360, 200))]
+    south += [(float(a), float(b)) for a, b in zip(rng.uniform(-90.0, -74.0, 200), rng.uniform(-180, 360, 200))]
+    north = [(-a, b) for a, b in south]                   # the same pattern mirrored onto the north cap
     grids = {}
-    for name in ("ldem_85s_40m", "ldem_75s_240m"):
+    for name, pts in (("ldem_85s_40m", south), ("ldem_75s_240m", south), ("ldem_75n_240m", north)):
         g = _PdsPolar(files[f"{name}.img"], files[f"{name}.lbl"])
         grids[name] = [{"lat_deg": a, "lon_deg": b, "height_m": g.height(a, b)} for a, b in pts]
     write_fixture(ORACLE_FIXTURES, "polar_ldem_samples", "oracle/build_fixtures.py::polar_ldem_samples "
@@ -375,6 +376,7 @@ def polar_ldem_samples() -> None:
                   "label sphere, bilinear, None outside the grid)",
                   [".cache/terrain/ldem_85s_40m.img", ".cache/terrain/ldem_85s_40m.lbl",
                    ".cache/terrain/ldem_75s_240m.img", ".cache/terrain/ldem_75s_240m.lbl",
+                   ".cache/terrain/ldem_75n_240m.img", ".cache/terrain/ldem_75n_240m.lbl",
                    "crates/stewie-contracts/fixtures/sites.json"], {"grids": grids})
 
 

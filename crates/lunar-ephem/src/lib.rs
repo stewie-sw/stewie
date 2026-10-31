@@ -256,6 +256,14 @@ impl Ephemeris {
         Ok(Self { header, coeffs })
     }
 
+    /// The packed span `[start, end)` in TDB seconds past J2000; any epoch outside it is refused.
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)] // the segment count is far below 2^52
+    pub fn span_tdb(&self) -> (f64, f64) {
+        let h = &self.header;
+        (h.start_tdb, h.start_tdb + h.segment_s * h.n_segments as f64)
+    }
+
     /// TDB seconds past J2000 for a UTC instant, using the packaged LSK (SPICE `str2et` semantics).
     #[must_use]
     pub fn tdb(&self, utc: &Utc) -> f64 {
@@ -306,13 +314,9 @@ impl Ephemeris {
     )]
     fn series(&self, name: &'static str, tdb: f64) -> Result<[f64; 3], EphemError> {
         let h = &self.header;
-        let end = h.start_tdb + h.segment_s * h.n_segments as f64;
-        if !(tdb >= h.start_tdb && tdb < end) {
-            return Err(EphemError::OutOfSpan {
-                tdb,
-                start: h.start_tdb,
-                end,
-            });
+        let (start, end) = self.span_tdb();
+        if !(tdb >= start && tdb < end) {
+            return Err(EphemError::OutOfSpan { tdb, start, end });
         }
         let ti = h
             .targets

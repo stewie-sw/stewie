@@ -56,3 +56,9 @@ pub mod site {
     #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
     typify::import_types!(schema = "schema/site.schema.json");
 }
+
+/// Installable data package manifest (navigator N11).
+pub mod package_manifest {
+    #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
+    typify::import_types!(schema = "schema/package_manifest.schema.json");
+}

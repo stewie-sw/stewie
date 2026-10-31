@@ -1,0 +1,125 @@
+{
+ "body": "moon",
+ "ephemeris": {
+  "data": {
+   "bytes": 854568,
+   "path": "moon_de440_2026_2035.bin",
+   "sha256": "3982cc69dbbe6b5fbd78e507bf96e01c09e6fe15b20b420022786de064793137"
+  },
+  "header": {
+   "bytes": 2593,
+   "path": "moon_de440_2026_2035.json",
+   "sha256": "1627b30263377f59ed553ab285b808b849fab46c2af95ec5868654c59bcb4892"
+  },
+  "license": {
+   "statement": "Repacked from NAIF-distributed SPICE kernels by STEWIE pipeline/ephem_pack.py, renamed and annotated as NAIF requires of modified kernels. NAIF: \"SPICE kernels placed on the NAIF server may be downloaded and used by anyone\".",
+   "url": "https://naif.jpl.nasa.gov/naif/rules.html"
+  },
+  "name": "moon_de440_2026_2035",
+  "source": "pipeline/ephem_pack.py over NAIF de440s.bsp, moon_de440_250416.tf, moon_pa_de440_200625.bpc, naif0012.tls, pck00011.tpc",
+  "span_utc": [
+   "2026-01-01T00:00:00Z",
+   "2036-01-01T00:00:00Z"
+  ]
+ },
+ "format": "stewie-package-v1",
+ "layers": [
+  {
+   "id": "ldem_85s_40m",
+   "image": {
+    "bytes": 115034112,
+    "path": "ldem_85s_40m.img",
+    "sha256": "1609e9b860748e0b9952a7239c51b37d3b2a799d35e9fc3c258526711cc1e51d"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4986,
+    "path": "ldem_85s_40m.lbl",
+    "sha256": "d8105776af7fb79b1862ffa3946d013ec34f4dc6a00b7f6bff22ef8f768a5d3d"
+   },
+   "lat_max_deg": -85.00174596566539,
+   "lat_min_deg": -90.0,
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "priority": 1,
+   "resolution_m": 40.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
+   "version": "V2.0"
+  },
+  {
+   "id": "ldem_75s_240m",
+   "image": {
+    "bytes": 29062688,
+    "path": "ldem_75s_240m.img",
+    "sha256": "d031efe2611b17dfbf3c158f5e15dc04cd5719349dcbf6384bb21fd97697c490"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4990,
+    "path": "ldem_75s_240m.lbl",
+    "sha256": "ec07239f41d8abc1a3681495b5799b770c7206b5268b76721d69180df0422e02"
+   },
+   "lat_max_deg": -75.0047359642375,
+   "lat_min_deg": -90.0,
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "priority": 2,
+   "resolution_m": 240.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_240m.img",
+   "version": "V2.0"
+  },
+  {
+   "id": "ldem_75n_240m",
+   "image": {
+    "bytes": 29062688,
+    "path": "ldem_75n_240m.img",
+    "sha256": "c63d22385f182f276dd90adb7755e3070e725c3cd50b6d0d20d76a94edbba41b"
+   },
+   "kind": "pds_polar_stereographic",
+   "label": {
+    "bytes": 4917,
+    "path": "ldem_75n_240m.lbl",
+    "sha256": "0186c1953167d57fb39be070b1c579d3a7595655d5f8f5e8dbc5414d9f18eb87"
+   },
+   "lat_max_deg": 90.0,
+   "lat_min_deg": 75.0047359642375,
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "priority": 2,
+   "resolution_m": 240.0,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75n_240m.img",
+   "version": "V2.1"
+  },
+  {
+   "id": "ldem_16",
+   "image": {
+    "bytes": 33177600,
+    "path": "ldem_16.img",
+    "sha256": "a511e40d7a3ea3275945b4da2a1df377133264fab0be94b7434b1cf8907254cb"
+   },
+   "kind": "pds_simple_cylindrical",
+   "label": {
+    "bytes": 5121,
+    "path": "ldem_16.lbl",
+    "sha256": "9aef29463ccc6ed3a3fbe0df3ecd830a99c69e16b564f455507dee2697096579"
+   },
+   "lat_max_deg": 89.96875,
+   "lat_min_deg": -89.96875,
+   "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+   },
+   "priority": 9,
+   "resolution_m": 1895.2094015093426,
+   "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_16.img",
+   "version": "V3.1"
+  }
+ ],
+ "name": "lola_base"
+}

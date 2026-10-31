@@ -1,6 +1,6 @@
 {
  "cache_subdir": "terrain",
- "description": "Public LOLA gridded DEMs (PDS Geosciences Node, LRO LOLA RDR): the global base tier (LDEM_16, simple cylindrical) and the south polar regional tiers (LDEM_85S_40M, LDEM_75S_240M, polar stereographic). Fetched into code/.cache/terrain by pipeline/fetch.py.",
+ "description": "Public LOLA gridded DEMs (PDS Geosciences Node, LRO LOLA RDR): the global base tier (LDEM_16, simple cylindrical) and the polar regional tiers (LDEM_85S_40M, LDEM_75S_240M, LDEM_75N_240M, polar stereographic; LDEM_16 has no data within half a pixel of either pole). Fetched into code/.cache/terrain by pipeline/fetch.py.",
  "entries": {
   "ldem_16.img": {
    "bytes": 33177600,
@@ -11,6 +11,16 @@
    "bytes": 5121,
    "sha256": "9aef29463ccc6ed3a3fbe0df3ecd830a99c69e16b564f455507dee2697096579",
    "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_16.lbl"
+  },
+  "ldem_75n_240m.img": {
+   "bytes": 29062688,
+   "sha256": "c63d22385f182f276dd90adb7755e3070e725c3cd50b6d0d20d76a94edbba41b",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75n_240m.img"
+  },
+  "ldem_75n_240m.lbl": {
+   "bytes": 4917,
+   "sha256": "0186c1953167d57fb39be070b1c579d3a7595655d5f8f5e8dbc5414d9f18eb87",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75n_240m.lbl"
   },
   "ldem_75s_240m.img": {
    "bytes": 29062688,

@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/package_manifest.schema.json",
+  "title": "PackageManifest",
+  "description": "An installable data package (navigator N11): terrain layers by priority and one ephemeris pack, every file pinned by size and sha256, every layer with its source, version, license and resolution. Paths are relative to the package directory. Written by pipeline/build_package.py; never hand-edited.",
+  "type": "object", "additionalProperties": false,
+  "required": ["format", "name", "body", "layers", "ephemeris"],
+  "properties": {
+    "format": { "const": "stewie-package-v1" },
+    "name": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "body": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "layers": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/Layer" } },
+    "ephemeris": { "$ref": "#/definitions/Ephemeris" }
+  },
+  "definitions": {
+    "File": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]*$" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "License": {
+      "type": "object", "additionalProperties": false,
+      "required": ["statement", "url"],
+      "properties": {
+        "statement": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "pattern": "^https://" }
+      }
+    },
+    "Layer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "priority", "kind", "image", "label", "source", "version", "license", "resolution_m", "lat_min_deg", "lat_max_deg"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "priority": { "type": "integer", "minimum": 1 },
+        "kind": { "enum": ["pds_simple_cylindrical", "pds_polar_stereographic"] },
+        "image": { "$ref": "#/definitions/File" },
+        "label": { "$ref": "#/definitions/File" },
+        "source": { "type": "string", "pattern": "^https://" },
+        "version": { "type": "string", "minLength": 1 },
+        "license": { "$ref": "#/definitions/License" },
+        "resolution_m": { "type": "number", "exclusiveMinimum": 0 },
+        "lat_min_deg": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lat_max_deg": { "type": "number", "minimum": -90, "maximum": 90 }
+      }
+    },
+    "Ephemeris": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "data", "header", "span_utc", "source", "license"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "data": { "$ref": "#/definitions/File" },
+        "header": { "$ref": "#/definitions/File" },
+        "span_utc": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "string" } },
+        "source": { "type": "string", "minLength": 1 },
+        "license": { "$ref": "#/definitions/License" }
+      }
+    }
+  }
+}

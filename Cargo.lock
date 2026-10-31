@@ -1104,6 +1104,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "stewie-package"
+version = "0.1.0"
+dependencies = [
+ "lunar-dem",
+ "lunar-ephem",
+ "lunar-frames",
+ "serde_json",
+ "sha2",
+ "stewie-contracts",
+ "stewie-oracle",
+]
+
+[[package]]
 name = "stewie-wasm"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,22 @@
+[package]
+name = "stewie-package"
+description = "Installable data packages: manifest integrity, the terrain stack and ephemeris they define, and the coverage guard (R6)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+lunar-dem = { path = "../lunar-dem" }
+lunar-ephem = { path = "../lunar-ephem" }
+lunar-frames = { path = "../lunar-frames" }
+stewie-contracts = { path = "../stewie-contracts" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+
+[lints]
+workspace = true

@@ -1,8 +1,10 @@
 {
  "fixture": "polar_ldem_samples",
  "generator": "oracle/build_fixtures.py::polar_ldem_samples (numpy over the PDS IMG, label-driven pixel registration, pyproj polar stereographic on the label sphere, bilinear, None outside the grid)",
- "payload_sha256": "32919e771b881c109f8f710ad20d92e8ff3bd6226752c0b82b2aed686c498323",
+ "payload_sha256": "2b42354402c76f7765c6e78ac9e62e231708600b541dabe0e89b31730002d2d1",
  "sources": {
+  ".cache/terrain/ldem_75n_240m.img": "c63d22385f182f276dd90adb7755e3070e725c3cd50b6d0d20d76a94edbba41b",
+  ".cache/terrain/ldem_75n_240m.lbl": "0186c1953167d57fb39be070b1c579d3a7595655d5f8f5e8dbc5414d9f18eb87",
   ".cache/terrain/ldem_75s_240m.img": "d031efe2611b17dfbf3c158f5e15dc04cd5719349dcbf6384bb21fd97697c490",
   ".cache/terrain/ldem_75s_240m.lbl": "ec07239f41d8abc1a3681495b5799b770c7206b5268b76721d69180df0422e02",
   ".cache/terrain/ldem_85s_40m.img": "1609e9b860748e0b9952a7239c51b37d3b2a799d35e9fc3c258526711cc1e51d",
