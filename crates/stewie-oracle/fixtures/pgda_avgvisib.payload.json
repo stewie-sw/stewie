@@ -1,0 +1,211 @@
+{
+ "outside_product": [
+  "amundsen_rim",
+  "nobile_rim2"
+ ],
+ "product": "AVGVISIB_85S_060M_201608",
+ "protocol": {
+  "eye_m": 0.0,
+  "max_range_m": 300000.0,
+  "n_az": 720,
+  "span_days": 3466.20075,
+  "start_utc": "2026-01-01T00:00:00Z",
+  "step_m": 40.0,
+  "step_s": 3600.0,
+  "tolerance": 0.05
+ },
+ "sites": [
+  {
+   "catalog": {
+    "lat_deg": -89.292,
+    "lon_deg": -117.7676
+   },
+   "name": "connecting_ridge",
+   "pixel": {
+    "lat_deg": -89.29238915616449,
+    "line": 2695,
+    "lon_deg": -117.74734783317876,
+    "sample": 2212
+   },
+   "visibility": 0.36456000000000005,
+   "window_max": 0.36828000000000005,
+   "window_min": 0.32916
+  },
+  {
+   "catalog": {
+    "lat_deg": -86.0495,
+    "lon_deg": -115.2393
+   },
+   "name": "de_gerlache_kocher",
+   "pixel": {
+    "lat_deg": -86.04991446533629,
+    "line": 3380,
+    "lon_deg": -115.23700746565001,
+    "sample": 722
+   },
+   "visibility": 0.26748,
+   "window_max": 0.313,
+   "window_min": 0.23672
+  },
+  {
+   "catalog": {
+    "lat_deg": -88.4138,
+    "lon_deg": -69.3063
+   },
+   "name": "de_gerlache_rim",
+   "pixel": {
+    "lat_deg": -88.41453997547954,
+    "line": 2245,
+    "lon_deg": -69.280767067074,
+    "sample": 1779
+   },
+   "visibility": 0.341,
+   "window_max": 0.34728000000000003,
+   "window_min": 0.32884
+  },
+  {
+   "catalog": {
+    "lat_deg": -87.0,
+    "lon_deg": 77.0
+   },
+   "name": "faustini_rim",
+   "pixel": {
+    "lat_deg": -87.00012140834606,
+    "line": 2187,
+    "lon_deg": 76.98555963945024,
+    "sample": 4006
+   },
+   "visibility": 0.0,
+   "window_max": 0.0,
+   "window_min": 0.0
+  },
+  {
+   "catalog": {
+    "lat_deg": -86.33,
+    "lon_deg": -25.51
+   },
+   "name": "haworth",
+   "pixel": {
+    "lat_deg": -86.3296834671318,
+    "line": 854,
+    "lon_deg": -25.52242038213324,
+    "sample": 1729
+   },
+   "visibility": 0.43576000000000004,
+   "window_max": 0.46108000000000005,
+   "window_min": 0.42560000000000003
+  },
+  {
+   "catalog": {
+    "lat_deg": -86.8465,
+    "lon_deg": -21.0083
+   },
+   "name": "haworth_sfs",
+   "pixel": {
+    "lat_deg": -86.84591763363744,
+    "line": 1040,
+    "lon_deg": -21.00397153295995,
+    "sample": 1957
+   },
+   "visibility": 0.22856,
+   "window_max": 0.29616000000000003,
+   "window_min": 0.19136
+  },
+  {
+   "catalog": {
+    "lat_deg": -85.5017,
+    "lon_deg": 28.4444
+   },
+   "name": "leibnitz_beta",
+   "pixel": {
+    "lat_deg": -85.50241807170569,
+    "line": 529,
+    "lon_deg": 28.45262045226333,
+    "sample": 3612
+   },
+   "visibility": 0.40504,
+   "window_max": 0.41192,
+   "window_min": 0.38380000000000003
+  },
+  {
+   "catalog": {
+    "lat_deg": -85.6471,
+    "lon_deg": -1.7347
+   },
+   "name": "malapert_massif",
+   "pixel": {
+    "lat_deg": -85.64801324607238,
+    "line": 329,
+    "lon_deg": -1.731761314363859,
+    "sample": 2462
+   },
+   "visibility": 0.32920000000000005,
+   "window_max": 0.36452,
+   "window_min": 0.32920000000000005
+  },
+  {
+   "catalog": {
+    "lat_deg": -85.484,
+    "lon_deg": 39.965
+   },
+   "name": "nobile_rim",
+   "pixel": {
+    "lat_deg": -85.48382275838455,
+    "line": 778,
+    "lon_deg": 39.954950011321074,
+    "sample": 3995
+   },
+   "visibility": 0.33632,
+   "window_max": 0.33812000000000003,
+   "window_min": 0.33380000000000004
+  },
+  {
+   "catalog": {
+    "lat_deg": -88.9953,
+    "lon_deg": 113.2011
+   },
+   "name": "peak_near_shackleton",
+   "pixel": {
+    "lat_deg": -88.9953302054435,
+    "line": 2729,
+    "lon_deg": 113.25785687938719,
+    "sample": 2995
+   },
+   "visibility": 0.33264000000000005,
+   "window_max": 0.34076,
+   "window_min": 0.17248000000000002
+  },
+  {
+   "catalog": {
+    "lat_deg": -89.823,
+    "lon_deg": 158.213
+   },
+   "name": "shackleton_rim",
+   "pixel": {
+    "lat_deg": -89.82198002736561,
+    "line": 2612,
+    "lon_deg": 158.1394617632117,
+    "sample": 2562
+   },
+   "visibility": 0.0,
+   "window_max": 0.0,
+   "window_min": 0.0
+  },
+  {
+   "catalog": {
+    "lat_deg": -87.0462,
+    "lon_deg": 56.8443
+   },
+   "name": "shoemaker",
+   "pixel": {
+    "lat_deg": -87.04558573464001,
+    "line": 1712,
+    "lon_deg": 56.85792071298348,
+    "sample": 3779
+   },
+   "visibility": 0.04336,
+   "window_max": 0.05952,
+   "window_min": 0.00176
+  }
+ ]
+}

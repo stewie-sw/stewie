@@ -442,72 +442,227 @@ impl GlobalGrid {
         bytes: &[u8],
         sphere: Sphere,
     ) -> Result<Self, DemError> {
-        let lbl = PathBuf::from(format!("{id}.lbl"));
-        let lbl = lbl.as_path();
-        let text = label;
-        let lab = pds_label(text);
-        let get = |k: &str| {
-            lab.get(k)
-                .ok_or_else(|| contract(lbl, format!("label lacks {k}")))
+        let r = PdsRaster::parse(id, label, bytes, sphere, "SIMPLE CYLINDRICAL")?;
+        Ok(Self {
+            res_ppd: r.num("MAP_RESOLUTION")?,
+            line_offset: r.num("LINE_PROJECTION_OFFSET")?,
+            sample_offset: r.num("SAMPLE_PROJECTION_OFFSET")?,
+            center_lon: r.num("CENTER_LONGITUDE")?,
+            west_lon: r.num("WESTERNMOST_LONGITUDE")?,
+            scale: r.num("SCALING_FACTOR")?,
+            citation: r.citation(),
+            id: r.id,
+            dn: r.dn,
+            lines: r.lines,
+            samples: r.samples,
+            sphere,
+        })
+    }
+}
+
+/// A 16-bit LSB LOLA PDS3 height raster: its label keys and DNs, with the datum and size checked.
+struct PdsRaster {
+    id: String,
+    lbl: PathBuf,
+    lab: std::collections::BTreeMap<String, String>,
+    dn: Vec<i16>,
+    lines: usize,
+    samples: usize,
+}
+
+impl PdsRaster {
+    fn parse(
+        id: &str,
+        label: &str,
+        bytes: &[u8],
+        sphere: Sphere,
+        projection: &str,
+    ) -> Result<Self, DemError> {
+        let mut r = Self {
+            id: id.to_owned(),
+            lbl: PathBuf::from(format!("{id}.lbl")),
+            lab: pds_label(label),
+            dn: Vec::new(),
+            lines: 0,
+            samples: 0,
         };
-        let num = |k: &str| -> Result<f64, DemError> {
-            get(k)?
-                .parse::<f64>()
-                .map_err(|e| contract(lbl, format!("{k}: {e}")))
-        };
-        let int = |k: &str| -> Result<usize, DemError> {
-            get(k)?
-                .parse::<usize>()
-                .map_err(|e| contract(lbl, format!("{k}: {e}")))
-        };
-        if get("SAMPLE_TYPE")? != "LSB_INTEGER"
-            || get("SAMPLE_BITS")? != "16"
-            || get("MAP_PROJECTION_TYPE")? != "SIMPLE CYLINDRICAL"
+        if r.get("SAMPLE_TYPE")? != "LSB_INTEGER"
+            || r.get("SAMPLE_BITS")? != "16"
+            || r.get("MAP_PROJECTION_TYPE")? != projection
         {
             return Err(contract(
-                lbl,
-                "only 16-bit LSB simple-cylindrical LDEMs are supported",
+                &r.lbl,
+                format!("only 16-bit LSB {projection} LDEMs are supported"),
             ));
         }
-        let id = id.to_owned();
-        let offset = num("OFFSET")?;
+        let offset = r.num("OFFSET")?;
         if (offset - sphere.radius_m()).abs() > 1e-6 {
             return Err(DemError::DatumMismatch {
-                bundle: id,
+                bundle: r.id,
                 bundle_radius_m: offset,
                 body_radius_m: sphere.radius_m(),
             });
         }
-        let (lines, samples) = (int("LINES")?, int("LINE_SAMPLES")?);
-        if bytes.len() != lines * samples * 2 {
+        (r.lines, r.samples) = (r.int("LINES")?, r.int("LINE_SAMPLES")?);
+        if bytes.len() != r.lines * r.samples * 2 {
             return Err(DemError::SizeMismatch {
-                bundle: id,
-                expected_bytes: lines * samples * 2,
+                bundle: r.id,
+                expected_bytes: r.lines * r.samples * 2,
                 actual_bytes: bytes.len(),
             });
         }
-        let dn = bytes
+        r.dn = bytes
             .chunks_exact(2)
             .map(|b| i16::from_le_bytes([b[0], b[1]]))
             .collect();
+        Ok(r)
+    }
+
+    fn get(&self, k: &str) -> Result<&String, DemError> {
+        self.lab
+            .get(k)
+            .ok_or_else(|| contract(&self.lbl, format!("label lacks {k}")))
+    }
+
+    fn num(&self, k: &str) -> Result<f64, DemError> {
+        self.get(k)?
+            .parse::<f64>()
+            .map_err(|e| contract(&self.lbl, format!("{k}: {e}")))
+    }
+
+    fn int(&self, k: &str) -> Result<usize, DemError> {
+        self.get(k)?
+            .parse::<usize>()
+            .map_err(|e| contract(&self.lbl, format!("{k}: {e}")))
+    }
+
+    fn citation(&self) -> String {
+        format!(
+            "LRO LOLA {} ({}), PDS Geosciences Node",
+            self.get("PRODUCT_ID")
+                .map_or(self.id.as_str(), String::as_str),
+            self.get("PRODUCT_VERSION_ID").map_or("", String::as_str)
+        )
+    }
+}
+
+/// A PDS polar-stereographic LOLA LDEM (e.g. `LDEM_85S_40M`): a regional tier around one pole, read whole.
+/// Pixel centre (line l, sample s), 0-based, sits at easting `(s - SAMPLE_PROJECTION_OFFSET) * MAP_SCALE`,
+/// northing `(LINE_PROJECTION_OFFSET - l) * MAP_SCALE` (GDAL's reading of the same label agrees).
+#[derive(Debug)]
+pub struct PolarGrid {
+    id: String,
+    citation: String,
+    dn: Vec<i16>,
+    lines: usize,
+    samples: usize,
+    scale: f64,
+    cell_m: f64,
+    line_offset: f64,
+    sample_offset: f64,
+    proj: PolarStereographic,
+    sphere: Sphere,
+}
+
+impl PolarGrid {
+    /// Open a polar LDEM image and its label on `sphere`.
+    ///
+    /// # Errors
+    /// I/O failure, a label that is not a 16-bit LSB polar stereographic about a pole with central meridian 0
+    /// on the body sphere, or an image whose size disagrees with the label.
+    pub fn open(img: &Path, lbl: &Path, sphere: Sphere) -> Result<Self, DemError> {
+        let text = fs::read_to_string(lbl).map_err(io(lbl))?;
+        let bytes = fs::read(img).map_err(io(img))?;
+        let id = img
+            .file_stem()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        Self::from_label_bytes(&id, &text, &bytes, sphere)
+    }
+
+    /// A grid from its PDS3 label text and image bytes.
+    ///
+    /// # Errors
+    /// As [`PolarGrid::open`], without the I/O.
+    pub fn from_label_bytes(
+        id: &str,
+        label: &str,
+        bytes: &[u8],
+        sphere: Sphere,
+    ) -> Result<Self, DemError> {
+        let r = PdsRaster::parse(id, label, bytes, sphere, "POLAR STEREOGRAPHIC")?;
+        let a_m = r.num("A_AXIS_RADIUS")? * 1000.0;
+        let (lat_c, lon_c) = (r.num("CENTER_LATITUDE")?, r.num("CENTER_LONGITUDE")?);
+        let proj = match lat_c {
+            -90.0 => PolarStereographic::south(sphere),
+            90.0 => PolarStereographic::north(sphere),
+            _ => {
+                return Err(contract(
+                    &r.lbl,
+                    format!("CENTER_LATITUDE {lat_c} is not a pole"),
+                ));
+            }
+        };
+        if lon_c != 0.0
+            || (a_m - sphere.radius_m()).abs() > 1e-6
+            || r.num("MAP_PROJECTION_ROTATION")? != 0.0
+        {
+            return Err(contract(
+                &r.lbl,
+                format!(
+                    "projection (radius {a_m} m, central meridian {lon_c}) is not the body's polar stereographic"
+                ),
+            ));
+        }
         Ok(Self {
-            citation: format!(
-                "LRO LOLA {} ({}), PDS Geosciences Node",
-                get("PRODUCT_ID").map_or(id.as_str(), String::as_str),
-                get("PRODUCT_VERSION_ID").map_or("", String::as_str)
-            ),
-            id,
-            dn,
-            lines,
-            samples,
-            scale: num("SCALING_FACTOR")?,
-            res_ppd: num("MAP_RESOLUTION")?,
-            line_offset: num("LINE_PROJECTION_OFFSET")?,
-            sample_offset: num("SAMPLE_PROJECTION_OFFSET")?,
-            center_lon: num("CENTER_LONGITUDE")?,
-            west_lon: num("WESTERNMOST_LONGITUDE")?,
+            scale: r.num("SCALING_FACTOR")?,
+            cell_m: r.num("MAP_SCALE")?,
+            line_offset: r.num("LINE_PROJECTION_OFFSET")?,
+            sample_offset: r.num("SAMPLE_PROJECTION_OFFSET")?,
+            citation: r.citation(),
+            id: r.id,
+            dn: r.dn,
+            lines: r.lines,
+            samples: r.samples,
+            proj,
             sphere,
         })
+    }
+}
+
+impl TerrainSource for PolarGrid {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn citation(&self) -> &str {
+        &self.citation
+    }
+    fn resolution_m(&self) -> f64 {
+        self.cell_m
+    }
+    fn sphere(&self) -> Sphere {
+        self.sphere
+    }
+    /// Bilinear between pixel centres; `None` outside their hull (never extrapolated).
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )] // pixel indices are far below 2^52
+    fn sample_latlon(&self, ll: LatLon) -> Option<f64> {
+        let (e, n) = self.proj.forward(ll).ok()?;
+        let col = self.sample_offset + e / self.cell_m;
+        let row = self.line_offset - n / self.cell_m;
+        let (wmax, hmax) = ((self.samples - 1) as f64, (self.lines - 1) as f64);
+        if !(col >= 0.0 && row >= 0.0 && col <= wmax && row <= hmax) {
+            return None;
+        }
+        let c0 = (col.floor() as usize).min(self.samples - 2);
+        let r0 = (row.floor() as usize).min(self.lines - 2);
+        let (tx, ty) = (col - c0 as f64, row - r0 as f64);
+        let z = |r: usize, c: usize| f64::from(self.dn[r * self.samples + c]);
+        let v = (1.0 - ty) * ((1.0 - tx) * z(r0, c0) + tx * z(r0, c0 + 1))
+            + ty * ((1.0 - tx) * z(r0 + 1, c0) + tx * z(r0 + 1, c0 + 1));
+        Some(v * self.scale)
     }
 }
 

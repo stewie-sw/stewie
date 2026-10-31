@@ -256,3 +256,45 @@ pub fn visibility_windows(
     });
     Ok(out)
 }
+
+/// Share of sample times in each verdict: long-run illumination (navigator N13, requirement R5).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VerdictFractions {
+    pub lit: f64,
+    pub shadow: f64,
+    pub unknown: f64,
+    pub samples: usize,
+}
+
+/// Verdict shares of `body` at `site`, sampled every `cfg.sample_s` over `[t0, t1]` (TDB seconds).
+///
+/// # Errors
+/// As [`crossings`].
+#[allow(clippy::cast_precision_loss)] // sample counts are far below 2^52
+pub fn verdict_fractions(
+    eph: &Ephemeris,
+    horizon: &Horizon,
+    site: LatLon,
+    body: Body,
+    t0: f64,
+    t1: f64,
+    cfg: &VisibilityConfig,
+) -> Result<VerdictFractions, IntervalError> {
+    let obs = observer(eph, horizon, site, cfg)?;
+    let ts = sample_times(t0, t1, cfg.sample_s);
+    let (mut lit, mut shadow, mut unknown) = (0usize, 0usize, 0usize);
+    for &t in &ts {
+        match obs.verdict(body, t)? {
+            Verdict::Lit => lit += 1,
+            Verdict::Shadow => shadow += 1,
+            Verdict::Unknown => unknown += 1,
+        }
+    }
+    let n = ts.len() as f64;
+    Ok(VerdictFractions {
+        lit: lit as f64 / n,
+        shadow: shadow as f64 / n,
+        unknown: unknown as f64 / n,
+        samples: ts.len(),
+    })
+}

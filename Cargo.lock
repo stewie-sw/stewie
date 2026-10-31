@@ -557,6 +557,7 @@ dependencies = [
 name = "lunar-intervals"
 version = "0.1.0"
 dependencies = [
+ "lunar-dem",
  "lunar-ephem",
  "lunar-frames",
  "lunar-horizon",

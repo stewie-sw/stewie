@@ -1,0 +1,18 @@
+{
+ "cache_subdir": "validation",
+ "description": "Published products the engine is validated against, never inputs to it. PGDA product 69 (Mazarico et al. 2011, Icarus 211:1066; 2016 release): average solar visibility over 85S-90S at 60 m/px, hourly timesteps over 18.6 years (pgda.gsfc.nasa.gov/products/69). Fetched into code/.cache/validation by pipeline/fetch.py.",
+ "entries": {
+  "avgvisib_85s_060m_201608.img": {
+   "bytes": 51166728,
+   "sha256": "82dadf321dee28f1947c1fed81858d4cf50fe8eb2aa405aae114e8ab21c1efe1",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/IMG/AVGVISIB_85S_060M_201608.IMG"
+  },
+  "avgvisib_85s_060m_201608.lbl": {
+   "bytes": 4094,
+   "sha256": "33decce957d5d4d9608557d8d969d1e1b94056a159b2563624ade4b528a0c917",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/IMG/AVGVISIB_85S_060M_201608.LBL"
+  }
+ },
+ "local_dir_default": "/mnt/projects/datasets/pgda_illumination",
+ "local_dir_env": "STEWIE_VALIDATION_DIR"
+}

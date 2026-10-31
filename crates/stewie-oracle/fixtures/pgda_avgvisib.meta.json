@@ -1,0 +1,10 @@
+{
+ "fixture": "pgda_avgvisib",
+ "generator": "oracle/build_fixtures.py::pgda_avgvisib (PGDA product 69 AVGVISIB_85S_060M_201608 IMG, DN * SCALING_FACTOR, nearest pixel to each catalog site; pyproj polar stereographic on the label sphere)",
+ "payload_sha256": "17945b3717ed2ee51646ecb8b599c619dee4f91d51e23d4593c52ace5fdf1ae7",
+ "sources": {
+  ".cache/validation/avgvisib_85s_060m_201608.img": "82dadf321dee28f1947c1fed81858d4cf50fe8eb2aa405aae114e8ab21c1efe1",
+  ".cache/validation/avgvisib_85s_060m_201608.lbl": "33decce957d5d4d9608557d8d969d1e1b94056a159b2563624ade4b528a0c917",
+  "crates/stewie-contracts/fixtures/sites.json": "23d2b19cf56e2a006f52dea85e127ad70c5e5bc7d4d6086463f8b0588f6df9fb"
+ }
+}

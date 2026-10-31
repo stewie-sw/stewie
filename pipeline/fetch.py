@@ -18,7 +18,7 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_ROOT = os.path.normpath(os.path.join(HERE, "..", ".cache"))
-MANIFESTS = ("spice_kernels.json", "terrain_sources.json")
+MANIFESTS = ("spice_kernels.json", "terrain_sources.json", "validation_products.json")
 
 
 def sha256(path: str) -> str:

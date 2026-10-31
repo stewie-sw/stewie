@@ -22,6 +22,12 @@ Fixtures:
                      site, at the 0/360 longitude seam, near the poles and at 200 random points.
   horizon_stacked    the Haworth-centre horizon over a two-source stack (the 5 m tile, then LDEM_16 where
                      the tile ends), 720 azimuths, 50 m step, out to 200 km: the base tier completes rays.
+  polar_ldem_samples PDS LOLA LDEM_85S_40M and LDEM_75S_240M (polar stereographic, label-driven, pyproj on the
+                     label's sphere): bilinear heights at every catalog site, at the pole and at 200 random
+                     points, None outside the grid.
+  pgda_avgvisib      PGDA product 69 AVGVISIB_85S_060M (average solar visibility, hourly over 18.6 years) at
+                     the pixel nearest each catalog site inside the map: value, 3x3 range, pixel-centre
+                     lat/lon. The validation protocol for RW-61 (R5) rides along in the payload.
 """
 from __future__ import annotations
 
@@ -316,6 +322,93 @@ def global_ldem_samples() -> None:
                    "crates/stewie-contracts/fixtures/sites.json"], {"samples": samples})
 
 
+class _PdsPolar:
+    """LOLA polar-stereographic IMG (an LDEM or an illumination map), label-driven, independent of the Rust
+    reader: pixel centre (l, s) at ((s - S0) * scale, (L0 - l) * scale), projected by pyproj."""
+
+    def __init__(self, img: str, lbl: str):
+        from pyproj import Transformer
+
+        lab = _pds_label(lbl)
+        self.lines, self.samples = int(lab["LINES"]), int(lab["LINE_SAMPLES"])
+        self.scale, self.cell = float(lab["SCALING_FACTOR"]), float(lab["MAP_SCALE"])
+        self.l0, self.s0 = float(lab["LINE_PROJECTION_OFFSET"]), float(lab["SAMPLE_PROJECTION_OFFSET"])
+        r = float(lab["A_AXIS_RADIUS"]) * 1000.0
+        stere = f"+proj=stere +lat_0={float(lab['CENTER_LATITUDE'])} +lon_0={float(lab['CENTER_LONGITUDE'])} +k=1 +R={r}"
+        geo = f"+proj=longlat +R={r} +no_defs"
+        self.fwd = Transformer.from_crs(geo, stere, always_xy=True)
+        self.inv = Transformer.from_crs(stere, geo, always_xy=True)
+        self.dn = np.fromfile(img, dtype="<i2").reshape(self.lines, self.samples)
+
+    def pixel(self, lat: float, lon: float) -> tuple[float, float]:
+        e, n = self.fwd.transform(lon, lat)
+        return self.l0 - n / self.cell, self.s0 + e / self.cell
+
+    def height(self, lat: float, lon: float):
+        row, col = self.pixel(lat, lon)
+        if not (0.0 <= row <= self.lines - 1 and 0.0 <= col <= self.samples - 1):
+            return None
+        r0, c0 = min(int(math.floor(row)), self.lines - 2), min(int(math.floor(col)), self.samples - 2)
+        ty, tx = row - r0, col - c0
+        z = self.dn
+        v = ((1 - ty) * ((1 - tx) * float(z[r0, c0]) + tx * float(z[r0, c0 + 1]))
+             + ty * ((1 - tx) * float(z[r0 + 1, c0]) + tx * float(z[r0 + 1, c0 + 1])))
+        return v * self.scale
+
+    def centre_latlon(self, row: int, col: int) -> tuple[float, float]:
+        lon, lat = self.inv.transform((col - self.s0) * self.cell, (self.l0 - row) * self.cell)
+        return float(lat), float(lon)
+
+
+def polar_ldem_samples() -> None:
+    files = fetch.fetch("terrain_sources.json")
+    pts = [(s.lat_deg, s.lon_deg) for s in SITES.values()]
+    pts += [(-90.0, 0.0), (-89.9999, 123.0), (-85.0, 45.0), (-84.0, 0.0), (-75.0, 45.0), (-60.0, 10.0)]
+    rng = np.random.default_rng(20261031)                 # sampling locations only; heights come from LOLA
+    pts += [(float(a), float(b)) for a, b in zip(rng.uniform(-90.0, -74.0, 200), rng.uniform(-180, 360, 200))]
+    grids = {}
+    for name in ("ldem_85s_40m", "ldem_75s_240m"):
+        g = _PdsPolar(files[f"{name}.img"], files[f"{name}.lbl"])
+        grids[name] = [{"lat_deg": a, "lon_deg": b, "height_m": g.height(a, b)} for a, b in pts]
+    write_fixture(ORACLE_FIXTURES, "polar_ldem_samples", "oracle/build_fixtures.py::polar_ldem_samples "
+                  "(numpy over the PDS IMG, label-driven pixel registration, pyproj polar stereographic on the "
+                  "label sphere, bilinear, None outside the grid)",
+                  [".cache/terrain/ldem_85s_40m.img", ".cache/terrain/ldem_85s_40m.lbl",
+                   ".cache/terrain/ldem_75s_240m.img", ".cache/terrain/ldem_75s_240m.lbl",
+                   "crates/stewie-contracts/fixtures/sites.json"], {"grids": grids})
+
+
+# RW-61 protocol (D-R43). Ten eclipse years (346.620075 d each) from 2026-01-01, inside the bundled ephemeris:
+# the Sun's latitude cycle over the Moon closes, PGDA's 18.6-year span does not fit the 2026-2035 pack.
+PGDA_PROTOCOL = {"start_utc": "2026-01-01T00:00:00Z", "span_days": 3466.20075, "step_s": 3600.0,
+                 "n_az": 720, "max_range_m": 300_000.0, "step_m": 40.0, "eye_m": 0.0, "tolerance": 0.05}
+
+
+def pgda_avgvisib() -> None:
+    files = fetch.fetch("validation_products.json")
+    g = _PdsPolar(files["avgvisib_85s_060m_201608.img"], files["avgvisib_85s_060m_201608.lbl"])
+    sites, outside = [], []
+    for name, s in sorted(SITES.items()):
+        row, col = (round(v) for v in g.pixel(s.lat_deg, s.lon_deg))
+        if not (1 <= row <= g.lines - 2 and 1 <= col <= g.samples - 2):
+            outside.append(name)
+            continue
+        win = g.dn[row - 1:row + 2, col - 1:col + 2].astype(float) * g.scale
+        lat, lon = g.centre_latlon(row, col)
+        sites.append({"name": name, "catalog": {"lat_deg": s.lat_deg, "lon_deg": s.lon_deg},
+                      "pixel": {"line": row, "sample": col, "lat_deg": lat, "lon_deg": lon},
+                      "visibility": float(g.dn[row, col]) * g.scale,
+                      "window_min": float(win.min()), "window_max": float(win.max())})
+    write_fixture(ORACLE_FIXTURES, "pgda_avgvisib", "oracle/build_fixtures.py::pgda_avgvisib "
+                  "(PGDA product 69 AVGVISIB_85S_060M_201608 IMG, DN * SCALING_FACTOR, nearest pixel to each "
+                  "catalog site; pyproj polar stereographic on the label sphere)",
+                  [".cache/validation/avgvisib_85s_060m_201608.img",
+                   ".cache/validation/avgvisib_85s_060m_201608.lbl",
+                   "crates/stewie-contracts/fixtures/sites.json"],
+                  {"product": "AVGVISIB_85S_060M_201608", "protocol": PGDA_PROTOCOL,
+                   "sites": sites, "outside_product": outside})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -378,6 +471,8 @@ def main() -> None:
     visibility_windows()
     global_ldem_samples()
     horizon_stacked()
+    polar_ldem_samples()
+    pgda_avgvisib()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 {
  "cache_subdir": "terrain",
- "description": "Public LOLA gridded DEMs (PDS Geosciences Node, LRO LOLA RDR V3.1) for the global base terrain tier. Fetched into code/.cache/terrain by pipeline/fetch.py.",
+ "description": "Public LOLA gridded DEMs (PDS Geosciences Node, LRO LOLA RDR): the global base tier (LDEM_16, simple cylindrical) and the south polar regional tiers (LDEM_85S_40M, LDEM_75S_240M, polar stereographic). Fetched into code/.cache/terrain by pipeline/fetch.py.",
  "entries": {
   "ldem_16.img": {
    "bytes": 33177600,
@@ -11,6 +11,26 @@
    "bytes": 5121,
    "sha256": "9aef29463ccc6ed3a3fbe0df3ecd830a99c69e16b564f455507dee2697096579",
    "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_16.lbl"
+  },
+  "ldem_75s_240m.img": {
+   "bytes": 29062688,
+   "sha256": "d031efe2611b17dfbf3c158f5e15dc04cd5719349dcbf6384bb21fd97697c490",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_240m.img"
+  },
+  "ldem_75s_240m.lbl": {
+   "bytes": 4990,
+   "sha256": "ec07239f41d8abc1a3681495b5799b770c7206b5268b76721d69180df0422e02",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_240m.lbl"
+  },
+  "ldem_85s_40m.img": {
+   "bytes": 115034112,
+   "sha256": "1609e9b860748e0b9952a7239c51b37d3b2a799d35e9fc3c258526711cc1e51d",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img"
+  },
+  "ldem_85s_40m.lbl": {
+   "bytes": 4986,
+   "sha256": "d8105776af7fb79b1862ffa3946d013ec34f4dc6a00b7f6bff22ef8f768a5d3d",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.lbl"
   }
  },
  "local_dir_default": "/mnt/projects/datasets/lola_gdr",

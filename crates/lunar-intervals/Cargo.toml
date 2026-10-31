@@ -13,6 +13,7 @@ lunar-frames = { path = "../lunar-frames" }
 lunar-horizon = { path = "../lunar-horizon" }
 
 [dev-dependencies]
+lunar-dem = { path = "../lunar-dem" }
 stewie-oracle = { path = "../stewie-oracle" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 
