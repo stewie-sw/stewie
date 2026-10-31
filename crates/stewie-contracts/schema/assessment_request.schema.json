@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stewie.space/schema/assessment_request.schema.json",
+  "title": "AssessmentRequest",
+  "description": "A task check at a place (navigator Field/Planning): where, when it starts, how long it runs, the buffer the illumination rule needs, the observer's eye height, the sampling step of the visibility windows, when the assessment is made (staleness is judged against it) and the rule revision. Site coordinates come from the sourced catalog or a pin.",
+  "type": "object", "additionalProperties": false,
+  "required": ["task", "site", "start_utc", "duration_s", "buffer_s", "eye_height_m", "sample_s", "assessed_at_utc", "rule_revision"],
+  "properties": {
+    "task": { "type": "string", "minLength": 1 },
+    "site": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "lat_deg", "lon_deg"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "lat_deg": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lon_deg": { "type": "number", "minimum": -180, "maximum": 360 }
+      }
+    },
+    "start_utc": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$" },
+    "duration_s": { "type": "number", "exclusiveMinimum": 0 },
+    "buffer_s": { "type": "number", "minimum": 0 },
+    "eye_height_m": { "type": "number", "minimum": 0 },
+    "sample_s": { "type": "number", "exclusiveMinimum": 0 },
+    "assessed_at_utc": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$" },
+    "rule_revision": { "type": "string", "minLength": 1 }
+  }
+}

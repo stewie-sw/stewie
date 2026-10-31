@@ -80,3 +80,9 @@ pub mod plugin_manifest {
     #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
     typify::import_types!(schema = "schema/plugin_manifest.schema.json");
 }
+
+/// A task check at a place (navigator N22 via the engine API, RW-56b).
+pub mod assessment_request {
+    #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
+    typify::import_types!(schema = "schema/assessment_request.schema.json");
+}

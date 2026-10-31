@@ -382,15 +382,24 @@ fn window_cover(
     } else {
         State::Violates
     };
-    (
-        state,
-        Some(margin),
+    // still lit where the computed windows end: the margin is a lower bound, not a predicted loss
+    let through = ws
+        .last()
+        .is_some_and(|w| w.verdict == Verdict::Lit && w.end_tdb <= lit_until);
+    let detail = if through {
+        format!(
+            "visible through the computed windows ({:.0} s); buffer {buf:.0} s; at least {:.0} s meet the rule",
+            lit_until - t0,
+            usable.max(0.0)
+        )
+    } else {
         format!(
             "lost after {:.0} s; buffer {buf:.0} s; {:.0} s meet the rule",
             lit_until - t0,
             usable.max(0.0)
-        ),
-    )
+        )
+    };
+    (state, Some(margin), detail)
 }
 
 /// Assess `t` at `now_tdb` (staleness is judged against it).

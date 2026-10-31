@@ -16,6 +16,8 @@ lunar-ephem = { path = "../lunar-ephem" }
 lunar-frames = { path = "../lunar-frames" }
 lunar-horizon = { path = "../lunar-horizon" }
 lunar-intervals = { path = "../lunar-intervals" }
+stewie-assess = { path = "../stewie-assess" }
+stewie-contracts = { path = "../stewie-contracts" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 

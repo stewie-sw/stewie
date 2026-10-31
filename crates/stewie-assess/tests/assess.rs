@@ -96,6 +96,13 @@ fn the_station_bravo_example_violates_with_thirteen_usable_minutes() {
     );
     assert!(a.checks[0].detail.contains("780 s meet the rule"));
     assert_eq!(a.checks[1].state, State::Meets);
+    assert!(
+        a.checks[1]
+            .detail
+            .starts_with("visible through the computed windows"),
+        "{}",
+        a.checks[1].detail
+    );
     assert_eq!(
         a.not_assessed,
         ["radio link", "return", "life support", "thermal"]

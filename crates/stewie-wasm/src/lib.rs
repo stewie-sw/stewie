@@ -182,6 +182,120 @@ impl Engine {
     }
 }
 
+impl Engine {
+    /// Assess a task at a place (navigator N22): the Sun must light the task plus its buffer (the
+    /// illumination rule) and the Earth must stay above the terrain for the task (Earth visibility), both
+    /// hard checks over the windows this engine computes from the task start. Groups the engine does not
+    /// compute here are listed as not assessed. Returns the evidence record (contract
+    /// `assessment.schema.json`) as JSON.
+    ///
+    /// # Errors
+    /// A request that breaks its contract, or a horizon that does not parse. An epoch outside the
+    /// ephemeris is not an error: the checks cannot be assessed.
+    pub fn assess(&self, request_json: &str, horizon: &Horizon) -> Result<String, String> {
+        use stewie_assess::{Check, Eval, Input, Kind, Template, assess};
+        let req: stewie_contracts::assessment_request::AssessmentRequest =
+            serde_json::from_str(request_json).map_err(|e| format!("assessment request: {e}"))?;
+        let tdb = |s: &str| {
+            Utc::parse_iso8601(s)
+                .map(|u| self.eph.tdb(&u))
+                .map_err(|e| e.to_string())
+        };
+        let (start, now) = (tdb(&req.start_utc)?, tdb(&req.assessed_at_utc)?);
+        let (lat, lon) = (req.site.lat_deg, req.site.lon_deg);
+        let (span, end) = (self.eph.span_tdb(), start + req.duration_s + req.buffer_s);
+        let version = format!(
+            "ephemeris TDB {:.0}..{:.0}; terrain {}",
+            span.0,
+            span.1,
+            self.stack_signature()
+        );
+        let known = |v: f64| Input::Known {
+            value: v,
+            version: "request".into(),
+            as_of_tdb: now,
+            max_age_s: None,
+            simulated: false,
+        };
+        let windows = |b: &str| -> Input<Vec<Window>> {
+            let ll = LatLon {
+                lat_deg: lat,
+                lon_deg: lon,
+            };
+            let cfg = self.ground(ll).map(|g| VisibilityConfig {
+                sample_s: req.sample_s,
+                tolerance_s: 0.1,
+                eye_height_m: req.eye_height_m,
+                ground_height_m: g,
+                moon: self.moon,
+            });
+            match (body(b), cfg) {
+                (Ok(bd), Ok(cfg)) => match visibility_windows(
+                    &self.eph,
+                    horizon,
+                    ll,
+                    bd,
+                    start,
+                    end + req.sample_s,
+                    &cfg,
+                ) {
+                    Ok(w) => Input::Known {
+                        value: w,
+                        version: version.clone(),
+                        as_of_tdb: now,
+                        max_age_s: None,
+                        simulated: false,
+                    },
+                    Err(e) => Input::Missing(e.to_string()),
+                },
+                (Err(e), _) | (_, Err(e)) => Input::Missing(e),
+            }
+        };
+        let cover = |b: &str, buffer: f64| Eval::WindowCover {
+            windows: windows(b),
+            start_tdb: known(start),
+            duration_s: known(req.duration_s),
+            buffer_s: known(buffer),
+        };
+        let t = Template {
+            name: format!("{} at {}", req.task.as_str(), req.site.name.as_str()),
+            rule_revision: req.rule_revision.to_string(),
+            checks: vec![
+                Check {
+                    group: "illumination".into(),
+                    kind: Kind::Hard,
+                    eval: cover("SUN", req.buffer_s),
+                },
+                Check {
+                    group: "Earth visibility".into(),
+                    kind: Kind::Hard,
+                    eval: cover("EARTH", 0.0),
+                },
+            ],
+            not_modeled: [
+                "terrain slope",
+                "traverse timing",
+                "radio link",
+                "return",
+                "life support",
+                "thermal",
+            ]
+            .map(str::to_owned)
+            .to_vec(),
+            assumptions: vec![
+                format!("eye height {} m above the terrain", req.eye_height_m),
+                format!(
+                    "horizon of {} azimuths from the installed terrain stack",
+                    horizon.az_deg.len()
+                ),
+                "visible means any part of the disk above the terrain horizon".to_owned(),
+                format!("windows sampled every {} s, edges to 0.1 s", req.sample_s),
+            ],
+        };
+        serde_json::to_string(&assess(&t, now).evidence).map_err(|e| e.to_string())
+    }
+}
+
 /// Rebuild a [`Horizon`] from the JSON the `horizon` binding returns (the browser hands it back).
 ///
 /// # Errors
@@ -313,6 +427,8 @@ pub mod scenario {
         pub sun_az_el: Vec<[f64; 2]>,
         pub earth_az_el: Vec<[f64; 2]>,
         pub sun_windows: Vec<WindowOut>,
+        /// The evidence record of a two-hour task at the site (navigator N22).
+        pub assessment: serde_json::Value,
     }
 
     /// # Errors
@@ -341,6 +457,13 @@ pub mod scenario {
             &h,
         )?;
         let t0 = w.first().map_or(0.0, |x| x.start_tdb);
+        let request = serde_json::json!({
+            "task": "golden sampling", "site": {"name": "Haworth (catalog)", "lat_deg": lat, "lon_deg": lon},
+            "start_utc": "2027-01-10T00:00:00Z", "duration_s": 7200.0, "buffer_s": 1800.0, "eye_height_m": 1.5,
+            "sample_s": 600.0, "assessed_at_utc": "2027-01-10T00:00:00Z", "rule_revision": "golden-r1"
+        });
+        let assessment = serde_json::from_str(&e.assess(&request.to_string(), &h)?)
+            .map_err(|x| x.to_string())?;
         Ok(Output {
             sun_az_el: track("SUN")?,
             earth_az_el: track("EARTH")?,
@@ -354,6 +477,7 @@ pub mod scenario {
                 .collect(),
             horizon_elev_deg: h.elev_deg,
             horizon_reach_m: h.reach_m,
+            assessment,
         })
     }
 
@@ -473,6 +597,14 @@ mod bindings {
                 .map(|x| serde_json::json!({"start_s": x.start_tdb - t0, "end_s": x.end_tdb - t0, "verdict": format!("{:?}", x.verdict)}))
                 .collect();
             Ok(serde_json::Value::from(out).to_string())
+        }
+
+        /// Assess a task at a place; returns the evidence record as JSON.
+        pub fn assess(&self, request_json: &str, horizon_json: &str) -> Result<String, JsError> {
+            let h = super::horizon_from_json(horizon_json).map_err(|e| JsError::new(&e))?;
+            self.0
+                .assess(request_json, &h)
+                .map_err(|e| JsError::new(&e))
         }
 
         #[wasm_bindgen(js_name = azEl)]

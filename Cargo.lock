@@ -1174,6 +1174,8 @@ dependencies = [
  "lunar-intervals",
  "serde",
  "serde_json",
+ "stewie-assess",
+ "stewie-contracts",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]

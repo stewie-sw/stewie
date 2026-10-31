@@ -1655,5 +1655,113 @@
       "end_utc_offset_s": 2592000.0008403063,
       "verdict": "Lit"
     }
-  ]
+  ],
+  "assessment": {
+    "assessed_at_tdb": 852811269.184173,
+    "assumptions": [
+      "eye height 1.5 m above the terrain",
+      "horizon of 720 azimuths from the installed terrain stack",
+      "visible means any part of the disk above the terrain horizon",
+      "windows sampled every 600 s, edges to 0.1 s"
+    ],
+    "binding": "illumination",
+    "checks": [
+      {
+        "detail": "lost after 0 s; buffer 1800 s; 0 s meet the rule",
+        "group": "illumination",
+        "inputs": [
+          {
+            "as_of_tdb": 852811269.184173,
+            "name": "windows",
+            "simulated": false,
+            "status": "known",
+            "value": 1,
+            "version": "ephemeris TDB 820497669..1136030469; terrain regional@5.0m > ldem_16@1895.2m"
+          },
+          {
+            "as_of_tdb": 852811269.184173,
+            "name": "start_tdb",
+            "simulated": false,
+            "status": "known",
+            "value": 852811269.184173,
+            "version": "request"
+          },
+          {
+            "as_of_tdb": 852811269.184173,
+            "name": "duration_s",
+            "simulated": false,
+            "status": "known",
+            "value": 7200.0,
+            "version": "request"
+          },
+          {
+            "as_of_tdb": 852811269.184173,
+            "name": "buffer_s",
+            "simulated": false,
+            "status": "known",
+            "value": 1800.0,
+            "version": "request"
+          }
+        ],
+        "kind": "hard",
+        "margin": -9000.0,
+        "state": "violates",
+        "unit": "s"
+      },
+      {
+        "detail": "visible through the computed windows (9600 s); buffer 0 s; at least 9600 s meet the rule",
+        "group": "Earth visibility",
+        "inputs": [
+          {
+            "as_of_tdb": 852811269.184173,
+            "name": "windows",
+            "simulated": false,
+            "status": "known",
+            "value": 1,
+            "version": "ephemeris TDB 820497669..1136030469; terrain regional@5.0m > ldem_16@1895.2m"
+          },
+          {
+            "as_of_tdb": 852811269.184173,
+            "name": "start_tdb",
+            "simulated": false,
+            "status": "known",
+            "value": 852811269.184173,
+            "version": "request"
+          },
+          {
+            "as_of_tdb": 852811269.184173,
+            "name": "duration_s",
+            "simulated": false,
+            "status": "known",
+            "value": 7200.0,
+            "version": "request"
+          },
+          {
+            "as_of_tdb": 852811269.184173,
+            "name": "buffer_s",
+            "simulated": false,
+            "status": "known",
+            "value": 0.0,
+            "version": "request"
+          }
+        ],
+        "kind": "hard",
+        "margin": 2400.0,
+        "state": "meets modeled constraints",
+        "unit": "s"
+      }
+    ],
+    "not_assessed": [
+      "terrain slope",
+      "traverse timing",
+      "radio link",
+      "return",
+      "life support",
+      "thermal"
+    ],
+    "rule_revision": "golden-r1",
+    "simulated": false,
+    "state": "violates",
+    "template": "golden sampling at Haworth (catalog)"
+  }
 }
