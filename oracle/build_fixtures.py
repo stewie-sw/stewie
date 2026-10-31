@@ -1371,6 +1371,89 @@ def mission_cases() -> None:
 _DROP = object()
 
 
+def balance_cases() -> None:
+    """Cut-fill balance (RW-33b): the min-cost transportation solver on the P-03 docstring example and SYNTHETIC
+    matrices (labelled), and lode.planner_balance.balance on missions routed over the real Haworth route window
+    (sites picked as route_cases picks them): surplus, deficit, an unreachable fill, cuts only and fills only."""
+    from scipy import ndimage
+
+    from lode import planner_routing as PR
+    from lode.planner_balance import _mincost_transport, balance
+    from lode.planner_model import mission_from_dict
+    from lode.planner_trips import _make_routes
+    from stewie.physics.worksite import coarse_base_from_bundle
+
+    inf = float("inf")
+    transport = []
+    for name, sup, dem, cost in (
+            ("p03_doc", [10.0, 5.0], [5.0, 10.0], [[1.0, 2.0], [3.0, 9.0]]),
+            ("unreachable_arcs", [8.0, 6.0, 4.0], [5.0, 9.0], [[2.0, inf], [inf, 3.0], [1.5, 4.0]]),
+            ("excess_demand", [3.0], [5.0, 4.0], [[1.0, 2.0]]),
+            ("no_arcs", [3.0, 2.0], [4.0], [[inf], [inf]]),
+            ("cost_tie", [5.0, 5.0], [5.0, 5.0], [[1.0, 1.0], [1.0, 1.0]])):
+        flow, unmet, left = _mincost_transport(sup, dem, cost)
+        transport.append({"name": name, "supplies": sup, "demands": dem,
+                          "cost": [[c if math.isfinite(c) else None for c in r] for r in cost],
+                          "flow": flow, "unmet": unmet, "leftover": left})
+
+    base, _ = coarse_base_from_bundle(os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    cell, origin = 5.0, (100.0, 50.0)
+    _, passable = PR.slope_costmap(Z, cell, max_drop_m=PR.MAX_DROP_M)
+    lab, _ = ndimage.label(passable, structure=np.ones((3, 3)))
+    main = lab == np.argmax(np.bincount(lab.ravel())[1:]) + 1
+    rr, cc = np.nonzero(main)
+
+    def site(fr, fc):
+        k = int(np.argmin((rr - fr * n) ** 2 + (cc - fc * n) ** 2))
+        return [float(cc[k] * cell - origin[0] + 2.5), float(rr[k] * cell - origin[1] + 2.5)]
+
+    br, bc = np.nonzero(~passable)          # an impassable cell: no route reaches it
+    blocked = [float(bc[0] * cell - origin[0] + 2.5), float(br[0] * cell - origin[1] + 2.5)]
+
+    def order(action, kind, xy, fp, depth, **kw):
+        return {"action": action, "kind": kind, "x": xy[0], "y": xy[1], "footprint_m2": fp, "depth_m": depth, **kw}
+
+    missions = {
+        "surplus": [order("cut a", "cut", site(0.2, 0.2), 40, 0.3), order("cut b", "cut", site(0.7, 0.3), 30, 0.08,
+                                                                             insitu_density_kg_m3=1650.0),
+                    order("cut c", "cut", site(0.5, 0.8), 25, 0.5), order("fill d", "fill", site(0.4, 0.5), 36, 0.2),
+                    order("fill e", "fill", site(0.8, 0.7), 20, 0.15)],
+        "deficit": [order("cut a", "cut", site(0.3, 0.3), 10, 0.1), order("fill b", "fill", site(0.6, 0.6), 50, 0.3),
+                    order("fill c", "fill", site(0.2, 0.8), 30, 0.2)],
+        "unreachable_fill": [order("cut a", "cut", site(0.3, 0.3), 30, 0.2), order("fill b", "fill", blocked, 20, 0.2),
+                             order("fill c", "fill", site(0.7, 0.4), 10, 0.2)],
+        "cuts_only": [order("cut a", "cut", site(0.3, 0.3), 30, 0.2), order("cut b", "cut", site(0.6, 0.5), 12, 0.6)],
+        "fills_only": [order("fill a", "fill", site(0.3, 0.3), 30, 0.2)],
+    }
+    out = []
+    for name, orders in missions.items():
+        payload = {"name": name, "body": "moon", "charger": site(0.5, 0.5), "orders": orders}
+        m = mission_from_dict(payload)
+        flows, surplus = balance(m, dem=(Z, cell), dem_origin=origin)
+        idx = {id(o): i for i, o in enumerate(m.orders)}
+        rd = _make_routes(m, (Z, cell), origin, 25.0)
+        cuts = [o for o in m.orders if o.kind == "cut"]
+        fills = [o for o in m.orders if o.kind == "fill"]
+        cost = [[(lambda v: v if math.isfinite(v) else None)(rd((c.x, c.y), (f.x, f.y))) for f in fills] for c in cuts]
+        out.append({"name": name, "payload": payload, "cost": cost, "surplus_kg": surplus,
+                    "flows": [{"cut": None if c is None else idx[id(c)], "fill": None if f is None else idx[id(f)],
+                               "mass_kg": mass, "dist_m": d} for c, f, mass, d in flows]})
+    kinds = {name: {("routed" if f["cut"] is not None and f["fill"] is not None else
+                     "import" if f["cut"] is None else "spoil") for f in r["flows"]} for name, r in
+             ((r["name"], r) for r in out)}
+    assert kinds["surplus"] >= {"routed", "spoil"} and "import" in kinds["deficit"]
+    assert "import" in kinds["unreachable_fill"] and kinds["cuts_only"] == {"spoil"} and kinds["fills_only"] == {"import"}
+    assert any(c is None for r in out for row in r["cost"] for c in row), "an unreachable arc"
+    write_fixture(ORACLE_FIXTURES, "balance_cases", "oracle/build_fixtures.py::balance_cases (lode.planner_balance on "
+                  "SYNTHETIC matrices, labelled, and on missions routed over the real Haworth route window)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "lode/planner_balance.py",
+                   "lode/planner_routing.py", "lode/planner_trips.py", "lode/planner_model.py"],
+                  {"window": list(ROUTE_WINDOW), "cell_m": cell, "origin": list(origin), "transport": transport,
+                   "missions": out})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1639,6 +1722,7 @@ def main() -> None:
     twin_store_cases()
     route_cases()
     route_extras()
+    balance_cases()
 
 
 if __name__ == "__main__":

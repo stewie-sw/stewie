@@ -1,0 +1,513 @@
+{
+ "cell_m": 5.0,
+ "missions": [
+  {
+   "cost": [
+    [
+     191.4213562373095,
+     482.13203435596427
+    ],
+    [
+     191.4213562373095,
+     231.92388155425118
+    ],
+    [
+     230.35533905932738,
+     208.1370849898476
+    ]
+   ],
+   "flows": [
+    {
+     "cut": 0,
+     "dist_m": 180.27756377319946,
+     "fill": 3,
+     "mass_kg": 9360.0
+    },
+    {
+     "cut": 2,
+     "dist_m": 159.76545308670458,
+     "fill": 4,
+     "mass_kg": 3900.0
+    },
+    {
+     "cut": 0,
+     "dist_m": 0.0,
+     "fill": null,
+     "mass_kg": 10704.0
+    },
+    {
+     "cut": 1,
+     "dist_m": 0.0,
+     "fill": null,
+     "mass_kg": 3960.0
+    },
+    {
+     "cut": 2,
+     "dist_m": 0.0,
+     "fill": null,
+     "mass_kg": 18239.999999999996
+    }
+   ],
+   "name": "surplus",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "surplus",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.3,
+      "footprint_m2": 40,
+      "kind": "cut",
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "depth_m": 0.08,
+      "footprint_m2": 30,
+      "insitu_density_kg_m3": 1650.0,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "cut c",
+      "depth_m": 0.5,
+      "footprint_m2": 25,
+      "kind": "cut",
+      "x": 307.5,
+      "y": 202.5
+     },
+     {
+      "action": "fill d",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill e",
+      "depth_m": 0.15,
+      "footprint_m2": 20,
+      "kind": "fill",
+      "x": 252.5,
+      "y": 352.5
+     }
+    ]
+   },
+   "surplus_kg": 32904.0
+  },
+  {
+   "cost": [
+    [
+     223.84776310850236,
+     270.71067811865476
+    ]
+   ],
+   "flows": [
+    {
+     "cut": 0,
+     "dist_m": 212.13203435596427,
+     "fill": 1,
+     "mass_kg": 1300.0
+    },
+    {
+     "cut": null,
+     "dist_m": 0.0,
+     "fill": 1,
+     "mass_kg": 18200.0
+    },
+    {
+     "cut": null,
+     "dist_m": 0.0,
+     "fill": 2,
+     "mass_kg": 7800.0
+    }
+   ],
+   "name": "deficit",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "deficit",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.1,
+      "footprint_m2": 10,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "fill b",
+      "depth_m": 0.3,
+      "footprint_m2": 50,
+      "kind": "fill",
+      "x": 202.5,
+      "y": 252.5
+     },
+     {
+      "action": "fill c",
+      "depth_m": 0.2,
+      "footprint_m2": 30,
+      "kind": "fill",
+      "x": 302.5,
+      "y": 52.5
+     }
+    ]
+   },
+   "surplus_kg": 0
+  },
+  {
+   "cost": [
+    [
+     null,
+     220.71067811865476
+    ]
+   ],
+   "flows": [
+    {
+     "cut": 0,
+     "dist_m": 206.15528128088303,
+     "fill": 2,
+     "mass_kg": 2600.0
+    },
+    {
+     "cut": null,
+     "dist_m": 0.0,
+     "fill": 1,
+     "mass_kg": 5200.0
+    },
+    {
+     "cut": 0,
+     "dist_m": 0.0,
+     "fill": null,
+     "mass_kg": 6688.0
+    }
+   ],
+   "name": "unreachable_fill",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "unreachable_fill",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.2,
+      "footprint_m2": 30,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "fill b",
+      "depth_m": 0.2,
+      "footprint_m2": 20,
+      "kind": "fill",
+      "x": 142.5,
+      "y": -47.5
+     },
+     {
+      "action": "fill c",
+      "depth_m": 0.2,
+      "footprint_m2": 10,
+      "kind": "fill",
+      "x": 102.5,
+      "y": 302.5
+     }
+    ]
+   },
+   "surplus_kg": 6688.0
+  },
+  {
+   "cost": [
+    [],
+    []
+   ],
+   "flows": [
+    {
+     "cut": 0,
+     "dist_m": 0.0,
+     "fill": null,
+     "mass_kg": 9288.0
+    },
+    {
+     "cut": 1,
+     "dist_m": 0.0,
+     "fill": null,
+     "mass_kg": 12931.199999999999
+    }
+   ],
+   "name": "cuts_only",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "cuts_only",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.2,
+      "footprint_m2": 30,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "cut b",
+      "depth_m": 0.6,
+      "footprint_m2": 12,
+      "kind": "cut",
+      "x": 152.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "surplus_kg": 22219.199999999997
+  },
+  {
+   "cost": [],
+   "flows": [
+    {
+     "cut": null,
+     "dist_m": 0.0,
+     "fill": 0,
+     "mass_kg": 7800.0
+    }
+   ],
+   "name": "fills_only",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "fills_only",
+    "orders": [
+     {
+      "action": "fill a",
+      "depth_m": 0.2,
+      "footprint_m2": 30,
+      "kind": "fill",
+      "x": 52.5,
+      "y": 102.5
+     }
+    ]
+   },
+   "surplus_kg": 0
+  }
+ ],
+ "origin": [
+  100.0,
+  50.0
+ ],
+ "transport": [
+  {
+   "cost": [
+    [
+     1.0,
+     2.0
+    ],
+    [
+     3.0,
+     9.0
+    ]
+   ],
+   "demands": [
+    5.0,
+    10.0
+   ],
+   "flow": [
+    [
+     0.0,
+     10.0
+    ],
+    [
+     5.0,
+     0.0
+    ]
+   ],
+   "leftover": [
+    0.0,
+    0.0
+   ],
+   "name": "p03_doc",
+   "supplies": [
+    10.0,
+    5.0
+   ],
+   "unmet": [
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "cost": [
+    [
+     2.0,
+     null
+    ],
+    [
+     null,
+     3.0
+    ],
+    [
+     1.5,
+     4.0
+    ]
+   ],
+   "demands": [
+    5.0,
+    9.0
+   ],
+   "flow": [
+    [
+     4.0,
+     0.0
+    ],
+    [
+     0.0,
+     6.0
+    ],
+    [
+     1.0,
+     3.0
+    ]
+   ],
+   "leftover": [
+    4.0,
+    0.0,
+    0.0
+   ],
+   "name": "unreachable_arcs",
+   "supplies": [
+    8.0,
+    6.0,
+    4.0
+   ],
+   "unmet": [
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "cost": [
+    [
+     1.0,
+     2.0
+    ]
+   ],
+   "demands": [
+    5.0,
+    4.0
+   ],
+   "flow": [
+    [
+     3.0,
+     0.0
+    ]
+   ],
+   "leftover": [
+    0.0
+   ],
+   "name": "excess_demand",
+   "supplies": [
+    3.0
+   ],
+   "unmet": [
+    2.0,
+    4.0
+   ]
+  },
+  {
+   "cost": [
+    [
+     null
+    ],
+    [
+     null
+    ]
+   ],
+   "demands": [
+    4.0
+   ],
+   "flow": [
+    [
+     0.0
+    ],
+    [
+     0.0
+    ]
+   ],
+   "leftover": [
+    3.0,
+    2.0
+   ],
+   "name": "no_arcs",
+   "supplies": [
+    3.0,
+    2.0
+   ],
+   "unmet": [
+    4.0
+   ]
+  },
+  {
+   "cost": [
+    [
+     1.0,
+     1.0
+    ],
+    [
+     1.0,
+     1.0
+    ]
+   ],
+   "demands": [
+    5.0,
+    5.0
+   ],
+   "flow": [
+    [
+     5.0,
+     0.0
+    ],
+    [
+     0.0,
+     5.0
+    ]
+   ],
+   "leftover": [
+    0.0,
+    0.0
+   ],
+   "name": "cost_tie",
+   "supplies": [
+    5.0,
+    5.0
+   ],
+   "unmet": [
+    0.0,
+    0.0
+   ]
+  }
+ ],
+ "window": [
+  1000,
+  600,
+  100
+ ]
+}

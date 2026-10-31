@@ -2,4 +2,5 @@
 //! trips and recharges, sequences them, and emits the executable plan IR. Ported node by node from
 //! `lode/planner_*.py` against Python oracles (D-R85).
 
+pub mod balance;
 pub mod mission;

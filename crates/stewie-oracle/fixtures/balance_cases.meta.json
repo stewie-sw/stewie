@@ -1,0 +1,12 @@
+{
+ "fixture": "balance_cases",
+ "generator": "oracle/build_fixtures.py::balance_cases (lode.planner_balance on SYNTHETIC matrices, labelled, and on missions routed over the real Haworth route window)",
+ "payload_sha256": "ba8b5a1b4e444f4fc238da26445627ccb6d25bb7fff769f7a32a8646f9fc1052",
+ "sources": {
+  "lode/planner_balance.py": "4a6525cbd58f357a9aaafca2f2b298249e29b2550923f262f118c82687a6221f",
+  "lode/planner_model.py": "6ade8f7eeea9de9386c009ed63e0e005e69b8dfd6fa7ff8d44ce42216fec3e46",
+  "lode/planner_routing.py": "5ce65415b2fe381303555cb909495198a2023119419e544b274847023e7ae0c5",
+  "lode/planner_trips.py": "b99ba6933410a53abcbd16fc6b04745b51db2a3cf644e74ad1585c1650d22f8c",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc"
+ }
+}

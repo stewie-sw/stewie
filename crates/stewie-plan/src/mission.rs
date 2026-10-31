@@ -87,22 +87,8 @@ pub struct BuildOrder {
     pub insitu_density_kg_m3: Option<f64>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Keepout {
-    Circle {
-        x: f64,
-        y: f64,
-        r: f64,
-    },
-    /// Normalised so `x0 <= x1` and `y0 <= y1`.
-    Rect {
-        x0: f64,
-        y0: f64,
-        x1: f64,
-        y1: f64,
-    },
-    Polygon(Vec<(f64, f64)>),
-}
+/// A keep-out in the local order frame (the router's own type; a rectangle is normalised so `x0 <= x1`, `y0 <= y1`).
+pub use stewie_traverse::costmap::Keepout;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SharedResource {
