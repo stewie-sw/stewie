@@ -1,0 +1,10 @@
+{
+ "fixture": "sandpile_runs",
+ "generator": "oracle/build_fixtures.py::sandpile_runs (stewie.physics.sandpile.Sandpile on the real Haworth crop of column_ops)",
+ "payload_sha256": "07e290820efab040b9035df0b82a61ca568da0c5ae52f5bd2d43b942d78a9a77",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/column_state.py": "eb3c84f6b087be119b75543af7db1809612476208052c7d1a62b574398cfdf35",
+  "stewie/physics/sandpile.py": "2078aedf54b035a187f6f0f74b43c81b213499a4c7de51f5a84887e3cefc70d5"
+ }
+}

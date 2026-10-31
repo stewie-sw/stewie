@@ -196,6 +196,11 @@ impl ColumnState {
         &self.f
     }
 
+    /// Crate-internal mutation for operations whose conservation is proven in their own module.
+    pub(crate) fn fields_mut(&mut self) -> &mut Fields {
+        &mut self.f
+    }
+
     #[must_use]
     pub fn drum_inventory(&self) -> f64 {
         self.drum_inventory

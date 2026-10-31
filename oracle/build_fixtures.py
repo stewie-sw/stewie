@@ -35,6 +35,10 @@ Fixtures:
   column_ops         stewie.physics ColumnState from a real 32x32 crop of the Haworth bundle through a fixed
                      sequence (flatten, dump, deposit, cut, fill, sinter): every return, the total mass after
                      each step, the final fields and the loose mask; plus set_height_via_mass on a copy.
+  sandpile_runs      stewie.physics.sandpile on the same real crop: a large pile deposited and relaxed to rest
+                     under four configurations (8/4-connected, cohesion steepening, a sintered floor as
+                     receiver); steps, snapshot count, a mid snapshot and the final fields. A fifth run on a SYNTHETIC
+                     flat layer (labelled) reaches rest, which the real crop never does (D-R52).
 """
 from __future__ import annotations
 
@@ -563,6 +567,55 @@ def column_ops() -> None:
                    "after_set_height_mass": cs.mass_areal.ravel().tolist()})
 
 
+def _real_crop_state():
+    from stewie.physics.column_state import ColumnState
+    from stewie.physics.worksite import coarse_base_from_bundle
+
+    base, _ = coarse_base_from_bundle(os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, r1, c0, c1 = COLUMN_CROP
+    crop = lambda a: np.array(a[r0:r1, c0:c1], dtype=np.float64)                    # noqa: E731
+    return ColumnState(c1 - c0, r1 - r0, base.cell_m, mass_areal=crop(base.mass_areal), density=crop(base.density),
+                       state_label=np.array(base.state_label[r0:r1, c0:c1], dtype=np.uint8),
+                       disturbance=crop(base.disturbance), datum=crop(base.datum))
+
+
+def sandpile_runs() -> None:
+    from stewie.physics.sandpile import Sandpile
+    from stewie.specs import constants as K
+
+    from stewie.physics.column_state import ColumnState
+
+    runs = []
+    for name, conn, coh_deg, tf, floor in (("eight", 8, 0.0, 0.5, False), ("four", 4, 0.0, 0.5, False),
+                                           ("cohesive", 8, 5.0, 0.8, False), ("sintered_floor", 8, 0.0, 0.5, True),
+                                           ("flat_synthetic", 8, 0.0, 0.5, False)):
+        # flat_synthetic is a SYNTHETIC uniform layer (labelled): the real crop has bedrock slopes steeper than
+        # repose, so relax_to_rest never reports rest there; a flat floor exercises the rest criterion.
+        cs = ColumnState(32, 32, 5.0) if name == "flat_synthetic" else _real_crop_state()
+        if floor:
+            ring = np.zeros(cs.mass_areal.shape, dtype=bool)
+            ring[10:22, 10:22] = True
+            ring[14:18, 14:18] = False
+            cs.sinter(ring, K.RHO_SINTERED)
+        sp = Sandpile(cs, np.deg2rad(35.0), connectivity=conn, cohesion_steepening=np.deg2rad(coh_deg),
+                      transfer_fraction=tf)
+        sp.deposit(16, 16, 3.0e6, radius_cells=1, spoil_density=K.RHO_SPOIL)
+        before = cs.grid_mass()
+        steps, snaps = sp.relax_to_rest(400, capture=True, capture_every=4)
+        runs.append({"name": name, "connectivity": conn, "cohesion_deg": coh_deg, "transfer_fraction": tf,
+                     "sintered_floor": floor, "steps": steps, "n_snapshots": len(snaps),
+                     "mid_snapshot": snaps[len(snaps) // 2].ravel().tolist(), "grid_kg_after_deposit": before,
+                     "grid_kg_final": cs.grid_mass(), "mass_areal": cs.mass_areal.ravel().tolist(),
+                     "density": cs.density.ravel().tolist(), "height": cs.derive_height().ravel().tolist()})
+    write_fixture(ORACLE_FIXTURES, "sandpile_runs", "oracle/build_fixtures.py::sandpile_runs "
+                  "(stewie.physics.sandpile.Sandpile on the real Haworth crop of column_ops)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/physics/sandpile.py",
+                   "stewie/physics/column_state.py"],
+                  {"crop": list(COLUMN_CROP), "deposit": {"r": 16, "c": 16, "kg": 3.0e6, "radius": 1,
+                   "spoil": K.RHO_SPOIL}, "theta_deg": 35.0, "max_steps": 400, "capture_every": 4,
+                   "eps_deg": 0.5, "runs": runs})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -629,6 +682,7 @@ def main() -> None:
     pgda_avgvisib()
     terramechanics_cases()
     column_ops()
+    sandpile_runs()
 
 
 if __name__ == "__main__":

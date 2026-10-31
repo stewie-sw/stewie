@@ -7,6 +7,7 @@
 
 pub mod bearing;
 pub mod column;
+pub mod sandpile;
 pub mod soil;
 pub mod terra;
 
