@@ -1,0 +1,27 @@
+{
+ "fixture": "dem_samples",
+ "generator": "oracle/build_fixtures.py::dem_samples (stewie.terrain.site_dem read_dem_window, slope_deg_map, dem_origin_to_latlon)",
+ "payload_sha256": "c189774b250164cc96d419f59d5dbb5090186a579453dee6d7973cb5ac951e13",
+ "sources": {
+  "samples/lunar_dem/connecting_ridge_10km_5m/heightmap.rf32": "6aa75d2e8b11b423e8c9b8ee52d250e28d3484a8985d9ce8fb542ef5ec91ef9f",
+  "samples/lunar_dem/connecting_ridge_10km_5m/metadata.json": "dc836447bbd759758b3e409c5bb6e48780d3b44bd18dfdde4573c6318ea52883",
+  "samples/lunar_dem/de_gerlache_rim_10km_5m/heightmap.rf32": "f354e05e13d118bd2abbb20ab835227329a671b45c7d11a137cbf5a04f8985ba",
+  "samples/lunar_dem/de_gerlache_rim_10km_5m/metadata.json": "cdc587358e8713917ccf854e02ca32b572091b80344f1ad9c0c0d05a2fae3be4",
+  "samples/lunar_dem/haworth_10km_5m/heightmap.rf32": "7d13e9c376da950e230564b1f51a73f9f74069af3c1655b0e02ce612f10519d0",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "samples/lunar_dem/haworth_sfs_2km_1m/heightmap.rf32": "686dc62484c1d69edf041219a03306946c9742287049f28beed74830659f750c",
+  "samples/lunar_dem/haworth_sfs_2km_1m/metadata.json": "f0c6ef1492212be12639e910f8ce2fe44e618a6a4230632235efe1083edf6b5f",
+  "samples/lunar_dem/leibnitz_beta_10km_5m/heightmap.rf32": "a4d02b62d7dd7f4c36e4f0a63659efcf0c5f477b7c0ec0f5af92877ffe10521c",
+  "samples/lunar_dem/leibnitz_beta_10km_5m/metadata.json": "50107d4738763055487b375248110283b336908c500f80139dd096e0fa9f27d5",
+  "samples/lunar_dem/malapert_massif_10km_5m/heightmap.rf32": "09a1bb91098d0775e5bc82d902167a033785d452ead9ae14481519ea65a2dc88",
+  "samples/lunar_dem/malapert_massif_10km_5m/metadata.json": "984d9d1f904678922808813d7ae0ad8963dba1ffe34212d940a14312c5df8bdd",
+  "samples/lunar_dem/nobile_rim1_10km_5m/heightmap.rf32": "9e8a9d7fd2bfe99936a97839b6d4ec3163dcf3d668f270f8d4fce7c819c248a7",
+  "samples/lunar_dem/nobile_rim1_10km_5m/metadata.json": "154367a9bd1f6b1946e4689f5a8d5eb6ae43c26b96660e46ed70693076bf4259",
+  "samples/lunar_dem/nobile_rim2_10km_5m/heightmap.rf32": "494c3639b1f34bc33541c5da1a0908c137563ca35512dc5c7478d19c0cad54b4",
+  "samples/lunar_dem/nobile_rim2_10km_5m/metadata.json": "10a2f7386a875398a2956b786acf9345b86660c184c5b5feb244e954dbc3018d",
+  "samples/lunar_dem/peak_near_shackleton_10km_5m/heightmap.rf32": "7ca439187632f8462577a94d4f6d082f9780ae856164e0ee1d5a0576429ab7c5",
+  "samples/lunar_dem/peak_near_shackleton_10km_5m/metadata.json": "8bb8aa7720ee98930f0d9d2384ab67b8351171e6abc4659bf21a3557c83e5ea5",
+  "samples/lunar_dem/shackleton_rim_10km_5m/heightmap.rf32": "f9931470ece3cc88c634869c3ab33f5728f0c1184b4dc6f721690214363e69e1",
+  "samples/lunar_dem/shackleton_rim_10km_5m/metadata.json": "3d0e2c339bec4d8a38be9a465fd5724590669370f42b7216fb7462120fc21b4d"
+ }
+}

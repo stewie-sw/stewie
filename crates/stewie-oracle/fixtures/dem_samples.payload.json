@@ -1,0 +1,1375 @@
+{
+ "bundles": [
+  {
+   "bundle": "connecting_ridge_10km_5m",
+   "cell_m": 5.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 1364.924072265625,
+     "lat_deg": -89.29204735873272,
+     "lon_deg": -117.78557673133763,
+     "row": 1,
+     "slope_deg": 17.4879170030414
+    },
+    {
+     "col": 667,
+     "height_m": 1208.2989501953125,
+     "lat_deg": -89.38705705822599,
+     "lon_deg": -122.57640229838479,
+     "row": 1,
+     "slope_deg": 10.645446830356354
+    },
+    {
+     "col": 1332,
+     "height_m": 1342.3240966796875,
+     "lat_deg": -89.47611802215762,
+     "lon_deg": -129.04705969658286,
+     "row": 1,
+     "slope_deg": 13.078563670884334
+    },
+    {
+     "col": 1998,
+     "height_m": 1526.3751220703125,
+     "lat_deg": -89.55598083893736,
+     "lon_deg": -138.01041523734315,
+     "row": 1,
+     "slope_deg": 19.86512324350816
+    },
+    {
+     "col": 1,
+     "height_m": 922.2105712890625,
+     "lat_deg": -89.23466578410643,
+     "lon_deg": -125.07848333988554,
+     "row": 667,
+     "slope_deg": 8.793491192151306
+    },
+    {
+     "col": 667,
+     "height_m": 1315.3514404296875,
+     "lat_deg": -89.32159035464558,
+     "lon_deg": -130.41626311292302,
+     "row": 667,
+     "slope_deg": 16.328345200762346
+    },
+    {
+     "col": 1332,
+     "height_m": 1813.3394775390625,
+     "lat_deg": -89.40083909266606,
+     "lon_deg": -137.2304511673374,
+     "row": 667,
+     "slope_deg": 12.840964350922984
+    },
+    {
+     "col": 1998,
+     "height_m": 1612.325927734375,
+     "lat_deg": -89.46925039319554,
+     "lon_deg": -145.96681851297865,
+     "row": 667,
+     "slope_deg": 6.550314113124583
+    },
+    {
+     "col": 1,
+     "height_m": 248.73953247070312,
+     "lat_deg": -89.16680636978275,
+     "lon_deg": -131.26112413316426,
+     "row": 1332,
+     "slope_deg": 7.436821081122566
+    },
+    {
+     "col": 667,
+     "height_m": 650.6195068359375,
+     "lat_deg": -89.24586725794971,
+     "lon_deg": -136.77192613101002,
+     "row": 1332,
+     "slope_deg": 21.19107020133882
+    },
+    {
+     "col": 1332,
+     "height_m": 1531.526611328125,
+     "lat_deg": -89.31628115881021,
+     "lon_deg": -143.48245348386013,
+     "row": 1332,
+     "slope_deg": 10.595953039583831
+    },
+    {
+     "col": 1998,
+     "height_m": 1520.3094482421875,
+     "lat_deg": -89.37536117838027,
+     "lon_deg": -151.60500278508965,
+     "row": 1332,
+     "slope_deg": 2.9229762076517947
+    },
+    {
+     "col": 1,
+     "height_m": -517.50146484375,
+     "lat_deg": -89.09063325522571,
+     "lon_deg": -136.46936560739178,
+     "row": 1998,
+     "slope_deg": 1.6043151669554232
+    },
+    {
+     "col": 667,
+     "height_m": 19.399063110351562,
+     "lat_deg": -89.16247141233941,
+     "lon_deg": -141.92418415622086,
+     "row": 1998,
+     "slope_deg": 17.141701296997947
+    },
+    {
+     "col": 1332,
+     "height_m": 974.1668701171875,
+     "lat_deg": -89.22526729711392,
+     "lon_deg": -148.3209983971575,
+     "row": 1998,
+     "slope_deg": 4.524411059207902
+    },
+    {
+     "col": 1998,
+     "height_m": 1127.7513427734375,
+     "lat_deg": -89.27687206771746,
+     "lon_deg": -155.7463420646126,
+     "row": 1998,
+     "slope_deg": 12.48195201699476
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  },
+  {
+   "bundle": "de_gerlache_rim_10km_5m",
+   "cell_m": 5.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 1396.70849609375,
+     "lat_deg": -88.41405002885348,
+     "lon_deg": -69.3097500144297,
+     "row": 1,
+     "slope_deg": 12.986296464648467
+    },
+    {
+     "col": 667,
+     "height_m": 1528.79150390625,
+     "lat_deg": -88.51625798111748,
+     "lon_deg": -67.81137888084255,
+     "row": 1,
+     "slope_deg": 8.702099677637111
+    },
+    {
+     "col": 1332,
+     "height_m": 1379.8330078125,
+     "lat_deg": -88.61715333751981,
+     "lon_deg": -66.09543002156266,
+     "row": 1,
+     "slope_deg": 14.424723633908286
+    },
+    {
+     "col": 1998,
+     "height_m": 1196.2518310546875,
+     "lat_deg": -88.7167645872031,
+     "lon_deg": -64.1082498348372,
+     "row": 1,
+     "slope_deg": 16.579057160319937
+    },
+    {
+     "col": 1,
+     "height_m": 282.8994140625,
+     "lat_deg": -88.44943635978488,
+     "lon_deg": -73.10847212611132,
+     "row": 667,
+     "slope_deg": 24.312489617934503
+    },
+    {
+     "col": 667,
+     "height_m": 610.57861328125,
+     "lat_deg": -88.55414484342081,
+     "lon_deg": -71.84398623392795,
+     "row": 667,
+     "slope_deg": 19.61399621043587
+    },
+    {
+     "col": 1332,
+     "height_m": 1376.228515625,
+     "lat_deg": -88.65788659671546,
+     "lon_deg": -70.3852388188547,
+     "row": 667,
+     "slope_deg": 25.94776972022545
+    },
+    {
+     "col": 1998,
+     "height_m": 1546.573486328125,
+     "lat_deg": -88.7607689373347,
+     "lon_deg": -68.68061541086385,
+     "row": 667,
+     "slope_deg": 6.994334347479799
+    },
+    {
+     "col": 1,
+     "height_m": -482.2247314453125,
+     "lat_deg": -88.47767196875884,
+     "lon_deg": -77.06026821587328,
+     "row": 1332,
+     "slope_deg": 11.94564804838221
+    },
+    {
+     "col": 667,
+     "height_m": -158.06446838378906,
+     "lat_deg": -88.58446850908543,
+     "lon_deg": -76.06492137417428,
+     "row": 1332,
+     "slope_deg": 3.8251475449796573
+    },
+    {
+     "col": 1332,
+     "height_m": 389.5221252441406,
+     "lat_deg": -88.69061155234243,
+     "lon_deg": -74.90940569618455,
+     "row": 1332,
+     "slope_deg": 14.57201745979946
+    },
+    {
+     "col": 1998,
+     "height_m": 441.74566650390625,
+     "lat_deg": -88.7962886532722,
+     "lon_deg": -73.54845270879632,
+     "row": 1332,
+     "slope_deg": 7.658731211753082
+    },
+    {
+     "col": 1,
+     "height_m": -797.699951171875,
+     "lat_deg": -88.49844011166522,
+     "lon_deg": -81.14740992159746,
+     "row": 1998,
+     "slope_deg": 0.7927112256696439
+    },
+    {
+     "col": 667,
+     "height_m": -417.80963134765625,
+     "lat_deg": -88.60682848706514,
+     "lon_deg": -80.45239720096264,
+     "row": 1998,
+     "slope_deg": 2.3526251552070967
+    },
+    {
+     "col": 1332,
+     "height_m": -399.743408203125,
+     "lat_deg": -88.71481762966849,
+     "lon_deg": -79.64156952897429,
+     "row": 1998,
+     "slope_deg": 8.14578026815322
+    },
+    {
+     "col": 1998,
+     "height_m": -32.46553039550781,
+     "lat_deg": -88.8226661770429,
+     "lon_deg": -78.68062550137141,
+     "row": 1998,
+     "slope_deg": 16.90978119986625
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  },
+  {
+   "bundle": "haworth_10km_5m",
+   "cell_m": 5.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 220.85203552246094,
+     "lat_deg": -86.11272976905693,
+     "lon_deg": -26.65033936757104,
+     "row": 1,
+     "slope_deg": 15.606028850227322
+    },
+    {
+     "col": 667,
+     "height_m": 1095.390869140625,
+     "lat_deg": -86.16067845705858,
+     "lon_deg": -25.186002208796488,
+     "row": 1,
+     "slope_deg": 20.180607164474072
+    },
+    {
+     "col": 1332,
+     "height_m": 1985.5338134765625,
+     "lat_deg": -86.20599391385669,
+     "lon_deg": -23.687886641520286,
+     "row": 1,
+     "slope_deg": 16.20638971320835
+    },
+    {
+     "col": 1998,
+     "height_m": 2181.07568359375,
+     "lat_deg": -86.24871903507905,
+     "lon_deg": -22.15227048422661,
+     "row": 1,
+     "slope_deg": 7.115755389049913
+    },
+    {
+     "col": 1,
+     "height_m": 46.608070373535156,
+     "lat_deg": -86.21044953604104,
+     "lon_deg": -27.39483369226106,
+     "row": 667,
+     "slope_deg": 17.523486584827275
+    },
+    {
+     "col": 667,
+     "height_m": 1014.6796875,
+     "lat_deg": -86.25965448825815,
+     "lon_deg": -25.901641151501313,
+     "row": 667,
+     "slope_deg": 18.87078753487315
+    },
+    {
+     "col": 1332,
+     "height_m": 2130.06494140625,
+     "lat_deg": -86.30618754437937,
+     "lon_deg": -24.37201108252597,
+     "row": 667,
+     "slope_deg": 16.329684115293897
+    },
+    {
+     "col": 1998,
+     "height_m": 2741.7783203125,
+     "lat_deg": -86.35008868808808,
+     "lon_deg": -22.802087434127042,
+     "row": 667,
+     "slope_deg": 10.078042075133913
+    },
+    {
+     "col": 1,
+     "height_m": -28.8676815032959,
+     "lat_deg": -86.30735641607028,
+     "lon_deg": -28.177422628162223,
+     "row": 1332,
+     "slope_deg": 11.687815536136611
+    },
+    {
+     "col": 667,
+     "height_m": 925.2957763671875,
+     "lat_deg": -86.35787408563854,
+     "lon_deg": -26.654924562099097,
+     "row": 1332,
+     "slope_deg": 15.79999500622409
+    },
+    {
+     "col": 1332,
+     "height_m": 1878.177490234375,
+     "lat_deg": -86.4056820389228,
+     "lon_deg": -25.09308779566657,
+     "row": 1332,
+     "slope_deg": 26.484422519776697
+    },
+    {
+     "col": 1998,
+     "height_m": 2439.8193359375,
+     "lat_deg": -86.45081699752421,
+     "lon_deg": -23.48790244298851,
+     "row": 1332,
+     "slope_deg": 20.141741978073775
+    },
+    {
+     "col": 1,
+     "height_m": 164.1103973388672,
+     "lat_deg": -86.40368713237527,
+     "lon_deg": -29.003334661842036,
+     "row": 1998,
+     "slope_deg": 18.076121380251102
+    },
+    {
+     "col": 667,
+     "height_m": 813.3115234375,
+     "lat_deg": -86.45558123929189,
+     "lon_deg": -27.45107454300303,
+     "row": 1998,
+     "slope_deg": 8.593479565519454
+    },
+    {
+     "col": 1332,
+     "height_m": 1164.2919921875,
+     "lat_deg": -86.50472889405532,
+     "lon_deg": -25.856299726195402,
+     "row": 1998,
+     "slope_deg": 10.645918198040272
+    },
+    {
+     "col": 1998,
+     "height_m": 1497.072021484375,
+     "lat_deg": -86.55116316917355,
+     "lon_deg": -24.214821838359395,
+     "row": 1998,
+     "slope_deg": 18.670709254320094
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  },
+  {
+   "bundle": "haworth_sfs_2km_1m",
+   "cell_m": 1.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 1822.46435546875,
+     "lat_deg": -86.80396495845466,
+     "lon_deg": -21.34762481497988,
+     "row": 1,
+     "slope_deg": 1.343506622167154
+    },
+    {
+     "col": 667,
+     "height_m": 1807.908203125,
+     "lat_deg": -86.81188838664532,
+     "lon_deg": -20.98008181663122,
+     "row": 1,
+     "slope_deg": 7.96471253674336
+    },
+    {
+     "col": 1332,
+     "height_m": 1789.93310546875,
+     "lat_deg": -86.81966847083383,
+     "lon_deg": -20.611277638601543,
+     "row": 1,
+     "slope_deg": 7.481888205610271
+    },
+    {
+     "col": 1998,
+     "height_m": 1798.3331298828125,
+     "lat_deg": -86.82732763804121,
+     "lon_deg": -20.240120489993213,
+     "row": 1,
+     "slope_deg": 5.304878258513828
+    },
+    {
+     "col": 1,
+     "height_m": 1792.153076171875,
+     "lat_deg": -86.8243954463225,
+     "lon_deg": -21.491841123003606,
+     "row": 667,
+     "slope_deg": 2.182387632743345
+    },
+    {
+     "col": 667,
+     "height_m": 1760.3939208984375,
+     "lat_deg": -86.83237008396769,
+     "lon_deg": -21.12228545135134,
+     "row": 667,
+     "slope_deg": 3.7314985022768985
+    },
+    {
+     "col": 1332,
+     "height_m": 1766.452880859375,
+     "lat_deg": -86.84020070162012,
+     "lon_deg": -20.7514379722961,
+     "row": 667,
+     "slope_deg": 3.3633685980718404
+    },
+    {
+     "col": 1998,
+     "height_m": 1749.021240234375,
+     "lat_deg": -86.8479098611222,
+     "lon_deg": -20.378200839215655,
+     "row": 667,
+     "slope_deg": 3.914982312945513
+    },
+    {
+     "col": 1,
+     "height_m": 1784.33203125,
+     "lat_deg": -86.84477513577923,
+     "lon_deg": -21.637704369387222,
+     "row": 1332,
+     "slope_deg": 2.6595025528234624
+    },
+    {
+     "col": 667,
+     "height_m": 1769.5374755859375,
+     "lat_deg": -86.85280151809295,
+     "lon_deg": -21.26612236850165,
+     "row": 1332,
+     "slope_deg": 0.95892689280935
+    },
+    {
+     "col": 1332,
+     "height_m": 1747.9715576171875,
+     "lat_deg": -86.8606832022999,
+     "lon_deg": -20.893217217009642,
+     "row": 1332,
+     "slope_deg": 3.756519821565321
+    },
+    {
+     "col": 1998,
+     "height_m": 1714.1424560546875,
+     "lat_deg": -86.86844288632079,
+     "lon_deg": -20.517884963614335,
+     "row": 1332,
+     "slope_deg": 3.931114525228357
+    },
+    {
+     "col": 1,
+     "height_m": 1777.28955078125,
+     "lat_deg": -86.86516491965904,
+     "lon_deg": -21.78568777849902,
+     "row": 1998,
+     "slope_deg": 2.544423604001381
+    },
+    {
+     "col": 667,
+     "height_m": 1779.9412841796875,
+     "lat_deg": -86.87324374747439,
+     "lon_deg": -21.41205963582549,
+     "row": 1998,
+     "slope_deg": 0.6354960737487374
+    },
+    {
+     "col": 1332,
+     "height_m": 1738.537841796875,
+     "lat_deg": -86.88117719498635,
+     "lon_deg": -21.037076168259677,
+     "row": 1998,
+     "slope_deg": 6.98425368975664
+    },
+    {
+     "col": 1998,
+     "height_m": 1666.7633056640625,
+     "lat_deg": -86.8889880978826,
+     "lon_deg": -20.659627251808327,
+     "row": 1998,
+     "slope_deg": 7.77449437897142
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  },
+  {
+   "bundle": "leibnitz_beta_10km_5m",
+   "cell_m": 5.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 5736.3271484375,
+     "lat_deg": -85.5018058979716,
+     "lon_deg": 28.447197062197336,
+     "row": 1,
+     "slope_deg": 7.869691637122542
+    },
+    {
+     "col": 667,
+     "height_m": 6121.3955078125,
+     "lat_deg": -85.44855435947865,
+     "lon_deg": 29.6621514771414,
+     "row": 1,
+     "slope_deg": 6.277311471305128
+    },
+    {
+     "col": 1332,
+     "height_m": 6214.703125,
+     "lat_deg": -85.39339271049202,
+     "lon_deg": 30.846697399420453,
+     "row": 1,
+     "slope_deg": 9.385920780901289
+    },
+    {
+     "col": 1998,
+     "height_m": 6181.4560546875,
+     "lat_deg": -85.33622623869591,
+     "lon_deg": 32.00441747834749,
+     "row": 1,
+     "slope_deg": 6.588806410703064
+    },
+    {
+     "col": 1,
+     "height_m": 5230.57763671875,
+     "lat_deg": -85.59790689174567,
+     "lon_deg": 29.127734308852524,
+     "row": 667,
+     "slope_deg": 17.7633896510909
+    },
+    {
+     "col": 667,
+     "height_m": 5657.39990234375,
+     "lat_deg": -85.54350217656395,
+     "lon_deg": 30.36053146757473,
+     "row": 667,
+     "slope_deg": 27.194570209219314
+    },
+    {
+     "col": 1332,
+     "height_m": 6265.17724609375,
+     "lat_deg": -85.48717493701763,
+     "lon_deg": 31.561238774971567,
+     "row": 667,
+     "slope_deg": 10.157657240205603
+    },
+    {
+     "col": 1998,
+     "height_m": 6216.59912109375,
+     "lat_deg": -85.42883044776228,
+     "lon_deg": 32.733550744618825,
+     "row": 667,
+     "slope_deg": 15.306520197577518
+    },
+    {
+     "col": 1,
+     "height_m": 3994.91015625,
+     "lat_deg": -85.69322311864337,
+     "lon_deg": 29.83748303816121,
+     "row": 1332,
+     "slope_deg": 19.680748868576156
+    },
+    {
+     "col": 667,
+     "height_m": 4398.89599609375,
+     "lat_deg": -85.63762485943239,
+     "lon_deg": 31.0881186934996,
+     "row": 1332,
+     "slope_deg": 16.12878540855199
+    },
+    {
+     "col": 1332,
+     "height_m": 5332.1064453125,
+     "lat_deg": -85.58009313771433,
+     "lon_deg": 32.30487818649213,
+     "row": 1332,
+     "slope_deg": 18.17612658568262
+    },
+    {
+     "col": 1998,
+     "height_m": 5688.109375,
+     "lat_deg": -85.52053324699379,
+     "lon_deg": 33.49157835686649,
+     "row": 1332,
+     "slope_deg": 16.966597589766668
+    },
+    {
+     "col": 1,
+     "height_m": 2796.95703125,
+     "lat_deg": -85.78799693185208,
+     "lon_deg": 30.58041129950418,
+     "row": 1998,
+     "slope_deg": 5.748488913243061
+    },
+    {
+     "col": 667,
+     "height_m": 3457.578369140625,
+     "lat_deg": -85.73115950859923,
+     "lon_deg": 31.848866261283238,
+     "row": 1998,
+     "slope_deg": 12.53262937012081
+    },
+    {
+     "col": 1332,
+     "height_m": 4106.78271484375,
+     "lat_deg": -85.67237936204127,
+     "lon_deg": 33.081542709613935,
+     "row": 1998,
+     "slope_deg": 10.133066954886107
+    },
+    {
+     "col": 1998,
+     "height_m": 4764.939453125,
+     "lat_deg": -85.61156182928652,
+     "lon_deg": 34.28239197204123,
+     "row": 1998,
+     "slope_deg": 5.541574287199651
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  },
+  {
+   "bundle": "malapert_massif_10km_5m",
+   "cell_m": 5.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 1204.72412109375,
+     "lat_deg": -85.6472701636115,
+     "lon_deg": -1.732550508341279,
+     "row": 1,
+     "slope_deg": 10.005921106165067
+    },
+    {
+     "col": 667,
+     "height_m": 943.687255859375,
+     "lat_deg": -85.64920337326589,
+     "lon_deg": -0.28757796976842415,
+     "row": 1,
+     "slope_deg": 16.348173078059187
+    },
+    {
+     "col": 1332,
+     "height_m": 1511.990966796875,
+     "lat_deg": -85.64837391990115,
+     "lon_deg": 1.1555908666670722,
+     "row": 1,
+     "slope_deg": 19.897461352675577
+    },
+    {
+     "col": 1998,
+     "height_m": 2545.313232421875,
+     "lat_deg": -85.6447808957489,
+     "lon_deg": 2.5994609584348236,
+     "row": 1,
+     "slope_deg": 13.569703768690458
+    },
+    {
+     "col": 1,
+     "height_m": 2409.578857421875,
+     "lat_deg": -85.7568806771166,
+     "lon_deg": -1.777363404934418,
+     "row": 667,
+     "slope_deg": 23.498395015750237
+    },
+    {
+     "col": 667,
+     "height_m": 2396.868896484375,
+     "lat_deg": -85.75886403940903,
+     "lon_deg": -0.2950208371646677,
+     "row": 667,
+     "slope_deg": 25.99102039584723
+    },
+    {
+     "col": 1332,
+     "height_m": 2923.972412109375,
+     "lat_deg": -85.75801306214035,
+     "lon_deg": 1.1854910571538761,
+     "row": 667,
+     "slope_deg": 27.495166200119282
+    },
+    {
+     "col": 1998,
+     "height_m": 3702.655029296875,
+     "lat_deg": -85.7543268989925,
+     "lon_deg": 2.666643450245151,
+     "row": 667,
+     "slope_deg": 22.881212144729734
+    },
+    {
+     "col": 1,
+     "height_m": 4057.84228515625,
+     "lat_deg": -85.86633163661857,
+     "lon_deg": -1.824482509290923,
+     "row": 1332,
+     "slope_deg": 19.45418432156997
+    },
+    {
+     "col": 667,
+     "height_m": 4071.18359375,
+     "lat_deg": -85.8683677294546,
+     "lon_deg": -0.3028471162038191,
+     "row": 1332,
+     "slope_deg": 23.836173131001065
+    },
+    {
+     "col": 1332,
+     "height_m": 4354.82861328125,
+     "lat_deg": -85.86749412145832,
+     "lon_deg": 1.216930871461301,
+     "row": 1332,
+     "slope_deg": 24.37509617140514
+    },
+    {
+     "col": 1998,
+     "height_m": 4483.3232421875,
+     "lat_deg": -85.86371003795999,
+     "lon_deg": 2.737278958600543,
+     "row": 1332,
+     "slope_deg": 15.89277066975406
+    },
+    {
+     "col": 1,
+     "height_m": 4952.3720703125,
+     "lat_deg": -85.97595179469029,
+     "lon_deg": -1.874243803272452,
+     "row": 1998,
+     "slope_deg": 3.9184535832906064
+    },
+    {
+     "col": 667,
+     "height_m": 4824.01123046875,
+     "lat_deg": -85.97804357179521,
+     "lon_deg": -0.31111268461168834,
+     "row": 1998,
+     "slope_deg": 4.281692767043628
+    },
+    {
+     "col": 1332,
+     "height_m": 5002.43115234375,
+     "lat_deg": -85.97714606486471,
+     "lon_deg": 1.2501346569878569,
+     "row": 1998,
+     "slope_deg": 7.999931167886581
+    },
+    {
+     "col": 1998,
+     "height_m": 5106.4140625,
+     "lat_deg": -85.97325858293175,
+     "lon_deg": 2.8118703074613025,
+     "row": 1998,
+     "slope_deg": 8.923833282288236
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  },
+  {
+   "bundle": "nobile_rim1_10km_5m",
+   "cell_m": 5.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 5941.45361328125,
+     "lat_deg": -85.45805655324196,
+     "lon_deg": 37.04058054816665,
+     "row": 1,
+     "slope_deg": 13.636964722121125
+    },
+    {
+     "col": 667,
+     "height_m": 5447.31982421875,
+     "lat_deg": -85.39117884399978,
+     "lon_deg": 38.129782417216134,
+     "row": 1,
+     "slope_deg": 19.068669922136966
+    },
+    {
+     "col": 1332,
+     "height_m": 4697.1904296875,
+     "lat_deg": -85.32279256876721,
+     "lon_deg": 39.185859358952676,
+     "row": 1,
+     "slope_deg": 26.103723073517514
+    },
+    {
+     "col": 1998,
+     "height_m": 3733.522216796875,
+     "lat_deg": -85.2527622532215,
+     "lon_deg": 40.21264877784212,
+     "row": 1,
+     "slope_deg": 20.97795990352935
+    },
+    {
+     "col": 1,
+     "height_m": 6025.09130859375,
+     "lat_deg": -85.54508778553665,
+     "lon_deg": 37.89097128558015,
+     "row": 667,
+     "slope_deg": 15.160809277634868
+    },
+    {
+     "col": 667,
+     "height_m": 4758.16064453125,
+     "lat_deg": -85.4769176773389,
+     "lon_deg": 38.98828969840414,
+     "row": 667,
+     "slope_deg": 26.66177676700818
+    },
+    {
+     "col": 1332,
+     "height_m": 3543.41162109375,
+     "lat_deg": -85.4072490682996,
+     "lon_deg": 40.0510392590424,
+     "row": 667,
+     "slope_deg": 26.034972828681944
+    },
+    {
+     "col": 1998,
+     "height_m": 2597.172607421875,
+     "lat_deg": -85.33594484492289,
+     "lon_deg": 41.0831793080196,
+     "row": 667,
+     "slope_deg": 22.811838358805364
+    },
+    {
+     "col": 1,
+     "height_m": 5112.1279296875,
+     "lat_deg": -85.63097638742025,
+     "lon_deg": 38.77372896447697,
+     "row": 1332,
+     "slope_deg": 26.105599672576144
+    },
+    {
+     "col": 667,
+     "height_m": 3698.66650390625,
+     "lat_deg": -85.56148163112024,
+     "lon_deg": 39.878436123141604,
+     "row": 1332,
+     "slope_deg": 23.223373580008303
+    },
+    {
+     "col": 1332,
+     "height_m": 2514.606689453125,
+     "lat_deg": -85.49050095558275,
+     "lon_deg": 40.947085383797166,
+     "row": 1332,
+     "slope_deg": 21.797855392918326
+    },
+    {
+     "col": 1998,
+     "height_m": 1620.734130859375,
+     "lat_deg": -85.41789548158224,
+     "lon_deg": 41.98376612392998,
+     "row": 1332,
+     "slope_deg": 15.617903779148891
+    },
+    {
+     "col": 1,
+     "height_m": 4213.96142578125,
+     "lat_deg": -85.71591900535584,
+     "lon_deg": 39.693105658115755,
+     "row": 1998,
+     "slope_deg": 23.76408285870777
+    },
+    {
+     "col": 667,
+     "height_m": 2932.085693359375,
+     "lat_deg": -85.64506330033606,
+     "lon_deg": 40.80437982807551,
+     "row": 1998,
+     "slope_deg": 19.864660558053757
+    },
+    {
+     "col": 1332,
+     "height_m": 1665.7637939453125,
+     "lat_deg": -85.57273703014351,
+     "lon_deg": 41.87806120130055,
+     "row": 1998,
+     "slope_deg": 23.265649017761167
+    },
+    {
+     "col": 1998,
+     "height_m": 935.1705932617188,
+     "lat_deg": -85.49879939599151,
+     "lon_deg": 42.918378057658686,
+     "row": 1998,
+     "slope_deg": 9.332884113009332
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  },
+  {
+   "bundle": "nobile_rim2_10km_5m",
+   "cell_m": 5.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 1100.5162353515625,
+     "lat_deg": -84.03812927205263,
+     "lon_deg": 58.333532878810345,
+     "row": 1,
+     "slope_deg": 8.767824417208034
+    },
+    {
+     "col": 667,
+     "height_m": 1021.3267822265625,
+     "lat_deg": -83.94464585319557,
+     "lon_deg": 58.878524290158474,
+     "row": 1,
+     "slope_deg": 4.411580168230753
+    },
+    {
+     "col": 1332,
+     "height_m": 951.82421875,
+     "lat_deg": -83.85078191461248,
+     "lon_deg": 59.40608722346368,
+     "row": 1,
+     "slope_deg": 17.34149523677697
+    },
+    {
+     "col": 1998,
+     "height_m": 843.0592651367188,
+     "lat_deg": -83.75627937971305,
+     "lon_deg": 59.91847294735699,
+     "row": 1,
+     "slope_deg": 13.814470036292777
+    },
+    {
+     "col": 1,
+     "height_m": 1410.7054443359375,
+     "lat_deg": -84.0948884208149,
+     "lon_deg": 59.239651471527054,
+     "row": 667,
+     "slope_deg": 5.934553272456713
+    },
+    {
+     "col": 667,
+     "height_m": 1005.0921630859375,
+     "lat_deg": -84.00051411058665,
+     "lon_deg": 59.775555041101356,
+     "row": 667,
+     "slope_deg": 16.93662087192385
+    },
+    {
+     "col": 1332,
+     "height_m": 299.6404113769531,
+     "lat_deg": -83.9057831861469,
+     "lon_deg": 60.29401929589664,
+     "row": 667,
+     "slope_deg": 16.90101422853452
+    },
+    {
+     "col": 1998,
+     "height_m": 37.937156677246094,
+     "lat_deg": -83.81043435606679,
+     "lon_deg": 60.797287331704155,
+     "row": 667,
+     "slope_deg": 20.835248626803832
+    },
+    {
+     "col": 1,
+     "height_m": 1367.6690673828125,
+     "lat_deg": -84.15006583181808,
+     "lon_deg": 60.161754127108054,
+     "row": 1332,
+     "slope_deg": 6.4331417482433695
+    },
+    {
+     "col": 667,
+     "height_m": 309.45184326171875,
+     "lat_deg": -84.05480933779062,
+     "lon_deg": 60.68786772146792,
+     "row": 1332,
+     "slope_deg": 19.457978260034693
+    },
+    {
+     "col": 1332,
+     "height_m": -461.57086181640625,
+     "lat_deg": -83.95922064921969,
+     "lon_deg": 61.196565099864586,
+     "row": 1332,
+     "slope_deg": 11.38855258849066
+    },
+    {
+     "col": 1998,
+     "height_m": -906.3046875,
+     "lat_deg": -83.86303522499904,
+     "lon_deg": 61.69007779266136,
+     "row": 1332,
+     "slope_deg": 5.828065596636364
+    },
+    {
+     "col": 1,
+     "height_m": 1090.875244140625,
+     "lat_deg": -84.20378419665417,
+     "lon_deg": 61.10262549798394,
+     "row": 1998,
+     "slope_deg": 14.023549431762488
+    },
+    {
+     "col": 667,
+     "height_m": -54.45956802368164,
+     "lat_deg": -84.10765315708757,
+     "lon_deg": 61.61819728963974,
+     "row": 1998,
+     "slope_deg": 16.320531528476742
+    },
+    {
+     "col": 1332,
+     "height_m": -652.5402221679688,
+     "lat_deg": -84.01121487151018,
+     "lon_deg": 62.116412452872225,
+     "row": 1998,
+     "slope_deg": 14.558088280223647
+    },
+    {
+     "col": 1998,
+     "height_m": -1237.983642578125,
+     "lat_deg": -83.91420150971129,
+     "lon_deg": 62.599487220729316,
+     "row": 1998,
+     "slope_deg": 2.8218599683065833
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  },
+  {
+   "bundle": "peak_near_shackleton_10km_5m",
+   "cell_m": 5.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 418.29620361328125,
+     "lat_deg": -88.99509259134062,
+     "lon_deg": 113.20599705625648,
+     "row": 1,
+     "slope_deg": 2.3910115919329855
+    },
+    {
+     "col": 667,
+     "height_m": 232.78529357910156,
+     "lat_deg": -88.89332339118533,
+     "lon_deg": 110.96519034946337,
+     "row": 1,
+     "slope_deg": 4.996226742969962
+    },
+    {
+     "col": 1332,
+     "height_m": -175.1851348876953,
+     "lat_deg": -88.79030523884964,
+     "lon_deg": 109.10669062080744,
+     "row": 1,
+     "slope_deg": 2.182670927078871
+    },
+    {
+     "col": 1998,
+     "height_m": -301.7801818847656,
+     "lat_deg": -88.68605946794209,
+     "lon_deg": 107.53910020975937,
+     "row": 1,
+     "slope_deg": 7.15153553414294
+    },
+    {
+     "col": 1,
+     "height_m": 1133.2265625,
+     "lat_deg": -88.94697650592343,
+     "lon_deg": 118.70604622043759,
+     "row": 667,
+     "slope_deg": 14.547690036605301
+    },
+    {
+     "col": 667,
+     "height_m": 868.003173828125,
+     "lat_deg": -88.84945641762863,
+     "lon_deg": 116.07849400391211,
+     "row": 667,
+     "slope_deg": 8.13758882848293
+    },
+    {
+     "col": 1332,
+     "height_m": 540.8130493164062,
+     "lat_deg": -88.75004942724257,
+     "lon_deg": 113.86848292478967,
+     "row": 667,
+     "slope_deg": 19.68767899948515
+    },
+    {
+     "col": 1998,
+     "height_m": -27.693273544311523,
+     "lat_deg": -88.64890707353973,
+     "lon_deg": 111.98383608697667,
+     "row": 667,
+     "slope_deg": 4.165087571600254
+    },
+    {
+     "col": 1,
+     "height_m": 1333.2789306640625,
+     "lat_deg": -88.89013947848144,
+     "lon_deg": 123.67708304826384,
+     "row": 1332,
+     "slope_deg": 11.569613142084288
+    },
+    {
+     "col": 667,
+     "height_m": 1194.953857421875,
+     "lat_deg": -88.79721999074388,
+     "lon_deg": 120.77517347892324,
+     "row": 1332,
+     "slope_deg": 17.000548191605727
+    },
+    {
+     "col": 1332,
+     "height_m": 521.9304809570312,
+     "lat_deg": -88.70180792197846,
+     "lon_deg": 118.29829143140518,
+     "row": 1332,
+     "slope_deg": 2.7431540205995635
+    },
+    {
+     "col": 1998,
+     "height_m": -242.5572052001953,
+     "lat_deg": -88.60415794257673,
+     "lon_deg": 116.16098029539216,
+     "row": 1332,
+     "slope_deg": 5.717756908560072
+    },
+    {
+     "col": 1,
+     "height_m": 1416.7098388671875,
+     "lat_deg": -88.82569024056426,
+     "lon_deg": 128.14028245944692,
+     "row": 1998,
+     "slope_deg": 9.16302576983933
+    },
+    {
+     "col": 667,
+     "height_m": 1426.6265869140625,
+     "lat_deg": -88.73750660503212,
+     "lon_deg": 125.06098512195014,
+     "row": 1998,
+     "slope_deg": 1.4773678475313723
+    },
+    {
+     "col": 1332,
+     "height_m": 696.5298461914062,
+     "lat_deg": -88.64629806597405,
+     "lon_deg": 122.39411785370211,
+     "row": 1998,
+     "slope_deg": 13.246490535576177
+    },
+    {
+     "col": 1998,
+     "height_m": -164.78102111816406,
+     "lat_deg": -88.55238908138313,
+     "lon_deg": 120.06501586197416,
+     "row": 1998,
+     "slope_deg": 12.750472396793244
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  },
+  {
+   "bundle": "shackleton_rim_10km_5m",
+   "cell_m": 5.0,
+   "cells": [
+    {
+     "col": 1,
+     "height_m": 639.87060546875,
+     "lat_deg": -89.90131338995127,
+     "lon_deg": -90.1435981442312,
+     "row": 1,
+     "slope_deg": 25.806075539117412
+    },
+    {
+     "col": 667,
+     "height_m": 1244.9068603515625,
+     "lat_deg": -89.9888672156167,
+     "lon_deg": 91.27303002005671,
+     "row": 1,
+     "slope_deg": 9.261867506149928
+    },
+    {
+     "col": 1332,
+     "height_m": -2.331517457962036,
+     "lat_deg": -89.87921828321696,
+     "lon_deg": 90.11732907732096,
+     "row": 1,
+     "slope_deg": 33.25019782217527
+    },
+    {
+     "col": 1998,
+     "height_m": -778.1416625976562,
+     "lat_deg": -89.76940230925759,
+     "lon_deg": 90.06145415538967,
+     "row": 1,
+     "slope_deg": 32.74455950619427
+    },
+    {
+     "col": 1,
+     "height_m": 1371.2210693359375,
+     "lat_deg": -89.85217245381673,
+     "lon_deg": -138.119669197479,
+     "row": 667,
+     "slope_deg": 14.879070094009263
+    },
+    {
+     "col": 667,
+     "height_m": 325.81524658203125,
+     "lat_deg": -89.88937501582826,
+     "lon_deg": 174.22567409733674,
+     "row": 667,
+     "slope_deg": 26.200650793329373
+    },
+    {
+     "col": 1332,
+     "height_m": -1512.8365478515625,
+     "lat_deg": -89.8365920639866,
+     "lon_deg": 132.3417477652922,
+     "row": 667,
+     "slope_deg": 33.70118947144645
+    },
+    {
+     "col": 1998,
+     "height_m": -2655.878662109375,
+     "lat_deg": -89.74448252906079,
+     "lon_deg": 115.51500797833414,
+     "row": 667,
+     "slope_deg": 20.64425973770817
+    },
+    {
+     "col": 1,
+     "height_m": 1710.704345703125,
+     "lat_deg": -89.75913992786393,
+     "lon_deg": -155.81249487142614,
+     "row": 1332,
+     "slope_deg": 10.794369001327787
+    },
+    {
+     "col": 667,
+     "height_m": -102.90996551513672,
+     "lat_deg": -89.78000337874128,
+     "lon_deg": 177.10006596325528,
+     "row": 1332,
+     "slope_deg": 35.07153298046844
+    },
+    {
+     "col": 1332,
+     "height_m": -2061.25537109375,
+     "lat_deg": -89.74927559614976,
+     "lon_deg": 151.20158739481155,
+     "row": 1332,
+     "slope_deg": 28.902286505491436
+    },
+    {
+     "col": 1998,
+     "height_m": -2746.343505859375,
+     "lat_deg": -89.68148844697707,
+     "lon_deg": 133.61560398536955,
+     "row": 1332,
+     "slope_deg": 11.518442973763609
+    },
+    {
+     "col": 1,
+     "height_m": 1557.678955078125,
+     "lat_deg": -89.65600972726853,
+     "lon_deg": -163.328377062041,
+     "row": 1998,
+     "slope_deg": 18.696037762817575
+    },
+    {
+     "col": 667,
+     "height_m": 388.239501953125,
+     "lat_deg": -89.67028147513928,
+     "lon_deg": 178.06555141875182,
+     "row": 1998,
+     "slope_deg": 30.887885858430966
+    },
+    {
+     "col": 1332,
+     "height_m": -1311.721923828125,
+     "lat_deg": -89.64903215193827,
+     "lon_deg": 159.87085722785665,
+     "row": 1998,
+     "slope_deg": 31.662121511457784
+    },
+    {
+     "col": 1998,
+     "height_m": -2423.401123046875,
+     "lat_deg": -89.59779970565151,
+     "lon_deg": 145.0166392585555,
+     "row": 1998,
+     "slope_deg": 21.3625078643935
+    }
+   ],
+   "crs": "PROJCRS[\"Moon (2015) - Sphere / Ocentric / South Polar\",BASEGEOGCRS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",ELLIPSOID[\"Moon (2015) - Sphere\",1737400,0,LENGTHUNIT[\"metre\",1]]],PRIMEM[\"Reference Meridian\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],ID[\"IAU\",30100,2015]],CONVERSION[\"South Polar\",METHOD[\"Polar Stereographic (variant A)\",ID[\"EPSG\",9810]],PARAMETER[\"Latitude of natural origin\",-90,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"Scale factor at natural origin\",1,SCALEUNIT[\"unity\",1],ID[\"EPSG\",8805]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1]],ID[\"IAU\",30135,2015]]",
+   "height": 2000,
+   "width": 2000
+  }
+ ],
+ "samples_per_axis": 4
+}

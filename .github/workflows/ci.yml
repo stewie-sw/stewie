@@ -50,6 +50,8 @@ jobs:
         run: python scripts/req_trace.py
       - name: AC-01 TS API client drift gate (the generated client must match the live FastAPI OpenAPI)
         run: python scripts/gen_ts_api_client.py --check
+      - name: oracle fixtures are reproducible (Rust golden fixtures regenerate byte-identically)
+        run: (cd oracle && python build_fixtures.py) && git diff --exit-code -- crates/stewie-contracts/fixtures crates/stewie-oracle/fixtures
       - name: Large-file / tracked-artifact policy (MT-01 -- a new large binary must be shrunk/externalized/allowlisted)
         run: python scripts/check_tracked_artifacts.py
       - name: Power-of-10 profile on the conserved core (PRD 19.2; complexity<=10, bounded branching)

@@ -1,6 +1,10 @@
 # STEWIE task runner. `just check` runs the Rust gate exactly as CI does.
 check: fmt-check clippy test no-stubs
 
+# Regenerate every oracle fixture; CI fails if the committed fixtures differ.
+oracle:
+    cd oracle && PYTHONNOUSERSITE=1 ../.venv/bin/python build_fixtures.py
+
 fmt-check:
     cargo fmt --all --check
 
