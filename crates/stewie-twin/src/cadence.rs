@@ -102,11 +102,11 @@ pub fn select_retained(
     for (name, &t) in times {
         let age = (now_t_s - t).max(0.0);
         let key = if age < hourly {
-            (0, (age / l.hour_s).floor() as i64)
+            (0, numpy::floordiv(age, l.hour_s) as i64)
         } else if age < daily {
-            (1, ((age - hourly) / l.day_s).floor() as i64)
+            (1, numpy::floordiv(age - hourly, l.day_s) as i64)
         } else if age < weekly {
-            (2, ((age - daily) / l.week_s).floor() as i64)
+            (2, numpy::floordiv(age - daily, l.week_s) as i64)
         } else {
             continue;
         };

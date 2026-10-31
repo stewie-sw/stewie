@@ -46,6 +46,25 @@ fn pairwise(a: &[f64]) -> f64 {
     }
 }
 
+/// Python's float floor division `a // b` (`CPython` `float_floor_div`): `fmod`, a sign fix, then the quotient
+/// rounded so it lands on the integer `floor` would miss, e.g. `1 // 0.1 == 9` where `floor(1 / 0.1) == 10`.
+#[must_use]
+pub fn floordiv(a: f64, b: f64) -> f64 {
+    let m = a % b;
+    let mut div = (a - m) / b;
+    if m != 0.0 && ((b < 0.0) != (m < 0.0)) {
+        div -= 1.0;
+    }
+    if div == 0.0 {
+        return 0.0f64.copysign(a / b);
+    }
+    let mut q = div.floor();
+    if div - q > 0.5 {
+        q += 1.0;
+    }
+    q
+}
+
 /// Python's `round(x, digits)`: the double nearest the decimal rounding of the exact value, ties to even.
 #[must_use]
 pub fn round(x: f64, digits: usize) -> f64 {
@@ -270,6 +289,27 @@ pub fn save_npz(path: &std::path::Path, arrays: &[(&str, Array)]) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[allow(clippy::float_cmp)] // floor division returns exact integers
+    fn floor_division_is_pythons() {
+        // values from CPython: 1 // 0.1, 7 // 2, -7 // 2, 7.5 // -2, -0.0 // 3, 0.7 // 0.1, 1e-300 // 1e300
+        for (a, b, q) in [
+            (1.0, 0.1, 9.0),
+            (7.0, 2.0, 3.0),
+            (-7.0, 2.0, -4.0),
+            (7.5, -2.0, -4.0),
+            (-0.0, 3.0, -0.0),
+            (0.7, 0.1, 6.0),
+            (1e-300, 1e300, 0.0),
+        ] {
+            let got = floordiv(a, b);
+            assert!(
+                got == q && got.is_sign_negative() == q.is_sign_negative(),
+                "{a} // {b} = {got}, want {q}"
+            );
+        }
+    }
 
     #[test]
     fn arrays_round_trip_through_an_npz() {
