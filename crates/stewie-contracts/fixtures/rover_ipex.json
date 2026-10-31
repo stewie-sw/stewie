@@ -10,9 +10,9 @@
     "value": 12.0
   },
   "cg_height_m": {
-    "source": "IPEx CG not public (stewie/specs/constants.py)",
-    "tag": "ASSUMPTION",
-    "value": 0.3
+    "source": "stewie/specs/vehicles.py VEHICLES['ipex'] (flight-IPEx geometry, Aaron D-R86): IPEx CG not public",
+    "tag": "CALIB",
+    "value": 0.21
   },
   "contact_len_m": {
     "source": "nominal wheel contact patch length, spec section 4 (stewie_forge)",
@@ -175,9 +175,9 @@
     "value": 0.5
   },
   "track_gauge_m": {
-    "source": "Godot model sidecar.gd WHEEL_ORIGINS, not a publication (stewie/physics/rover.py)",
-    "tag": "MODEL",
-    "value": 0.57
+    "source": "stewie/specs/vehicles.py VEHICLES['ipex'] (flight-IPEx geometry, Aaron D-R86): 0.7 x the RASSOR 2 track 0.5207 m (WHEELTEST (Zhang, Schuler et al.))",
+    "tag": "ASSUMPTION",
+    "value": 0.3645
   },
   "wheel_radius_m": {
     "source": "WHEELTEST (Zhang, Schuler et al.): 30.5 cm diameter wheels",
@@ -185,8 +185,8 @@
     "value": 0.1525
   },
   "wheelbase_m": {
-    "source": "Godot model sidecar.gd WHEEL_ORIGINS, not a publication (stewie/physics/rover.py)",
-    "tag": "MODEL",
-    "value": 0.4
+    "source": "stewie/specs/vehicles.py VEHICLES['ipex'] (flight-IPEx geometry, Aaron D-R86): no published IPEx wheelbase",
+    "tag": "CALIB",
+    "value": 0.3
   }
 }

@@ -66,14 +66,18 @@ def soil_baseline() -> dict:
 
 def rover_ipex() -> dict:
     """The IPEx rover profile, every figure from the Python source with the tag its comment gives."""
-    from stewie.physics import excavation as EX, rover as RV
+    from stewie.physics import excavation as EX
     from stewie.specs import ipex_specs as I
+    from stewie.specs import vehicles as V
 
     def v(value, tag, source):
         return {"value": float(value), "tag": tag, "source": source}
 
     s24, wt, bds = "SCHULER24 (IPEx TRL-5)", "WHEELTEST (Zhang, Schuler et al.)", "BDSCALE (Schuler, Nick et al.)"
-    model = "Godot model sidecar.gd WHEEL_ORIGINS, not a publication (stewie/physics/rover.py)"
+    # Aaron 2026-10-31 (D-R86): IPEx geometry is the planner registry's flight-IPEx entry, not the Godot model's
+    # 0.57 / 0.40 m (those are the EZ-RASSOR render body's)
+    flight = V.VEHICLES["ipex"]
+    reg = "stewie/specs/vehicles.py VEHICLES['ipex'] (flight-IPEx geometry, Aaron D-R86)"
     drums = {}
     for k, d in I.DRUM_DIMENSIONS_M.items():
         drums[k] = {"width_m": v(d["width"], "SOURCED", f"{bds} Table 1"),
@@ -85,10 +89,10 @@ def rover_ipex() -> dict:
             "mass_dry_kg": v(K.ROVER_MASS_DRY_KG, "CALIB", f"{s24} '30 kg-class excavator'"),
             "n_wheels": v(I.N_WHEELS, "SOURCED", f"{s24} 4-wheel skid-steer"),
             "wheel_radius_m": v(I.WHEEL_RADIUS_M, "SOURCED", f"{wt}: 30.5 cm diameter wheels"),
-            "track_gauge_m": v(RV.WHEEL_GAUGE_M, "MODEL", model),
-            "wheelbase_m": v(RV.WHEEL_BASE_M, "MODEL", model),
+            "track_gauge_m": v(flight.gauge_m, "ASSUMPTION", f"{reg}: 0.7 x the RASSOR 2 track 0.5207 m ({wt})"),
+            "wheelbase_m": v(flight.wheelbase_m, "CALIB", f"{reg}: no published IPEx wheelbase"),
             "skid_steer_track_m": v(I.SKID_STEER_TRACK_M, "SOURCED", f"{wt} Eq. 1, RASSOR 2 test platform"),
-            "cg_height_m": v(K.CG_HEIGHT_M, "ASSUMPTION", "IPEx CG not public (stewie/specs/constants.py)"),
+            "cg_height_m": v(flight.cg_height_m, "CALIB", f"{reg}: IPEx CG not public"),
             "contact_len_m": v(0.10, "ASSUMPTION", "nominal wheel contact patch length, spec section 4 (stewie_forge)"),
             "contact_width_m": v(0.18, "ASSUMPTION", "wheel contact width (stewie_forge, rover.py)"),
             "drive_speed_ms": v(I.DRIVE_SPEED_MS, "SOURCED", f"{s24} nominal 30 cm/s"),
