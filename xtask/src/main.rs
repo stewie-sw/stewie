@@ -17,6 +17,27 @@ const ROOTS: [&str; 3] = ["crates", "xtask", "web"];
 const SKIP_DIRS: [&str; 4] = ["target", "node_modules", "dist", ".git"];
 const EXTS: [&str; 5] = ["rs", "toml", "ts", "tsx", "js"];
 
+/// Write the native R10 golden scenario that the WASM build must reproduce.
+fn wasm_golden(root: &Path) -> ExitCode {
+    let out =
+        stewie_wasm::scenario::Inputs::from_repo().and_then(|i| stewie_wasm::scenario::run(&i));
+    match out.and_then(|o| serde_json::to_string_pretty(&o).map_err(|e| e.to_string())) {
+        Ok(json) => {
+            let path = root.join("crates/stewie-wasm/golden/scenario.json");
+            if let Err(e) = fs::write(&path, json + "\n") {
+                eprintln!("{}: {e}", path.display());
+                return ExitCode::FAILURE;
+            }
+            println!("{}", path.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("wasm-golden: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Finding {
     path: PathBuf,
@@ -80,9 +101,13 @@ fn walk(dir: &Path, out: &mut Vec<Finding>) {
 
 fn main() -> ExitCode {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-    if std::env::args().nth(1).as_deref() != Some("no-stubs") {
-        eprintln!("usage: cargo run -p xtask -- no-stubs");
-        return ExitCode::FAILURE;
+    match std::env::args().nth(1).as_deref() {
+        Some("no-stubs") => {}
+        Some("wasm-golden") => return wasm_golden(&root),
+        _ => {
+            eprintln!("usage: cargo run -p xtask -- <no-stubs | wasm-golden>");
+            return ExitCode::FAILURE;
+        }
     }
     let findings = scan(&root);
     for f in &findings {

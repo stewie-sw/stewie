@@ -114,7 +114,30 @@ impl DemTile {
             .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
         let meta_path = dir.join("metadata.json");
         let text = fs::read_to_string(&meta_path).map_err(io(&meta_path))?;
-        let meta: DemBundle = serde_json::from_str(&text).map_err(|e| contract(&meta_path, e))?;
+        let file: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| contract(&meta_path, e))?;
+        let hm_name = file["fields"]["heightmap"]["file"]
+            .as_str()
+            .ok_or_else(|| contract(&meta_path, "fields.heightmap.file is required"))?;
+        let hm_path = dir.join(hm_name);
+        let bytes = fs::read(&hm_path).map_err(io(&hm_path))?;
+        Self::from_bundle_bytes(&id, &text, &bytes, sphere)
+    }
+
+    /// A tile from a bundle's `metadata.json` text and heightmap bytes (how a browser loads it).
+    ///
+    /// # Errors
+    /// As [`DemTile::open`], without the I/O.
+    pub fn from_bundle_bytes(
+        id: &str,
+        metadata_json: &str,
+        heightmap: &[u8],
+        sphere: Sphere,
+    ) -> Result<Self, DemError> {
+        let meta_path = PathBuf::from(format!("{id}/metadata.json"));
+        let id = id.to_owned();
+        let text = metadata_json;
+        let meta: DemBundle = serde_json::from_str(text).map_err(|e| contract(&meta_path, e))?;
         dem_bundle::check(&meta).map_err(|e| contract(&meta_path, e))?;
         let prov = meta
             .dem_provenance
@@ -149,8 +172,7 @@ impl DemTile {
         if width < 2 || height < 2 {
             return Err(contract(&meta_path, "grid must be at least 2 x 2"));
         }
-        let hm_path = dir.join(hm.file.as_str());
-        let bytes = fs::read(&hm_path).map_err(io(&hm_path))?;
+        let bytes = heightmap;
         let expected = width * height * 4;
         if bytes.len() != expected {
             return Err(DemError::SizeMismatch {
@@ -399,7 +421,27 @@ impl GlobalGrid {
     /// sphere, or an image whose size disagrees with the label.
     pub fn open(img: &Path, lbl: &Path, sphere: Sphere) -> Result<Self, DemError> {
         let text = fs::read_to_string(lbl).map_err(io(lbl))?;
-        let lab = pds_label(&text);
+        let bytes = fs::read(img).map_err(io(img))?;
+        let id = img
+            .file_stem()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        Self::from_label_bytes(&id, &text, &bytes, sphere)
+    }
+
+    /// A grid from its PDS3 label text and image bytes (how a browser loads it).
+    ///
+    /// # Errors
+    /// As [`GlobalGrid::open`], without the I/O.
+    pub fn from_label_bytes(
+        id: &str,
+        label: &str,
+        bytes: &[u8],
+        sphere: Sphere,
+    ) -> Result<Self, DemError> {
+        let lbl = PathBuf::from(format!("{id}.lbl"));
+        let lbl = lbl.as_path();
+        let text = label;
+        let lab = pds_label(text);
         let get = |k: &str| {
             lab.get(k)
                 .ok_or_else(|| contract(lbl, format!("label lacks {k}")))
@@ -423,9 +465,7 @@ impl GlobalGrid {
                 "only 16-bit LSB simple-cylindrical LDEMs are supported",
             ));
         }
-        let id = img
-            .file_stem()
-            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        let id = id.to_owned();
         let offset = num("OFFSET")?;
         if (offset - sphere.radius_m()).abs() > 1e-6 {
             return Err(DemError::DatumMismatch {
@@ -435,7 +475,6 @@ impl GlobalGrid {
             });
         }
         let (lines, samples) = (int("LINES")?, int("LINE_SAMPLES")?);
-        let bytes = fs::read(img).map_err(io(img))?;
         if bytes.len() != lines * samples * 2 {
             return Err(DemError::SizeMismatch {
                 bundle: id,
@@ -552,6 +591,20 @@ impl TerrainStack {
             .collect();
         sources.sort_by_key(|(d, _)| d.priority);
         Self { sources }
+    }
+
+    /// Add a source, keeping the stack ordered by priority.
+    pub fn push(&mut self, priority: u32, source: Box<dyn TerrainSource>) {
+        let d = SourceDescriptor {
+            id: source.id().to_owned(),
+            resolution_m: source.resolution_m(),
+            priority,
+            citation: source.citation().to_owned(),
+        };
+        let at = self
+            .sources
+            .partition_point(|(e, _)| e.priority <= priority);
+        self.sources.insert(at, (d, source));
     }
 
     /// The body sphere shared by the stack's sources (`None` for an empty stack).

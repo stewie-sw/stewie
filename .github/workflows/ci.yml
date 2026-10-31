@@ -101,6 +101,12 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: cargo run -q -p xtask -- no-stubs
+      - name: wasm32 clippy (the browser build of the geometry engine)
+        run: cargo clippy -p stewie-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings
+      - name: R10 native vs WASM determinism (wasm-bindgen-cli pinned to the crate's wasm-bindgen 0.2.130)
+        run: |
+          cargo install wasm-bindgen-cli --version 0.2.130 --locked
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner cargo test -p stewie-wasm --target wasm32-unknown-unknown --release
 
   web:
     name: web app (contract-type drift, typecheck, vitest, build)
