@@ -1,0 +1,10 @@
+{
+ "fixture": "twin_store_cases",
+ "generator": "oracle/build_fixtures.py::twin_store_cases (stewie.twin.versioned.TwinStore on the real Haworth crop; SYNTHETIC patches labelled)",
+ "payload_sha256": "f761e83c300957a707a1e1b8b899ccfd4d4fb0a9378a63e8c88430c2d499c9d8",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/twin/journal_io.py": "05bf90765455029d8a124d3b8a0fde70d428696fec7ce78125e07cc925f223a4",
+  "stewie/twin/versioned.py": "217ef0c531b16d1d657a8f6c757f8e4947bcb45e9a6f333e69fbd44acb6a64ac"
+ }
+}

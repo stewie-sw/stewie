@@ -4,6 +4,7 @@
 
 pub mod journal;
 pub mod pyjson;
+pub mod twin_store;
 pub mod world_log;
 
 use std::fmt;

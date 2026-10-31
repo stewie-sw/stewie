@@ -56,6 +56,9 @@ Fixtures:
   world_log_cases    stewie.twin.envelope.TransactionLog: SYNTHETIC commits (labelled) with awkward floats,
                      nested beliefs, linked/unlinked packet+vehicle ids and escape-heavy provenance; the
                      exact journal bytes Python writes; plus Python float repr over the exponent range.
+  twin_store_cases   stewie.twin.versioned.TwinStore over the REAL Haworth crop heights: a real unchanged
+                     resync, SYNTHETIC offset and integral patches (labelled), an edge patch and undos;
+                     the journal bytes, current map, observed mask and identity.
 """
 from __future__ import annotations
 
@@ -865,6 +868,43 @@ def world_log_cases() -> None:
                    "floats": [[x, repr(x)] for x in floats]})
 
 
+def twin_store_cases() -> None:
+    import tempfile
+
+    from stewie.twin.versioned import TwinStore
+
+    base = _real_crop_state().derive_height()
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "twin.journal")
+        tw = TwinStore(base, cell_m=5.0, journal_path=path)
+        tw.apply_patch(base[4:10, 6:14], origin_rc=(4, 6), provenance="resync: unchanged real crop (not sensor evidence)")
+        tw.apply_patch(base[12:15, 20:25] + 0.25, origin_rc=(12, 20), provenance="SYNTHETIC +0.25 m offset (labelled)")
+        tw.undo()
+        tw.apply_patch(np.full((2, 3), 1700.0), origin_rc=(0, 0), provenance="SYNTHETIC integral heights \u00e9")
+        tw.apply_patch(base[29:32, 28:32] - 0.5, origin_rc=(29, 28), provenance="SYNTHETIC edge patch")
+        tw.undo()
+        tw.undo()
+        journal = open(path, "rb").read().decode("utf-8")
+        ver, ident = tw.identity()
+        errors = {}
+        for name, fn in (("out_of_bounds", lambda: tw.apply_patch(np.zeros((3, 3)), origin_rc=(30, 30), provenance="x")),
+                         ("empty_provenance", lambda: tw.apply_patch(np.zeros((1, 1)), origin_rc=(0, 0), provenance="  ")),
+                         ("nothing_to_undo", lambda: TwinStore(base, cell_m=5.0).undo())):
+            try:
+                fn()
+                errors[name] = None
+            except ValueError as e:
+                errors[name] = str(e)
+    write_fixture(ORACLE_FIXTURES, "twin_store_cases", "oracle/build_fixtures.py::twin_store_cases "
+                  "(stewie.twin.versioned.TwinStore on the real Haworth crop; SYNTHETIC patches labelled)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "stewie/twin/versioned.py",
+                   "stewie/twin/journal_io.py"],
+                  {"rows": int(base.shape[0]), "cols": int(base.shape[1]), "cell_m": 5.0, "base": base.ravel().tolist(),
+                   "journal": journal, "version": ver, "identity_hash": ident, "verify": tw.verify_chain(),
+                   "current": tw.current().ravel().tolist(), "observed": tw.observed_mask().ravel().tolist(),
+                   "errors": errors})
+
+
 STACK_STEP_M = 50.0
 
 
@@ -937,6 +977,7 @@ def main() -> None:
     conform_cases()
     drive_runs()
     world_log_cases()
+    twin_store_cases()
 
 
 if __name__ == "__main__":
