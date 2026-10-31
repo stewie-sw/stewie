@@ -113,6 +113,7 @@ impl Engine {
             max_range_m,
             step_m,
             eye_height_m: eye_m,
+            start_m: 0.0,
         };
         horizon(
             &self.stack,

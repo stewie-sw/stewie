@@ -418,10 +418,11 @@ def polar_ldem_samples() -> None:
                    "crates/stewie-contracts/fixtures/sites.json"], {"grids": grids})
 
 
-# RW-61 protocol (D-R43). Ten eclipse years (346.620075 d each) from 2026-01-01, inside the bundled ephemeris:
+# RW-61 protocol (D-R43; start_m D-R74: horizon rays count terrain from one PGDA pixel out, since the 60 m product
+# cannot resolve terrain inside its own pixel and a knife-edge crest otherwise shadows itself). Ten eclipse years (346.620075 d each) from 2026-01-01, inside the bundled ephemeris:
 # the Sun's latitude cycle over the Moon closes, PGDA's 18.6-year span does not fit the 2026-2035 pack.
 PGDA_PROTOCOL = {"start_utc": "2026-01-01T00:00:00Z", "span_days": 3466.20075, "step_s": 3600.0,
-                 "n_az": 720, "max_range_m": 300_000.0, "step_m": 40.0, "eye_m": 0.0, "tolerance": 0.05}
+                 "n_az": 720, "max_range_m": 300_000.0, "step_m": 40.0, "eye_m": 0.0, "tolerance": 0.05, "start_m": 60.0}
 
 
 def pgda_avgvisib() -> None:

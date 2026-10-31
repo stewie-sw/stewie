@@ -53,6 +53,7 @@ fn r5_on(stack: &TerrainStack, near_tier: &dyn Fn(&str, &str) -> bool) {
         max_range_m: num("max_range_m"),
         step_m: num("step_m"),
         eye_height_m: num("eye_m"),
+        start_m: num("start_m"),
     };
     let sites = fx["sites"].as_array().unwrap();
     assert_eq!(sites.len(), 12, "catalog sites inside the 85S map");

@@ -18,6 +18,9 @@ pub struct HorizonConfig {
     pub max_range_m: f64,
     pub step_m: f64,
     pub eye_height_m: f64,
+    /// Terrain nearer than this [m] does not count toward the horizon: the observer's own DEM cell(s),
+    /// which a gridded surface cannot resolve as an obstruction. 0 counts every sample.
+    pub start_m: f64,
 }
 
 /// Per-azimuth horizon. `elev_deg[k]` is `None` when not even the first step is covered.
@@ -53,7 +56,7 @@ impl std::error::Error for HorizonError {}
 ///
 /// # Errors
 /// [`HorizonError::NotCovered`] when no source covers the observer; [`HorizonError::InvalidConfig`] for a
-/// zero azimuth count, a non-positive step or a range shorter than one step.
+/// zero azimuth count, a non-positive step, a range shorter than one step, or a `start_m` outside `[0, max_range_m)`.
 #[allow(
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
@@ -67,7 +70,10 @@ pub fn horizon(
     let valid = cfg.step_m.is_finite()
         && cfg.step_m > 0.0
         && cfg.max_range_m.is_finite()
-        && cfg.max_range_m >= cfg.step_m;
+        && cfg.max_range_m >= cfg.step_m
+        && cfg.start_m.is_finite()
+        && cfg.start_m >= 0.0
+        && cfg.start_m < cfg.max_range_m;
     if cfg.n_az == 0 || !valid {
         return Err(HorizonError::InvalidConfig(format!("{cfg:?}")));
     }
@@ -113,10 +119,13 @@ pub fn horizon(
             if !seen.contains(&source.id) {
                 seen.insert(source.id.clone());
             }
+            reach = s;
+            if s < cfg.start_m {
+                continue;
+            }
             let rt = radius + height_m;
             let elev = (rt * cd - ro).atan2(rt * sd);
             best = Some(best.map_or(elev, |b: f64| b.max(elev)));
-            reach = s;
         }
         out.az_deg.push(az_deg);
         out.elev_deg.push(best.map(f64::to_degrees));

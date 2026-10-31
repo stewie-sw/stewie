@@ -52,9 +52,9 @@
       }
     },
     {
-      "complete_azimuths": 682,
-      "lat_deg": -89.823,
-      "lon_deg": 158.213,
+      "complete_azimuths": 689,
+      "lat_deg": -89.7843,
+      "lon_deg": -155.9041,
       "n_az": 720,
       "name": "shackleton_rim (shackleton_rim_10km_5m + LDEM_16)",
       "site": "shackleton_rim",
@@ -66,16 +66,36 @@
       "windows": {
         "EARTH": [
           {
-            "end_s": 2592000.0008403063,
+            "end_s": 757327.6245117188,
             "start_s": 0.0,
+            "verdict": "Shadow"
+          },
+          {
+            "end_s": 2021757.4584960938,
+            "start_s": 757327.6245117188,
+            "verdict": "Lit"
+          },
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 2021757.4584960938,
             "verdict": "Shadow"
           }
         ],
         "SUN": [
           {
-            "end_s": 2592000.0008403063,
+            "end_s": 1643590.9790039062,
             "start_s": 0.0,
-            "verdict": "Shadow"
+            "verdict": "Lit"
+          },
+          {
+            "end_s": 1757582.6293945312,
+            "start_s": 1643590.9790039062,
+            "verdict": "Unknown"
+          },
+          {
+            "end_s": 2592000.0008403063,
+            "start_s": 1757582.6293945312,
+            "verdict": "Lit"
           }
         ]
       }

@@ -13,7 +13,7 @@ def test_site_latlon_uses_the_registry_not_the_old_hardcode():
     assert abs(lat - (-86.33)) < 0.5, "Haworth must resolve to the registry latitude"
     assert abs(lat - (-87.45)) > 0.5, "must NOT be the old hardcoded -87.45 (#274)"
     # a different site resolves to ITS OWN coordinates
-    assert site_latlon("faustini_rim") == (get_site("faustini_rim").lat_deg, get_site("faustini_rim").lon_deg)
+    assert site_latlon("faustini_psr") == (get_site("faustini_psr").lat_deg, get_site("faustini_psr").lon_deg)
     # an unknown site falls back to Haworth and never raises
     assert site_latlon("not_a_real_site") == site_latlon("haworth")
 
@@ -25,5 +25,5 @@ def test_quantize_sun_follows_the_chosen_site():
     from stewie.server.routers.layers import _quantize_sun
     mt = 6.0 * 3600.0                                    # a fixed mission time
     haworth = _quantize_sun(None, None, mt, "haworth")
-    faustini = _quantize_sun(None, None, mt, "faustini_rim")
+    faustini = _quantize_sun(None, None, mt, "faustini_psr")
     assert haworth != faustini, f"resolved sun must differ by site (#274); both = {haworth}"

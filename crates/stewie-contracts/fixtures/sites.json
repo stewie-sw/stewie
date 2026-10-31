@@ -35,14 +35,14 @@
     "name": "de_gerlache_rim",
     "note": "PGDA Product 78 Site11; 10 km / 5 m tile, imported 2026-07-07"
   },
-  "faustini_rim": {
+  "faustini_psr": {
     "artemis_candidate": true,
     "bundle": null,
-    "label": "Faustini Rim A",
+    "label": "Faustini PSR (Rim A region)",
     "lat_deg": -87.0,
     "lon_deg": 77.0,
-    "name": "faustini_rim",
-    "note": ""
+    "name": "faustini_psr",
+    "note": "permanently shadowed in PGDA product 69 (no sunlit rim within 5 km); kept as a PSR target and renamed from faustini_rim 2026-10-31 (D-R73)"
   },
   "haworth": {
     "artemis_candidate": true,
@@ -111,10 +111,10 @@
     "artemis_candidate": true,
     "bundle": "shackleton_rim_10km_5m",
     "label": "Shackleton rim (Site04)",
-    "lat_deg": -89.823,
-    "lon_deg": 158.213,
+    "lat_deg": -89.7843,
+    "lon_deg": -155.9041,
     "name": "shackleton_rim",
-    "note": "PGDA Product 78 Site04; max-relief 10 km tile (4.4 km relief), imported 2026-06-10"
+    "note": "PGDA Product 78 Site04 tile (4.4 km relief, imported 2026-06-10); site moved 2026-10-31 to the PGDA product 69 average-visibility peak within 5 km of the tile centre (85.5%, 4.8 km away)"
   },
   "shoemaker": {
     "artemis_candidate": true,

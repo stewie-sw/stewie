@@ -36,6 +36,7 @@ fn real_horizons_match_the_oracle_within_r4() {
             max_range_m: fx["max_range_m"].as_f64().unwrap(),
             step_m: p["step_m"].as_f64().unwrap(),
             eye_height_m: p["eye_m"].as_f64().unwrap(),
+            start_m: 0.0,
         };
         let at = LatLon {
             lat_deg: p["lat_deg"].as_f64().unwrap(),
@@ -100,6 +101,7 @@ fn flat_sphere_gives_the_analytic_curvature_dip() {
         max_range_m: 4000.0,
         step_m: 1.0,
         eye_height_m: 1.5,
+        start_m: 0.0,
     };
     let h = horizon(&stack, centre, &cfg).unwrap();
     let r = moon().radius_m();
@@ -129,6 +131,7 @@ fn a_cone_apex_gives_its_exact_spherical_elevation() {
         max_range_m: 5000.0,
         step_m: 1.0,
         eye_height_m: 0.0,
+        start_m: 0.0,
     };
     let h = horizon(&stack, centre, &cfg).unwrap();
     let r = moon().radius_m();
@@ -155,6 +158,7 @@ fn an_observer_outside_coverage_cannot_be_assessed() {
         max_range_m: 1000.0,
         step_m: 5.0,
         eye_height_m: 1.5,
+        start_m: 0.0,
     };
     assert!(matches!(
         horizon(
@@ -203,6 +207,7 @@ fn the_global_base_tier_completes_rays_and_matches_the_stacked_oracle() {
         max_range_m: fx["max_range_m"].as_f64().unwrap(),
         step_m: fx["step_m"].as_f64().unwrap(),
         eye_height_m: fx["eye_m"].as_f64().unwrap(),
+        start_m: 0.0,
     };
     let at = LatLon {
         lat_deg: fx["lat_deg"].as_f64().unwrap(),
@@ -237,4 +242,44 @@ fn the_global_base_tier_completes_rays_and_matches_the_stacked_oracle() {
         h.sources,
         vec!["haworth_10km_5m".to_owned(), "ldem_16".to_owned()]
     );
+}
+
+#[test]
+fn start_m_ignores_near_terrain_and_refuses_bad_values() {
+    // a 50 m ring wall 25–35 m from the observer on flat ground (synthetic)
+    let (t, centre) = synthetic_tile(|dx, dy| {
+        let d = dx.hypot(dy);
+        if (25.0..=35.0).contains(&d) {
+            50.0
+        } else {
+            0.0
+        }
+    });
+    let stack = TerrainStack::new(vec![(1, Box::new(t) as Box<dyn TerrainSource>)]);
+    let cfg = |start_m| HorizonConfig {
+        n_az: 8,
+        max_range_m: 2000.0,
+        step_m: 1.0,
+        eye_height_m: 1.5,
+        start_m,
+    };
+    let near = horizon(&stack, centre, &cfg(0.0)).unwrap();
+    let far = horizon(&stack, centre, &cfg(60.0)).unwrap();
+    for k in 0..8 {
+        assert!(
+            near.elev_deg[k].unwrap() > 45.0,
+            "the wall counts at start 0"
+        );
+        assert!(
+            far.elev_deg[k].unwrap() < 0.0,
+            "the wall is skipped past 60 m"
+        );
+    }
+    assert_eq!(far.reach_m, near.reach_m, "reach still advances");
+    for bad in [-1.0, 2000.0, f64::NAN] {
+        assert!(matches!(
+            horizon(&stack, centre, &cfg(bad)),
+            Err(HorizonError::InvalidConfig(_))
+        ));
+    }
 }

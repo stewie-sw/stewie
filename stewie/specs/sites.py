@@ -48,9 +48,12 @@ SITES: dict = {s.name: s for s in (
          note="real LRO NAC Shape-from-Shading 1 m DEM; 2 km @ 1 m crop inside the SfS footprint; the "
               "driveable viz2 work site (Alexandrov & Beyer 2018), imported 2026-07-10"),
     # centers below are the BUNDLES' true tile centers (world_bounds inverse-projected)
-    Site("shackleton_rim", "Shackleton rim (Site04)", -89.823, 158.213, artemis_candidate=True,
+    # shackleton_rim is NOT its tile's centre: the Site04 tile centre (-89.823, 158.213) is a permanently
+    # shadowed cell in PGDA product 69, so the site sits on the rim crest's illumination peak instead (D-R73).
+    Site("shackleton_rim", "Shackleton rim (Site04)", -89.7843, -155.9041, artemis_candidate=True,
          bundle_dir=_bundle("shackleton_rim_10km_5m"),
-         note="PGDA Product 78 Site04; max-relief 10 km tile (4.4 km relief), imported 2026-06-10"),
+         note="PGDA Product 78 Site04 tile (4.4 km relief, imported 2026-06-10); site moved 2026-10-31 to the "
+              "PGDA product 69 average-visibility peak within 5 km of the tile centre (85.5%, 4.8 km away)"),
     Site("de_gerlache_rim", "de Gerlache Rim (Site11)", -88.4138, -69.3063, artemis_candidate=True,
          bundle_dir=_bundle("de_gerlache_rim_10km_5m"),
          note="PGDA Product 78 Site11; 10 km / 5 m tile, imported 2026-07-07"),
@@ -64,7 +67,9 @@ SITES: dict = {s.name: s for s in (
          bundle_dir=_bundle("leibnitz_beta_10km_5m"),
          note="PGDA Product 78 Site20; 10 km / 5 m tile, imported 2026-07-07"),
     Site("amundsen_rim", "Amundsen Rim", -84.4, 69.0, artemis_candidate=True),
-    Site("faustini_rim", "Faustini Rim A", -87.0, 77.0, artemis_candidate=True),
+    Site("faustini_psr", "Faustini PSR (Rim A region)", -87.0, 77.0, artemis_candidate=True,
+         note="permanently shadowed in PGDA product 69 (no sunlit rim within 5 km); kept as a PSR target and "
+              "renamed from faustini_rim 2026-10-31 (D-R73)"),
     Site("peak_near_shackleton", "Peak near Shackleton (Site07)", -88.9953, 113.2011, artemis_candidate=True,
          bundle_dir=_bundle("peak_near_shackleton_10km_5m"),
          note="PGDA Product 78 Site07; 10 km / 5 m tile, imported 2026-07-07"),

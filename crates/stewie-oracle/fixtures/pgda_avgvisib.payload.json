@@ -9,6 +9,7 @@
   "max_range_m": 300000.0,
   "n_az": 720,
   "span_days": 3466.20075,
+  "start_m": 60.0,
   "start_utc": "2026-01-01T00:00:00Z",
   "step_m": 40.0,
   "step_s": 3600.0,
@@ -68,7 +69,7 @@
     "lat_deg": -87.0,
     "lon_deg": 77.0
    },
-   "name": "faustini_rim",
+   "name": "faustini_psr",
    "pixel": {
     "lat_deg": -87.00012140834606,
     "line": 2187,
@@ -177,19 +178,19 @@
   },
   {
    "catalog": {
-    "lat_deg": -89.823,
-    "lon_deg": 158.213
+    "lat_deg": -89.7843,
+    "lon_deg": -155.9041
    },
    "name": "shackleton_rim",
    "pixel": {
-    "lat_deg": -89.82198002736561,
-    "line": 2612,
-    "lon_deg": 158.1394617632117,
-    "sample": 2562
+    "lat_deg": -89.78432941708299,
+    "line": 2628,
+    "lon_deg": -155.90407908333268,
+    "sample": 2484
    },
-   "visibility": 0.0,
-   "window_max": 0.0,
-   "window_min": 0.0
+   "visibility": 0.8545600000000001,
+   "window_max": 0.8545600000000001,
+   "window_min": 0.43176000000000003
   },
   {
    "catalog": {

@@ -1,10 +1,10 @@
 {
  "fixture": "global_ldem_samples",
  "generator": "oracle/build_fixtures.py::global_ldem_samples (numpy over the PDS IMG, label-driven bilinear, longitude wrap, no answer in the polar caps)",
- "payload_sha256": "423c79a5e284423cb85fa085508d9c559db227570a92638fddc3b2772340725f",
+ "payload_sha256": "5f463ff7573084aa2d46df79fddb7feece3443d690b5e74c0521fd565878d95e",
  "sources": {
   ".cache/terrain/ldem_16.img": "a511e40d7a3ea3275945b4da2a1df377133264fab0be94b7434b1cf8907254cb",
   ".cache/terrain/ldem_16.lbl": "9aef29463ccc6ed3a3fbe0df3ecd830a99c69e16b564f455507dee2697096579",
-  "crates/stewie-contracts/fixtures/sites.json": "23d2b19cf56e2a006f52dea85e127ad70c5e5bc7d4d6086463f8b0588f6df9fb"
+  "crates/stewie-contracts/fixtures/sites.json": "0ddbb89d40b99b2b47f0744aa351afe6b337896aab8408585f85671c320c2176"
  }
 }
