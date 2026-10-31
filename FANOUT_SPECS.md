@@ -1319,6 +1319,34 @@ Briefs for the two 2026-07-02 reviews. Extensions cross-ref FS-25/PM-17/FS-28/PO
 - files: stewie/physics/terramechanics.py, stewie/specs/constants.py, stewie/physics/body_params.py, scripts/test_import_boundaries.py
 - test_target: NEW/extended [REQ:PX-06] in scripts/test_import_boundaries.py + stewie/physics/test_terramechanics.py
 
+### PX-09 (P0) — atomic
+- goal: Re-qualify the live dig against the drum's sourced bite and hold limits on terrain that resolves the drum. The 2026-10-15 native boundary (ADR 0009) withdrew positive excavation qualification because native 1 m cells cannot resolve the IPEx drums.
+- acceptance: on a measured DEM whose cell size is at or below the drum width, a dig through the real Viz2Runtime books mass within the sourced anti-bridging bite and drum-hold limits; on unresolved native terrain the refusal path in test_native_excavation_boundary.py still holds with state unchanged.
+- current_state: limits implemented; refusal verified; positive qualification blocked on a measured sub-drum-resolution fixture (none on this host).
+- files: stewie/runtime/viz2_runtime.py, stewie/physics/worksite.py, stewie/runtime/test_native_excavation_boundary.py
+- test_target: [REQ:PX-09] in stewie/runtime/test_native_excavation_boundary.py
+
+### PX-10 (P1) — atomic
+- goal: Re-qualify arm engagement and cutting on terrain that resolves the drum. Arm state, geometry constants and Godot command wiring stay implemented; positive cutting qualification on generated fine terrain was withdrawn by the 2026-10-15 native boundary (ADR 0009).
+- acceptance: on a measured DEM at or below drum-width cell size, an arm-lowered dig through the real Viz2Runtime engages and cuts within the arm geometry limits; the geometric and wiring checks in test_viz2_arm_gate.py stay green.
+- current_state: arm geometry and wiring verified; positive engagement blocked on a measured sub-drum-resolution fixture (none on this host).
+- files: stewie/runtime/viz2_runtime.py, stewie/specs/arm_state.py, stewie/runtime/test_viz2_arm_gate.py
+- test_target: [REQ:PX-10] in stewie/runtime/test_viz2_arm_gate.py
+
+### PX-11 (P1) — atomic
+- goal: Re-qualify the excavation footprint on measured finer terrain. Native resolution is fixed by source metadata and generated 2 cm / 5 cm refinement is refused (ADR 0009).
+- acceptance: with a measured DEM fine enough to resolve the drum footprint, the dig footprint matches the drum geometry; generated refinement stays refused and no display control can invent a resolved footprint.
+- current_state: refusal verified; positive footprint qualification blocked on measured finer terrain (none on this host).
+- files: stewie/runtime/viz2_runtime.py, stewie/terrain/tiles_mosaic.py, stewie/runtime/test_native_excavation_boundary.py
+- test_target: [REQ:PX-11] in stewie/runtime/test_native_excavation_boundary.py
+
+### TR-01 (P1) — atomic
+- goal: Frozen training scenarios bound to native measured terrain. The named scenario haworth_pad_a_native binds the measured Haworth SfS section, native 1 m cells and the small IPEx drum to a content fingerprint; the generated-world haworth_pad_a identity is refused, not aliased.
+- acceptance: scenario identity and fingerprint reproduce from the real source bundle; the retired identity is refused; an excavation-training scenario qualifies only once a terrain source resolves the drum (PX-09/PX-11).
+- current_state: native identity and refusal verified in test_scenario.py; excavation-training qualification blocked on PX-09/PX-11.
+- files: stewie/dataset/scenario.py, stewie/dataset/scenarios.json, stewie/dataset/test_scenario.py
+- test_target: [REQ:TR-01] in stewie/dataset/test_scenario.py
+
 ### PX-13 (P1) — atomic
 - goal: Make the live dig engage BOTH drums counter-rotating so the net horizontal chassis reaction is ~0, as KSC-TOPS-7 specifies and as `arm_state.net_dig_reaction_n` ALREADY models. Today the dig cuts with a SINGLE front drum, leaving the FULL draft (F = tau/r) on the chassis and feeding it into the next drive tick's traction demand.
 - acceptance: a symmetric both-drum dig nets ~0 horizontal chassis reaction (NOT F = tau/r); an asymmetric/single-drum dig STILL nets the full draft (the term must be zeroed for the RIGHT REASON, not merely zeroed); the traction demand on the tick after a dig reflects the corrected reaction; the PX-09 capacity refusal, the <=50% anti-bridging bite, the PX-10 arm gate and the PX-12 metered discharge all still hold PER DRUM. Guard must be NON-VACUOUS: demonstrate it FAILS when the counter-rotation is removed.
