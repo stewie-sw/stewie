@@ -7,7 +7,7 @@
 use lunar_dem::uniform_filter_nearest;
 use stewie_traverse::layers::{horizon_clip, incidence_angle_deg};
 
-use crate::point::{grid_sun_az, np_interp, py_mod};
+use crate::point::{Spine, Terra, drape_costmap, grid_sun_az, np_interp, py_mod};
 
 /// numpy's `gradient(z, cell)` on a row-major grid: `(d/drow, d/dcol)`, central inside, one-sided on the border.
 #[must_use]
@@ -259,6 +259,153 @@ pub fn layer_rgba(
         _ => return None,
     }
     Some(out)
+}
+
+const PHYS_BLUES: [(f64, [f64; 3]); 3] = [
+    (0.0, [222.0, 235.0, 247.0]),
+    (0.5, [66.0, 146.0, 198.0]),
+    (1.0, [8.0, 48.0, 107.0]),
+];
+const PHYS_BROWNS: [(f64, [f64; 3]); 3] = [
+    (0.0, [243.0, 232.0, 210.0]),
+    (0.5, [191.0, 138.0, 80.0]),
+    (1.0, [94.0, 55.0, 18.0]),
+];
+const PHYS_GYR: [(f64, [f64; 3]); 3] = [
+    (0.0, [33.0, 145.0, 80.0]),
+    (0.5, [241.0, 196.0, 15.0]),
+    (1.0, [192.0, 40.0, 40.0]),
+];
+const PHYS_PURPLES: [(f64, [f64; 3]); 3] = [
+    (0.0, [239.0, 237.0, 245.0]),
+    (0.5, [158.0, 154.0, 200.0]),
+    (1.0, [84.0, 39.0, 143.0]),
+];
+const PHYS_YLORRD: [(f64, [f64; 3]); 3] = [
+    (0.0, [255.0, 237.0, 160.0]),
+    (0.5, [253.0, 141.0, 60.0]),
+    (1.0, [153.0, 0.0, 13.0]),
+];
+const COST_RAMP: [(f64, [f64; 3]); 3] = PHYS_GYR;
+
+/// Each veto (and cost-only) reason's colour (Python `BLOCKING_COLORS`).
+const BLOCKING_COLORS: [(&str, [f64; 3]); 12] = [
+    ("slope", [214.0, 40.0, 40.0]),
+    ("sinkage", [0.0, 158.0, 158.0]),
+    ("tip_risk", [190.0, 30.0, 160.0]),
+    ("negative_obstacle", [150.0, 82.0, 24.0]),
+    ("psr", [124.0, 74.0, 214.0]),
+    ("keepout", [110.0, 110.0, 110.0]),
+    ("reservation", [30.0, 128.0, 224.0]),
+    ("roughness", [150.0, 150.0, 60.0]),
+    ("slip", [150.0, 96.0, 60.0]),
+    ("illumination", [60.0, 128.0, 150.0]),
+    ("shadow_confidence", [86.0, 86.0, 128.0]),
+    ("energy", [176.0, 116.0, 44.0]),
+];
+
+/// A field stretched between its 2nd and 98th percentiles onto `stops` (`invert` puts the risky end high), alpha
+/// rising toward the high end (Python `_physics_heatmap_rgba`; `_cost_heatmap_rgba` with its own degenerate span).
+fn heatmap(f: &[f64], stops: &[(f64, [f64; 3])], invert: bool, degenerate: f64) -> Vec<u8> {
+    let lo = percentile(f, 2.0, 0.0);
+    let mut hi = percentile(f, 98.0, 1.0);
+    if hi <= lo {
+        hi = lo + degenerate;
+    }
+    let mut out = Vec::with_capacity(f.len() * 4);
+    for v in f {
+        let mut t = ((if v.is_finite() { *v } else { lo } - lo) / (hi - lo)).clamp(0.0, 1.0);
+        if invert {
+            t = 1.0 - t;
+        }
+        let rgb = ramp(t, stops);
+        out.extend([rgb[0], rgb[1], rgb[2], 110.0 + 120.0 * t].map(u8_of));
+    }
+    out
+}
+
+/// One terramechanics-spine drape (Python `_physics_rgba`): the spine field over the patch's slope map, or `None`
+/// for a kind that is not a physics layer.
+///
+/// # Errors
+/// A spine solve the physics refuses.
+#[allow(clippy::many_single_char_names)] // the grid's z, w, h, s and a sample a
+pub fn physics_rgba(
+    z: &[f64],
+    w: usize,
+    h: usize,
+    cell: f64,
+    kind: &str,
+    s: &Spine,
+) -> Result<Option<Vec<u8>>, String> {
+    let (stops, invert): (&[(f64, [f64; 3])], bool) = match kind {
+        "bearing" => (&PHYS_BLUES, false),
+        "sinkage" => (&PHYS_BROWNS, false),
+        "slip_risk" => (&PHYS_GYR, false),
+        "traction_margin" => (&PHYS_GYR, true),
+        "energy_cost" => (&PHYS_YLORRD, false),
+        "excavation_resistance" => (&PHYS_PURPLES, false),
+        _ => return Ok(None),
+    };
+    let (gy, gx) = gradient(z, w, h, cell);
+    let slope = slope_of(&gy, &gx);
+    let field: Vec<f64> = if kind == "excavation_resistance" {
+        vec![s.draft_n; z.len()]
+    } else {
+        let lut = Terra::over(&slope, s)?;
+        slope
+            .iter()
+            .map(|x| {
+                let a = lut.at(*x);
+                match kind {
+                    "bearing" => a.bearing_pa,
+                    "sinkage" => a.sinkage_m,
+                    "slip_risk" => a.slip,
+                    "traction_margin" => a.traction_margin,
+                    _ => a.drive_power_w,
+                }
+            })
+            .collect()
+    };
+    Ok(Some(heatmap(&field, stops, invert, 1e-9)))
+}
+
+/// The costmap drapes (Python `_costmap_rgba`): `cost`, the plan-independent traversal cost green to red, or
+/// `blocking`, each impassable cell in its first veto reason's colour; `None` for another kind.
+///
+/// # Errors
+/// The costmap's refusal.
+#[allow(clippy::too_many_arguments)] // the Python's inputs
+pub fn costmap_rgba(
+    z: &[f64],
+    w: usize,
+    h: usize,
+    cell: f64,
+    kind: &str,
+    sun_az: f64,
+    sun_el: f64,
+    grid_north_bearing: Option<f64>,
+    s: &Spine,
+) -> Result<Option<Vec<u8>>, String> {
+    if kind != "cost" && kind != "blocking" {
+        return Ok(None);
+    }
+    let az = grid_north_bearing.map_or(sun_az, |b| grid_sun_az(sun_az, b));
+    let cm = drape_costmap(z, w, h, cell, az, sun_el, 25.0, s)?;
+    if kind == "cost" {
+        return Ok(Some(heatmap(&cm.cost, &COST_RAMP, false, 1e-6)));
+    }
+    let mut out = vec![0_u8; z.len() * 4];
+    for (i, (pass, reason)) in cm.passable.iter().zip(&cm.reason).enumerate() {
+        if *pass {
+            continue;
+        }
+        if let Some(col) = reason.and_then(|r| BLOCKING_COLORS.iter().find(|(n, _)| *n == r)) {
+            out[i * 4..i * 4 + 4]
+                .copy_from_slice(&[col.1[0], col.1[1], col.1[2], 205.0].map(u8_of));
+        }
+    }
+    Ok(Some(out))
 }
 
 /// The rows reversed (numpy `flipud`), for an image whose row 0 is the grid's last row (north up).

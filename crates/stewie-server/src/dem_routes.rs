@@ -16,6 +16,7 @@ use stewie_twin::numpy::round;
 
 use crate::app::{ApiError, AppState, Head, blocking, err, require_auth};
 use crate::operators::py_repr;
+use crate::point::Spine;
 use crate::state::SiteDem;
 use crate::validate::{self, Field, Kind, Model};
 
@@ -1077,6 +1078,180 @@ async fn dem_workarea_png(
     .await
 }
 
+const LAYER_Q: Model = Model {
+    fields: &[
+        Field(
+            "window_m",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(-1.0),
+            },
+        ),
+        Field(
+            "x0",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(0.0),
+            },
+        ),
+        Field(
+            "y0",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(0.0),
+            },
+        ),
+        Field(
+            "sun_az",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(315.0),
+            },
+        ),
+        Field(
+            "sun_el",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(45.0),
+            },
+        ),
+        Field(
+            "out_px",
+            Kind::Int {
+                ge: i64::MIN,
+                le: i64::MAX,
+                default: -1,
+            },
+        ),
+    ],
+    forbid_extra: false,
+};
+
+/// The drape's texture size (Python `heightfield_full.suggested_layer_px`): the horizon-sweep kinds small, the
+/// gradient kinds larger, never past the mesh.
+fn suggested_layer_px(kind: &str, n: usize) -> usize {
+    let cap = if matches!(kind, "psr" | "cost" | "blocking") {
+        384
+    } else {
+        1024
+    };
+    n.min(cap).max(2)
+}
+
+/// The 3D viewer's analysis drape over the same window as `/dem/heightfield_full`, north up, at a texture size of
+/// its own. Public, under the viz quota.
+#[allow(clippy::too_many_lines)] // one route, as the Python
+async fn dem_heightfield_full_layer(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        st.viz_quota(&h)?;
+        let raw = query(&q, LAYER_Q)?;
+        let site = site_of(&q);
+        let kind = q
+            .iter()
+            .rev()
+            .find(|(k, _)| k == "kind")
+            .map_or_else(|| "dem".to_owned(), |(_, v)| v.clone());
+        let dem = full_load(st, &site)?;
+        let w = num(&raw, "window_m", -1.0);
+        let win = if w <= 0.0 {
+            native_full_window_m(&dem)
+        } else {
+            w
+        };
+        #[allow(clippy::cast_possible_wrap)] // grid sizes
+        let spec = full_grid_spec(
+            &dem,
+            num(&raw, "x0", 0.0),
+            num(&raw, "y0", 0.0),
+            win,
+            (dem.cols + dem.rows) as i64,
+        );
+        let out_px = int(&raw, "out_px", -1);
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // clamped
+        let px = if out_px <= 0 {
+            suggested_layer_px(&kind, spec.n)
+        } else {
+            out_px.clamp(2, 2048) as usize
+        };
+        let (az, el) = quantised_sun(num(&raw, "sun_az", 315.0), num(&raw, "sun_el", 45.0));
+        let xs = linspace(0.0, spec.window_m, px);
+        let cols: Vec<usize> = xs
+            .iter()
+            .map(|x| index((spec.x0 + x) / dem.cell_m, dem.cols - 1))
+            .collect();
+        let rows: Vec<usize> = xs
+            .iter()
+            .map(|y| index((spec.y0 + y) / dem.cell_m, dem.rows - 1))
+            .collect();
+        let patch: Vec<f64> = rows
+            .iter()
+            .flat_map(|&r| cols.iter().map(move |&c| (r, c)))
+            .map(|(r, c)| dem.z[r * dem.cols + c])
+            .collect();
+        let gnb = if matches!(
+            kind.as_str(),
+            "illumination" | "incidence" | "cost" | "blocking"
+        ) {
+            st.terrain
+                .grid_north_bearing_deg(
+                    &dem,
+                    spec.x0 + spec.window_m / 2.0,
+                    spec.y0 + spec.window_m / 2.0,
+                )
+                .ok()
+        } else {
+            None
+        };
+        #[allow(clippy::cast_precision_loss)] // a pixel count
+        let cm = if px > 1 {
+            spec.window_m / (px - 1) as f64
+        } else {
+            dem.cell_m
+        };
+        let ise = |e: String| err(StatusCode::INTERNAL_SERVER_ERROR, e);
+        let rgba = if matches!(kind.as_str(), "cost" | "blocking") {
+            let spine = Spine::ipex(&st.planning).map_err(ise)?;
+            crate::raster::costmap_rgba(&patch, px, px, cm, &kind, az, el, gnb, &spine)
+                .map_err(ise)?
+        } else if let Some(r) = {
+            let spine = Spine::ipex(&st.planning).map_err(ise)?;
+            crate::raster::physics_rgba(&patch, px, px, cm, &kind, &spine).map_err(ise)?
+        } {
+            Some(r)
+        } else {
+            crate::raster::layer_rgba(&patch, px, px, cm, &kind, az, el, gnb)
+        }
+        .ok_or_else(|| {
+            err(
+                StatusCode::BAD_REQUEST,
+                format!("unknown layer kind {}", py_repr(&kind)),
+            )
+        })?;
+        let png =
+            crate::raster::png_rgba(&crate::raster::flipud(&rgba, px), px, px).map_err(ise)?;
+        let mut r = png.into_response();
+        r.headers_mut()
+            .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/png"));
+        Ok(r)
+    })
+    .await
+}
+
 /// The DEM read routes (the literal paths are matched before the preview's `{name}`).
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -1092,5 +1267,9 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/dem/heightfield_full/meta", get(dem_heightfield_full_meta))
         .route("/dem/graticule", get(dem_graticule))
         .route("/dem/workarea.png", get(dem_workarea_png))
+        .route(
+            "/dem/heightfield_full/layer.png",
+            get(dem_heightfield_full_layer),
+        )
         .route("/dem/{name}", get(dem_preview))
 }

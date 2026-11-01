@@ -4645,10 +4645,10 @@ def http_dem_cases() -> None:
         call("GET", "/dem/workarea.png?window_m=abc", headers=key)
         call("GET", "/dem/workarea.png?site=shoemaker", headers=key)
         call("GET", "/dem/workarea.png")                                     # no key
-        # the public 3D viewer's routes (RW-55b6b), under a viz quota cut to 14 (SYNTHETIC, labelled)
+        # the public 3D viewer's routes (RW-55b6b), under a viz quota cut to 33 (SYNTHETIC, labelled)
         import stewie.server.routers.dem as _D
         from stewie.server.ratelimit import RateLimiter as _RL
-        saved_rl, _D._viz_ratelimiter = _D._viz_ratelimiter, _RL(14, 60.0)
+        saved_rl, _D._viz_ratelimiter = _D._viz_ratelimiter, _RL(33, 60.0)
         try:
             call("GET", "/dem/heightfield_full/meta")
             call("GET", "/dem/heightfield_full/meta?window_m=500&x0=4000&y0=6800&max_dim=64")
@@ -4664,11 +4664,25 @@ def http_dem_cases() -> None:
             call("GET", "/dem/graticule?site=shackleton_rim&target_lines=1")
             call("GET", "/dem/graticule?target_lines=3")                    # the lat step's base is 1.46
             call("GET", "/dem/graticule?site=atlantis")
-            call("GET", "/dem/graticule")                                  # the 15th: the quota is spent
+            # the analysis drapes over the viewer's window (RW-55b6c-2): every kind, a default texture size, a bad kind,
+            # with the spine and the dig at the registry's loose friction (D-R72)
+            from stewie.physics import material as _MAT
+            from stewie.specs import constants as _K
+            _kphi, _mphi = _K.PHI, _MAT.PHI_LOOSE_DEG
+            _K.PHI, _MAT.PHI_LOOSE_DEG = math.radians(35.0), 35.0
+            for kind in ("dem", "slope", "hazard", "illumination", "psr", "incidence", "aspect", "curvature",
+                         "roughness", "cost", "blocking", "bearing", "sinkage", "slip_risk", "traction_margin",
+                         "energy_cost", "excavation_resistance"):
+                call("GET", f"/dem/heightfield_full/layer.png?kind={kind}&window_m=600&x0=4000&y0=6800&out_px=48"
+                            "&sun_az=200&sun_el=7")
+            call("GET", "/dem/heightfield_full/layer.png?kind=blocking&window_m=200&x0=4115&y0=6915&sun_az=90&sun_el=6")
+            call("GET", "/dem/heightfield_full/layer.png?kind=nope&window_m=100&out_px=4")
+            _K.PHI, _MAT.PHI_LOOSE_DEG = _kphi, _mphi
+            call("GET", "/dem/graticule")                                  # the 34th: the quota is spent
         finally:
             _D._viz_ratelimiter = saved_rl
 
-    payload = _http_session("stewie-http-dem-oracle", {"STEWIE_VIZ_QUOTA_MAX": "14"}, script)
+    payload = _http_session("stewie-http-dem-oracle", {"STEWIE_VIZ_QUOTA_MAX": "33"}, script)
     write_fixture(ORACLE_FIXTURES, "http_dem_cases", "oracle/build_fixtures.py::http_dem_cases (the FastAPI app's "
                   "/dem read routes; real site bundles, a SYNTHETIC boulder scene, labelled)",
                   ["stewie/server/routers/dem.py", "stewie/terrain/site_dem.py", "dart/dem_sources.py"], payload)

@@ -250,12 +250,14 @@ impl Terra {
 ///
 /// # Errors
 /// The costmap's refusal.
+#[allow(clippy::too_many_arguments)] // the window, its sun and its slope cap
 pub fn drape_costmap(
     z: &[f64],
     width: usize,
     height: usize,
     cell_m: f64,
     sun_az_deg: f64,
+    sun_el_deg: f64,
     max_slope_deg: f64,
     s: &Spine,
 ) -> Result<stewie_traverse::layers::Composite, String> {
@@ -268,7 +270,7 @@ pub fn drape_costmap(
         slip_alpha: SLIP_ALPHA,
         max_drop_m: cell_m * max_slope_deg.to_radians().tan(),
         sun_az_deg,
-        sun_el_deg: SUN_EL_DEG,
+        sun_el_deg,
         payload_kg: 0.0,
         max_sinkage_m: MAX_SINKAGE_M,
         gravity_ms2: s.gravity_ms2,
@@ -436,7 +438,16 @@ pub fn point_values(
     let slope_map = slope_deg_grid(&patch, pw, ph, cell);
     let slope = slope_map[at];
     let f = Terra::over(&slope_map, s)?.at(slope);
-    let cm = drape_costmap(&patch, pw, ph, cell, SUN_AZ_DEG, MAX_SLOPE_DEG, s)?;
+    let cm = drape_costmap(
+        &patch,
+        pw,
+        ph,
+        cell,
+        SUN_AZ_DEG,
+        SUN_EL_DEG,
+        MAX_SLOPE_DEG,
+        s,
+    )?;
     let passable = cm.passable[at];
     let scalar = |id: &str| match id {
         "base.dem" => Some(elevation),
@@ -616,7 +627,16 @@ pub fn site_suitability(
     sun_az_grid_deg: f64,
     s: &Spine,
 ) -> Result<Value, String> {
-    let cm = drape_costmap(crop, cols, rows, cell_m, sun_az_grid_deg, MAX_SLOPE_DEG, s)?;
+    let cm = drape_costmap(
+        crop,
+        cols,
+        rows,
+        cell_m,
+        sun_az_grid_deg,
+        SUN_EL_DEG,
+        MAX_SLOPE_DEG,
+        s,
+    )?;
     let n = cm.passable.len();
     let n_suitable = cm.passable.iter().filter(|p| **p).count();
     let fraction = if n > 0 {
@@ -867,7 +887,16 @@ pub fn hazard_keepouts(
     s: &Spine,
 ) -> Result<Value, String> {
     let cell = dem.cell_m;
-    let cm = drape_costmap(crop, cols, rows, cell, SUN_AZ_DEG, max_slope_deg, s)?;
+    let cm = drape_costmap(
+        crop,
+        cols,
+        rows,
+        cell,
+        SUN_AZ_DEG,
+        SUN_EL_DEG,
+        max_slope_deg,
+        s,
+    )?;
     let nogo: Vec<f64> = cm
         .reason
         .iter()
