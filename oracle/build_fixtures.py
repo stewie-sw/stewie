@@ -3966,6 +3966,185 @@ def http_twin_cases() -> None:
                    "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger, "journals": journals})
 
 
+def http_record_cases() -> None:
+    """Recording terrain and the volume evidence (RW-55b4b-2): the real FastAPI app's POST /twin/terrain/{site}
+    (operator+; a mission's flat-mantle terrain change folded into the site's Terrain Memory and committed to the
+    world log) and /siteplan/volume (the moved-regolith evidence), with the acceptance column at bank density
+    (D-R98, as every acceptance oracle), through one scripted TestClient session; the world journal and ledger
+    are recorded. Missions, densities and keys are SYNTHETIC test inputs (labelled)."""
+    import hashlib
+    import importlib
+    import tempfile
+    import uuid as _uuid
+
+    from fastapi.testclient import TestClient
+
+    import stewie.server.auth as A
+    import stewie.server.operators as O
+    import stewie.server.routers.auth as R
+    import stewie.server.services as S
+
+    seed = hashlib.sha256(b"stewie-http-record-oracle").digest()
+    stream = {"n": 0}
+
+    def det_bytes(n: int) -> bytes:                         # SYNTHETIC deterministic randomness (labelled)
+        out = b""
+        while len(out) < n:
+            out += hashlib.sha256(seed + stream["n"].to_bytes(8, "big")).digest()
+            stream["n"] += 1
+        return out[:n]
+
+    clock = {"t": 1_800_000_000.0}
+    env = {"STEWIE_API_KEY": "automation-key-0123456789", "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+           "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+           "STEWIE_DIRECTORS": "alice@example.org", "STEWIE_GIS_ANON_KEY": "anon-key-xyz"}
+    unset = ("STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED", "STEWIE_DESKTOP", "STEWIE_OPERATOR_LOGIN",
+             "STEWIE_TRUST_PROXY", "STEWIE_CORS_ORIGINS", "STEWIE_DEV_OPEN", "STEWIE_AUDIT_MAX_BYTES",
+             "STEWIE_REGISTRATION", "STEWIE_TRUST_TAILSCALE", "STEWIE_TRUSTED_PROXIES", "STEWIE_MAX_BODY_BYTES")
+    saved = {k: os.environ.get(k) for k in list(env) + list(unset) + ["STEWIE_DATA_DIR"]}
+    patched = {"urandom": O.os.urandom, "token_urlsafe": O.secrets.token_urlsafe, "token_hex": S.secrets.token_hex,
+               "clock": O._clock, "uuid4": A.uuid.uuid4, "a_time": A.time.time, "s_time": S.time.time}
+    steps = []
+
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ.update(env)
+            os.environ["STEWIE_DATA_DIR"] = d
+            for k in unset:
+                os.environ.pop(k, None)
+            O.os.urandom = det_bytes
+            O.secrets.token_urlsafe = lambda n: __import__("base64").urlsafe_b64encode(det_bytes(n)).decode().rstrip("=")
+            S.secrets.token_hex = lambda n: det_bytes(n).hex()
+            O._clock = lambda: clock["t"]
+            A.uuid.uuid4 = lambda: _uuid.UUID(bytes=det_bytes(16), version=4)
+            A.time.time = lambda: clock["t"]
+            S.time.time = lambda: clock["t"]
+            S.reset_audit_health()
+            S.reset_revocation_health()
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            import stewie.server.server as srv
+            importlib.reload(srv)
+            client = TestClient(srv.app, client=("127.0.0.1", 50000))
+            n = {"i": 0}
+
+            def call(method, path, *, headers=None, json_body=None, raw=None):
+                n["i"] += 1
+                h = dict(headers or {})
+                h["X-Correlation-Id"] = f"cid-{n['i']:03d}"
+                client.cookies.clear()
+                kw = {}
+                if json_body is not None:
+                    kw["json"] = json_body
+                if raw is not None:
+                    kw["content"] = raw
+                    h.setdefault("Content-Type", "application/json")
+                r = client.request(method, path, headers=h, **kw)
+                try:
+                    body = r.json()
+                except ValueError:
+                    body = r.text
+                # the bytes as sent: the volume evidence hashes the orders' repr in the client's key order
+                steps.append({"request": {"method": method, "path": path, "headers": h, "json": json_body,
+                                          "raw": raw, "sent": r.request.content.decode()},
+                              "clock": clock["t"], "status": r.status_code, "body": body})
+                return r
+
+            import hashlib as _hl
+
+            import stewie.server.state as ST
+            from stewie.twin import terrain_memory as TM
+            saved_state = (ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS)
+            ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS = {}, None, None, {}, None
+            os.environ.pop("STEWIE_DEM_DIR", None)
+            os.environ.pop("STEWIE_DATABASE_URL", None)
+            key = {"X-API-Key": env["STEWIE_API_KEY"]}
+            guest = {"X-Stewie-Anon-Key": "anon-key-xyz"}
+            import lode.planner_acceptance as PA
+            stock_cs = PA.ColumnState
+
+            def bank_density_column(**kw):                      # D-R98: the column at its mass's density
+                kw.setdefault("density", kw["mass_areal"] / 10.0)
+                return stock_cs(**kw)
+            PA.ColumnState = bank_density_column
+            try:
+                cut = lambda x, y, a=9.0, dpt=0.1: {"action": "Level pad", "kind": "cut", "x": x, "y": y,
+                                                    "footprint_m2": a, "depth_m": dpt}
+                fill = lambda x, y, a=4.0, dpt=0.15: {"action": "Berm", "kind": "fill", "x": x, "y": y,
+                                                      "footprint_m2": a, "depth_m": dpt}
+                clock["t"] += 1.0
+                call("POST", "/twin/terrain/haworth", headers=key,
+                     json_body={"mission": {"name": "pad-1", "body": "moon", "orders": [cut(0.0, 0.0), fill(6.0, 0.0)]}})
+                clock["t"] += 1.0
+                call("POST", "/twin/terrain/haworth", headers=key,
+                     json_body={"mission": {"name": "pad-2", "body": "moon", "orders": [cut(3.0, 2.0, 4.0, 0.05)]}})
+                call("POST", "/twin/terrain/haworth", headers=key,
+                     json_body={"mission": {"name": "far", "body": "moon", "orders": [cut(400.0, 400.0)]}})
+                clock["t"] += 1.0
+                call("POST", "/twin/terrain/shackleton_rim", headers=key,
+                     json_body={"mission": {"body": "moon", "orders": [cut(1.0, 1.0), fill(-4.0, 2.0)]},
+                                "rows": 60, "cols": 80, "cell_m": 0.5, "origin": [-20.0, -15.0]})
+                call("POST", "/twin/terrain/shackleton_rim", headers=key,
+                     json_body={"mission": {"name": "coarse", "body": "moon", "orders": [cut(1.0, 1.0, 40000.0, 0.01)]}})
+                call("POST", "/twin/terrain/haworth", headers=key,
+                     json_body={"mission": {"name": "bad", "body": "moon", "orders": [{"action": "x", "kind": "dig", "x": 0, "y": 0,
+                                                                      "footprint_m2": 1, "depth_m": 0.1}]}})
+                call("POST", "/twin/terrain/haworth", headers=key,
+                     json_body={"mission": {"name": "neg", "orders": [cut(0.0, 0.0, -1.0)]}})
+                call("POST", "/twin/terrain/haworth", headers=guest,
+                     json_body={"mission": {"name": "g", "body": "moon", "orders": [cut(0.0, 0.0)]}})
+                call("POST", "/twin/terrain/haworth", headers=key, json_body={"mission": {"orders": []}, "x": 1})
+                call("POST", "/twin/terrain/haworth", headers=key, json_body={"mission": [1], "rows": "a"})
+                call("GET", "/twin/terrain/haworth", headers=key)
+                call("GET", "/twin/terrain/shackleton_rim", headers=key)
+                clock["t"] += 1.0
+                orders = [{"kind": "cut", "action": "Level pad", "x": 0.0, "y": 0.0, "footprint_m2": 9.0,
+                           "depth_m": 0.1}, {"action": "Berm", "kind": "fill", "x": 6, "y": 0.0,
+                                              "footprint_m2": 4.0, "depth_m": 0.15}]
+                call("POST", "/siteplan/volume", headers=key, json_body={"orders": orders, "density_kg_m3": 1500.0})
+                call("POST", "/siteplan/volume", headers=guest,
+                     json_body={"orders": orders[:1], "density_kg_m3": 1650, "density_frac": 0.1,
+                                "drum_inferred_kg": 140.0})
+                call("POST", "/siteplan/volume", headers=key,
+                     json_body={"orders": orders, "density_kg_m3": 1500.0, "drum_inferred_kg": 10.0})
+                call("POST", "/siteplan/volume", headers=key, json_body={"orders": orders, "density_kg_m3": 0})
+                call("POST", "/siteplan/volume", headers=key,
+                     json_body={"orders": [], "density_kg_m3": 1500.0, "density_frac": 1.5})
+                call("POST", "/siteplan/volume", headers=key,
+                     json_body={"orders": [{"kind": "cut"}], "density_kg_m3": 1500.0})
+                call("POST", "/siteplan/volume", json_body={"orders": orders, "density_kg_m3": 1500.0})
+                tdir = os.path.join(d, "twin")
+                journals = {f: _hl.sha256(open(os.path.join(tdir, f), "rb").read()).hexdigest()
+                            for f in (sorted(os.listdir(tdir)) if os.path.isdir(tdir) else []) if f.endswith(".journal")}
+            finally:
+                PA.ColumnState = stock_cs
+                ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS = saved_state
+            store = json.load(open(os.path.join(d, "operators.json"))) if os.path.exists(os.path.join(d, "operators.json")) else None
+            ledger = [json.loads(x) for x in open(os.path.join(d, "events.jsonl"))]
+        finally:
+            O.os.urandom = patched["urandom"]
+            O.secrets.token_urlsafe = patched["token_urlsafe"]
+            S.secrets.token_hex = patched["token_hex"]
+            O._clock = patched["clock"]
+            A.uuid.uuid4 = patched["uuid4"]
+            A.time.time = patched["a_time"]
+            S.time.time = patched["s_time"]
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            importlib.reload(srv)
+    write_fixture(ORACLE_FIXTURES, "http_record_cases", "oracle/build_fixtures.py::http_record_cases (the FastAPI "
+                  "app's terrain record and volume evidence, bank density D-R98; SYNTHETIC missions, labelled)",
+                  ["stewie/server/routers/twin.py", "stewie/server/routers/siteplan.py", "lode/planner_acceptance.py",
+                   "leap/volume_evidence.py", "stewie/twin/terrain_memory.py"],
+                  {"env": env, "seed_sha256_of": "stewie-http-record-oracle", "clock0": 1_800_000_000.0,
+                   "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger, "journals": journals})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
@@ -4016,6 +4195,7 @@ def main() -> None:
     http_admin_cases()
     http_build_cases()
     http_twin_cases()
+    http_record_cases()
 
 
 if __name__ == "__main__":

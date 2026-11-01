@@ -1,0 +1,12 @@
+{
+ "fixture": "http_record_cases",
+ "generator": "oracle/build_fixtures.py::http_record_cases (the FastAPI app's terrain record and volume evidence, bank density D-R98; SYNTHETIC missions, labelled)",
+ "payload_sha256": "7e7ef34d07de059b009efc4f78898ae643fb904f88a3f46f8325f9604c66cf70",
+ "sources": {
+  "leap/volume_evidence.py": "08d17295022e2075bbe06e577f3ae244c0ac1b6a771876e3a09d0a3581220298",
+  "lode/planner_acceptance.py": "808a7e6c7e0b324390bce48b4d665668577be20a3a3d734ec53efa928549091a",
+  "stewie/server/routers/siteplan.py": "667fe8024cb52c23bb901844826619043ffb8129b7a9a4dff652b2d004d8c816",
+  "stewie/server/routers/twin.py": "6ad7ba690bf72c72c32282e4f407032cab3cbce48f86d0c8606bf07d3f8b079e",
+  "stewie/twin/terrain_memory.py": "d3f12f7d939d9d8d93703eacac1296333171f24c33c60a1a2f9a2bf0918b0233"
+ }
+}

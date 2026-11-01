@@ -95,6 +95,7 @@ fn normalise(body: &mut Value) {
 
 /// Replay the fixture `name` (seeded from `seed`) through a fresh app; `before(i, step, clock, dir)` reproduces
 /// what the oracle did between requests. Headers and cookies are compared where the fixture recorded them.
+#[allow(clippy::too_many_lines)] // one request loop, then the stores and journals
 async fn replay(
     name: &str,
     seed: &[u8],
@@ -112,6 +113,14 @@ async fn replay(
         .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
         .collect();
     env.insert("STEWIE_DATA_DIR".into(), dir.display().to_string());
+    // the committed planner parameters (the Python planner's own values, D-R115)
+    env.insert(
+        "STEWIE_PLANNER_CONFIG".into(),
+        stewie_oracle::repo_root()
+            .join("deploy/planner.json")
+            .display()
+            .to_string(),
+    );
     let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(
         fx["clock0"].as_f64().unwrap(),
     ))));
@@ -131,7 +140,13 @@ async fn replay(
         for (k, v) in r["headers"].as_object().unwrap() {
             req = req.header(k, v.as_str().unwrap());
         }
-        let body = if let Some(raw) = r["raw"].as_str() {
+        let body = if let Some(sent) = r.get("sent").and_then(Value::as_str) {
+            // the exact bytes the oracle's client sent (key order matters to the Python repr)
+            if !r["json"].is_null() {
+                req = req.header("content-type", "application/json");
+            }
+            sent.to_owned()
+        } else if let Some(raw) = r["raw"].as_str() {
             raw.to_owned()
         } else if r["json"].is_null() {
             String::new()
@@ -414,5 +429,115 @@ async fn a_resync_whose_world_commit_fails_is_rolled_back() {
         .collect();
     assert_eq!(kinds, ["patch", "undo"], "{hist}");
     assert_eq!(hist["events"][1]["target"], hist["events"][0]["seq"]);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn the_python_record_and_volume_session_replays_exactly() {
+    replay(
+        "http_record_cases",
+        b"stewie-http-record-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+/// SYNTHETIC: an app over a fresh data dir with the automation key (and the planner parameters when `planner`).
+fn bare_app(tag: &str, planner: bool) -> (axum::Router, std::path::PathBuf) {
+    let dir = std::env::temp_dir().join(format!("stewie-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("twin")).unwrap();
+    let mut env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+    ]
+    .into_iter()
+    .collect();
+    if planner {
+        env.insert(
+            "STEWIE_PLANNER_CONFIG",
+            stewie_oracle::repo_root()
+                .join("deploy/planner.json")
+                .display()
+                .to_string(),
+        );
+    }
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(tag.as_bytes()).into(),
+        n: Mutex::new(0),
+    }));
+    let state = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
+    (router(Arc::new(state)), dir)
+}
+
+async fn post(app: &axum::Router, path: &str, body: Value) -> (u16, Value) {
+    let mut req = Request::builder()
+        .method("POST")
+        .uri(path)
+        .header("x-api-key", "automation-key-0123456789")
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap();
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+    let r = app.clone().oneshot(req).await.unwrap();
+    let status = r.status().as_u16();
+    let v = serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    (status, v)
+}
+
+#[tokio::test]
+async fn a_terrain_record_whose_world_commit_fails_restores_the_prior_memory() {
+    // SYNTHETIC mission; a directory where the world journal belongs makes the commit fail
+    let (app, dir) = bare_app("record-rollback", true);
+    std::fs::create_dir(dir.join("twin/world.journal")).unwrap();
+    let mission = json!({"mission": {"name": "pad", "body": "moon", "orders": [
+        {"action": "Level pad", "kind": "cut", "x": 0.0, "y": 0.0, "footprint_m2": 9.0, "depth_m": 0.1}]}});
+    let (status, body) = post(&app, "/twin/terrain/haworth", mission).await;
+    assert_eq!(status, 500, "{body}");
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap()
+            .starts_with("terrain record rolled back: world-state commit failed"),
+        "{body}"
+    );
+    assert!(
+        !stewie_twin::terrain_memory::terrain_path(&dir, "haworth").exists(),
+        "the fresh site's memory was rolled back to nothing"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn the_planning_routes_refuse_without_planner_parameters() {
+    // SYNTHETIC: no STEWIE_PLANNER_CONFIG (D-R115: never compiled defaults)
+    let (app, dir) = bare_app("no-planner", false);
+    let orders = json!([{"action": "Level pad", "kind": "cut", "x": 0.0, "y": 0.0, "footprint_m2": 9.0, "depth_m": 0.1}]);
+    let (status, body) = post(
+        &app,
+        "/siteplan/volume",
+        json!({"orders": orders, "density_kg_m3": 1500.0}),
+    )
+    .await;
+    assert_eq!(status, 503, "{body}");
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap()
+            .contains("STEWIE_PLANNER_CONFIG"),
+        "{body}"
+    );
+    let (status, _) = post(
+        &app,
+        "/twin/terrain/haworth",
+        json!({"mission": {"name": "pad", "body": "moon", "orders": orders}}),
+    )
+    .await;
+    assert_eq!(status, 503);
     std::fs::remove_dir_all(&dir).unwrap();
 }

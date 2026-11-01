@@ -63,6 +63,8 @@ pub struct Terrain {
     sphere: Sphere,
     dems: Mutex<HashMap<String, Loaded>>,
     twins: Mutex<Twins>,
+    /// One lock per site's Terrain Memory file (keyed as the file is), for its load-apply-save.
+    site_locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
 }
 
 impl std::fmt::Debug for Terrain {
@@ -193,6 +195,7 @@ impl Terrain {
             sphere,
             dems: Mutex::new(HashMap::new()),
             twins: Mutex::new(HashMap::new()),
+            site_locks: Mutex::new(HashMap::new()),
         }
     }
 
@@ -229,6 +232,18 @@ impl Terrain {
                     py_repr(site)
                 )
             })
+    }
+
+    /// The lock serialising a site's Terrain Memory read-modify-write (two spellings of one file share it).
+    #[must_use]
+    pub fn site_lock(&self, site: &str) -> Arc<Mutex<()>> {
+        let key = terrain_memory::safe_site(site);
+        self.site_locks
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .entry(key)
+            .or_default()
+            .clone()
     }
 
     /// The site's DEM and flattest anchor, loaded once; `None` (the flat slope-check) when there is none.

@@ -110,6 +110,11 @@ fn the_recorded_change_is_the_executed_change() {
         mpe_half_full: f(&dj["mpe_half_full"]),
         half_full_kg: f(&dj["half_full_kg"]),
     };
+    assert_eq!(
+        drum,
+        DrumBand::NTRS_20210022781,
+        "the published band is the Python's"
+    );
     let missions = tc["missions"].as_array().unwrap();
     let main_soil = soil(
         &missions

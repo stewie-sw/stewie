@@ -226,6 +226,7 @@ fn every_payload_is_accepted_or_refused_as_the_python_does() {
     let fx = stewie_oracle::load("mission_cases").unwrap().payload;
     let reg = registries();
     let (mut accepted, mut refused) = (0, 0);
+    let mut mismatched: Vec<String> = Vec::new();
     for c in fx["cases"].as_array().unwrap() {
         let name = c["name"].as_str().unwrap();
         let got = mission_from_value(&c["payload"], &reg);
@@ -242,13 +243,22 @@ fn every_payload_is_accepted_or_refused_as_the_python_does() {
             same(&m, &c["mission"], &c["payload"], name);
             accepted += 1;
         } else {
-            assert!(
-                got.is_err(),
+            let e = got.expect_err(&format!(
                 "{name}: accepted but the Python refuses ({})",
                 c["error"]
-            );
+            ));
+            // the oracle records "<ExceptionType>: <str(e)>"; the HTTP boundary shows str(e) to the client
+            let want = c["error"].as_str().unwrap().split_once(": ").unwrap().1;
+            if e.0 != want {
+                mismatched.push(format!("{name}\n   rust: {}\n python: {want}", e.0));
+            }
             refused += 1;
         }
     }
     assert_eq!((accepted, refused), (14, 38), "vacuity: every case ran");
+    assert!(
+        mismatched.is_empty(),
+        "refusal texts differ from the Python's:\n{}",
+        mismatched.join("\n")
+    );
 }

@@ -17,10 +17,12 @@ lunar-dem = { path = "../lunar-dem" }
 lunar-frames = { path = "../lunar-frames" }
 pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
 regex = "1"
+serde = "1"
 serde_json = { version = "1", features = ["float_roundtrip"] }
 sha1 = "0.10"
 sha2 = "0.10"
 stewie-build = { path = "../stewie-build" }
+stewie-contracts = { path = "../stewie-contracts" }
 stewie-physics = { path = "../stewie-physics" }
 stewie-plan = { path = "../stewie-plan" }
 stewie-twin = { path = "../stewie-twin" }

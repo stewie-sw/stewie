@@ -91,6 +91,14 @@ pub struct DrumBand {
 }
 
 impl DrumBand {
+    /// The published figures, verbatim (NTRS 20210022781, the linear FDC result; Python `rassor_mass_model`).
+    pub const NTRS_20210022781: Self = Self {
+        mpe_all: 0.07403,
+        mpe_with_outliers: 0.11842,
+        mpe_half_full: 0.02558,
+        half_full_kg: 20.0,
+    };
+
     /// The relative error of a drum-mass reading: the half-full figure above half full, else a linear blend
     /// from the over-range figure (so the upper bound stays monotone).
     #[must_use]

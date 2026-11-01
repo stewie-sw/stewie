@@ -156,35 +156,10 @@ pub fn validate_email(email: &str) -> Result<String, StoreError> {
     }
     Ok(e)
 }
-
-/// Python's `repr` of a printable string (the error messages quote the input with it).
+/// Python's `repr` of a string (the error messages quote the input with it).
 #[must_use]
 pub fn py_repr(s: &str) -> String {
-    let q = if s.contains('\'') && !s.contains('"') {
-        '"'
-    } else {
-        '\''
-    };
-    let mut out = String::from(q);
-    for c in s.chars() {
-        match c {
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if c == q => {
-                out.push('\\');
-                out.push(c);
-            }
-            c if (c as u32) < 0x20 || c as u32 == 0x7f => {
-                use std::fmt::Write as _;
-                let _ = write!(out, "\\x{:02x}", c as u32);
-            }
-            c => out.push(c),
-        }
-    }
-    out.push(q);
-    out
+    stewie_twin::pyjson::repr_str(s)
 }
 
 fn check_password(password: &str) -> Result<(), StoreError> {

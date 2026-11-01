@@ -195,11 +195,25 @@ impl Registries {
     }
 }
 
+use stewie_twin::pyjson::{repr, repr_list, repr_str};
+
+/// A float as Python's `repr` (the Python formats the values it converted with `float()`).
+fn fr(x: f64) -> String {
+    stewie_twin::pyjson::float_repr(x).unwrap_or_else(|_| x.to_string())
+}
+
+/// Python's `sorted(registry)`, as its repr.
+fn sorted<S: AsRef<str>>(keys: &[S]) -> String {
+    let mut k: Vec<&str> = keys.iter().map(AsRef::as_ref).collect();
+    k.sort_unstable();
+    repr_list(&k)
+}
+
 /// A finite JSON number.
 fn finite(v: &Value, what: &str) -> Result<f64, MissionError> {
     match v.as_f64() {
         Some(x) if x.is_finite() => Ok(x),
-        _ => bad(format!("{what}: must be a finite number (got {v})")),
+        _ => bad(format!("{what}: must be a finite number (got {})", repr(v))),
     }
 }
 
@@ -208,7 +222,7 @@ fn positive(v: &Value, what: &str) -> Result<f64, MissionError> {
     if x > 0.0 {
         Ok(x)
     } else {
-        bad(format!("{what}: must be > 0 (got {v})"))
+        bad(format!("{what}: must be > 0 (got {})", repr(v)))
     }
 }
 
@@ -221,7 +235,10 @@ fn text(v: &Value, what: &str) -> Result<String, MissionError> {
             .as_f64()
             .and_then(|x| stewie_twin::pyjson::float_repr(x).ok())
             .ok_or_else(|| MissionError(format!("{what}: not representable"))),
-        _ => bad(format!("{what}: must be a string or a number (got {v})")),
+        _ => bad(format!(
+            "{what}: must be a string or a number (got {})",
+            repr(v)
+        )),
     }
 }
 
@@ -231,7 +248,10 @@ fn xy(v: &Value, what: &str) -> Result<(f64, f64), MissionError> {
             finite(&a[0], &format!("{what} x"))?,
             finite(&a[1], &format!("{what} y"))?,
         )),
-        _ => bad(format!("{what} must be a 2-element [x, y]; got {v}")),
+        _ => bad(format!(
+            "{what} must be a 2-element [x, y]; got {}",
+            repr(v)
+        )),
     }
 }
 
@@ -273,14 +293,18 @@ pub fn footprint_shape_area_m2(shape: &Map<String, Value>) -> Result<f64, Missio
         "rectangle" => {
             let (w, h) = (dim("w")?, dim("h")?);
             if w <= 0.0 || h <= 0.0 {
-                return bad(format!("rectangle footprint needs w,h > 0 (got {w},{h})"));
+                return bad(format!(
+                    "rectangle footprint needs w,h > 0 (got {},{})",
+                    fr(w),
+                    fr(h)
+                ));
             }
             Ok(w * h)
         }
         "circle" => {
             let r = dim("r")?;
             if r <= 0.0 {
-                return bad(format!("circle footprint needs r > 0 (got {r})"));
+                return bad(format!("circle footprint needs r > 0 (got {})", fr(r)));
             }
             Ok(std::f64::consts::PI * r * r)
         }
@@ -288,7 +312,9 @@ pub fn footprint_shape_area_m2(shape: &Map<String, Value>) -> Result<f64, Missio
             let (l, w) = (dim("length")?, dim("width")?);
             if l <= 0.0 || w <= 0.0 {
                 return bad(format!(
-                    "corridor footprint needs length,width > 0 (got {l},{w})"
+                    "corridor footprint needs length,width > 0 (got {},{})",
+                    fr(l),
+                    fr(w)
                 ));
             }
             Ok(l * w)
@@ -318,7 +344,8 @@ pub fn footprint_shape_area_m2(shape: &Map<String, Value>) -> Result<f64, Missio
             Ok(area)
         }
         k => bad(format!(
-            "unknown footprint shape kind {k:?} (use rectangle|circle|corridor|polygon)"
+            "unknown footprint shape kind {} (use rectangle|circle|corridor|polygon)",
+            repr_str(k)
         )),
     }
 }
@@ -348,13 +375,16 @@ fn parse_order(
         .filter(|k| !o.contains_key(*k))
         .collect();
     if !missing.is_empty() {
-        return bad(format!("order {idx} missing field(s): {missing:?}"));
+        return bad(format!(
+            "order {idx} missing field(s): {}",
+            repr_list(&missing)
+        ));
     }
     let kind_txt = o["kind"].as_str().unwrap_or("");
     let Some(kind) = OrderKind::parse(kind_txt) else {
         return bad(format!(
-            "order {idx} kind {} not in (cut, fill, sinter, goto)",
-            o["kind"]
+            "order {idx} kind {} not in ('cut', 'fill', 'sinter', 'goto')",
+            repr(&o["kind"])
         ));
     };
     if let Some(need) = kind.capability()
@@ -363,11 +393,16 @@ fn parse_order(
         if kind == OrderKind::Sinter {
             return bad(format!(
                 "order {idx}: sinter is GATED OFF -- no vehicle in the fleet carries a sinter tool \
-                 ({vehicle:?} is a drum excavator; sinter is a separate Tool to mount)."
+                 ({} is a drum excavator; sinter is a separate Tool to mount).",
+                repr_str(vehicle)
             ));
         }
         return bad(format!(
-            "order {idx}: kind {kind_txt:?} needs the {need:?} capability, which the fleet ({vehicle:?} + tools {tools:?}) lacks."
+            "order {idx}: kind {} needs the {} capability, which the fleet ({} + tools {}) lacks.",
+            repr_str(kind_txt),
+            repr_str(need),
+            repr_str(vehicle),
+            repr_list(tools)
         ));
     }
     let x = finite(&o["x"], &format!("order {idx} x"))?;
@@ -429,7 +464,8 @@ fn parse_precedence(
         Some(Value::Array(a)) => a.clone(),
         Some(v) => {
             return bad(format!(
-                "precedence must be a list of [before_action, after_action] (got {v})"
+                "precedence must be a list of [before_action, after_action] (got {})",
+                repr(v)
             ));
         }
     };
@@ -440,13 +476,16 @@ fn parse_precedence(
             Some(pa) if pa.len() == 2 => (text(&pa[0], "precedence")?, text(&pa[1], "precedence")?),
             _ => {
                 return bad(format!(
-                    "precedence entry {e} must be [before_action, after_action]"
+                    "precedence entry {} must be [before_action, after_action]",
+                    repr(e)
                 ));
             }
         };
         if !actions.contains(&b.as_str()) || !actions.contains(&a.as_str()) {
             return bad(format!(
-                "precedence {b:?}->{a:?} references an unknown order action"
+                "precedence {}->{} references an unknown order action",
+                repr_str(&b),
+                repr_str(&a)
             ));
         }
         pairs.push((b, a));
@@ -518,12 +557,18 @@ fn parse_constraints(v: &Value) -> Result<BTreeMap<String, f64>, MissionError> {
     for (k, val) in oc {
         if !CONSTRAINT_KEYS.contains(&k.as_str()) {
             return bad(format!(
-                "unknown objective constraint {k:?}; allowed: {CONSTRAINT_KEYS:?}"
+                "unknown objective constraint {}; allowed: {}",
+                repr_str(k),
+                repr_list(&CONSTRAINT_KEYS)
             ));
         }
         let x = finite(val, &format!("objective_constraints[{k}]"))?;
         if x < 0.0 {
-            return bad(format!("objective constraint {k:?} must be >= 0 (got {x})"));
+            return bad(format!(
+                "objective constraint {} must be >= 0 (got {})",
+                repr_str(k),
+                fr(x)
+            ));
         }
         out.insert(k.clone(), x);
     }
@@ -538,12 +583,14 @@ fn parse_windows(v: &Value) -> Result<BTreeMap<String, Vec<(f64, f64)>>, Mission
     for (cls, ivals) in mw {
         if !["drive", "recharge", "work"].contains(&cls.as_str()) {
             return bad(format!(
-                "unknown mission_window class {cls:?}; allowed: [\"drive\", \"recharge\", \"work\"]"
+                "unknown mission_window class {}; allowed: ['drive', 'recharge', 'work']",
+                repr_str(cls)
             ));
         }
         let Some(ivals) = ivals.as_array() else {
             return bad(format!(
-                "mission_windows[{cls:?}] must be a list of [open_s, close_s] pairs"
+                "mission_windows[{}] must be a list of [open_s, close_s] pairs",
+                repr_str(cls)
             ));
         };
         let mut clean = Vec::new();
@@ -554,7 +601,8 @@ fn parse_windows(v: &Value) -> Result<BTreeMap<String, Vec<(f64, f64)>>, Mission
                 .and_then(|s| <&[Value; 2]>::try_from(s).ok())
             else {
                 return bad(format!(
-                    "mission_windows[{cls:?}][{n}] must be a [open_s, close_s] pair"
+                    "mission_windows[{}][{n}] must be a [open_s, close_s] pair",
+                    repr_str(cls)
                 ));
             };
             let (o, c) = (
@@ -563,7 +611,10 @@ fn parse_windows(v: &Value) -> Result<BTreeMap<String, Vec<(f64, f64)>>, Mission
             );
             if c < o {
                 return bad(format!(
-                    "mission_windows[{cls:?}][{n}]: close ({c}) must be >= open ({o})"
+                    "mission_windows[{}][{n}]: close ({}) must be >= open ({})",
+                    repr_str(cls),
+                    fr(c),
+                    fr(o)
                 ));
             }
             clean.push((o, c));
@@ -600,13 +651,17 @@ fn parse_resources(v: &Value) -> Result<Vec<SharedResource>, MissionError> {
             return bad(format!("shared_resources[{n}] needs a non-empty 'id'"));
         }
         if out.iter().any(|s| s.id == id) {
-            return bad(format!("shared_resources[{n}]: duplicate id {id:?}"));
+            return bad(format!(
+                "shared_resources[{n}]: duplicate id {}",
+                repr_str(&id)
+            ));
         }
         let kind = r.get("kind").and_then(Value::as_str).unwrap_or("");
         if !["corridor", "dump", "pit", "vantage"].contains(&kind) {
             return bad(format!(
-                "shared_resources[{id:?}] kind {:?}; allowed: [\"corridor\", \"dump\", \"pit\", \"vantage\"]",
-                r.get("kind")
+                "shared_resources[{}] kind {}; allowed: ['corridor', 'dump', 'pit', 'vantage']",
+                repr_str(&id),
+                repr(r.get("kind").unwrap_or(&Value::Null))
             ));
         }
         let capacity = match r.get("capacity") {
@@ -615,7 +670,9 @@ fn parse_resources(v: &Value) -> Result<Vec<SharedResource>, MissionError> {
                 Some(c) if c >= 1 => c,
                 _ => {
                     return bad(format!(
-                        "shared_resources[{id:?}] capacity must be an int >= 1 (got {v:?})"
+                        "shared_resources[{}] capacity must be an int >= 1 (got {})",
+                        repr_str(&id),
+                        repr(v.unwrap_or(&Value::Null))
                     ));
                 }
             },
@@ -628,7 +685,8 @@ fn parse_resources(v: &Value) -> Result<Vec<SharedResource>, MissionError> {
                 .collect::<Result<Vec<_>, _>>()?,
             _ => {
                 return bad(format!(
-                    "shared_resources[{id:?}] needs a non-empty 'sites' list of [x, y]"
+                    "shared_resources[{}] needs a non-empty 'sites' list of [x, y]",
+                    repr_str(&id)
                 ));
             }
         };
@@ -653,8 +711,8 @@ fn parse_observations(value: &Value) -> Result<Vec<Observation>, MissionError> {
         };
         let Some(vehicle) = count(o.get("vehicle")) else {
             return bad(format!(
-                "observations[{n}] vehicle must be an int >= 0 (got {:?})",
-                o.get("vehicle")
+                "observations[{n}] vehicle must be an int >= 0 (got {})",
+                repr(o.get("vehicle").unwrap_or(&Value::Null))
             ));
         };
         let kind = match o.get("kind") {
@@ -663,8 +721,8 @@ fn parse_observations(value: &Value) -> Result<Vec<Observation>, MissionError> {
         };
         if !["meerkat", "solar"].contains(&kind) {
             return bad(format!(
-                "observations[{n}] kind {:?}; allowed: [\"meerkat\", \"solar\"]",
-                o.get("kind")
+                "observations[{n}] kind {}; allowed: ['meerkat', 'solar']",
+                repr(o.get("kind").unwrap_or(&Value::Null))
             ));
         }
         for key in ["x", "y", "t_start", "t_end"] {
@@ -676,7 +734,9 @@ fn parse_observations(value: &Value) -> Result<Vec<Observation>, MissionError> {
         let (x, y, t0, t1) = (f("x")?, f("y")?, f("t_start")?, f("t_end")?);
         if t1 <= t0 {
             return bad(format!(
-                "observations[{n}] window must have t_end > t_start (got [{t0}, {t1}))"
+                "observations[{n}] window must have t_end > t_start (got [{}, {}))",
+                fr(t0),
+                fr(t1)
             ));
         }
         out.push(Observation {
@@ -697,7 +757,7 @@ fn optional_positive(p: &Map<String, Value>, key: &str) -> Result<Option<f64>, M
         Some(v) => {
             let x = finite(v, key)?;
             if x <= 0.0 {
-                return bad(format!("'{key}' must be > 0 (got {x})"));
+                return bad(format!("'{key}' must be > 0 (got {})", fr(x)));
             }
             Ok(Some(x))
         }
@@ -719,7 +779,9 @@ pub fn mission_from_value(payload: &Value, reg: &Registries) -> Result<Mission, 
             if s.is_empty() || s == LEGACY_MISSION_VERSION || s == MISSION_SCHEMA_VERSION => {}
         Some(v) => {
             return bad(format!(
-                "mission schema_version {v} has no migration path to {MISSION_SCHEMA_VERSION}"
+                "no migration path from schema_version {} to {}; register a migrator (register_mission_migration) for that version",
+                repr(v),
+                repr_str(MISSION_SCHEMA_VERSION)
             ));
         }
     }
@@ -727,9 +789,9 @@ pub fn mission_from_value(payload: &Value, reg: &Registries) -> Result<Mission, 
         Some(b) if reg.bodies.iter().any(|k| k == b) => b.to_owned(),
         _ => {
             return bad(format!(
-                "unknown body {:?}; known: {:?}",
-                p.get("body"),
-                reg.bodies
+                "unknown body {}; known: {}",
+                repr(p.get("body").unwrap_or(&Value::Null)),
+                sorted(&reg.bodies)
             ));
         }
     };
@@ -745,21 +807,24 @@ pub fn mission_from_value(payload: &Value, reg: &Registries) -> Result<Mission, 
             .map(|t| text(t, "tool"))
             .collect::<Result<_, _>>()?,
         Some(v) if !truthy(Some(v)) => Vec::new(),
-        Some(v) => return bad(format!("'tools' must be a list (got {v})")),
+        Some(v) => return bad(format!("'tools' must be a list (got {})", repr(v))),
     };
     let Some(base) = lookup(&reg.vehicles, &vehicle) else {
-        return bad(format!(
-            "unknown vehicle {vehicle:?}; known: {:?}",
-            reg.vehicles.keys().collect::<Vec<_>>()
-        ));
+        // a KeyError's text, as str() of it quotes it
+        return bad(repr_str(&format!(
+            "unknown vehicle {}; known: {}",
+            repr_str(&vehicle),
+            sorted(&reg.vehicles.keys().collect::<Vec<_>>())
+        )));
     };
     let mut caps = base.clone();
     for t in &tools {
         let Some(cap) = lookup(&reg.tools, t) else {
-            return bad(format!(
-                "unknown tool {t:?}; known: {:?}",
-                reg.tools.keys().collect::<Vec<_>>()
-            ));
+            return bad(repr_str(&format!(
+                "unknown tool {}; known: {}",
+                repr_str(t),
+                sorted(&reg.tools.keys().collect::<Vec<_>>())
+            )));
         };
         caps.push(cap.clone());
     }
@@ -770,7 +835,11 @@ pub fn mission_from_value(payload: &Value, reg: &Registries) -> Result<Mission, 
     if !soil.is_empty() {
         let key = soil.to_lowercase();
         if !reg.bodies.contains(&key) {
-            return bad(format!("unknown body {soil:?}; known: {:?}", reg.bodies));
+            return bad(repr_str(&format!(
+                "unknown body {}; known: {}",
+                repr_str(&soil),
+                sorted(&reg.bodies)
+            )));
         }
         if key == body {
             soil.clear();
@@ -787,8 +856,10 @@ pub fn mission_from_value(payload: &Value, reg: &Registries) -> Result<Mission, 
     };
     if !reg.backends.contains(&backend) {
         return bad(format!(
-            "unknown/unselectable physics_backend_id {backend:?}; selectable: {:?}",
-            reg.backends
+            "unknown/unselectable physics_backend_id {}; selectable: {} (the PX-03 Chrono oracle is not a \
+             release-authority backend until it conserves mass)",
+            repr_str(&backend),
+            repr_list(&reg.backends)
         ));
     }
     let raw = match p.get("orders").and_then(Value::as_array) {

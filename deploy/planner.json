@@ -1,0 +1,28 @@
+{
+ "schema": "stewie.planner-params/v1",
+ "note": "The planner parameters the Rust server must be given (D-R85, D-R115): no published value, so not compiled in. Each value is the Python planner's, with the constant it comes from.",
+ "reserve_frac": {
+  "value": 0.1,
+  "source": "lode/planner_constants.py RESERVE_FRAC = ipex_specs.BATTERY_RESERVE_FRAC"
+ },
+ "charge_w": {
+  "value": 700.0,
+  "source": "lode/planner_constants.py CHARGE_W = ipex_specs.RECHARGE_POWER_W [CALIB]"
+ },
+ "dig_rate_kg_s": {
+  "value": 0.011666666666666667,
+  "source": "lode/planner_constants.py DIG_RATE_KG_S = ipex_specs.DIG_RATE_KG_PER_HR / 3600"
+ },
+ "drive_speed_ms": {
+  "value": 0.3,
+  "source": "lode/planner_constants.py DRIVE_SPEED_MS = ipex_specs.DRIVE_SPEED_MS"
+ },
+ "rolling_resistance": {
+  "value": 0.15,
+  "source": "stewie/specs/ipex_specs.py ROLLING_RESISTANCE_COEFF [ASSUMPTION]"
+ },
+ "drivetrain_efficiency": {
+  "value": 0.5,
+  "source": "stewie/specs/ipex_specs.py DRIVETRAIN_EFFICIENCY [CALIB]"
+ }
+}

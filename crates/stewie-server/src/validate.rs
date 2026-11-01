@@ -33,6 +33,14 @@ pub enum Kind {
     AnyList,
     /// A `tuple[int, int]`: exactly two integers; required.
     IntPair,
+    /// A `tuple[float, float]`: exactly two numbers; required.
+    FloatPair,
+    /// A required JSON object (a `dict` field without a default).
+    DictRequired,
+    /// A `list[dict]` of `min..=max` objects; required.
+    DictList { min: usize, max: usize },
+    /// `T | None` with a `None` default: null or absent is null, else the inner kind.
+    Opt(&'static Kind),
     /// A list of `min..=max` items, each validated against a nested model.
     List {
         min: usize,
@@ -151,7 +159,7 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
             Ok(x) if x > le => fail(format!("Input should be less than or equal to {le}")),
             Ok(x) => Some(json!(x)),
         },
-        Kind::Dict => match v {
+        Kind::Dict | Kind::DictRequired => match v {
             Value::Object(_) => Some(v.clone()),
             _ => fail("Input should be a valid dictionary".to_owned()),
         },
@@ -159,13 +167,60 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
             Value::Array(_) => Some(v.clone()),
             _ => fail("Input should be a valid list".to_owned()),
         },
-        Kind::IntPair => check_pair(v, path, errors),
+        Kind::IntPair => check_pair(v, path, errors, false),
+        Kind::FloatPair => check_pair(v, path, errors, true),
+        Kind::DictList { min, max } => check_dict_list(v, min, max, path, errors),
+        Kind::Opt(inner) => match v {
+            Value::Null => Some(Value::Null),
+            _ => check(*inner, v, path, errors),
+        },
         Kind::List { min, max, item } => check_list(v, min, max, item, path, errors),
     }
 }
 
-/// A `tuple[int, int]`: two integers, each reported at its index.
-fn check_pair(v: &Value, path: &str, errors: &mut Vec<String>) -> Option<Value> {
+/// A `list[dict]` of `min..=max` objects: item errors first, then the length.
+fn check_dict_list(
+    v: &Value,
+    min: usize,
+    max: usize,
+    path: &str,
+    errors: &mut Vec<String>,
+) -> Option<Value> {
+    let Value::Array(items) = v else {
+        errors.push(format!("{path}: Input should be a valid list"));
+        return None;
+    };
+    let before = errors.len();
+    for (i, x) in items.iter().enumerate() {
+        if !x.is_object() {
+            errors.push(format!("{path}.{i}: Input should be a valid dictionary"));
+        }
+    }
+    let word = |n: usize| if n == 1 { "item" } else { "items" };
+    if errors.len() > before {
+        return None;
+    }
+    if items.len() < min {
+        errors.push(format!(
+            "{path}: List should have at least {min} {} after validation, not {}",
+            word(min),
+            items.len()
+        ));
+        return None;
+    }
+    if items.len() > max {
+        errors.push(format!(
+            "{path}: List should have at most {max} {} after validation, not {}",
+            word(max),
+            items.len()
+        ));
+        return None;
+    }
+    Some(v.clone())
+}
+
+/// A `tuple[int, int]` (or of floats): two values, each reported at its index.
+fn check_pair(v: &Value, path: &str, errors: &mut Vec<String>, floats: bool) -> Option<Value> {
     let Value::Array(items) = v else {
         errors.push(format!("{path}: Input should be a valid tuple"));
         return None;
@@ -181,8 +236,15 @@ fn check_pair(v: &Value, path: &str, errors: &mut Vec<String>) -> Option<Value> 
     let mut out = Vec::new();
     for i in 0..2 {
         let at = format!("{path}.{i}");
-        match items.get(i).map(as_int) {
-            Some(Ok(x)) => out.push(json!(x)),
+        let item = items.get(i).map(|x| {
+            if floats {
+                as_float(x).map(|f| json!(f))
+            } else {
+                as_int(x).map(|n| json!(n))
+            }
+        });
+        match item {
+            Some(Ok(x)) => out.push(x),
             Some(Err(e)) => errors.push(format!("{at}: {e}")),
             None => errors.push(format!("{at}: Field required")),
         }
@@ -265,20 +327,22 @@ fn fields(
             ) => Some(json!(d)),
             (
                 None,
-                Kind::Str {
-                    default: None,
-                    nullable: true,
-                    ..
-                },
-            ) => Some(Value::Null),
-            (
-                None,
                 Kind::Float {
                     default: Some(d), ..
                 },
             ) => Some(json!(d)),
             (None, Kind::Int { default, .. }) => Some(json!(default)),
             (None, Kind::Dict) => Some(json!({})),
+            // an optional value (or an optional string) defaults to null
+            (
+                None,
+                Kind::Opt(_)
+                | Kind::Str {
+                    default: None,
+                    nullable: true,
+                    ..
+                },
+            ) => Some(Value::Null),
             (None, _) => {
                 errors.push(format!("{at}: Field required"));
                 None
@@ -387,4 +451,117 @@ fn py_repr_value(v: &Value) -> String {
 #[must_use]
 pub fn get_str(m: &Map<String, Value>, key: &str, default: &str) -> String {
     m.get(key).map_or_else(|| default.to_owned(), py_str)
+}
+
+/// A JSON value with every object's key order kept as the client sent it (the workspace's `serde_json` sorts
+/// map keys), so the Python's `repr` of a request field can be reproduced exactly.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Ordered {
+    Null,
+    Bool(bool),
+    Number(serde_json::Number),
+    String(String),
+    Array(Vec<Ordered>),
+    /// Keys in first-seen order; a repeated key keeps its first position and its last value (`json.loads`).
+    Object(Vec<(String, Ordered)>),
+}
+
+impl<'de> serde::Deserialize<'de> for Ordered {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct V;
+        impl<'de> serde::de::Visitor<'de> for V {
+            type Value = Ordered;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a JSON value")
+            }
+            fn visit_unit<E>(self) -> Result<Ordered, E> {
+                Ok(Ordered::Null)
+            }
+            fn visit_bool<E>(self, b: bool) -> Result<Ordered, E> {
+                Ok(Ordered::Bool(b))
+            }
+            fn visit_i64<E>(self, n: i64) -> Result<Ordered, E> {
+                Ok(Ordered::Number(n.into()))
+            }
+            fn visit_u64<E>(self, n: u64) -> Result<Ordered, E> {
+                Ok(Ordered::Number(n.into()))
+            }
+            fn visit_f64<E: serde::de::Error>(self, x: f64) -> Result<Ordered, E> {
+                serde_json::Number::from_f64(x)
+                    .map(Ordered::Number)
+                    .ok_or_else(|| E::custom("a non-finite number"))
+            }
+            fn visit_str<E>(self, s: &str) -> Result<Ordered, E> {
+                Ok(Ordered::String(s.to_owned()))
+            }
+            fn visit_string<E>(self, s: String) -> Result<Ordered, E> {
+                Ok(Ordered::String(s))
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut a: A,
+            ) -> Result<Ordered, A::Error> {
+                let mut out = Vec::new();
+                while let Some(x) = a.next_element()? {
+                    out.push(x);
+                }
+                Ok(Ordered::Array(out))
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut a: A,
+            ) -> Result<Ordered, A::Error> {
+                let mut out: Vec<(String, Ordered)> = Vec::new();
+                while let Some((k, v)) = a.next_entry::<String, Ordered>()? {
+                    match out.iter_mut().find(|(n, _)| *n == k) {
+                        Some(slot) => slot.1 = v,
+                        None => out.push((k, v)),
+                    }
+                }
+                Ok(Ordered::Object(out))
+            }
+        }
+        d.deserialize_any(V)
+    }
+}
+
+impl Ordered {
+    /// A field of an object, by key.
+    #[must_use]
+    pub fn get(&self, key: &str) -> Option<&Ordered> {
+        match self {
+            Self::Object(m) => m.iter().find(|(k, _)| k == key).map(|(_, v)| v),
+            _ => None,
+        }
+    }
+
+    /// Python's `repr` of the value `json.loads` would have made.
+    #[must_use]
+    pub fn py_repr(&self) -> String {
+        match self {
+            Self::Null => "None".to_owned(),
+            Self::Bool(b) => if *b { "True" } else { "False" }.to_owned(),
+            Self::Number(n) => n
+                .as_i64()
+                .map(|i| i.to_string())
+                .or_else(|| n.as_u64().map(|u| u.to_string()))
+                .unwrap_or_else(|| {
+                    n.as_f64()
+                        .and_then(|x| stewie_twin::pyjson::float_repr(x).ok())
+                        .unwrap_or_else(|| n.to_string())
+                }),
+            Self::String(s) => crate::operators::py_repr(s),
+            Self::Array(a) => format!(
+                "[{}]",
+                a.iter().map(Self::py_repr).collect::<Vec<_>>().join(", ")
+            ),
+            Self::Object(m) => format!(
+                "{{{}}}",
+                m.iter()
+                    .map(|(k, v)| format!("{}: {}", crate::operators::py_repr(k), v.py_repr()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        }
+    }
 }

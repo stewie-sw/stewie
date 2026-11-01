@@ -1,7 +1,8 @@
 //! The twin surface (RW-55b4a; Python `routers.twin`): the live centre-of-gravity and tip margin (`/twin/cg`),
 //! an operator's resync of a site's observed twin committed to the world log with a compensating undo when the
 //! commit fails (`/twin/resync`), the observed twin's version token and director-only history, and a site's
-//! Terrain Memory summary. Recording a mission's terrain change is RW-55b4b (it needs the planning context).
+//! Terrain Memory summary, and (RW-55b4b-2) recording a mission's flat-mantle terrain change into a site's Terrain
+//! Memory, committed to the world log with a compensating restore when the commit fails.
 
 use std::sync::Arc;
 
@@ -68,6 +69,28 @@ const RESYNC: Model = Model {
                 default: Some(DEFAULT_TWIN_SITE),
             },
         ),
+    ],
+    forbid_extra: true,
+};
+
+const ANY_INT: Kind = Kind::Int {
+    ge: i64::MIN,
+    le: i64::MAX,
+    default: 0,
+};
+const ANY_FLOAT: Kind = Kind::Float {
+    gt: None,
+    ge: None,
+    le: None,
+    default: None,
+};
+const TERRAIN_RECORD: Model = Model {
+    fields: &[
+        Field("mission", Kind::DictRequired),
+        Field("rows", Kind::Opt(&ANY_INT)),
+        Field("cols", Kind::Opt(&ANY_INT)),
+        Field("cell_m", Kind::Opt(&ANY_FLOAT)),
+        Field("origin", Kind::Opt(&Kind::FloatPair)),
     ],
     forbid_extra: true,
 };
@@ -266,6 +289,93 @@ async fn terrain_summary(
     .await
 }
 
+fn hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes)
+        .iter()
+        .fold(String::new(), |mut h, b| {
+            use std::fmt::Write as _;
+            let _ = write!(h, "{b:02x}");
+            h
+        })
+}
+
+/// Fold a completed mission's flat-mantle terrain change into the site's Terrain Memory (a fresh site's grid
+/// defaults to the mission's own footprint), persist it, and commit the conserved-authority identity (a sha over
+/// the cumulative delta) to the world log; a failed commit restores the prior file.
+#[allow(clippy::many_single_char_names)] // the Python's d, m, v
+async fn terrain_record(
+    State(st): State<Arc<AppState>>,
+    Path(site): Path<String>,
+    req: Request,
+) -> Response {
+    let (h, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        let identity = require_role(st, &h, "operator")?;
+        let v = body_model(body.as_ref(), TERRAIN_RECORD)?;
+        let bad = |e: String| err(StatusCode::BAD_REQUEST, format!("bad mission: {e}"));
+        let mut payload = v["mission"].clone();
+        if payload.get("name").is_none() {
+            payload["name"] = json!(site);
+        }
+        let m = st.planning.mission(&payload).map_err(bad)?;
+        let inputs = st.planning.inputs(&m).map_err(|(unconfigured, e)| {
+            if unconfigured { err(StatusCode::SERVICE_UNAVAILABLE, e) } else { bad(e) }
+        })?;
+        let d = stewie_build::record::mission_terrain_delta(
+            &m,
+            None,
+            &inputs.acceptance(),
+            &stewie_plan::acceptance::AcceptanceParams::default(),
+        )
+        .map_err(bad)?;
+        let internal = |e: String| err(StatusCode::INTERNAL_SERVER_ERROR, e);
+        let lock = st.terrain.site_lock(&site);
+        let _g = lock.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let path = terrain_memory::terrain_path(&st.cfg.data_dir, &site);
+        let prior = stewie_twin::snapshot_file(&path).map_err(|e| internal(e.to_string()))?;
+        let loaded = terrain_memory::load_site(&st.cfg.data_dir, &site).map_err(|e| internal(e.to_string()))?;
+        let mut mem = if let Some(mem) = loaded {
+            mem
+        } else {
+            {
+                // the Python's `req.x or default`: an absent (or zero) size falls back to the mission's own
+                let pick = |k: &str, dflt: usize| {
+                    v[k].as_i64().filter(|n| *n != 0).map_or(Ok(dflt), |n| {
+                        usize::try_from(n).map_err(|_| internal(format!("TerrainMemory grid must be positive (got {k}={n})")))
+                    })
+                };
+                let cell = v["cell_m"].as_f64().filter(|c| *c != 0.0).unwrap_or(d.cell_m);
+                let origin = v["origin"].as_array().map_or((d.x0, d.y0), |o| {
+                    (o[0].as_f64().unwrap_or(0.0), o[1].as_f64().unwrap_or(0.0))
+                });
+                terrain_memory::TerrainMemory::new(&site, pick("rows", d.rows)?, pick("cols", d.cols)?, cell, origin)
+                    .map_err(|e| internal(e.to_string()))?
+            }
+        };
+        let placed = mem
+            .apply_subgrid(&d.delta, d.rows, d.cols, (d.x0, d.y0), d.cell_m, &m.name, d.mass_moved_kg)
+            .map_err(|e| err(StatusCode::BAD_REQUEST, format!("cannot place mission on site grid: {e}")))?;
+        terrain_memory::save_site(&st.cfg.data_dir, &mem).map_err(|e| internal(e.to_string()))?;
+        let bytes: Vec<u8> = mem.cumulative_delta().iter().flat_map(|x| x.to_le_bytes()).collect();
+        let stamp = crate::world::Stamp { mission: Some(&m.name), site: Some(&site), ..crate::world::Stamp::default() };
+        if let Err(e) = st.world.record_terrain(&st.terrain, &hex(&bytes), &format!("terrain.record:{}", m.name), &stamp) {
+            let _ = stewie_twin::restore_file(&path, prior.as_deref());
+            eprintln!("twin.terrain.record rolled back (world-state commit failed): {e}");
+            return Err(internal(format!("terrain record rolled back: world-state commit failed: {e}")));
+        }
+        log(st, &h, &identity, "twin.terrain.record", &format!("{site}:{}", m.name));
+        let s = mem.summary();
+        Ok(axum::Json(json!({"ok": true, "recorded": true, "chain_valid": mem.verify_chain(), "site": s.site,
+                              "version": placed.version, "cells_changed": s.cells_changed,
+                              "net_volume_m3": s.net_volume_m3, "max_cut_m": s.max_cut_m, "max_fill_m": s.max_fill_m,
+                              "missions": s.missions, "placed_cells": placed.placed_cells, "clipped": placed.clipped}))
+        .into_response())
+    })
+    .await
+}
+
 /// The twin routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -273,5 +383,8 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/twin/resync", post(resync))
         .route("/twin/version", get(version))
         .route("/twin/history", get(history))
-        .route("/twin/terrain/{site}", get(terrain_summary))
+        .route(
+            "/twin/terrain/{site}",
+            get(terrain_summary).post(terrain_record),
+        )
 }

@@ -1,0 +1,816 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "journals": {
+  "world.journal": "2eec849f5e7dd0df761b13de81994279b0ade125f5d91160a25a41c68383d623"
+ },
+ "ledger": [
+  {
+   "action": "twin.terrain.record",
+   "actor": "api-key",
+   "correlation_id": "cid-001",
+   "target": "haworth:pad-1",
+   "ts": 1800000001.0
+  },
+  {
+   "action": "twin.terrain.record",
+   "actor": "api-key",
+   "correlation_id": "cid-002",
+   "target": "haworth:pad-2",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "twin.terrain.record",
+   "actor": "api-key",
+   "correlation_id": "cid-003",
+   "target": "haworth:far",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "twin.terrain.record",
+   "actor": "api-key",
+   "correlation_id": "cid-004",
+   "target": "shackleton_rim:shackleton_rim",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "siteplan.volume",
+   "actor": "api-key",
+   "correlation_id": "cid-013",
+   "target": "2 orders -> review",
+   "ts": 1800000004.0
+  },
+  {
+   "action": "siteplan.volume",
+   "actor": "gis-anon",
+   "correlation_id": "cid-014",
+   "target": "1 orders -> review",
+   "ts": 1800000004.0
+  },
+  {
+   "action": "siteplan.volume",
+   "actor": "api-key",
+   "correlation_id": "cid-015",
+   "target": "2 orders -> review",
+   "ts": 1800000004.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-record-oracle",
+ "steps": [
+  {
+   "body": {
+    "cells_changed": 52,
+    "chain_valid": true,
+    "clipped": false,
+    "max_cut_m": 0.1,
+    "max_fill_m": 0.15,
+    "missions": [
+     "pad-1"
+    ],
+    "net_volume_m3": -0.3,
+    "ok": true,
+    "placed_cells": 52,
+    "recorded": true,
+    "site": "haworth",
+    "version": 1
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "mission": {
+      "body": "moon",
+      "name": "pad-1",
+      "orders": [
+       {
+        "action": "Level pad",
+        "depth_m": 0.1,
+        "footprint_m2": 9.0,
+        "kind": "cut",
+        "x": 0.0,
+        "y": 0.0
+       },
+       {
+        "action": "Berm",
+        "depth_m": 0.15,
+        "footprint_m2": 4.0,
+        "kind": "fill",
+        "x": 6.0,
+        "y": 0.0
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/twin/terrain/haworth",
+    "raw": null,
+    "sent": "{\"mission\":{\"name\":\"pad-1\",\"body\":\"moon\",\"orders\":[{\"action\":\"Level pad\",\"kind\":\"cut\",\"x\":0.0,\"y\":0.0,\"footprint_m2\":9.0,\"depth_m\":0.1},{\"action\":\"Berm\",\"kind\":\"fill\",\"x\":6.0,\"y\":0.0,\"footprint_m2\":4.0,\"depth_m\":0.15}]}}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cells_changed": 68,
+    "chain_valid": true,
+    "clipped": true,
+    "max_cut_m": 0.1,
+    "max_fill_m": 0.15,
+    "missions": [
+     "pad-1",
+     "pad-2"
+    ],
+    "net_volume_m3": -0.5,
+    "ok": true,
+    "placed_cells": 16,
+    "recorded": true,
+    "site": "haworth",
+    "version": 2
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "mission": {
+      "body": "moon",
+      "name": "pad-2",
+      "orders": [
+       {
+        "action": "Level pad",
+        "depth_m": 0.05,
+        "footprint_m2": 4.0,
+        "kind": "cut",
+        "x": 3.0,
+        "y": 2.0
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/twin/terrain/haworth",
+    "raw": null,
+    "sent": "{\"mission\":{\"name\":\"pad-2\",\"body\":\"moon\",\"orders\":[{\"action\":\"Level pad\",\"kind\":\"cut\",\"x\":3.0,\"y\":2.0,\"footprint_m2\":4.0,\"depth_m\":0.05}]}}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cells_changed": 68,
+    "chain_valid": true,
+    "clipped": true,
+    "max_cut_m": 0.1,
+    "max_fill_m": 0.15,
+    "missions": [
+     "pad-1",
+     "pad-2",
+     "far"
+    ],
+    "net_volume_m3": -0.5,
+    "ok": true,
+    "placed_cells": 0,
+    "recorded": true,
+    "site": "haworth",
+    "version": 3
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "mission": {
+      "body": "moon",
+      "name": "far",
+      "orders": [
+       {
+        "action": "Level pad",
+        "depth_m": 0.1,
+        "footprint_m2": 9.0,
+        "kind": "cut",
+        "x": 400.0,
+        "y": 400.0
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/twin/terrain/haworth",
+    "raw": null,
+    "sent": "{\"mission\":{\"name\":\"far\",\"body\":\"moon\",\"orders\":[{\"action\":\"Level pad\",\"kind\":\"cut\",\"x\":400.0,\"y\":400.0,\"footprint_m2\":9.0,\"depth_m\":0.1}]}}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cells_changed": 52,
+    "chain_valid": true,
+    "clipped": false,
+    "max_cut_m": 0.1,
+    "max_fill_m": 0.15,
+    "missions": [
+     "shackleton_rim"
+    ],
+    "net_volume_m3": -0.3,
+    "ok": true,
+    "placed_cells": 52,
+    "recorded": true,
+    "site": "shackleton_rim",
+    "version": 1
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "cell_m": 0.5,
+     "cols": 80,
+     "mission": {
+      "body": "moon",
+      "orders": [
+       {
+        "action": "Level pad",
+        "depth_m": 0.1,
+        "footprint_m2": 9.0,
+        "kind": "cut",
+        "x": 1.0,
+        "y": 1.0
+       },
+       {
+        "action": "Berm",
+        "depth_m": 0.15,
+        "footprint_m2": 4.0,
+        "kind": "fill",
+        "x": -4.0,
+        "y": 2.0
+       }
+      ]
+     },
+     "origin": [
+      -20.0,
+      -15.0
+     ],
+     "rows": 60
+    },
+    "method": "POST",
+    "path": "/twin/terrain/shackleton_rim",
+    "raw": null,
+    "sent": "{\"mission\":{\"body\":\"moon\",\"orders\":[{\"action\":\"Level pad\",\"kind\":\"cut\",\"x\":1.0,\"y\":1.0,\"footprint_m2\":9.0,\"depth_m\":0.1},{\"action\":\"Berm\",\"kind\":\"fill\",\"x\":-4.0,\"y\":2.0,\"footprint_m2\":4.0,\"depth_m\":0.15}]},\"rows\":60,\"cols\":80,\"cell_m\":0.5,\"origin\":[-20.0,-15.0]}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "cannot place mission on site grid: sub-grid cell_m 0.808 != site cell_m 0.5",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "mission": {
+      "body": "moon",
+      "name": "coarse",
+      "orders": [
+       {
+        "action": "Level pad",
+        "depth_m": 0.01,
+        "footprint_m2": 40000.0,
+        "kind": "cut",
+        "x": 1.0,
+        "y": 1.0
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/twin/terrain/shackleton_rim",
+    "raw": null,
+    "sent": "{\"mission\":{\"name\":\"coarse\",\"body\":\"moon\",\"orders\":[{\"action\":\"Level pad\",\"kind\":\"cut\",\"x\":1.0,\"y\":1.0,\"footprint_m2\":40000.0,\"depth_m\":0.01}]}}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad mission: order 0 kind 'dig' not in ('cut', 'fill', 'sinter', 'goto')",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "mission": {
+      "body": "moon",
+      "name": "bad",
+      "orders": [
+       {
+        "action": "x",
+        "depth_m": 0.1,
+        "footprint_m2": 1,
+        "kind": "dig",
+        "x": 0,
+        "y": 0
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/twin/terrain/haworth",
+    "raw": null,
+    "sent": "{\"mission\":{\"name\":\"bad\",\"body\":\"moon\",\"orders\":[{\"action\":\"x\",\"kind\":\"dig\",\"x\":0,\"y\":0,\"footprint_m2\":1,\"depth_m\":0.1}]}}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad mission: unknown body None; known: ['bennu', 'bp1_testbed', 'ceres', 'earth', 'mars', 'moon', 'phobos']",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "mission": {
+      "name": "neg",
+      "orders": [
+       {
+        "action": "Level pad",
+        "depth_m": 0.1,
+        "footprint_m2": -1.0,
+        "kind": "cut",
+        "x": 0.0,
+        "y": 0.0
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/twin/terrain/haworth",
+    "raw": null,
+    "sent": "{\"mission\":{\"name\":\"neg\",\"orders\":[{\"action\":\"Level pad\",\"kind\":\"cut\",\"x\":0.0,\"y\":0.0,\"footprint_m2\":-1.0,\"depth_m\":0.1}]}}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "operator+ role required (signed in as guest 'gis-anon')",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-008",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": {
+     "mission": {
+      "body": "moon",
+      "name": "g",
+      "orders": [
+       {
+        "action": "Level pad",
+        "depth_m": 0.1,
+        "footprint_m2": 9.0,
+        "kind": "cut",
+        "x": 0.0,
+        "y": 0.0
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/twin/terrain/haworth",
+    "raw": null,
+    "sent": "{\"mission\":{\"name\":\"g\",\"body\":\"moon\",\"orders\":[{\"action\":\"Level pad\",\"kind\":\"cut\",\"x\":0.0,\"y\":0.0,\"footprint_m2\":9.0,\"depth_m\":0.1}]}}"
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "x: Extra inputs are not permitted",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "mission": {
+      "orders": []
+     },
+     "x": 1
+    },
+    "method": "POST",
+    "path": "/twin/terrain/haworth",
+    "raw": null,
+    "sent": "{\"mission\":{\"orders\":[]},\"x\":1}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "mission: Input should be a valid dictionary; rows: Input should be a valid integer, unable to parse string as an integer",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "mission": [
+      1
+     ],
+     "rows": "a"
+    },
+    "method": "POST",
+    "path": "/twin/terrain/haworth",
+    "raw": null,
+    "sent": "{\"mission\":[1],\"rows\":\"a\"}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "cells_changed": 68,
+    "chain_valid": true,
+    "max_cut_m": 0.1,
+    "max_fill_m": 0.15,
+    "missions": [
+     "pad-1",
+     "pad-2",
+     "far"
+    ],
+    "net_volume_m3": -0.5,
+    "ok": true,
+    "recorded": true,
+    "site": "haworth",
+    "version": 3
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/terrain/haworth",
+    "raw": null,
+    "sent": ""
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cells_changed": 52,
+    "chain_valid": true,
+    "max_cut_m": 0.1,
+    "max_fill_m": 0.15,
+    "missions": [
+     "shackleton_rim"
+    ],
+    "net_volume_m3": -0.3,
+    "ok": true,
+    "recorded": true,
+    "site": "shackleton_rim",
+    "version": 1
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/terrain/shackleton_rim",
+    "raw": null,
+    "sent": ""
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "volume": {
+     "acceptance": "review",
+     "after_source": "conserved-authority:as_built",
+     "agreement_conserved": false,
+     "agreement_drum": null,
+     "before_source": "conserved-authority:base",
+     "change_cells": 52,
+     "confidence_class": "high",
+     "conserved_err_kg": -378.0000000000048,
+     "drum_inferred_kg": null,
+     "fill_mass_kg": 900.0000000000022,
+     "lower_kg": 1349.9999999999952,
+     "observed_mass_kg": 1349.9999999999952,
+     "schema_version": "1.0",
+     "transaction_id": "plan:d2f28d4debd7",
+     "uncertainty_frac": 0.0,
+     "uncertainty_kg": 0.0,
+     "upper_kg": 1349.9999999999952,
+     "work_order_id": "siteplan"
+    }
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {
+     "density_kg_m3": 1500.0,
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9.0,
+       "kind": "cut",
+       "x": 0.0,
+       "y": 0.0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.15,
+       "footprint_m2": 4.0,
+       "kind": "fill",
+       "x": 6,
+       "y": 0.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/volume",
+    "raw": null,
+    "sent": "{\"orders\":[{\"kind\":\"cut\",\"action\":\"Level pad\",\"x\":0.0,\"y\":0.0,\"footprint_m2\":9.0,\"depth_m\":0.1},{\"action\":\"Berm\",\"kind\":\"fill\",\"x\":6,\"y\":0.0,\"footprint_m2\":4.0,\"depth_m\":0.15}],\"density_kg_m3\":1500.0}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "volume": {
+     "acceptance": "review",
+     "after_source": "conserved-authority:as_built",
+     "agreement_conserved": false,
+     "agreement_drum": false,
+     "before_source": "conserved-authority:base",
+     "change_cells": 36,
+     "confidence_class": "medium",
+     "conserved_err_kg": -243.00000000000523,
+     "drum_inferred_kg": 140.0,
+     "fill_mass_kg": 0.0,
+     "lower_kg": 1336.4999999999952,
+     "observed_mass_kg": 1484.9999999999948,
+     "schema_version": "1.0",
+     "transaction_id": "plan:a851a468d151",
+     "uncertainty_frac": 0.1,
+     "uncertainty_kg": 148.4999999999995,
+     "upper_kg": 1633.4999999999943,
+     "work_order_id": "siteplan"
+    }
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-014",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": {
+     "density_frac": 0.1,
+     "density_kg_m3": 1650,
+     "drum_inferred_kg": 140.0,
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9.0,
+       "kind": "cut",
+       "x": 0.0,
+       "y": 0.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/volume",
+    "raw": null,
+    "sent": "{\"orders\":[{\"kind\":\"cut\",\"action\":\"Level pad\",\"x\":0.0,\"y\":0.0,\"footprint_m2\":9.0,\"depth_m\":0.1}],\"density_kg_m3\":1650,\"density_frac\":0.1,\"drum_inferred_kg\":140.0}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "volume": {
+     "acceptance": "review",
+     "after_source": "conserved-authority:as_built",
+     "agreement_conserved": false,
+     "agreement_drum": false,
+     "before_source": "conserved-authority:base",
+     "change_cells": 52,
+     "confidence_class": "high",
+     "conserved_err_kg": -378.0000000000048,
+     "drum_inferred_kg": 10.0,
+     "fill_mass_kg": 900.0000000000022,
+     "lower_kg": 1349.9999999999952,
+     "observed_mass_kg": 1349.9999999999952,
+     "schema_version": "1.0",
+     "transaction_id": "plan:d2f28d4debd7",
+     "uncertainty_frac": 0.0,
+     "uncertainty_kg": 0.0,
+     "upper_kg": 1349.9999999999952,
+     "work_order_id": "siteplan"
+    }
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": {
+     "density_kg_m3": 1500.0,
+     "drum_inferred_kg": 10.0,
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9.0,
+       "kind": "cut",
+       "x": 0.0,
+       "y": 0.0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.15,
+       "footprint_m2": 4.0,
+       "kind": "fill",
+       "x": 6,
+       "y": 0.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/volume",
+    "raw": null,
+    "sent": "{\"orders\":[{\"kind\":\"cut\",\"action\":\"Level pad\",\"x\":0.0,\"y\":0.0,\"footprint_m2\":9.0,\"depth_m\":0.1},{\"action\":\"Berm\",\"kind\":\"fill\",\"x\":6,\"y\":0.0,\"footprint_m2\":4.0,\"depth_m\":0.15}],\"density_kg_m3\":1500.0,\"drum_inferred_kg\":10.0}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "density_kg_m3: Input should be greater than 0",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "density_kg_m3": 0,
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9.0,
+       "kind": "cut",
+       "x": 0.0,
+       "y": 0.0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.15,
+       "footprint_m2": 4.0,
+       "kind": "fill",
+       "x": 6,
+       "y": 0.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/volume",
+    "raw": null,
+    "sent": "{\"orders\":[{\"kind\":\"cut\",\"action\":\"Level pad\",\"x\":0.0,\"y\":0.0,\"footprint_m2\":9.0,\"depth_m\":0.1},{\"action\":\"Berm\",\"kind\":\"fill\",\"x\":6,\"y\":0.0,\"footprint_m2\":4.0,\"depth_m\":0.15}],\"density_kg_m3\":0}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "orders: List should have at least 1 item after validation, not 0; density_frac: Input should be less than or equal to 1",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "density_frac": 1.5,
+     "density_kg_m3": 1500.0,
+     "orders": []
+    },
+    "method": "POST",
+    "path": "/siteplan/volume",
+    "raw": null,
+    "sent": "{\"orders\":[],\"density_kg_m3\":1500.0,\"density_frac\":1.5}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "order 0 missing field(s): ['action', 'x', 'y', 'footprint_m2', 'depth_m']",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": {
+     "density_kg_m3": 1500.0,
+     "orders": [
+      {
+       "kind": "cut"
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/volume",
+    "raw": null,
+    "sent": "{\"orders\":[{\"kind\":\"cut\"}],\"density_kg_m3\":1500.0}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": {
+     "density_kg_m3": 1500.0,
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9.0,
+       "kind": "cut",
+       "x": 0.0,
+       "y": 0.0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.15,
+       "footprint_m2": 4.0,
+       "kind": "fill",
+       "x": 6,
+       "y": 0.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/volume",
+    "raw": null,
+    "sent": "{\"orders\":[{\"kind\":\"cut\",\"action\":\"Level pad\",\"x\":0.0,\"y\":0.0,\"footprint_m2\":9.0,\"depth_m\":0.1},{\"action\":\"Berm\",\"kind\":\"fill\",\"x\":6,\"y\":0.0,\"footprint_m2\":4.0,\"depth_m\":0.15}],\"density_kg_m3\":1500.0}"
+   },
+   "status": 401
+  }
+ ],
+ "store": null
+}

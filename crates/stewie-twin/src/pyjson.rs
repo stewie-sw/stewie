@@ -146,3 +146,73 @@ pub fn float_repr(x: f64) -> Result<String, TwinError> {
     };
     Ok(format!("{sign}{body}"))
 }
+
+/// Python's `repr` of a string: single quotes unless the text holds a single quote and no double quote, with
+/// Python's escapes for backslash, the control characters and the chosen quote.
+#[must_use]
+pub fn repr_str(s: &str) -> String {
+    let q = if s.contains('\'') && !s.contains('"') {
+        '"'
+    } else {
+        '\''
+    };
+    let mut out = String::from(q);
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c == q => {
+                out.push('\\');
+                out.push(c);
+            }
+            c if (c as u32) < 0x20 || c as u32 == 0x7f => {
+                let _ = write!(out, "\\x{:02x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out.push(q);
+    out
+}
+
+/// Python's `repr` of the value `json.loads` makes from `v` (objects with this crate's sorted keys).
+#[must_use]
+pub fn repr(v: &Value) -> String {
+    match v {
+        Value::Null => "None".to_owned(),
+        Value::Bool(b) => if *b { "True" } else { "False" }.to_owned(),
+        Value::Number(n) => n
+            .as_i64()
+            .map(|i| i.to_string())
+            .or_else(|| n.as_u64().map(|u| u.to_string()))
+            .unwrap_or_else(|| {
+                n.as_f64()
+                    .and_then(|x| float_repr(x).ok())
+                    .unwrap_or_else(|| n.to_string())
+            }),
+        Value::String(s) => repr_str(s),
+        Value::Array(a) => format!("[{}]", a.iter().map(repr).collect::<Vec<_>>().join(", ")),
+        Value::Object(m) => format!(
+            "{{{}}}",
+            m.iter()
+                .map(|(k, x)| format!("{}: {}", repr_str(k), repr(x)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    }
+}
+
+/// Python's `repr` of a list of strings (`['a', 'b']`).
+#[must_use]
+pub fn repr_list<S: AsRef<str>>(items: &[S]) -> String {
+    format!(
+        "[{}]",
+        items
+            .iter()
+            .map(|s| repr_str(s.as_ref()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}

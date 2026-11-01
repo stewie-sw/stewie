@@ -141,6 +141,8 @@ pub struct AppState {
     pub terrain: crate::state::Terrain,
     /// The linked world-state log (`data_dir/twin/world.journal`).
     pub world: crate::world::WorldState,
+    /// The registries and planner parameters the planning routes share.
+    pub planning: crate::planning::Planning,
     login_ip: RateLimiter,
     login_acct: RateLimiter,
     register_ip: RateLimiter,
@@ -192,9 +194,11 @@ impl AppState {
         );
         let world =
             crate::world::WorldState::open(&cfg.data_dir.join("twin").join("world.journal"))?;
+        let planning = crate::planning::Planning::from_env(get)?;
         let state = Self {
             terrain,
             world,
+            planning,
             login_ip: lim(),
             login_acct: lim(),
             register_ip: lim(),
