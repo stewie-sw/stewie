@@ -1128,8 +1128,11 @@ name = "stewie-build"
 version = "0.1.0"
 dependencies = [
  "serde_json",
+ "stewie-contracts",
  "stewie-oracle",
  "stewie-physics",
+ "stewie-plan",
+ "stewie-traverse",
  "stewie-twin",
 ]
 

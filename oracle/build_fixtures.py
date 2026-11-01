@@ -2294,6 +2294,104 @@ def build_cases() -> None:
                    "refusals": refusals, "plans": plans})
 
 
+def record_cases() -> None:
+    """Conserved as-built record (RW-34b): lode.planner_acceptance.mission_terrain_delta and record_mission into a
+    stewie.twin.terrain_memory.TerrainMemory, and the moved-regolith estimate (lode.regolith_volume.
+    estimate_moved_regolith, stewie.contracts.RegolithVolumeEstimate.from_delta), for missions over the real
+    Haworth route window, on the bank-density acceptance column (D-R98). Two missions are recorded into one site
+    memory in turn. Layouts, the estimate's error envelopes and the drum readings are SYNTHETIC (labelled)."""
+    import copy
+    import math
+
+    import lode.planner_acceptance as PA
+    from lode.planner_model import mission_from_dict
+    from lode.regolith_volume import estimate_moved_regolith
+    from stewie.contracts import RegolithVolumeEstimate
+    from stewie.physics import rassor_mass_model as RM
+    from stewie.twin.terrain_memory import TerrainMemory
+
+    with open(os.path.join(ORACLE_FIXTURES, "trips_cases.payload.json")) as fh:
+        tc = json.load(fh)
+    tc = tc.get("payload", tc)
+    base, _ = __import__("stewie.physics.worksite", fromlist=["coarse_base_from_bundle"]).coarse_base_from_bundle(
+        os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    dem, origin = (Z, 5.0), (100.0, 50.0)
+    payloads = {mc["name"]: mc["payload"] for mc in tc["missions"]}
+    stock_cs = PA.ColumnState
+
+    def bank_density_column(**kw):
+        kw.setdefault("density", kw["mass_areal"] / 10.0)
+        return stock_cs(**kw)
+
+    def changed(grid):
+        flat = np.asarray(grid, dtype=float).ravel()
+        idx = np.nonzero(np.abs(flat) > 1e-12)[0]
+        return [[int(i), float(flat[i])] for i in idx]
+
+    main = payloads["haul_two_pairs"]
+    small = copy.deepcopy(main)
+    small["orders"] = [dict(o, footprint_m2=1.0, depth_m=0.05) if o["kind"] != "goto" else o for o in main["orders"]]
+    missions = [("deficit", payloads["deficit"]), ("cuts_only", payloads["cuts_only"]), ("small_orders", small),
+                ("two_pairs", main)]
+    PA.ColumnState = bank_density_column
+    try:
+        deltas = {name: PA.mission_terrain_delta(mission_from_dict(p), dem=dem, dem_origin=origin)
+                  for name, p in missions}
+        # one site memory per cell size, covering every mission on that cell plus a 6-cell rim (deficit and
+        # cuts_only share the 0.5 m cell, so the second records on top of the first)
+        memories = {}
+        for key in {round(d["cell_m"], 12) for d in deltas.values()}:
+            ds = [d for d in deltas.values() if round(d["cell_m"], 12) == key]
+            cell = ds[0]["cell_m"]
+            x0, y0 = min(d["x0"] for d in ds) - 6 * cell, min(d["y0"] for d in ds) - 6 * cell
+            x1 = max(d["x0"] + d["cols"] * cell for d in ds) + 6 * cell
+            y1 = max(d["y0"] + d["rows"] * cell for d in ds) + 6 * cell
+            memories[key] = TerrainMemory(site="haworth", rows=int(math.ceil((y1 - y0) / cell)),
+                                          cols=int(math.ceil((x1 - x0) / cell)), cell_m=cell, origin=(x0, y0))
+        cases = []
+        for name, payload in missions:
+            m = mission_from_dict(payload)
+            d = deltas[name]
+            rho_bank = m.density * __import__("lode.planner_balance", fromlist=["SWELL"]).SWELL
+            mem = memories[round(d["cell_m"], 12)]
+            placement = PA.record_mission(mem, m, dem=dem, dem_origin=origin)
+            estimates = []
+            # drum readings above half full (the published 2.56 %) and below it (the blended over-range band)
+            for rmse, frac, drum in ((0.0, 0.0, None), (0.01, 0.05, 0.97), (0.0, 0.02, 1.4), (0.0, 0.0, 0.4)):
+                kw = dict(density_kg_m3=rho_bank, spoil_density_kg_m3=m.density, height_rmse_m=rmse,
+                          density_frac=frac, conserved_mass_kg=d["mass_moved_kg"],
+                          drum_inferred_kg=None if drum is None else drum * min(d["mass_moved_kg"], 30.0))
+                raw = estimate_moved_regolith(d["base"], d["as_built"], d["cell_m"], **kw)
+                ev = RegolithVolumeEstimate.from_delta(d["base"], d["as_built"], d["cell_m"],
+                                                       work_order_id=f"wo-{name}", before_source="conserved:base",
+                                                       after_source="conserved:as_built",
+                                                       transaction_id=f"tx-{name}", **{
+                                                           k: v for k, v in kw.items() if k != "spoil_density_kg_m3"})
+                estimates.append({"inputs": kw, "estimate": raw, "evidence": ev.model_dump()})
+            cases.append({"name": name, "payload": payload, "x0": d["x0"], "y0": d["y0"], "cell_m": d["cell_m"],
+                          "rows": d["rows"], "cols": d["cols"], "mass_moved_kg": d["mass_moved_kg"],
+                          "rho_bank": rho_bank, "delta": changed(d["delta"]), "placement": placement,
+                          "memory": {"rows": mem.rows, "cols": mem.cols, "origin": list(mem.origin),
+                                     "summary": mem.summary(), "head": mem.chain[-1]["hash"]},
+                          "estimates": estimates})
+    finally:
+        PA.ColumnState = stock_cs
+    assert any(c["placement"]["version"] > 1 for c in cases), "vacuity: a second mission on one site memory"
+    assert any(e["evidence"]["acceptance"] == "accepted" for c in cases for e in c["estimates"])
+    assert any(e["evidence"]["acceptance"] == "review" for c in cases for e in c["estimates"])
+    drum = {"mpe_all": RM.FDC_MPE_ALL, "mpe_with_outliers": RM.FDC_MPE_WITH_OUTLIERS,
+            "mpe_half_full": RM.FDC_MPE_HALF_FULL, "half_full_kg": RM.HALF_FULL_KG}
+    write_fixture(ORACLE_FIXTURES, "record_cases", "oracle/build_fixtures.py::record_cases (mission terrain delta, "
+                  "Terrain Memory record and moved-regolith evidence over the real Haworth route window at bank "
+                  "density; layouts, error envelopes and drum readings SYNTHETIC, labelled)",
+                  ["lode/planner_acceptance.py", "lode/regolith_volume.py", "stewie/contracts/__init__.py",
+                   "stewie/twin/terrain_memory.py", "stewie/physics/rassor_mass_model.py",
+                   "crates/stewie-oracle/fixtures/trips_cases.payload.json"],
+                  {"cases": cases, "drum": drum})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -2572,6 +2670,7 @@ def main() -> None:
     acceptance_cases()
     replay_cases()
     build_cases()
+    record_cases()
 
 
 if __name__ == "__main__":

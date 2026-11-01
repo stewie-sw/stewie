@@ -1,0 +1,13 @@
+{
+ "fixture": "record_cases",
+ "generator": "oracle/build_fixtures.py::record_cases (mission terrain delta, Terrain Memory record and moved-regolith evidence over the real Haworth route window at bank density; layouts, error envelopes and drum readings SYNTHETIC, labelled)",
+ "payload_sha256": "b2acf72d5162bb66cc7922e0e0702e102e078b6fac27cd0826a10ecbb71c141d",
+ "sources": {
+  "crates/stewie-oracle/fixtures/trips_cases.payload.json": "7f87344455f20944b51e99a7d2e33b14e830bdf087f49b587cefa5dafb32eb17",
+  "lode/planner_acceptance.py": "808a7e6c7e0b324390bce48b4d665668577be20a3a3d734ec53efa928549091a",
+  "lode/regolith_volume.py": "245d97c246456b6e245b52d8749b17f516885238043b553bbbdd0728c77661ed",
+  "stewie/contracts/__init__.py": "2f66421691a371b2c2e179413ebf131027d1204707b2252f35878f931b4be67a",
+  "stewie/physics/rassor_mass_model.py": "8f74ac186210ac6c52023ff213861e7db5a410182c9c6441b1978b71fc7fdc56",
+  "stewie/twin/terrain_memory.py": "d3f12f7d939d9d8d93703eacac1296333171f24c33c60a1a2f9a2bf0918b0233"
+ }
+}

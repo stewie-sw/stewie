@@ -11,6 +11,8 @@
 
 use serde_json::{Map, Value, json};
 
+pub mod record;
+
 /// Bank (in-situ, cut) and loose (placed fill) regolith densities [kg/m^3].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Densities {

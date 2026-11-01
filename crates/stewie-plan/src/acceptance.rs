@@ -289,7 +289,30 @@ fn mean(v: &[f64]) -> f64 {
     np_sum(v) / v.len() as f64
 }
 
+/// The surfaces an acceptance run built (Python `return_grids`), row-major over its grid.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BuiltGrids {
+    pub grid: Grid,
+    /// The pre-build surface (the terrain).
+    pub base: Vec<f64>,
+    /// The surface after every cut and fill.
+    pub as_built: Vec<f64>,
+}
+
 /// Pooled acceptance of the mission's orders (Python `validate_plan`).
+///
+/// # Errors
+/// A column the physics refuses.
+pub fn validate_plan(
+    m: &Mission,
+    dem: Dem<'_>,
+    inp: &AcceptanceInputs<'_>,
+    p: &AcceptanceParams,
+) -> Result<Value, String> {
+    validate_plan_grids(m, dem, inp, p).map(|(report, _)| report)
+}
+
+/// [`validate_plan`] with the surfaces it built, so the terrain change it executed can be recorded.
 ///
 /// # Errors
 /// A column the physics refuses.
@@ -298,12 +321,12 @@ fn mean(v: &[f64]) -> f64 {
     clippy::cast_precision_loss,
     clippy::many_single_char_names
 )] // the Python's report
-pub fn validate_plan(
+pub fn validate_plan_grids(
     m: &Mission,
     dem: Dem<'_>,
     inp: &AcceptanceInputs<'_>,
     p: &AcceptanceParams,
-) -> Result<Value, String> {
+) -> Result<(Value, BuiltGrids), String> {
     let swell = inp.regolith.rho_deep / inp.regolith.rho_spoil;
     let (rho_bank, rho_loose) = (inp.body_density * swell, inp.body_density);
     let of = |k: OrderKind| m.orders.iter().filter(move |o| o.kind == k);
@@ -433,7 +456,7 @@ pub fn validate_plan(
     } else {
         0
     };
-    Ok(json!({
+    let report = json!({
         "feasible": feasible && mass_conserved && slope_violations.is_empty() && off_dem.is_empty(),
         "mass_conserved": mass_conserved,
         "slope_violations": slope_violations,
@@ -467,7 +490,15 @@ pub fn validate_plan(
         "repose_limit_deg": round(repose_limit, 2),
         "bearing_pass": all(&bearing, "holds"),
         "bearing": bearing,
-    }))
+    });
+    Ok((
+        report,
+        BuiltGrids {
+            grid: g,
+            base: datum_h0,
+            as_built,
+        },
+    ))
 }
 
 /// The orders whose footprint box leaves the DEM, and those whose footprint holds terrain steeper than allowed.

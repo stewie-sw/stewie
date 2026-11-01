@@ -8,10 +8,13 @@ license-file.workspace = true
 publish.workspace = true
 
 [dependencies]
+stewie-plan = { path = "../stewie-plan" }
+stewie-traverse = { path = "../stewie-traverse" }
 stewie-twin = { path = "../stewie-twin" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 
 [dev-dependencies]
+stewie-contracts = { path = "../stewie-contracts" }
 stewie-oracle = { path = "../stewie-oracle" }
 stewie-physics = { path = "../stewie-physics" }
 
