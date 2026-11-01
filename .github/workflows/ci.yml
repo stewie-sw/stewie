@@ -132,6 +132,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: bundle budget (RW-56)
+        run: npm run budget
 
   ui-smoke:
     name: cockpit UI smoke (Playwright + real server, py3.11)

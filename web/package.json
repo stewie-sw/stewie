@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "gen:contracts": "node scripts/gen-contracts.mjs",
-    "build:engine": "cargo build --manifest-path ../Cargo.toml -p stewie-wasm --target wasm32-unknown-unknown --release && wasm-bindgen --target web --out-dir src/engine/pkg ../target/wasm32-unknown-unknown/release/stewie_wasm.wasm"
+    "build:engine": "cargo build --manifest-path ../Cargo.toml -p stewie-wasm --target wasm32-unknown-unknown --release && wasm-bindgen --target web --out-dir src/engine/pkg ../target/wasm32-unknown-unknown/release/stewie_wasm.wasm",
+    "budget": "node scripts/check-budget.mjs"
   },
   "dependencies": {
     "ol": "10.11.0",

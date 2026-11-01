@@ -1,0 +1,7 @@
+{
+  "description": "RW-56 browser bundle budget (D-R103): totals over dist/assets by extension, raw and gzip -9 bytes. Set about 6-10% above the 2026-11-01 build (wasm 1,975,447 raw / 1,187,282 gzip, of which the packed DE440 ephemeris is most; js 648,300 raw / 198,703 gzip (node zlib level 9)). Raise only with a decision-log entry.",
+  "kinds": {
+    "wasm": { "raw_bytes": 2100000, "gzip_bytes": 1250000 },
+    "js": { "raw_bytes": 720000, "gzip_bytes": 218000 }
+  }
+}
