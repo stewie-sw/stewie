@@ -5455,6 +5455,54 @@ def endurance_cases() -> None:
                   {"origin": list(origin), "cases": cases})
 
 
+def timeline_cases() -> None:
+    """The plan provenance and playback timeline (RW-55b14b-2): mission_planner.build_timeline over plan() on the
+    bundled sample missions and a rich mission (precedence, windows, budgets, a shared resource, an observation,
+    a shaped order with an in-situ density; SYNTHETIC values, labelled) over the real Haworth DEM. The canonical
+    JSON the input hash covers is recorded beside it; the source commit differs per host, so it is ``<commit>``."""
+    import dataclasses
+
+    from lode import mission_planner as MP
+    from stewie.server import state as ST
+
+    dem, origin = ST.moon_dem("haworth")
+    runs = []
+    for n in ("01_flatten_pad", "02_haul_around_hazard", "03_blocked_infeasible"):
+        with open(os.path.join(REPO, "stewie", "server", "sample_missions", n + ".json")) as fh:
+            runs.append((json.load(fh), "nearest", "time", 1))
+    rich = json.loads(json.dumps(runs[1][0]))
+    a0, a1 = rich["orders"][0]["action"], rich["orders"][1]["action"]
+    rich.update(precedence=[[a0, a1]], lander=[5, 5], date="2026-11-01", charger=[1, 2], return_buffer_frac=0.3,
+                mission_windows={"work": [[0, 3.6e7]], "drive": [[0, 7.2e7]]},
+                objective_constraints={"max_energy_J": 5e9, "max_charges": 300},
+                shared_resources=[{"id": "dump", "kind": "dump", "capacity": 1, "sites": [[50, 0]]}],
+                observations=[{"vehicle": 0, "x": 1, "y": 2, "t_start": 0, "t_end": 10, "kind": "solar"}],
+                dig_energy_factor=1.2, accept_flatness_tol_m=0.05, soil="moon",
+                keepouts=rich["keepouts"] + [{"x0": 60, "y0": -20, "x1": 40, "y1": -40},
+                                             {"points": [[100, 100], [110, 100.5], [105, 110]]}])
+    rich["orders"][1] = dict(rich["orders"][1], shape={"kind": "circle", "r": 3}, note="SYNTHETIC",
+                             insitu_density_kg_m3=1700)
+    runs.append((rich, "auto", "energy", 2))
+    cases = []
+    for payload, algo, obj, vehicles in runs:
+        m = MP.mission_from_dict(payload)
+        r = MP.plan(m, dem=dem, dem_origin=origin, algorithm=algo, objective=obj, vehicles=vehicles)
+        tl = MP.build_timeline(m, dem=dem, dem_origin=origin, result=r)
+        tl["provenance"]["commit"] = "<commit>"
+        canon = json.dumps({"mission": dataclasses.asdict(m), "dem_origin": list(origin), "algorithm": algo,
+                            "objective": obj, "vehicles": vehicles, "seed": None}, sort_keys=True, default=str)
+        cases.append({"payload": payload, "algorithm": algo, "objective": obj, "vehicles": vehicles,
+                      "canon": canon, "timeline": tl})
+    write_fixture(ORACLE_FIXTURES, "timeline_cases", "oracle/build_fixtures.py::timeline_cases (mission_planner."
+                  "build_timeline and _plan_provenance on the real Haworth DEM)",
+                  ["lode/mission_planner.py", "lode/planner_model.py", "lode/planner_assembly.py",
+                   "stewie/server/sample_missions/01_flatten_pad.json",
+                   "stewie/server/sample_missions/02_haul_around_hazard.json",
+                   "stewie/server/sample_missions/03_blocked_infeasible.json",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"],
+                  {"origin": list(origin), "cases": cases})
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5576,6 +5624,7 @@ def main() -> None:
     http_models_cases()
     http_planmath_cases()
     endurance_cases()
+    timeline_cases()
 
 
 if __name__ == "__main__":

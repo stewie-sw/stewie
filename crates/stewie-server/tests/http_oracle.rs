@@ -1630,3 +1630,102 @@ fn the_endurance_report_matches_the_python_on_the_real_haworth_dem() {
     }
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn the_plan_timeline_and_provenance_match_the_python_on_the_real_haworth_dem() {
+    let fx = stewie_oracle::load("timeline_cases").unwrap().payload;
+    let dir = std::env::temp_dir().join(format!("stewie-timeline-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let cfg = stewie_oracle::repo_root()
+        .join("deploy/planner.json")
+        .display()
+        .to_string();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+        ("STEWIE_PLANNER_CONFIG", cfg),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"timeline").into(),
+        n: Mutex::new(0),
+    }));
+    let st = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
+    let (site, origin) = st.terrain.moon_dem("haworth").unwrap();
+    assert_eq!(
+        json!([origin.0, origin.1]),
+        fx["origin"],
+        "the flattest anchor"
+    );
+    let dem = stewie_traverse::route::Dem {
+        z: &site.z,
+        width: site.cols,
+        height: site.rows,
+        cell_m: site.cell_m,
+        origin,
+    };
+    let cases = fx["cases"].as_array().unwrap();
+    assert!(
+        cases.iter().any(|c| c["vehicles"] == 2),
+        "vacuity: a fleet plan"
+    );
+    for (i, c) in cases.iter().enumerate() {
+        let m = st.planning.mission(&c["payload"]).unwrap();
+        let inputs = st.planning.inputs(&m).unwrap();
+        let (algorithm, objective) = (
+            c["algorithm"].as_str().unwrap(),
+            c["objective"].as_str().unwrap(),
+        );
+        let vehicles = usize::try_from(c["vehicles"].as_u64().unwrap()).unwrap();
+        let cfg = stewie_plan::assemble::PlanConfig {
+            algorithm,
+            objective,
+            vehicles,
+            idle_power_w: inputs.idle_power_w,
+            reallocate_stranded: true,
+        };
+        let plan = stewie_plan::assemble::plan_and_simulate(
+            &m,
+            &st.planning.fleet,
+            &inputs.build(dem, 25.0),
+            &cfg,
+        )
+        .unwrap();
+        let req = stewie_plan::provenance::Request {
+            origin,
+            algorithm,
+            objective,
+            vehicles,
+            default_return_buffer_frac: st
+                .planning
+                .config
+                .as_ref()
+                .unwrap()
+                .report
+                .default_return_buffer_frac,
+        };
+        let canon = stewie_plan::provenance::canonical(&m, &req, &st.planning.provenance).unwrap();
+        assert_eq!(
+            canon,
+            c["canon"].as_str().unwrap(),
+            "case {i}: the hashed text"
+        );
+        let got = st
+            .planning
+            .timeline(
+                &m,
+                &plan,
+                origin,
+                (algorithm, objective, vehicles),
+                "<commit>",
+            )
+            .unwrap();
+        if let Err(e) = close(&got, &c["timeline"], &format!("case {i}")) {
+            panic!("{e}");
+        }
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}

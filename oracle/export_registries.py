@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
 """
 from __future__ import annotations
 
@@ -103,6 +103,19 @@ def endurance() -> dict:
             "conops": {"traverse_km": S.TRAVERSE_KM, "mission_days": S.MISSION_DAYS,
                        "total_regolith_kg": [lo, hi]},
             "power_kinds": list(E.POWER_KINDS)}
+
+
+def plan_provenance() -> dict:
+    """What a plan's provenance needs beyond the mission (``mission_planner._plan_provenance``): the PlanResult
+    schema version, its mode, and the ``Mission`` dataclass's ``date`` default (a mission JSON may omit it)."""
+    import dataclasses
+
+    from lode import mission_planner as MP
+    from lode.planner_model import Mission
+    date = next(f.default for f in dataclasses.fields(Mission) if f.name == "date")
+    mode = MP._plan_provenance.__code__.co_consts
+    assert "PLAN" in mode, "the provenance mode literal moved"
+    return {"schema_version": MP.PLAN_RESULT_VERSION, "mode": "PLAN", "default_date": date}
 
 
 def soil_baseline() -> dict:
@@ -276,6 +289,7 @@ def main() -> None:
     print(_write("overlay_constants.json", overlay_constants()))
     print(_write("model_registries.json", model_registries()))
     print(_write("endurance.json", endurance()))
+    print(_write("plan_provenance.json", plan_provenance()))
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))

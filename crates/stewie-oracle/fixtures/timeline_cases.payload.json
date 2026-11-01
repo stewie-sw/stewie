@@ -1,0 +1,1546 @@
+{
+ "cases": [
+  {
+   "algorithm": "nearest",
+   "canon": "{\"algorithm\": \"nearest\", \"dem_origin\": [4115.0, 6915.0], \"mission\": {\"accept_flatness_tol_m\": null, \"body\": \"moon\", \"charger\": [0.0, 0.0], \"charger_capacity\": 1, \"date\": \"2026-06-03\", \"dig_energy_factor\": null, \"keepouts\": [], \"lander\": null, \"mission_windows\": null, \"name\": \"Tutorial 1 \\u2014 flatten a landing pad\", \"objective_constraints\": null, \"observations\": null, \"orders\": [{\"action\": \"cut high spot\", \"depth_m\": 0.15, \"footprint_m2\": 36.0, \"insitu_density_kg_m3\": null, \"kind\": \"cut\", \"note\": \"\", \"shape\": null, \"x\": 10.0, \"y\": 10.0}, {\"action\": \"fill pad\", \"depth_m\": 0.15, \"footprint_m2\": 36.0, \"insitu_density_kg_m3\": null, \"kind\": \"fill\", \"note\": \"\", \"shape\": null, \"x\": 40.0, \"y\": 10.0}], \"physics_backend_id\": \"tier2_numpy\", \"precedence\": [], \"return_buffer_frac\": 0.2, \"shared_resources\": null, \"soil\": \"\", \"temp_c\": null, \"tools\": [], \"vehicle\": \"ipex\"}, \"objective\": \"time\", \"seed\": null, \"vehicles\": 1}",
+   "objective": "time",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   },
+   "timeline": {
+    "battery_J": 4795200.000000001,
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "duration_s": 749821.681,
+    "frames": [
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.9999570002633063,
+      "cum_mass_kg": 0.0,
+      "phase": "drive",
+      "t0": 0.0,
+      "t1": 47.14,
+      "x0": 0.0,
+      "x1": 10.0,
+      "y0": 0.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.9999570002633063,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 1031.9,
+      "phase": "dig",
+      "t0": 47.14,
+      "t1": 95379.091,
+      "x0": 10.0,
+      "x1": 10.0,
+      "y0": 10.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 0.0999570002633062,
+      "cum_mass_kg": 1031.9,
+      "phase": "drive",
+      "t0": 95379.091,
+      "t1": 95426.232,
+      "x0": 10.0,
+      "x1": 0.0,
+      "y0": 10.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.0999570002633062,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 1031.9,
+      "phase": "charge",
+      "t0": 95426.232,
+      "t1": 101591.783,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.9999570002633063,
+      "cum_mass_kg": 1031.9,
+      "phase": "drive",
+      "t0": 101591.783,
+      "t1": 101638.924,
+      "x0": 0.0,
+      "x1": 10.0,
+      "y0": 0.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.9999570002633063,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 2063.9,
+      "phase": "dig",
+      "t0": 101638.924,
+      "t1": 196970.874,
+      "x0": 10.0,
+      "x1": 10.0,
+      "y0": 10.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 0.0999570002633062,
+      "cum_mass_kg": 2063.9,
+      "phase": "drive",
+      "t0": 196970.874,
+      "t1": 197018.015,
+      "x0": 10.0,
+      "x1": 0.0,
+      "y0": 10.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.0999570002633062,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 2063.9,
+      "phase": "charge",
+      "t0": 197018.015,
+      "t1": 203183.567,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.9999570002633063,
+      "cum_mass_kg": 2063.9,
+      "phase": "drive",
+      "t0": 203183.567,
+      "t1": 203230.707,
+      "x0": 0.0,
+      "x1": 10.0,
+      "y0": 0.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.9999570002633063,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 3095.8,
+      "phase": "dig",
+      "t0": 203230.707,
+      "t1": 298562.658,
+      "x0": 10.0,
+      "x1": 10.0,
+      "y0": 10.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 0.0999570002633062,
+      "cum_mass_kg": 3095.8,
+      "phase": "drive",
+      "t0": 298562.658,
+      "t1": 298609.798,
+      "x0": 10.0,
+      "x1": 0.0,
+      "y0": 10.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.0999570002633062,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 3095.8,
+      "phase": "charge",
+      "t0": 298609.798,
+      "t1": 304775.35,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.9999570002633063,
+      "cum_mass_kg": 3095.8,
+      "phase": "drive",
+      "t0": 304775.35,
+      "t1": 304822.49,
+      "x0": 0.0,
+      "x1": 10.0,
+      "y0": 0.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.9999570002633063,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 4127.8,
+      "phase": "dig",
+      "t0": 304822.49,
+      "t1": 400154.441,
+      "x0": 10.0,
+      "x1": 10.0,
+      "y0": 10.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 0.0999570002633062,
+      "cum_mass_kg": 4127.8,
+      "phase": "drive",
+      "t0": 400154.441,
+      "t1": 400201.582,
+      "x0": 10.0,
+      "x1": 0.0,
+      "y0": 10.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.0999570002633062,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 4127.8,
+      "phase": "charge",
+      "t0": 400201.582,
+      "t1": 406367.133,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.9999570002633063,
+      "cum_mass_kg": 4127.8,
+      "phase": "drive",
+      "t0": 406367.133,
+      "t1": 406414.274,
+      "x0": 0.0,
+      "x1": 10.0,
+      "y0": 0.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.9999570002633063,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 5159.7,
+      "phase": "dig",
+      "t0": 406414.274,
+      "t1": 501746.224,
+      "x0": 10.0,
+      "x1": 10.0,
+      "y0": 10.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 0.0999570002633062,
+      "cum_mass_kg": 5159.7,
+      "phase": "drive",
+      "t0": 501746.224,
+      "t1": 501793.365,
+      "x0": 10.0,
+      "x1": 0.0,
+      "y0": 10.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.0999570002633062,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 5159.7,
+      "phase": "charge",
+      "t0": 501793.365,
+      "t1": 507958.917,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.9999570002633063,
+      "cum_mass_kg": 5159.7,
+      "phase": "drive",
+      "t0": 507958.917,
+      "t1": 508006.057,
+      "x0": 0.0,
+      "x1": 10.0,
+      "y0": 0.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.9999570002633063,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 6191.7,
+      "phase": "dig",
+      "t0": 508006.057,
+      "t1": 603338.008,
+      "x0": 10.0,
+      "x1": 10.0,
+      "y0": 10.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 0.0999570002633062,
+      "cum_mass_kg": 6191.7,
+      "phase": "drive",
+      "t0": 603338.008,
+      "t1": 603385.148,
+      "x0": 10.0,
+      "x1": 0.0,
+      "y0": 10.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.0999570002633062,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 6191.7,
+      "phase": "charge",
+      "t0": 603385.148,
+      "t1": 609550.7,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.9999570002633063,
+      "cum_mass_kg": 6191.7,
+      "phase": "drive",
+      "t0": 609550.7,
+      "t1": 609597.84,
+      "x0": 0.0,
+      "x1": 10.0,
+      "y0": 0.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.9999570002633063,
+      "batt1_frac": 0.2775650591721053,
+      "cum_mass_kg": 7020.0,
+      "phase": "dig",
+      "t0": 609597.84,
+      "t1": 686120.422,
+      "x0": 10.0,
+      "x1": 10.0,
+      "y0": 10.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.2775650591721053,
+      "batt1_frac": 0.1,
+      "cum_mass_kg": 7225.1,
+      "phase": "dig",
+      "t0": 686120.422,
+      "t1": 703700.625,
+      "x0": 10.0,
+      "x1": 10.0,
+      "y0": 10.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.1,
+      "batt1_frac": 0.09995700026330623,
+      "cum_mass_kg": 7225.1,
+      "phase": "drive",
+      "t0": 703700.625,
+      "t1": 703747.765,
+      "x0": 10.0,
+      "x1": 0.0,
+      "y0": 10.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09995700026330623,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 7225.1,
+      "phase": "charge",
+      "t0": 703747.765,
+      "t1": 709913.317,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.9999570002633063,
+      "cum_mass_kg": 7225.1,
+      "phase": "drive",
+      "t0": 709913.317,
+      "t1": 709960.457,
+      "x0": 0.0,
+      "x1": 10.0,
+      "y0": 0.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.9999570002633063,
+      "batt1_frac": 0.5978234150230091,
+      "cum_mass_kg": 7689.6,
+      "phase": "dig",
+      "t0": 709960.457,
+      "t1": 749774.54,
+      "x0": 10.0,
+      "x1": 10.0,
+      "y0": 10.0,
+      "y1": 10.0
+     },
+     {
+      "batt0_frac": 0.5978234150230091,
+      "batt1_frac": 0.5977804152863152,
+      "cum_mass_kg": 7689.6,
+      "phase": "drive",
+      "t0": 749774.54,
+      "t1": 749821.681,
+      "x0": 10.0,
+      "x1": 0.0,
+      "y0": 10.0,
+      "y1": 0.0
+     }
+    ],
+    "provenance": {
+     "commit": "<commit>",
+     "config": {
+      "algorithm": "nearest",
+      "objective": "time",
+      "vehicles": 1
+     },
+     "input_sha256": "f74dc01f464affd08ba6a995c9ceb3cd393ddaea6b87abd34454bae78c1d6193",
+     "mode": "PLAN",
+     "schema_version": "1.0",
+     "seed": null,
+     "version": "0.1.0"
+    }
+   },
+   "vehicles": 1
+  },
+  {
+   "algorithm": "nearest",
+   "canon": "{\"algorithm\": \"nearest\", \"dem_origin\": [4115.0, 6915.0], \"mission\": {\"accept_flatness_tol_m\": null, \"body\": \"moon\", \"charger\": [0.0, 0.0], \"charger_capacity\": 1, \"date\": \"2026-06-03\", \"dig_energy_factor\": null, \"keepouts\": [{\"r\": 10.0, \"x\": 25.0, \"y\": 0.0}], \"lander\": null, \"mission_windows\": null, \"name\": \"Tutorial 2 \\u2014 haul around a crater keep-out\", \"objective_constraints\": null, \"observations\": null, \"orders\": [{\"action\": \"borrow pit\", \"depth_m\": 0.2, \"footprint_m2\": 36.0, \"insitu_density_kg_m3\": null, \"kind\": \"cut\", \"note\": \"\", \"shape\": null, \"x\": 0.0, \"y\": 0.0}, {\"action\": \"build berm\", \"depth_m\": 0.2, \"footprint_m2\": 36.0, \"insitu_density_kg_m3\": null, \"kind\": \"fill\", \"note\": \"\", \"shape\": null, \"x\": 50.0, \"y\": 0.0}], \"physics_backend_id\": \"tier2_numpy\", \"precedence\": [], \"return_buffer_frac\": 0.2, \"shared_resources\": null, \"soil\": \"\", \"temp_c\": null, \"tools\": [], \"vehicle\": \"ipex\"}, \"objective\": \"time\", \"seed\": null, \"vehicles\": 1}",
+   "objective": "time",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 10,
+      "x": 25,
+      "y": 0
+     }
+    ],
+    "name": "Tutorial 2 — haul around a crater keep-out",
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "build berm",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 50,
+      "y": 0
+     }
+    ]
+   },
+   "timeline": {
+    "battery_J": 4795200.000000001,
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "duration_s": 1146836.641,
+    "frames": [
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 1024.1,
+      "phase": "dig",
+      "t0": 0.0,
+      "t1": 101990.159,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 1024.1,
+      "phase": "charge",
+      "t0": 101990.159,
+      "t1": 108155.416,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 2048.3,
+      "phase": "dig",
+      "t0": 108155.416,
+      "t1": 210145.575,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 2048.3,
+      "phase": "charge",
+      "t0": 210145.575,
+      "t1": 216310.832,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 3072.4,
+      "phase": "dig",
+      "t0": 216310.832,
+      "t1": 318300.991,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 3072.4,
+      "phase": "charge",
+      "t0": 318300.991,
+      "t1": 324466.248,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 4096.5,
+      "phase": "dig",
+      "t0": 324466.248,
+      "t1": 426456.407,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 4096.5,
+      "phase": "charge",
+      "t0": 426456.407,
+      "t1": 432621.664,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 5120.7,
+      "phase": "dig",
+      "t0": 432621.664,
+      "t1": 534611.823,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 5120.7,
+      "phase": "charge",
+      "t0": 534611.823,
+      "t1": 540777.081,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 6144.8,
+      "phase": "dig",
+      "t0": 540777.081,
+      "t1": 642767.239,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 6144.8,
+      "phase": "charge",
+      "t0": 642767.239,
+      "t1": 648932.497,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 7168.9,
+      "phase": "dig",
+      "t0": 648932.497,
+      "t1": 750922.656,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 7168.9,
+      "phase": "charge",
+      "t0": 750922.656,
+      "t1": 757087.913,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 8193.1,
+      "phase": "dig",
+      "t0": 757087.913,
+      "t1": 859078.072,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 8193.1,
+      "phase": "charge",
+      "t0": 859078.072,
+      "t1": 865243.329,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 9217.2,
+      "phase": "dig",
+      "t0": 865243.329,
+      "t1": 967233.488,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 9217.2,
+      "phase": "charge",
+      "t0": 967233.488,
+      "t1": 973398.745,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.8745066279318655,
+      "cum_mass_kg": 9360.0,
+      "phase": "dig",
+      "t0": 973398.745,
+      "t1": 987619.955,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.8745066279318655,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 10254.6,
+      "phase": "dig",
+      "t0": 987619.955,
+      "t1": 1064301.615,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 10254.6,
+      "phase": "charge",
+      "t0": 1064301.615,
+      "t1": 1070466.873,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.22864357616545927,
+      "cum_mass_kg": 11145.6,
+      "phase": "dig",
+      "t0": 1070466.873,
+      "t1": 1146836.641,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     }
+    ],
+    "provenance": {
+     "commit": "<commit>",
+     "config": {
+      "algorithm": "nearest",
+      "objective": "time",
+      "vehicles": 1
+     },
+     "input_sha256": "1e6a6c006824384dfb69fc9ad4e24a1e0051797fd2562400bca37305abba1d68",
+     "mode": "PLAN",
+     "schema_version": "1.0",
+     "seed": null,
+     "version": "0.1.0"
+    }
+   },
+   "vehicles": 1
+  },
+  {
+   "algorithm": "nearest",
+   "canon": "{\"algorithm\": \"nearest\", \"dem_origin\": [4115.0, 6915.0], \"mission\": {\"accept_flatness_tol_m\": null, \"body\": \"moon\", \"charger\": [0.0, 0.0], \"charger_capacity\": 1, \"date\": \"2026-06-03\", \"dig_energy_factor\": null, \"keepouts\": [{\"r\": 18.0, \"x\": 40.0, \"y\": 0.0}], \"lander\": null, \"mission_windows\": null, \"name\": \"Tutorial 3 \\u2014 INFEASIBLE: fill site has no safe corridor\", \"objective_constraints\": null, \"observations\": null, \"orders\": [{\"action\": \"borrow pit\", \"depth_m\": 0.2, \"footprint_m2\": 36.0, \"insitu_density_kg_m3\": null, \"kind\": \"cut\", \"note\": \"\", \"shape\": null, \"x\": 0.0, \"y\": 0.0}, {\"action\": \"stranded fill\", \"depth_m\": 0.2, \"footprint_m2\": 36.0, \"insitu_density_kg_m3\": null, \"kind\": \"fill\", \"note\": \"\", \"shape\": null, \"x\": 40.0, \"y\": 0.0}], \"physics_backend_id\": \"tier2_numpy\", \"precedence\": [], \"return_buffer_frac\": 0.2, \"shared_resources\": null, \"soil\": \"\", \"temp_c\": null, \"tools\": [], \"vehicle\": \"ipex\"}, \"objective\": \"time\", \"seed\": null, \"vehicles\": 1}",
+   "objective": "time",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 18,
+      "x": 40,
+      "y": 0
+     }
+    ],
+    "name": "Tutorial 3 — INFEASIBLE: fill site has no safe corridor",
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "stranded fill",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 0
+     }
+    ]
+   },
+   "timeline": {
+    "battery_J": 4795200.000000001,
+    "charger": [
+     0.0,
+     0.0
+    ],
+    "duration_s": 1016989.714,
+    "frames": [
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 1039.6,
+      "phase": "dig",
+      "t0": 0.0,
+      "t1": 89106.396,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 1039.6,
+      "phase": "charge",
+      "t0": 89106.396,
+      "t1": 95271.653,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 2079.1,
+      "phase": "dig",
+      "t0": 95271.653,
+      "t1": 184378.05,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 2079.1,
+      "phase": "charge",
+      "t0": 184378.05,
+      "t1": 190543.307,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 3118.7,
+      "phase": "dig",
+      "t0": 190543.307,
+      "t1": 279649.703,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 3118.7,
+      "phase": "charge",
+      "t0": 279649.703,
+      "t1": 285814.96,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 4158.3,
+      "phase": "dig",
+      "t0": 285814.96,
+      "t1": 374921.357,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 4158.3,
+      "phase": "charge",
+      "t0": 374921.357,
+      "t1": 381086.614,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 5197.9,
+      "phase": "dig",
+      "t0": 381086.614,
+      "t1": 470193.01,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 5197.9,
+      "phase": "charge",
+      "t0": 470193.01,
+      "t1": 476358.267,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 6237.4,
+      "phase": "dig",
+      "t0": 476358.267,
+      "t1": 565464.664,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 6237.4,
+      "phase": "charge",
+      "t0": 565464.664,
+      "t1": 571629.921,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 7277.0,
+      "phase": "dig",
+      "t0": 571629.921,
+      "t1": 660736.317,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 7277.0,
+      "phase": "charge",
+      "t0": 660736.317,
+      "t1": 666901.574,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 8316.6,
+      "phase": "dig",
+      "t0": 666901.574,
+      "t1": 756007.97,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 8316.6,
+      "phase": "charge",
+      "t0": 756007.97,
+      "t1": 762173.228,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 9356.2,
+      "phase": "dig",
+      "t0": 762173.228,
+      "t1": 851279.624,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 9356.2,
+      "phase": "charge",
+      "t0": 851279.624,
+      "t1": 857444.881,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 10395.7,
+      "phase": "dig",
+      "t0": 857444.881,
+      "t1": 946551.277,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 10395.7,
+      "phase": "charge",
+      "t0": 946551.277,
+      "t1": 952716.534,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.3508225639742074,
+      "cum_mass_kg": 11145.6,
+      "phase": "dig",
+      "t0": 952716.534,
+      "t1": 1016989.714,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     }
+    ],
+    "provenance": {
+     "commit": "<commit>",
+     "config": {
+      "algorithm": "nearest",
+      "objective": "time",
+      "vehicles": 1
+     },
+     "input_sha256": "f9df34fef522659b4e9db229d640b224779081362e0d5c83268dce21aa32001d",
+     "mode": "PLAN",
+     "schema_version": "1.0",
+     "seed": null,
+     "version": "0.1.0"
+    }
+   },
+   "vehicles": 1
+  },
+  {
+   "algorithm": "auto",
+   "canon": "{\"algorithm\": \"auto\", \"dem_origin\": [4115.0, 6915.0], \"mission\": {\"accept_flatness_tol_m\": 0.05, \"body\": \"moon\", \"charger\": [1.0, 2.0], \"charger_capacity\": 1, \"date\": \"2026-11-01\", \"dig_energy_factor\": 1.2, \"keepouts\": [{\"r\": 10.0, \"x\": 25.0, \"y\": 0.0}, {\"x0\": 40.0, \"x1\": 60.0, \"y0\": -40.0, \"y1\": -20.0}, {\"points\": [[100.0, 100.0], [110.0, 100.5], [105.0, 110.0]]}], \"lander\": [5.0, 5.0], \"mission_windows\": {\"drive\": [[0.0, 72000000.0]], \"work\": [[0.0, 36000000.0]]}, \"name\": \"Tutorial 2 \\u2014 haul around a crater keep-out\", \"objective_constraints\": {\"max_charges\": 300.0, \"max_energy_J\": 5000000000.0}, \"observations\": [{\"kind\": \"solar\", \"t_end\": 10.0, \"t_start\": 0.0, \"vehicle\": 0, \"x\": 1.0, \"y\": 2.0}], \"orders\": [{\"action\": \"borrow pit\", \"depth_m\": 0.2, \"footprint_m2\": 36.0, \"insitu_density_kg_m3\": null, \"kind\": \"cut\", \"note\": \"\", \"shape\": null, \"x\": 0.0, \"y\": 0.0}, {\"action\": \"build berm\", \"depth_m\": 0.2, \"footprint_m2\": 28.274333882308138, \"insitu_density_kg_m3\": 1700.0, \"kind\": \"fill\", \"note\": \"SYNTHETIC\", \"shape\": {\"kind\": \"circle\", \"r\": 3}, \"x\": 50.0, \"y\": 0.0}], \"physics_backend_id\": \"tier2_numpy\", \"precedence\": [[\"borrow pit\", \"build berm\"]], \"return_buffer_frac\": 0.3, \"shared_resources\": [{\"capacity\": 1, \"id\": \"dump\", \"kind\": \"dump\", \"sites\": [[50.0, 0.0]]}], \"soil\": \"\", \"temp_c\": null, \"tools\": [], \"vehicle\": \"ipex\"}, \"objective\": \"energy\", \"seed\": null, \"vehicles\": 2}",
+   "objective": "energy",
+   "payload": {
+    "accept_flatness_tol_m": 0.05,
+    "body": "moon",
+    "charger": [
+     1,
+     2
+    ],
+    "date": "2026-11-01",
+    "dig_energy_factor": 1.2,
+    "keepouts": [
+     {
+      "r": 10,
+      "x": 25,
+      "y": 0
+     },
+     {
+      "x0": 60,
+      "x1": 40,
+      "y0": -20,
+      "y1": -40
+     },
+     {
+      "points": [
+       [
+        100,
+        100
+       ],
+       [
+        110,
+        100.5
+       ],
+       [
+        105,
+        110
+       ]
+      ]
+     }
+    ],
+    "lander": [
+     5,
+     5
+    ],
+    "mission_windows": {
+     "drive": [
+      [
+       0,
+       72000000.0
+      ]
+     ],
+     "work": [
+      [
+       0,
+       36000000.0
+      ]
+     ]
+    },
+    "name": "Tutorial 2 — haul around a crater keep-out",
+    "objective_constraints": {
+     "max_charges": 300,
+     "max_energy_J": 5000000000.0
+    },
+    "observations": [
+     {
+      "kind": "solar",
+      "t_end": 10,
+      "t_start": 0,
+      "vehicle": 0,
+      "x": 1,
+      "y": 2
+     }
+    ],
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "build berm",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "insitu_density_kg_m3": 1700,
+      "kind": "fill",
+      "note": "SYNTHETIC",
+      "shape": {
+       "kind": "circle",
+       "r": 3
+      },
+      "x": 50,
+      "y": 0
+     }
+    ],
+    "precedence": [
+     [
+      "borrow pit",
+      "build berm"
+     ]
+    ],
+    "return_buffer_frac": 0.3,
+    "shared_resources": [
+     {
+      "capacity": 1,
+      "id": "dump",
+      "kind": "dump",
+      "sites": [
+       [
+        50,
+        0
+       ]
+      ]
+     }
+    ],
+    "soil": "moon"
+   },
+   "timeline": {
+    "battery_J": 4795200.000000001,
+    "charger": [
+     1.0,
+     2.0
+    ],
+    "duration_s": 1131699.536,
+    "frames": [
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 866.3,
+      "phase": "dig",
+      "t0": 0.0,
+      "t1": 74255.33,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 866.3,
+      "phase": "charge",
+      "t0": 74255.33,
+      "t1": 80420.587,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 1732.6,
+      "phase": "dig",
+      "t0": 80420.587,
+      "t1": 154675.918,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 1732.6,
+      "phase": "charge",
+      "t0": 154675.918,
+      "t1": 160841.175,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 2598.9,
+      "phase": "dig",
+      "t0": 160841.175,
+      "t1": 235096.505,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 2598.9,
+      "phase": "charge",
+      "t0": 235096.505,
+      "t1": 241261.762,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 3465.2,
+      "phase": "dig",
+      "t0": 241261.762,
+      "t1": 315517.092,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 3465.2,
+      "phase": "charge",
+      "t0": 315517.092,
+      "t1": 321682.35,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.6581809585643849,
+      "cum_mass_kg": 3794.3,
+      "phase": "dig",
+      "t0": 321682.35,
+      "t1": 349884.445,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.6581809585643849,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 4324.9,
+      "phase": "dig",
+      "t0": 349884.445,
+      "t1": 402753.475,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 4324.9,
+      "phase": "charge",
+      "t0": 402753.475,
+      "t1": 408918.732,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 5180.4,
+      "phase": "dig",
+      "t0": 408918.732,
+      "t1": 494163.716,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 5180.4,
+      "phase": "charge",
+      "t0": 494163.716,
+      "t1": 500328.973,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 6035.9,
+      "phase": "dig",
+      "t0": 500328.973,
+      "t1": 585573.957,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 6035.9,
+      "phase": "charge",
+      "t0": 585573.957,
+      "t1": 591739.214,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 6891.4,
+      "phase": "dig",
+      "t0": 591739.214,
+      "t1": 676984.198,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 6891.4,
+      "phase": "charge",
+      "t0": 676984.198,
+      "t1": 683149.455,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 7747.0,
+      "phase": "dig",
+      "t0": 683149.455,
+      "t1": 768394.439,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 7747.0,
+      "phase": "charge",
+      "t0": 768394.439,
+      "t1": 774559.696,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 8602.5,
+      "phase": "dig",
+      "t0": 774559.696,
+      "t1": 859804.68,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 8602.5,
+      "phase": "charge",
+      "t0": 859804.68,
+      "t1": 865969.937,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 9458.0,
+      "phase": "dig",
+      "t0": 865969.937,
+      "t1": 951214.921,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 9458.0,
+      "phase": "charge",
+      "t0": 951214.921,
+      "t1": 957380.178,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.09999999999999998,
+      "cum_mass_kg": 10313.5,
+      "phase": "dig",
+      "t0": 957380.178,
+      "t1": 1042625.162,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     },
+     {
+      "batt0_frac": 0.09999999999999998,
+      "batt1_frac": 1.0,
+      "cum_mass_kg": 10313.5,
+      "phase": "charge",
+      "t0": 1042625.162,
+      "t1": 1048790.419,
+      "x0": 1.0,
+      "x1": 1.0,
+      "y0": 2.0,
+      "y1": 2.0
+     },
+     {
+      "batt0_frac": 1.0,
+      "batt1_frac": 0.12466163646636833,
+      "cum_mass_kg": 11145.6,
+      "phase": "dig",
+      "t0": 1048790.419,
+      "t1": 1131699.536,
+      "x0": 0.0,
+      "x1": 0.0,
+      "y0": 0.0,
+      "y1": 0.0
+     }
+    ],
+    "provenance": {
+     "commit": "<commit>",
+     "config": {
+      "algorithm": "auto",
+      "objective": "energy",
+      "vehicles": 2
+     },
+     "input_sha256": "43e80a14b20f778ab392238f0201b24ce98078352ce3d5251a395fc780253ccf",
+     "mode": "PLAN",
+     "schema_version": "1.0",
+     "seed": null,
+     "version": "0.1.0"
+    }
+   },
+   "vehicles": 2
+  }
+ ],
+ "origin": [
+  4115.0,
+  6915.0
+ ]
+}

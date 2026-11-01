@@ -162,6 +162,8 @@ pub struct Planning {
     pub config: Result<PlannerConfig, String>,
     /// The endurance report's timescale and `ConOps` tables.
     pub endurance: stewie_plan::endurance::Tables,
+    /// What a plan's provenance needs beyond the mission.
+    pub provenance: stewie_plan::provenance::Defaults,
 }
 
 impl Planning {
@@ -186,12 +188,17 @@ impl Planning {
             "../../stewie-contracts/fixtures/endurance.json"
         ))
         .map_err(|e| format!("the endurance tables: {e}"))?;
+        let provenance = serde_json::from_str(include_str!(
+            "../../stewie-contracts/fixtures/plan_provenance.json"
+        ))
+        .map_err(|e| format!("the plan provenance defaults: {e}"))?;
         Ok(Self {
             fleet,
             bodies,
             soil_base,
             config,
             endurance,
+            provenance,
         })
     }
 
@@ -209,12 +216,7 @@ impl Planning {
     ) -> Result<serde_json::Value, String> {
         let cfg = self.config.as_ref().map_err(Clone::clone)?;
         let ctx = context(m, &self.fleet, &inputs.params)?;
-        let ipex_battery_j = self
-            .fleet
-            .power_sources
-            .get("ipex_battery")
-            .map(|p| p.capacity_j)
-            .ok_or("the fleet registry has no ipex_battery")?;
+        let ipex_battery_j = self.ipex_battery_j()?;
         let lunar_g = self
             .bodies
             .get("moon")
@@ -232,6 +234,54 @@ impl Planning {
             tables: &self.endurance,
         };
         stewie_plan::endurance::endurance(&ctx, dem, power_site, temp_c, &inp)
+    }
+
+    /// The IPEx pack [J] (the Python's module `BATTERY_J`).
+    ///
+    /// # Errors
+    /// A fleet registry without it.
+    pub fn ipex_battery_j(&self) -> Result<f64, String> {
+        self.fleet
+            .power_sources
+            .get("ipex_battery")
+            .map(|p| p.capacity_j)
+            .ok_or_else(|| "the fleet registry has no ipex_battery".to_owned())
+    }
+
+    /// The provenance and playback timeline of `plan` (Python `_plan_provenance` and `build_timeline`); `commit`
+    /// names the source the server was built from.
+    ///
+    /// # Errors
+    /// Planner parameters not configured, or a non-finite number in the mission.
+    pub fn timeline(
+        &self,
+        m: &Mission,
+        plan: &stewie_plan::assemble::Plan,
+        origin: (f64, f64),
+        (algorithm, objective, vehicles): (&str, &str, usize),
+        commit: &str,
+    ) -> Result<serde_json::Value, String> {
+        let cfg = self.config.as_ref().map_err(Clone::clone)?;
+        let req = stewie_plan::provenance::Request {
+            origin,
+            algorithm,
+            objective,
+            vehicles,
+            default_return_buffer_frac: cfg.report.default_return_buffer_frac,
+        };
+        let prov = stewie_plan::provenance::provenance(
+            m,
+            &req,
+            &self.provenance,
+            commit,
+            env!("CARGO_PKG_VERSION"),
+        )?;
+        Ok(stewie_plan::provenance::timeline(
+            plan,
+            m,
+            self.ipex_battery_j()?,
+            &prov,
+        ))
     }
 
     /// A mission from its JSON, checked against the registries (the Python's `mission_from_dict`).

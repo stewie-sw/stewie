@@ -1,0 +1,14 @@
+{
+ "fixture": "timeline_cases",
+ "generator": "oracle/build_fixtures.py::timeline_cases (mission_planner.build_timeline and _plan_provenance on the real Haworth DEM)",
+ "payload_sha256": "54eca32e327f8c9f73ed26e226a9b3f925c2afd1cdbebfdc0dff5c73344bab18",
+ "sources": {
+  "lode/mission_planner.py": "7e1b478c380d588bb3eeddcd93e66e31fcddd994ff89328f85035a93ad3036fd",
+  "lode/planner_assembly.py": "7dd0a07dd38d7f86f7cbcbfbffa2ae4d527d0642cd1841c3b7b0c0cb5a7de298",
+  "lode/planner_model.py": "6ade8f7eeea9de9386c009ed63e0e005e69b8dfd6fa7ff8d44ce42216fec3e46",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/server/sample_missions/01_flatten_pad.json": "95e2e79b1b238c7630a4a8a232e209b546583c872b9905450657ff0dc9fa15e7",
+  "stewie/server/sample_missions/02_haul_around_hazard.json": "d9b6c8481609061c422e9078c15147ad148ba13ae18f79fbb47fd712ef14d3d9",
+  "stewie/server/sample_missions/03_blocked_infeasible.json": "1bd723c33b713eb4d87bda31f853f65114acec7f68df47b497a80780501cbe32"
+ }
+}

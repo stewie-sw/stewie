@@ -10,6 +10,7 @@ pub mod fleet;
 pub mod ir;
 pub mod mission;
 pub mod optimize;
+pub mod provenance;
 pub mod release;
 pub mod report;
 pub mod sim;
