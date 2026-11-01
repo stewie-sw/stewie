@@ -4645,6 +4645,36 @@ def http_dem_cases() -> None:
         call("GET", "/dem/workarea.png?window_m=abc", headers=key)
         call("GET", "/dem/workarea.png?site=shoemaker", headers=key)
         call("GET", "/dem/workarea.png")                                     # no key
+        # the as-built surface of cut/fill orders on the real site DEM (RW-55b6c-3), on the bank-density acceptance
+        # column (D-R98: the Python's stock column stands 4.77 m above the terrain)
+        from lode import planner_acceptance as _PA
+        _stock_cs = _PA.ColumnState
+
+        def _bank_density_column(**kw):
+            kw.setdefault("density", kw["mass_areal"] / 10.0)
+            return _stock_cs(**kw)
+        _PA.ColumnState = _bank_density_column
+        cutfill = [{"kind": "cut", "action": "Level pad", "x": 0.0, "y": 0.0, "footprint_m2": 9.0, "depth_m": 0.1},
+                   {"action": "Berm", "kind": "fill", "x": 6, "y": 0.0, "footprint_m2": 4.0, "depth_m": 0.05},
+                   {"action": "drive", "kind": "goto", "x": 3.0, "y": 1.0}]
+        call("POST", "/dem/asbuilt", json_body={"orders": cutfill})                                   # no key
+        call("POST", "/dem/asbuilt", headers=key, json_body={"orders": cutfill})
+        call("POST", "/dem/asbuilt", headers=key, json_body={"orders": cutfill, "site": "shackleton_rim",
+                                                             "lat": -89.8224, "lon": 158.1986, "note": "x"})
+        call("POST", "/dem/asbuilt", headers=key, json_body={"orders": cutfill, "lat": 0.0, "lon": 0.0})
+        call("POST", "/dem/asbuilt", headers=key, json_body={"orders": cutfill, "body": "mars"})
+        call("POST", "/dem/asbuilt", headers=key, json_body={"orders": [cutfill[2]]})
+        call("POST", "/dem/asbuilt", headers=key, json_body={"orders": [dict(cutfill[0], depth_m=-1.0)]})
+        call("POST", "/dem/asbuilt", headers=key, json_body={"orders": cutfill, "site": "atlantis"})
+        call("POST", "/dem/asbuilt", headers=key, json_body={"orders": "cut"})
+        call("POST", "/dem/asbuilt", headers=key, json_body={})
+        # an observed patch under the work area: the as-built surface is the composed view, not the pristine DEM
+        clock["t"] += 1.0
+        call("POST", "/twin/resync", headers=key, json_body={"heights_m": [[1100.25, 1100.5], [1101.0, 1101.25]],
+                                                             "origin_rc": [1382, 822], "provenance": "dem oracle"})
+        call("POST", "/dem/asbuilt", headers=key,
+             json_body={"orders": [dict(cutfill[0], depth_m=0.12345), cutfill[1]]})
+        _PA.ColumnState = _stock_cs
         # the public 3D viewer's routes (RW-55b6b), under a viz quota cut to 33 (SYNTHETIC, labelled)
         import stewie.server.routers.dem as _D
         from stewie.server.ratelimit import RateLimiter as _RL

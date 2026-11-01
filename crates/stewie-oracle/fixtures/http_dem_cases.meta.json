@@ -1,7 +1,7 @@
 {
  "fixture": "http_dem_cases",
  "generator": "oracle/build_fixtures.py::http_dem_cases (the FastAPI app's /dem read routes; real site bundles, a SYNTHETIC boulder scene, labelled)",
- "payload_sha256": "b9c25f179ccdd138be46a20c7d416b95c60bf1b101d055ce832c090568a664e0",
+ "payload_sha256": "44c8c8c74bab3465ed4db21f45de6a85e8f09d395f15943dd6f71761f9cf9055",
  "sources": {
   "dart/dem_sources.py": "2278a328c3c3549fd9f35efa2d0702c10948aeea560c4bd75f02fb3b436d7c6f",
   "stewie/server/routers/dem.py": "66c148553586dfdc403e8d03905bdcda01814ce0d4c78fae52593e8bd74182fd",

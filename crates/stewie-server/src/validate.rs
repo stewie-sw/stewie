@@ -31,6 +31,8 @@ pub enum Kind {
     Dict,
     /// Any JSON array (a bare `list`); required.
     AnyList,
+    /// A bare `list` defaulting to `[]`.
+    AnyListDefault,
     /// A `tuple[int, int]`: exactly two integers; required.
     IntPair,
     /// A `tuple[float, float]`: exactly two numbers; required.
@@ -165,7 +167,7 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
             Value::Object(_) => Some(v.clone()),
             _ => fail("Input should be a valid dictionary".to_owned()),
         },
-        Kind::AnyList => match v {
+        Kind::AnyList | Kind::AnyListDefault => match v {
             Value::Array(_) => Some(v.clone()),
             _ => fail("Input should be a valid list".to_owned()),
         },
@@ -347,6 +349,7 @@ fn fields(
             ) => Some(json!(d)),
             (None, Kind::Int { default, .. }) => Some(json!(default)),
             (None, Kind::Dict) => Some(json!({})),
+            (None, Kind::AnyListDefault) => Some(json!([])),
             // an optional value (or an optional string) defaults to null
             (
                 None,

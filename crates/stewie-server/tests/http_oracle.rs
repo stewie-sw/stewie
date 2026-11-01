@@ -739,7 +739,8 @@ async fn the_python_dem_session_replays_exactly() {
     replay(
         "http_dem_cases",
         b"stewie-http-dem-oracle",
-        |i, _, _, dir| {
+        |i, step, clock, dir| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
             // the oracle wrote this boulder scene after its second request (SYNTHETIC, labelled)
             if i == 2 {
                 std::fs::write(

@@ -10,11 +10,13 @@ use axum::Router;
 use axum::extract::{Path, Query, Request, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use serde_json::{Map, Value, json};
 use stewie_twin::numpy::round;
 
-use crate::app::{ApiError, AppState, Head, blocking, err, require_auth};
+use crate::app::{
+    ApiError, AppState, Head, blocking, body_model, err, log, parse_body, require_auth, split,
+};
 use crate::operators::py_repr;
 use crate::point::Spine;
 use crate::state::SiteDem;
@@ -1252,6 +1254,145 @@ async fn dem_heightfield_full_layer(
     .await
 }
 
+/// A composed planning surface: heights (row-major), columns, rows, cell [m] and its order-frame anchor.
+type Surface = (Vec<f64>, usize, usize, f64, (f64, f64));
+
+/// The as-built request (Python `AsBuiltRequest`; unknown keys are ignored, as Pydantic's default).
+const ASBUILT_REQ: Model = Model {
+    fields: &[
+        Field(
+            "body",
+            Kind::Str {
+                min: 0,
+                max: usize::MAX,
+                nullable: false,
+                default: Some("moon"),
+            },
+        ),
+        Field(
+            "site",
+            Kind::Str {
+                min: 0,
+                max: usize::MAX,
+                nullable: false,
+                default: Some("haworth"),
+            },
+        ),
+        Field("orders", Kind::AnyListDefault),
+        Field("lat", Kind::Opt(&REQ_FLOAT)),
+        Field("lon", Kind::Opt(&REQ_FLOAT)),
+    ],
+    forbid_extra: false,
+};
+
+/// The as-built (deformed) terrain of a set of cut and fill orders on the real site DEM (#264): the conserved
+/// authority's own rasterise-execute delta, built on the site's remembered as-built surface (#267), so the 3D mesh
+/// shows the topology transform mass-conservingly. Rows are y then x over the worked region.
+#[allow(clippy::too_many_lines)] // one route, as the Python
+async fn dem_asbuilt(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (h, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        let identity = require_auth(st, &h)?;
+        let v = body_model(body.as_ref(), ASBUILT_REQ)?;
+        // only cut and fill move terrain; goto and keep-out orders are dropped before validation
+        let orders: Vec<Value> = v["orders"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter(|o| {
+                        matches!(o.get("kind").and_then(Value::as_str), Some("cut" | "fill"))
+                    })
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
+        if orders.is_empty() {
+            return Err(err(
+                StatusCode::BAD_REQUEST,
+                "need at least one cut or fill order to build an as-built surface",
+            ));
+        }
+        let mut payload = Value::Object(v.clone());
+        payload["orders"] = Value::Array(orders.clone());
+        let bad = |e: String| err(StatusCode::BAD_REQUEST, e);
+        let m = st.planning.mission(&payload).map_err(bad)?;
+        let inputs = st.planning.inputs(&m).map_err(|(unconfigured, e)| {
+            if unconfigured {
+                err(StatusCode::SERVICE_UNAVAILABLE, e)
+            } else {
+                bad(e)
+            }
+        })?;
+        let site = v["site"].as_str().unwrap_or("haworth").to_owned();
+        let mut surface: Option<Surface> = None;
+        if m.body == "moon" {
+            bundle_404(st, &site)?;
+            if let Some((dem, anchor)) = st.terrain.moon_dem(&site) {
+                let mut origin = anchor;
+                if let (Some(lat), Some(lon)) = (v["lat"].as_f64(), v["lon"].as_f64()) {
+                    // a globe site-pick overrides the flattest anchor (absolute pixel-metres); off the tile keeps it
+                    origin = st
+                        .terrain
+                        .latlon_to_order(&dem, (0.0, 0.0), lon, lat)
+                        .unwrap_or(origin);
+                }
+                let view = st.terrain.current_terrain_view(&site, &dem, origin);
+                surface = Some((view.heights, dem.cols, dem.rows, dem.cell_m, origin));
+            }
+        }
+        let dem = surface
+            .as_ref()
+            .map(|(z, w, hh, cell, origin)| stewie_traverse::route::Dem {
+                z,
+                width: *w,
+                height: *hh,
+                cell_m: *cell,
+                origin: *origin,
+            });
+        let d = stewie_build::record::mission_terrain_delta(
+            &m,
+            dem,
+            &inputs.acceptance(),
+            &stewie_plan::acceptance::AcceptanceParams::default(),
+        )
+        .map_err(bad)?;
+        log(
+            st,
+            &h,
+            &identity,
+            "dem.asbuilt",
+            &format!(
+                "{site}: {} orders, {:.0} kg moved",
+                orders.len(),
+                d.mass_moved_kg
+            ),
+        );
+        let ext = |v: &[f64], max: bool| {
+            v.iter().copied().fold(
+                if max {
+                    f64::NEG_INFINITY
+                } else {
+                    f64::INFINITY
+                },
+                |a, b| {
+                    if max { a.max(b) } else { a.min(b) }
+                },
+            )
+        };
+        Ok(axum::Json(json!({"ok": true, "site": site, "body": m.body,
+            "rows": d.rows, "cols": d.cols, "cell_m": d.cell_m, "x0": d.x0, "y0": d.y0,
+            "z": d.as_built.iter().map(|x| round(*x, 3)).collect::<Vec<_>>(),
+            "base": d.base.iter().map(|x| round(*x, 3)).collect::<Vec<_>>(),
+            "delta": d.delta.iter().map(|x| round(*x, 4)).collect::<Vec<_>>(),
+            "z_min": ext(&d.as_built, false), "z_max": ext(&d.as_built, true),
+            "delta_min": ext(&d.delta, false), "delta_max": ext(&d.delta, true),
+            "mass_moved_kg": d.mass_moved_kg}))
+        .into_response())
+    })
+    .await
+}
+
 /// The DEM read routes (the literal paths are matched before the preview's `{name}`).
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -1267,6 +1408,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/dem/heightfield_full/meta", get(dem_heightfield_full_meta))
         .route("/dem/graticule", get(dem_graticule))
         .route("/dem/workarea.png", get(dem_workarea_png))
+        .route("/dem/asbuilt", post(dem_asbuilt))
         .route(
             "/dem/heightfield_full/layer.png",
             get(dem_heightfield_full_layer),
