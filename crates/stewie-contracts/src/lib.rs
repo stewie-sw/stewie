@@ -63,6 +63,12 @@ pub mod package_manifest {
     typify::import_types!(schema = "schema/package_manifest.schema.json");
 }
 
+/// A data package's layers aligned to LOLA laser tracks (navigator N32, RW-60c).
+pub mod package_alignment {
+    #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
+    typify::import_types!(schema = "schema/package_alignment.schema.json");
+}
+
 /// Soil constants beyond the body registry, each with its honesty tag.
 pub mod soil_baseline {
     #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]

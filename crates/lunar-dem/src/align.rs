@@ -14,6 +14,11 @@
 
 /// Residuals further than this many robust sigmas from the median are false returns, not terrain.
 pub const OUTLIER_SIGMAS: f64 = 5.0;
+/// The largest admissible horizontal shift, in pixels of the source.
+pub const MAX_SHIFT_PX: f64 = 1.0;
+/// The residual RMS allowance: this many metres plus `RMS_PER_RESOLUTION` of the cell.
+pub const RMS_BASE_M: f64 = 2.0;
+pub const RMS_PER_RESOLUTION: f64 = 0.05;
 
 use lunar_frames::LatLon;
 
@@ -58,13 +63,14 @@ impl Alignment {
 /// (240 m, 14 m) and 74.6 m (the 1.9 km global grid over the Apennine relief at Hadley, 96.7 m).
 #[must_use]
 pub fn max_residual_rms_m(resolution_m: f64) -> f64 {
-    2.0 + 0.05 * resolution_m
+    RMS_BASE_M + RMS_PER_RESOLUTION * resolution_m
 }
 
 /// Whether an alignment admits its source: shifted by at most one pixel, and within the residual threshold.
 #[must_use]
 pub fn admits(a: &Alignment, resolution_m: f64) -> bool {
-    a.shift_m() <= resolution_m && a.residual_rms_m <= max_residual_rms_m(resolution_m)
+    a.shift_m() <= MAX_SHIFT_PX * resolution_m
+        && a.residual_rms_m <= max_residual_rms_m(resolution_m)
 }
 
 /// A shot moved `east`, `north` metres in its local tangent frame on a sphere of `radius_m`.

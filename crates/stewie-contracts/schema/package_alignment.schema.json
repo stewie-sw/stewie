@@ -1,0 +1,42 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "$id": "https://stewie.space/schema/package_alignment.schema.json",
+ "title": "PackageAlignment",
+ "description": "Every layer of a data package aligned to LOLA laser tracks (navigator N32, RW-60c, D-R105): the best horizontal shift and vertical offset against the pinned LOLA RDR extract that covers it, the residual RMS after setting aside false returns, and whether the layer is admitted (shift within one pixel and RMS within 2 m + 5 % of the resolution). A local crop inherits its parent's alignment. Written by `cargo run -p xtask -- align-packages`; never hand-edited.",
+ "type": "object",
+ "additionalProperties": false,
+ "required": ["package", "policy", "layers"],
+ "properties": {
+  "package": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+  "policy": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": ["outlier_sigmas", "max_shift_px", "rms_base_m", "rms_per_resolution"],
+   "properties": {
+    "outlier_sigmas": {"type": "number", "exclusiveMinimum": 0},
+    "max_shift_px": {"type": "number", "exclusiveMinimum": 0},
+    "rms_base_m": {"type": "number", "minimum": 0},
+    "rms_per_resolution": {"type": "number", "minimum": 0}
+   }
+  },
+  "layers": {"type": "object", "additionalProperties": {"$ref": "#/definitions/LayerAlignment"}}
+ },
+ "definitions": {
+  "LayerAlignment": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "box": {"type": "string", "pattern": "^[a-z0-9_]+$", "description": "The pinned LOLA box (pipeline/lola_tracks.json) the fit used."},
+    "shots_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "shift_east_m": {"type": "number"},
+    "shift_north_m": {"type": "number"},
+    "vertical_offset_m": {"type": "number"},
+    "residual_rms_m": {"type": "number", "minimum": 0},
+    "shots_used": {"type": "integer", "minimum": 1},
+    "shots_rejected": {"type": "integer", "minimum": 0},
+    "admitted": {"type": "boolean"},
+    "inherited_from": {"type": "string", "pattern": "^[a-z0-9_]+$", "description": "A crop's parent layer, whose alignment it carries."}
+   }
+  }
+ }
+}

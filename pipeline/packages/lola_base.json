@@ -25,6 +25,13 @@
  "format": "stewie-package-v1",
  "layers": [
   {
+   "crs": {
+    "center_lat_deg": -90.0,
+    "center_lon_deg": 0.0,
+    "frame": "MEAN EARTH/POLAR AXIS OF DE421",
+    "projection": "polar_stereographic",
+    "radius_m": 1737400.0
+   },
    "id": "ldem_85s_40m",
    "image": {
     "bytes": 115034112,
@@ -44,11 +51,29 @@
     "url": "https://pds-geosciences.wustl.edu/faq.html"
    },
    "priority": 1,
+   "provider": {
+    "data_set": "LRO-L-LOLA-4-GDR-V1.0",
+    "institution": "GODDARD SPACE FLIGHT CENTER",
+    "mission": "LUNAR RECONNAISSANCE ORBITER",
+    "producer": "LRO_LOLA_TEAM"
+   },
+   "quality": {
+    "kind": "none",
+    "note": "no interpolated-pixel mask or error map is installed with this LOLA GDR product"
+   },
    "resolution_m": 40.0,
+   "role": "regional",
    "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_85s_40m.img",
    "version": "V2.0"
   },
   {
+   "crs": {
+    "center_lat_deg": -90.0,
+    "center_lon_deg": 0.0,
+    "frame": "MEAN EARTH/POLAR AXIS OF DE421",
+    "projection": "polar_stereographic",
+    "radius_m": 1737400.0
+   },
    "id": "ldem_75s_240m",
    "image": {
     "bytes": 29062688,
@@ -68,11 +93,29 @@
     "url": "https://pds-geosciences.wustl.edu/faq.html"
    },
    "priority": 2,
+   "provider": {
+    "data_set": "LRO-L-LOLA-4-GDR-V1.0",
+    "institution": "GODDARD SPACE FLIGHT CENTER",
+    "mission": "LUNAR RECONNAISSANCE ORBITER",
+    "producer": "LRO_LOLA_TEAM"
+   },
+   "quality": {
+    "kind": "none",
+    "note": "no interpolated-pixel mask or error map is installed with this LOLA GDR product"
+   },
    "resolution_m": 240.0,
+   "role": "regional",
    "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_240m.img",
    "version": "V2.0"
   },
   {
+   "crs": {
+    "center_lat_deg": 90.0,
+    "center_lon_deg": 0.0,
+    "frame": "MEAN EARTH/POLAR AXIS OF DE421",
+    "projection": "polar_stereographic",
+    "radius_m": 1737400.0
+   },
    "id": "ldem_75n_240m",
    "image": {
     "bytes": 29062688,
@@ -92,11 +135,29 @@
     "url": "https://pds-geosciences.wustl.edu/faq.html"
    },
    "priority": 2,
+   "provider": {
+    "data_set": "LRO-L-LOLA-4-GDR-V1.0",
+    "institution": "GODDARD SPACE FLIGHT CENTER",
+    "mission": "LUNAR RECONNAISSANCE ORBITER",
+    "producer": "LRO_LOLA_TEAM"
+   },
+   "quality": {
+    "kind": "none",
+    "note": "no interpolated-pixel mask or error map is installed with this LOLA GDR product"
+   },
    "resolution_m": 240.0,
+   "role": "regional",
    "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75n_240m.img",
    "version": "V2.1"
   },
   {
+   "crs": {
+    "center_lat_deg": 0.0,
+    "center_lon_deg": 180.0,
+    "frame": "MEAN EARTH/POLAR AXIS OF DE421",
+    "projection": "simple_cylindrical",
+    "radius_m": 1737400.0
+   },
    "id": "ldem_16",
    "image": {
     "bytes": 33177600,
@@ -116,7 +177,18 @@
     "url": "https://pds-geosciences.wustl.edu/faq.html"
    },
    "priority": 9,
+   "provider": {
+    "data_set": "LRO-L-LOLA-4-GDR-V1.0",
+    "institution": "GODDARD SPACE FLIGHT CENTER",
+    "mission": "LUNAR RECONNAISSANCE ORBITER",
+    "producer": "LRO_LOLA_TEAM"
+   },
+   "quality": {
+    "kind": "none",
+    "note": "no interpolated-pixel mask or error map is installed with this LOLA GDR product"
+   },
    "resolution_m": 1895.2094015093426,
+   "role": "base",
    "source": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_16.img",
    "version": "V3.1"
   }

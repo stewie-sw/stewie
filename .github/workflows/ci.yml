@@ -101,6 +101,8 @@ jobs:
         run: (cd pipeline && python3 lola_tracks.py)
       - name: install the lola_base data package (N11) the package and guard tests open; stdlib-only
         run: python3 pipeline/build_package.py
+      - name: every package's LOLA alignment record (RW-60c, N32), and the committed copies unchanged
+        run: cargo run -q --release -p xtask -- align-packages && git diff --exit-code -- pipeline/packages
       - name: the polar map's display tiles from the real 240 m tier (RW-71c), and their web grid fixture unchanged
         run: cargo run -q --release -p xtask -- display-tiles && git diff --exit-code -- web/src/fixtures/display_grid.json
       - run: cargo fmt --all --check

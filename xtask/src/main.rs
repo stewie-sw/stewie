@@ -242,6 +242,57 @@ fn display_tiles(root: &Path) -> ExitCode {
     }
 }
 
+/// RW-60c: every installed package's LOLA alignment record (navigator N32), in the package and as a committed copy
+/// in `pipeline/packages/` (run after `pipeline/build_package.py` and `pipeline/lola_tracks.py`).
+fn align_packages(root: &Path) -> ExitCode {
+    let run = || -> Result<(), String> {
+        let reg: serde_json::Value = serde_json::from_str(include_str!(
+            "../../crates/stewie-contracts/fixtures/bodies.json"
+        ))
+        .map_err(|e| e.to_string())?;
+        let sphere = reg["moon"]["ellipsoid_radius_m"]
+            .as_f64()
+            .and_then(|r| lunar_frames::Sphere::new(r).ok())
+            .ok_or("bodies.json: no moon radius")?;
+        let tracks: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(root.join("pipeline/lola_tracks.json"))
+                .map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| e.to_string())?;
+        let boxes: Vec<(String, PathBuf)> = tracks["boxes"]
+            .as_object()
+            .ok_or("lola_tracks.json: no boxes")?
+            .keys()
+            .map(|k| (k.clone(), root.join(".cache/lola").join(format!("{k}.csv"))))
+            .collect();
+        let mut done = serde_json::Map::new();
+        // lola_base first: the device package's crops inherit from its 40 m tier
+        for name in ["lola_base", "south_polar_sites"] {
+            let dir = root.join(".cache/package").join(name);
+            let parents = done.get("lola_base");
+            let rec = stewie_package::alignment::align_package(&dir, sphere, &boxes, parents)?;
+            let text = serde_json::to_string_pretty(&rec).map_err(|e| e.to_string())? + "\n";
+            for path in [
+                dir.join(stewie_package::alignment::ALIGNMENT_FILE),
+                root.join("pipeline/packages")
+                    .join(format!("{name}.alignment.json")),
+            ] {
+                fs::write(&path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
+                println!("{}", path.display());
+            }
+            done.insert(name.to_owned(), rec);
+        }
+        Ok(())
+    };
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("align packages: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     match std::env::args().nth(1).as_deref() {
@@ -249,9 +300,10 @@ fn main() -> ExitCode {
         Some("wasm-golden") => return wasm_golden(&root),
         Some("web-fixtures") => return web_fixtures(&root),
         Some("display-tiles") => return display_tiles(&root),
+        Some("align-packages") => return align_packages(&root),
         _ => {
             eprintln!(
-                "usage: cargo run -p xtask -- <no-stubs | wasm-golden | web-fixtures | display-tiles>"
+                "usage: cargo run -p xtask -- <no-stubs | wasm-golden | web-fixtures | display-tiles | align-packages>"
             );
             return ExitCode::FAILURE;
         }

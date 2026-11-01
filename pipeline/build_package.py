@@ -57,6 +57,22 @@ def _place(src: str, out_dir: str) -> dict:
     return {"path": os.path.basename(src), "bytes": os.path.getsize(dest), "sha256": fetch.sha256(dest)}
 
 
+def _descriptor(lab: dict, role: str) -> dict:
+    """The navigator N31 descriptor fields a layer's PDS label states: who made it, its CRS and radius, its role,
+    and its quality layer (none is installed with these products, and the descriptor says so)."""
+    projection = {"POLAR STEREOGRAPHIC": "polar_stereographic", "SIMPLE CYLINDRICAL": "simple_cylindrical"}
+    return {
+        "provider": {"producer": lab["PRODUCER_ID"], "institution": lab["PRODUCER_INSTITUTION_NAME"],
+                     "mission": lab["INSTRUMENT_HOST_NAME"], "data_set": lab["DATA_SET_ID"]},
+        "crs": {"projection": projection[lab["MAP_PROJECTION_TYPE"]], "radius_m": float(lab["A_AXIS_RADIUS"]) * 1000.0,
+                "center_lat_deg": float(lab["CENTER_LATITUDE"]), "center_lon_deg": float(lab["CENTER_LONGITUDE"]),
+                "frame": lab["COORDINATE_SYSTEM_NAME"]},
+        "role": role,
+        "quality": {"kind": "none",
+                    "note": "no interpolated-pixel mask or error map is installed with this LOLA GDR product"},
+    }
+
+
 def _layer(lid: str, priority: int, files: dict, entries: dict, out_dir: str) -> dict:
     lab = _label(files[f"{lid}.lbl"])
     radius = float(lab["A_AXIS_RADIUS"]) * 1000.0
@@ -78,7 +94,8 @@ def _layer(lid: str, priority: int, files: dict, entries: dict, out_dir: str) ->
             "image": _place(files[f"{lid}.img"], out_dir), "label": _place(files[f"{lid}.lbl"], out_dir),
             "source": entries[f"{lid}.img"]["url"], "version": lab["PRODUCT_VERSION_ID"],
             "license": PDS_LICENSE, "resolution_m": res,
-            "lat_min_deg": band[0], "lat_max_deg": band[1]}
+            "lat_min_deg": band[0], "lat_max_deg": band[1],
+            **_descriptor(lab, "regional" if kind == "pds_polar_stereographic" else "base")}
 
 
 def build(out_root: str = os.path.join(fetch.CACHE_ROOT, "package")) -> str:
@@ -157,7 +174,8 @@ def _crop_layer(site: str, lat: float, lon: float, files: dict, entries: dict, o
             "source": entries[f"{CROP_SOURCE}.img"]["url"],
             "version": f"{lab['PRODUCT_VERSION_ID']}; crop rows {r0}-{r1 - 1} cols {c0}-{c1 - 1}",
             "license": PDS_LICENSE, "resolution_m": cell,
-            "polar_box_m": [(c0 - s0) * cell, (l0 - (r1 - 1)) * cell, (c1 - 1 - s0) * cell, (l0 - r0) * cell]}
+            "polar_box_m": [(c0 - s0) * cell, (l0 - (r1 - 1)) * cell, (c1 - 1 - s0) * cell, (l0 - r0) * cell],
+            "crop_of": CROP_SOURCE, **_descriptor(lab, "local")}
 
 
 def build_sites(out_root: str = os.path.join(fetch.CACHE_ROOT, "package")) -> str:

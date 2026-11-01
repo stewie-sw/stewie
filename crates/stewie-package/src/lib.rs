@@ -7,6 +7,7 @@
 //! or when any part of the requested time range is outside the ephemeris span. It never returns a partial
 //! answer.
 
+pub mod alignment;
 pub mod display;
 
 use std::fmt;
@@ -36,6 +37,8 @@ pub enum PackageError {
     },
     Dem(DemError),
     Ephemeris(EphemError),
+    /// A layer without a LOLA alignment, or one that fails it (navigator N32): it may not enter the stack.
+    Alignment(String),
 }
 
 impl fmt::Display for PackageError {
@@ -50,6 +53,7 @@ impl fmt::Display for PackageError {
             } => write!(f, "{}: expected {expected}, found {actual}", path.display()),
             PackageError::Dem(e) => write!(f, "{e}"),
             PackageError::Ephemeris(e) => write!(f, "{e}"),
+            PackageError::Alignment(m) => write!(f, "LOLA alignment: {m}"),
         }
     }
 }
@@ -141,6 +145,95 @@ fn verified(dir: &Path, f: &File) -> Result<Vec<u8>, PackageError> {
     Ok(bytes)
 }
 
+/// Every layer has an alignment entry that passes under the code's own policy (navigator N32): a direct fit within
+/// a pixel and within the residual threshold, re-derived from its recorded numbers; or, for a crop, its parent's.
+fn check_alignment(dir: &Path, m: &PackageManifest) -> Result<(), PackageError> {
+    use serde_json::Value;
+    let path = dir.join(alignment::ALIGNMENT_FILE);
+    let text = fs::read_to_string(&path).map_err(|source| PackageError::Io {
+        path: path.clone(),
+        source,
+    })?;
+    let bad = |msg: String| PackageError::Alignment(msg);
+    // the contract first (field names and types), then the rules it cannot state
+    serde_json::from_str::<stewie_contracts::package_alignment::PackageAlignment>(&text)
+        .map_err(|e| bad(format!("{}: {e}", alignment::ALIGNMENT_FILE)))?;
+    let rec: Value = serde_json::from_str(&text).map_err(|e| bad(e.to_string()))?;
+    if rec["policy"] != alignment::policy() {
+        return Err(bad(format!(
+            "the record's policy {} is not this build's {}",
+            rec["policy"],
+            alignment::policy()
+        )));
+    }
+    if rec["package"].as_str() != Some(m.name.as_str()) {
+        return Err(bad(format!(
+            "the record is for {}, not {}",
+            rec["package"],
+            m.name.as_str()
+        )));
+    }
+    let entry = |id: &str| {
+        rec["layers"]
+            .get(id)
+            .ok_or_else(|| bad(format!("{id}: no LOLA alignment")))
+    };
+    let direct_ok = |id: &str, e: &Value, resolution_m: f64| -> Result<(), PackageError> {
+        let num = |k: &str| e[k].as_f64().ok_or_else(|| bad(format!("{id}: no {k}")));
+        let a = lunar_dem::align::Alignment {
+            shift_east_m: num("shift_east_m")?,
+            shift_north_m: num("shift_north_m")?,
+            vertical_offset_m: num("vertical_offset_m")?,
+            residual_rms_m: num("residual_rms_m")?,
+            shots_used: 0,
+            shots_rejected: 0,
+        };
+        if e["admitted"] == Value::Bool(true) && lunar_dem::align::admits(&a, resolution_m) {
+            Ok(())
+        } else {
+            Err(bad(format!(
+                "{id} fails: shift {:.1} m (one pixel is {resolution_m} m), residual {:.2} m (threshold {:.2} m)",
+                a.shift_m(),
+                a.residual_rms_m,
+                lunar_dem::align::max_residual_rms_m(resolution_m)
+            )))
+        }
+    };
+    for l in &m.layers {
+        let id = l.id.as_str();
+        let e = entry(id)?;
+        match e["inherited_from"].as_str() {
+            None => direct_ok(id, e, l.resolution_m)?,
+            Some(parent) => {
+                if l.crop_of.as_ref().map(|c| c.as_str()) != Some(parent) {
+                    return Err(bad(format!(
+                        "{id} inherits from {parent} but is not a crop of it"
+                    )));
+                }
+                let p = m
+                    .layers
+                    .iter()
+                    .find(|x| x.id.as_str() == parent)
+                    .map(|x| x.resolution_m);
+                let pe = rec["layers"]
+                    .get(parent)
+                    .filter(|v| v["inherited_from"].is_null());
+                match (p, pe) {
+                    (Some(res), Some(pe)) => direct_ok(parent, pe, res)?,
+                    // the parent is not installed here: its fit travels with the record
+                    (None, Some(pe)) => direct_ok(parent, pe, l.resolution_m)?,
+                    (_, None) => {
+                        return Err(bad(format!(
+                            "{id}: its parent {parent} has no direct alignment"
+                        )));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 impl Package {
     /// Open the package in `dir` on the registry body's `sphere`.
     ///
@@ -162,6 +255,7 @@ impl Package {
                 manifest.format
             )));
         }
+        check_alignment(dir, &manifest)?;
         let mut stack = TerrainStack::new(Vec::new());
         for l in &manifest.layers {
             let image = verified(dir, &l.image)?;
