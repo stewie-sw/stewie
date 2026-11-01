@@ -60,3 +60,16 @@ def test_binary_coefficients_and_npz_arrays_compare_numerically():
     assert d.errors == []
     d.file("t.npz", npz(h=a, m=np.array([1, 2])), npz(h=a, m=np.array([1, 3])))
     assert len(d.errors) == 1
+
+
+def test_fit_coefficients_compare_against_their_array_scale():
+    # SYNTHETIC coefficients: a small one moving by far more than 1e-9 of itself, but by 1e-15 of the series scale
+    a = np.array([3.0e8, 27.934642494691257, 1.0e5])
+    b = a.copy()
+    b[1] = 27.93464275185851                                               # the runner's measured drift
+    d = C.Drift()
+    d.file("e.bin", a.astype("<f8").tobytes(), b.astype("<f8").tobytes())
+    assert d.errors == []
+    b[1] = 28.5                                                           # a real change
+    d.file("e.bin", a.astype("<f8").tobytes(), b.astype("<f8").tobytes())
+    assert len(d.errors) == 1

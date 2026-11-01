@@ -4,7 +4,9 @@ A byte-identical regeneration holds only on one machine: the hosted runner's lib
 floating-point results by an ULP or so (measured on the CI runner, 2026-11-01: payload values within 7.6e-11
 relative and 8.4e-10 absolute, an error metric near 1e-10 within 3.8e-17). So this compares the working tree
 against HEAD for the given directories exactly in structure, strings, integers and booleans, and within
-``rtol``/``atol`` for floats (JSON numbers, the ephemeris coefficients, ``.npz`` float arrays). A digest is allowed
+``rtol``/``atol`` for floats (JSON numbers, ``.npz`` float arrays; the ephemeris coefficients against 1e-13 of their array's largest
+magnitude, since a least-squares fit spreads input noise unevenly across them, measured 9e-9 relative on one
+coefficient of an ~3e8-scale series). A digest is allowed
 to differ only where it hashes a file this gate compares numerically itself (a fixture's ``payload_sha256`` and
 its ``sources`` entries under ``crates/``, the ephemeris ``bin_sha256``, and a package's ephemeris hashes and
 header size). Source-code hashes stay exact, so a source edited without regenerating its fixture still fails.
@@ -23,6 +25,8 @@ import sys
 
 RTOL = 1e-9
 ATOL = 1e-12
+SCALE_RTOL = 1e-13   # the ephemeris coefficients (.bin): of the array's largest magnitude (1.5e11 m -> 0.015 m, under the
+# fit's own 1e-10 rad on the Moon series, ~0.04 m)
 
 
 def _git(*args: str) -> bytes:
@@ -81,12 +85,17 @@ class Drift:
             else:
                 self.errors.append(f"{path}{ptr}: {a!r} != {b!r}")
 
-    def arrays(self, path: str, name: str, a, b) -> None:
+    def arrays(self, path: str, name: str, a, b, *, scale_relative: bool = False) -> None:
         import numpy as np
         if a.shape != b.shape or a.dtype != b.dtype:
             self.errors.append(f"{path}:{name}: {a.dtype}{a.shape} != {b.dtype}{b.shape}")
         elif np.issubdtype(a.dtype, np.floating):
-            ok = np.isclose(a, b, rtol=RTOL, atol=ATOL, equal_nan=True)
+            # a least-squares fit's coefficients spread an ULP of input noise unevenly: judge each against the
+            # array's scale (SCALE_RTOL of its largest magnitude), not against itself
+            atol = ATOL
+            if scale_relative and a.size:
+                atol = max(ATOL, SCALE_RTOL * float(np.nanmax(np.abs(a))))
+            ok = np.isclose(a, b, rtol=RTOL, atol=atol, equal_nan=True)
             if not ok.all():
                 i = int(np.flatnonzero(~ok.ravel())[0])
                 self.errors.append(f"{path}:{name}[{i}]: {a.ravel()[i]!r} != {b.ravel()[i]!r}")
@@ -111,7 +120,7 @@ class Drift:
             if len(old) != len(new) or len(old) % 8:
                 self.errors.append(f"{path}: {len(old)} bytes != {len(new)}")
             else:
-                self.arrays(path, "f8", np.frombuffer(old, "<f8"), np.frombuffer(new, "<f8"))
+                self.arrays(path, "f8", np.frombuffer(old, "<f8"), np.frombuffer(new, "<f8"), scale_relative=True)
         elif path.endswith(".npz"):
             a, b = np.load(io.BytesIO(old)), np.load(io.BytesIO(new))
             if sorted(a.files) != sorted(b.files):

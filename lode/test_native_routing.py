@@ -77,7 +77,9 @@ def test_native_route_equivalence_and_safety(case):
     path_cost = 0.0                  # the router's edge cost, accumulated as it does
     for (r, c), (nr, nc) in zip(cells, cells[1:]):
         path_cost += math.hypot(nr - r, nc - c) * 0.5 * (float(cost[r, c]) + float(cost[nr, nc]))
-    assert path_cost == pytest.approx(want_cost, rel=1e-9, abs=1e-12)
+    # 1e-7, not an ULP bound: a cell exactly at the slope cap can flip passable with an ULP of tan/arctan, which
+    # moves the optimum slightly (case 3 on an AVX-512 runner: 5.6e-9 relative)
+    assert path_cost == pytest.approx(want_cost, rel=1e-7, abs=1e-12)
     if not reached:
         assert waypoints == [] and terms == {}
         return
