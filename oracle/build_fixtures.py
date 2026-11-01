@@ -2866,6 +2866,86 @@ def state_cases() -> None:
                   ["stewie/server/state.py", "stewie/twin/terrain_view.py", "stewie/twin/terrain_memory.py"],
                   {"dems": dems, "twins": twins, "markers": markers, "composed": composed})
 
+def world_state_cases() -> None:
+    """The world-state authority (RW-55b3c; stewie.server.world_state.WorldStateService): every transition
+    (plan, terrain, resync, belief, execution event) committing one linked snapshot with the untouched sources
+    carried forward, the SR-18 resync recording the twin it mutated (a non-default site), the mandatory
+    provenance, the recent() timeline, and a cold restore that re-seeds the identities from the journal. The
+    journal is recorded byte for byte. Identities, beliefs and patches are SYNTHETIC test inputs (labelled); the
+    twins sit on the real site DEMs."""
+    import hashlib
+    import tempfile
+
+    import stewie.server.state as ST
+    from stewie.server.world_state import WorldStateService
+
+    saved_env = {k: os.environ.get(k) for k in ("STEWIE_DATA_DIR", "STEWIE_DEM_DIR")}
+    saved = (ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS)
+    steps = []
+
+    def rec(op, fn):
+        try:
+            out = fn()
+            steps.append({"op": op, "ok": out})
+        except Exception as e:                              # noqa: BLE001 -- the error is the oracle
+            steps.append({"op": op, "error": f"{type(e).__name__}: {e}"})
+
+    def txn(t):
+        return {"seq": t.seq, "world_sha": t.world_sha, "chain_hash": t.chain_hash, "twin_version": t.twin_version,
+                "twin_hash": t.twin_hash, "plan_id": t.plan_id, "authority_sha": t.authority_sha,
+                "belief": t.belief, "mission": t.mission, "site": t.site, "body": t.body,
+                "mission_t_s": t.mission_t_s, "uncertainty_m": t.uncertainty_m}
+
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ["STEWIE_DATA_DIR"] = d
+            os.environ.pop("STEWIE_DEM_DIR", None)
+            ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS = {}, None, None, {}
+            jp = os.path.join(d, "twin", "world.journal")
+            os.makedirs(os.path.dirname(jp), exist_ok=True)
+            w = WorldStateService(twin=ST.twin, journal_path=jp)
+            rec("record_plan", lambda: txn(w.record_plan(plan_id="plan-0001", provenance="plan accepted",
+                                                         mission="pad-a", site="haworth", body="moon",
+                                                         mission_t_s=10.0)))
+            rec("record_terrain", lambda: txn(w.record_terrain(authority_sha="a1" * 32, provenance="terrain recorded")))
+            other = ST.twin("shackleton_rim")
+            dem, _ = ST.moon_dem("shackleton_rim")
+            other.apply_patch(np.full((2, 2), float(dem[0][100, 200]) + 0.75), origin_rc=(100, 200),
+                              provenance="oracle resync")
+            rec("record_resync", lambda: txn(w.record_resync(provenance="resync at shackleton_rim",
+                                                             site="shackleton_rim", uncertainty_m=0.3, twin=other)))
+            rec("record_belief", lambda: txn(w.record_belief(belief={"pose_xy": [1.5, -2.0], "confidence": 0.8},
+                                                             provenance="belief update", mission_t_s=20.5)))
+            rec("record_execution_event", lambda: txn(w.record_execution_event(
+                provenance="SIM leg: leg 1 complete [ok]", authority_sha="b2" * 32, belief={"pose_xy": [3.0, 4.0]},
+                mission="pad-a", mission_t_s=30.25, uncertainty_m=0.1)))
+            rec("record_plan", lambda: txn(w.record_plan(plan_id="plan-0002", provenance="   ")))
+            # the refused plan still moved the plan identity: the next commit carries it
+            rec("record_belief", lambda: txn(w.record_belief(belief={"pose_xy": [3.0, 4.5]}, provenance="after refusal")))
+            rec("recent", lambda: w.recent(3))
+            rec("recent", lambda: w.recent(0))
+            rec("count", w.transaction_count)
+            rec("verify_chain", w.verify_chain)
+            restored = WorldStateService(twin=ST.twin, journal_path=jp)
+            rec("restored_count", restored.transaction_count)
+            rec("record_plan", lambda: txn(restored.record_plan(plan_id="plan-0003", provenance="after restart")))
+            rec("latest", lambda: txn(restored.latest()))
+            raw = open(jp, "rb").read()
+            journal = {"sha256": hashlib.sha256(raw).hexdigest(), "lines": [json.loads(x) for x in raw.splitlines()]}
+        finally:
+            ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS = saved
+            for k, v in saved_env.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    assert any("error" in s for s in steps)
+    write_fixture(ORACLE_FIXTURES, "world_state_cases", "oracle/build_fixtures.py::world_state_cases "
+                  "(stewie.server.world_state.WorldStateService through one scenario; identities SYNTHETIC, "
+                  "labelled; real site DEMs)",
+                  ["stewie/server/world_state.py", "stewie/twin/envelope.py"],
+                  {"steps": steps, "journal": journal})
+
 def auth_cases() -> None:
     """Server auth core (RW-55a1): stewie.server.auth (session tokens, revocation, roles, proxy trust) and
     stewie.server.operators (the account store) driven through one scripted scenario in a temporary data dir. The
@@ -3715,6 +3795,7 @@ def main() -> None:
     solar_cases()
     flattest_cases()
     state_cases()
+    world_state_cases()
     auth_cases()
     services_cases()
     http_auth_cases()

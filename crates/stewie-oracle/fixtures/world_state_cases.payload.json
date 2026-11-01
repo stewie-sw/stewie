@@ -1,0 +1,388 @@
+{
+ "journal": {
+  "lines": [
+   {
+    "authority_sha": "genesis",
+    "belief": {},
+    "body": "moon",
+    "chain_hash": "8bd1a16d927be529f60f77ff80d385c4122a2683fb31ec064749412193fbf4a6",
+    "mission": "pad-a",
+    "mission_t_s": 10.0,
+    "packet_sha": "",
+    "plan_id": "plan-0001",
+    "prev_hash": "genesis",
+    "provenance": "plan accepted",
+    "seq": 0,
+    "site": "haworth",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "vehicle_sha": "",
+    "world_sha": "c66d5d78f73988b6923bf3d2b236c09585a1538157d1067d20032fa8cc17fd9c"
+   },
+   {
+    "authority_sha": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+    "belief": {},
+    "body": "moon",
+    "chain_hash": "820f280a08a2990e59f27691176b0bc23b4daffd99faaad36ca29c960091bfd8",
+    "mission": "pad-a",
+    "mission_t_s": 10.0,
+    "packet_sha": "",
+    "plan_id": "plan-0001",
+    "prev_hash": "8bd1a16d927be529f60f77ff80d385c4122a2683fb31ec064749412193fbf4a6",
+    "provenance": "terrain recorded",
+    "seq": 1,
+    "site": "haworth",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "vehicle_sha": "",
+    "world_sha": "785182856c6dec6bfa2c1e92ce77d9cb852f95669d3a12ea228009ca8216517c"
+   },
+   {
+    "authority_sha": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+    "belief": {},
+    "body": "moon",
+    "chain_hash": "8150f7aea3801a991c6ba6e3470f1aac4f44eda3b39890e4b34061dc3d809c7b",
+    "mission": "pad-a",
+    "mission_t_s": 10.0,
+    "packet_sha": "",
+    "plan_id": "plan-0001",
+    "prev_hash": "820f280a08a2990e59f27691176b0bc23b4daffd99faaad36ca29c960091bfd8",
+    "provenance": "resync at shackleton_rim",
+    "seq": 2,
+    "site": "shackleton_rim",
+    "twin_hash": "fdf6eb9300811af0c3b5ee2c65e11ea28a341ac707c5777dca0bc0772df8a1ac",
+    "twin_version": 1,
+    "uncertainty_m": 0.3,
+    "vehicle_sha": "",
+    "world_sha": "4e79dd5357e499c1a7a0b08b5d9dced8b3a39ed81a38cbf725b4afeb33e03192"
+   },
+   {
+    "authority_sha": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+    "belief": {
+     "confidence": 0.8,
+     "pose_xy": [
+      1.5,
+      -2.0
+     ]
+    },
+    "body": "moon",
+    "chain_hash": "73a8fa9dc0d5fe10ca966a206ebcda4b6c93c8388c1774210b3ee29600011383",
+    "mission": "pad-a",
+    "mission_t_s": 20.5,
+    "packet_sha": "",
+    "plan_id": "plan-0001",
+    "prev_hash": "8150f7aea3801a991c6ba6e3470f1aac4f44eda3b39890e4b34061dc3d809c7b",
+    "provenance": "belief update",
+    "seq": 3,
+    "site": "shackleton_rim",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "vehicle_sha": "",
+    "world_sha": "6a8f7d63851796ed49495efe2cb8a79160f51b6b7b7fd3d8ab05c30f346e6c6c"
+   },
+   {
+    "authority_sha": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+    "belief": {
+     "pose_xy": [
+      3.0,
+      4.0
+     ]
+    },
+    "body": "moon",
+    "chain_hash": "35a87d94425d6af9fd69ce79bb8d3c380aafb1d36cc3e0219167126b34a5cca7",
+    "mission": "pad-a",
+    "mission_t_s": 30.25,
+    "packet_sha": "",
+    "plan_id": "plan-0001",
+    "prev_hash": "73a8fa9dc0d5fe10ca966a206ebcda4b6c93c8388c1774210b3ee29600011383",
+    "provenance": "SIM leg: leg 1 complete [ok]",
+    "seq": 4,
+    "site": "shackleton_rim",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.1,
+    "vehicle_sha": "",
+    "world_sha": "f6968ce6383892bacff58602add502a388eb1613962f6b3f8c6ec270ba04edfd"
+   },
+   {
+    "authority_sha": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+    "belief": {
+     "pose_xy": [
+      3.0,
+      4.5
+     ]
+    },
+    "body": "moon",
+    "chain_hash": "e57e7d670dba2c8844c1adf8d5f82c14cdbf1500a6400bbee616e48aff4a421c",
+    "mission": "pad-a",
+    "mission_t_s": 30.25,
+    "packet_sha": "",
+    "plan_id": "plan-0002",
+    "prev_hash": "35a87d94425d6af9fd69ce79bb8d3c380aafb1d36cc3e0219167126b34a5cca7",
+    "provenance": "after refusal",
+    "seq": 5,
+    "site": "shackleton_rim",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "vehicle_sha": "",
+    "world_sha": "2d369ff4834f2e6175a5c4a67ece14c9a7c9237c13810db89c582aed0e82edd6"
+   },
+   {
+    "authority_sha": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+    "belief": {
+     "pose_xy": [
+      3.0,
+      4.5
+     ]
+    },
+    "body": "moon",
+    "chain_hash": "c17c538dfeb917249e0a6aa272a08bfa00fb5f2a1741f2034ee1d927113eba4f",
+    "mission": "pad-a",
+    "mission_t_s": 30.25,
+    "packet_sha": "",
+    "plan_id": "plan-0003",
+    "prev_hash": "e57e7d670dba2c8844c1adf8d5f82c14cdbf1500a6400bbee616e48aff4a421c",
+    "provenance": "after restart",
+    "seq": 6,
+    "site": "shackleton_rim",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "vehicle_sha": "",
+    "world_sha": "8e4c7cf0660ca40955eb165aaec154c09ddccc4fdc95423bade42638bdf89824"
+   }
+  ],
+  "sha256": "e6a5cb9479d399073448fa6d3a8998c86f6efdaf7a05a15d88908236870801e1"
+ },
+ "steps": [
+  {
+   "ok": {
+    "authority_sha": "genesis",
+    "belief": {},
+    "body": "moon",
+    "chain_hash": "8bd1a16d927be529f60f77ff80d385c4122a2683fb31ec064749412193fbf4a6",
+    "mission": "pad-a",
+    "mission_t_s": 10.0,
+    "plan_id": "plan-0001",
+    "seq": 0,
+    "site": "haworth",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "world_sha": "c66d5d78f73988b6923bf3d2b236c09585a1538157d1067d20032fa8cc17fd9c"
+   },
+   "op": "record_plan"
+  },
+  {
+   "ok": {
+    "authority_sha": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+    "belief": {},
+    "body": "moon",
+    "chain_hash": "820f280a08a2990e59f27691176b0bc23b4daffd99faaad36ca29c960091bfd8",
+    "mission": "pad-a",
+    "mission_t_s": 10.0,
+    "plan_id": "plan-0001",
+    "seq": 1,
+    "site": "haworth",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "world_sha": "785182856c6dec6bfa2c1e92ce77d9cb852f95669d3a12ea228009ca8216517c"
+   },
+   "op": "record_terrain"
+  },
+  {
+   "ok": {
+    "authority_sha": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+    "belief": {},
+    "body": "moon",
+    "chain_hash": "8150f7aea3801a991c6ba6e3470f1aac4f44eda3b39890e4b34061dc3d809c7b",
+    "mission": "pad-a",
+    "mission_t_s": 10.0,
+    "plan_id": "plan-0001",
+    "seq": 2,
+    "site": "shackleton_rim",
+    "twin_hash": "fdf6eb9300811af0c3b5ee2c65e11ea28a341ac707c5777dca0bc0772df8a1ac",
+    "twin_version": 1,
+    "uncertainty_m": 0.3,
+    "world_sha": "4e79dd5357e499c1a7a0b08b5d9dced8b3a39ed81a38cbf725b4afeb33e03192"
+   },
+   "op": "record_resync"
+  },
+  {
+   "ok": {
+    "authority_sha": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+    "belief": {
+     "confidence": 0.8,
+     "pose_xy": [
+      1.5,
+      -2.0
+     ]
+    },
+    "body": "moon",
+    "chain_hash": "73a8fa9dc0d5fe10ca966a206ebcda4b6c93c8388c1774210b3ee29600011383",
+    "mission": "pad-a",
+    "mission_t_s": 20.5,
+    "plan_id": "plan-0001",
+    "seq": 3,
+    "site": "shackleton_rim",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "world_sha": "6a8f7d63851796ed49495efe2cb8a79160f51b6b7b7fd3d8ab05c30f346e6c6c"
+   },
+   "op": "record_belief"
+  },
+  {
+   "ok": {
+    "authority_sha": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+    "belief": {
+     "pose_xy": [
+      3.0,
+      4.0
+     ]
+    },
+    "body": "moon",
+    "chain_hash": "35a87d94425d6af9fd69ce79bb8d3c380aafb1d36cc3e0219167126b34a5cca7",
+    "mission": "pad-a",
+    "mission_t_s": 30.25,
+    "plan_id": "plan-0001",
+    "seq": 4,
+    "site": "shackleton_rim",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.1,
+    "world_sha": "f6968ce6383892bacff58602add502a388eb1613962f6b3f8c6ec270ba04edfd"
+   },
+   "op": "record_execution_event"
+  },
+  {
+   "error": "ValueError: every world transaction requires non-empty provenance",
+   "op": "record_plan"
+  },
+  {
+   "ok": {
+    "authority_sha": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+    "belief": {
+     "pose_xy": [
+      3.0,
+      4.5
+     ]
+    },
+    "body": "moon",
+    "chain_hash": "e57e7d670dba2c8844c1adf8d5f82c14cdbf1500a6400bbee616e48aff4a421c",
+    "mission": "pad-a",
+    "mission_t_s": 30.25,
+    "plan_id": "plan-0002",
+    "seq": 5,
+    "site": "shackleton_rim",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "world_sha": "2d369ff4834f2e6175a5c4a67ece14c9a7c9237c13810db89c582aed0e82edd6"
+   },
+   "op": "record_belief"
+  },
+  {
+   "ok": [
+    {
+     "authority_sha": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+     "mission": "pad-a",
+     "mission_t_s": 20.5,
+     "plan_id": "plan-0001",
+     "provenance": "belief update",
+     "seq": 3,
+     "twin_version": 0,
+     "world_sha": "6a8f7d63851796ed49495efe2cb8a79160f51b6b7b7fd3d8ab05c30f346e6c6c"
+    },
+    {
+     "authority_sha": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+     "mission": "pad-a",
+     "mission_t_s": 30.25,
+     "plan_id": "plan-0001",
+     "provenance": "SIM leg: leg 1 complete [ok]",
+     "seq": 4,
+     "twin_version": 0,
+     "world_sha": "f6968ce6383892bacff58602add502a388eb1613962f6b3f8c6ec270ba04edfd"
+    },
+    {
+     "authority_sha": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+     "mission": "pad-a",
+     "mission_t_s": 30.25,
+     "plan_id": "plan-0002",
+     "provenance": "after refusal",
+     "seq": 5,
+     "twin_version": 0,
+     "world_sha": "2d369ff4834f2e6175a5c4a67ece14c9a7c9237c13810db89c582aed0e82edd6"
+    }
+   ],
+   "op": "recent"
+  },
+  {
+   "ok": [],
+   "op": "recent"
+  },
+  {
+   "ok": 6,
+   "op": "count"
+  },
+  {
+   "ok": true,
+   "op": "verify_chain"
+  },
+  {
+   "ok": 6,
+   "op": "restored_count"
+  },
+  {
+   "ok": {
+    "authority_sha": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+    "belief": {
+     "pose_xy": [
+      3.0,
+      4.5
+     ]
+    },
+    "body": "moon",
+    "chain_hash": "c17c538dfeb917249e0a6aa272a08bfa00fb5f2a1741f2034ee1d927113eba4f",
+    "mission": "pad-a",
+    "mission_t_s": 30.25,
+    "plan_id": "plan-0003",
+    "seq": 6,
+    "site": "shackleton_rim",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "world_sha": "8e4c7cf0660ca40955eb165aaec154c09ddccc4fdc95423bade42638bdf89824"
+   },
+   "op": "record_plan"
+  },
+  {
+   "ok": {
+    "authority_sha": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+    "belief": {
+     "pose_xy": [
+      3.0,
+      4.5
+     ]
+    },
+    "body": "moon",
+    "chain_hash": "c17c538dfeb917249e0a6aa272a08bfa00fb5f2a1741f2034ee1d927113eba4f",
+    "mission": "pad-a",
+    "mission_t_s": 30.25,
+    "plan_id": "plan-0003",
+    "seq": 6,
+    "site": "shackleton_rim",
+    "twin_hash": "genesis",
+    "twin_version": 0,
+    "uncertainty_m": 0.0,
+    "world_sha": "8e4c7cf0660ca40955eb165aaec154c09ddccc4fdc95423bade42638bdf89824"
+   },
+   "op": "latest"
+  }
+ ]
+}

@@ -80,7 +80,8 @@ pub struct Settings {
 
 impl Settings {
     /// # Errors
-    /// A malformed number, or `STEWIE_CORS_ORIGINS` set (cross-origin access is not served by this server yet;
+    /// A malformed number, `STEWIE_DATABASE_URL` set (the world-transaction projection is not ported), or
+    /// `STEWIE_CORS_ORIGINS` set (cross-origin access is not served by this server yet;
     /// refusing beats silently ignoring a configured allowlist).
     pub fn from_env(get: &dyn Fn(&str) -> Option<String>) -> Result<Self, String> {
         let var = |k: &str| get(k).unwrap_or_default();
@@ -92,6 +93,11 @@ impl Settings {
                 .parse::<f64>()
                 .map_err(|e| format!("{k}={v:?}: {e}"))
         };
+        if !var("STEWIE_DATABASE_URL").trim().is_empty() {
+            return Err("STEWIE_DATABASE_URL is set, but the Rust server does not mirror world transactions to a \
+                        database yet (D-R113); the journal is the authority. Unset it"
+                .to_owned());
+        }
         if !var("STEWIE_CORS_ORIGINS").trim().is_empty() {
             return Err("STEWIE_CORS_ORIGINS is set, but the Rust server serves same-origin only (D-R108); unset it"
                 .to_owned());

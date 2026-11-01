@@ -1,0 +1,9 @@
+{
+ "fixture": "world_state_cases",
+ "generator": "oracle/build_fixtures.py::world_state_cases (stewie.server.world_state.WorldStateService through one scenario; identities SYNTHETIC, labelled; real site DEMs)",
+ "payload_sha256": "149cbc2f9f1688f70456ee26a9d043edab1718df6ed2949915e163cb098aaa23",
+ "sources": {
+  "stewie/server/world_state.py": "6d015fe84522f1b5198b890a1c947a83b705a1d06a3e0e87df90e3dae091395a",
+  "stewie/twin/envelope.py": "9ef45754c82fc20fc7163322eafcef4682f4e1624051b5754fbba6fb69ef85ff"
+ }
+}

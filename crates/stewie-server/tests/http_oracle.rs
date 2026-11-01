@@ -286,3 +286,16 @@ fn startup_refuses_a_configured_cross_origin_allowlist() {
     .unwrap_err();
     assert!(e.contains("same-origin"), "{e}");
 }
+
+#[test]
+fn startup_refuses_a_configured_database_projection() {
+    // SYNTHETIC environment (D-R113: the journal is the authority; the projection is not ported)
+    let env = [("STEWIE_DATABASE_URL", "postgresql://example.invalid/stewie")];
+    let e = stewie_server::app::Settings::from_env(&|k| {
+        env.iter()
+            .find(|(n, _)| *n == k)
+            .map(|(_, v)| (*v).to_owned())
+    })
+    .unwrap_err();
+    assert!(e.contains("D-R113"), "{e}");
+}
