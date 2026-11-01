@@ -1,0 +1,21 @@
+{
+  "learned_model": {
+    "coef": [
+      0.003015672824713417,
+      0.011684584387742931,
+      1.0577037273573437
+    ],
+    "distinct_slopes": 4,
+    "entrap_slope": 16.0,
+    "x_max": 12.0,
+    "x_min": 2.0
+  },
+  "map_channel": {
+    "coverage_dig_gate": 0.6,
+    "observe_dwell_s": 60.0,
+    "onboard_stereo_sigma_m": 0.32,
+    "prior_sigma_m": 5.0,
+    "sensor_radius_m": 8.0,
+    "worksite_margin_m": 10.0
+  }
+}

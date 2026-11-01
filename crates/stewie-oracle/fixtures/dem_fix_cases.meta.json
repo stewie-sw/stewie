@@ -1,0 +1,11 @@
+{
+ "fixture": "dem_fix_cases",
+ "generator": "oracle/build_fixtures.py::dem_fix_cases (lode.autonomy._dem_terrain_fix on the real Haworth DEM)",
+ "payload_sha256": "b8d3ef470fb661619e14aafc6e1e738bb56ba247f33c49ddb4ba7b8bcce5ae65",
+ "sources": {
+  "dart/localization.py": "987a693c021a16ea2e16282934e873349cf71f41dfae80ac7341ce81ac549e6d",
+  "dart/slam_seam.py": "2afc62b6024a36af682b24fd137a61adb9112b230c655183332eec0446e0b695",
+  "lode/autonomy.py": "e4f42dff1611c4ad24231bd2d1e7ffe7b8a670eafe05eb81c6160d0f53079f9e",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc"
+ }
+}

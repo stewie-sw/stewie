@@ -4,6 +4,7 @@
 
 pub mod acceptance;
 pub mod assemble;
+pub mod autonomy;
 pub mod balance;
 pub mod endurance;
 pub mod fleet;

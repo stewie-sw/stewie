@@ -164,6 +164,8 @@ pub struct Planning {
     pub endurance: stewie_plan::endurance::Tables,
     /// What a plan's provenance needs beyond the mission.
     pub provenance: stewie_plan::provenance::Defaults,
+    /// The closed-loop overlay's map-channel constants and learned slip model.
+    pub autonomy: stewie_plan::autonomy::Tables,
 }
 
 impl Planning {
@@ -188,6 +190,10 @@ impl Planning {
             "../../stewie-contracts/fixtures/endurance.json"
         ))
         .map_err(|e| format!("the endurance tables: {e}"))?;
+        let autonomy = serde_json::from_str(include_str!(
+            "../../stewie-contracts/fixtures/autonomy.json"
+        ))
+        .map_err(|e| format!("the autonomy tables: {e}"))?;
         let provenance = serde_json::from_str(include_str!(
             "../../stewie-contracts/fixtures/plan_provenance.json"
         ))
@@ -199,6 +205,7 @@ impl Planning {
             config,
             endurance,
             provenance,
+            autonomy,
         })
     }
 
@@ -282,6 +289,30 @@ impl Planning {
             self.ipex_battery_j()?,
             &prov,
         ))
+    }
+
+    /// The `/plan` response's `autonomy` and `perception` blocks: the closed-loop overlay on `plan` (one rover)
+    /// over `dem` (Python `routers.plan._autonomy_perception`).
+    ///
+    /// # Errors
+    /// The slip ladder refusing a leg's inputs.
+    pub fn autonomy_perception(
+        &self,
+        m: &Mission,
+        inputs: &Inputs,
+        plan: &stewie_plan::assemble::Plan,
+        dem: &Dem<'_>,
+    ) -> Result<(serde_json::Value, serde_json::Value), String> {
+        let ctx = context(m, &self.fleet, &inputs.params)?;
+        let inp = stewie_plan::autonomy::Inputs {
+            ctx: &ctx,
+            gravity_ms2: inputs.params.gravity_ms2,
+            soil: &inputs.soil,
+            slip: &inputs.slip,
+            map: &self.autonomy.map_channel,
+            model: &self.autonomy.learned_model,
+        };
+        stewie_plan::autonomy::autonomy_perception(m, plan, dem, &inp)
     }
 
     /// A mission from its JSON, checked against the registries (the Python's `mission_from_dict`).

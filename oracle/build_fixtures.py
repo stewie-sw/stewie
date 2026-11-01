@@ -5503,6 +5503,80 @@ def timeline_cases() -> None:
                   {"origin": list(origin), "cases": cases})
 
 
+def autonomy_cases() -> None:
+    """The closed-loop autonomy overlay /plan reports (RW-55b14c): routers.plan._autonomy_perception (lode.autonomy
+    with the learned slip pricing) on the bundled sample missions and a mission with a lander beacon (SYNTHETIC
+    placement, labelled) over the real Haworth DEM and its flattest anchor."""
+    from lode import mission_planner as MP
+    from stewie.server import state as ST
+    from stewie.server.routers.plan import _autonomy_perception
+
+    dem, origin = ST.moon_dem("haworth")
+    runs = []
+    for n in ("01_flatten_pad", "02_haul_around_hazard", "03_blocked_infeasible"):
+        with open(os.path.join(REPO, "stewie", "server", "sample_missions", n + ".json")) as fh:
+            runs.append((json.load(fh), "nearest", "time"))
+    beacon = json.loads(json.dumps(runs[1][0]))
+    # near the tile's west edge the scan-match has no full patch, so the lander beacon fixes (10 m away) or, out
+    # of the beacon's range, nothing does
+    west = -origin[0] + 35.0
+    beacon["lander"] = [west + 10.0, 0.0]
+    beacon["orders"] = beacon["orders"] + [{"action": "edge survey", "kind": "goto", "x": west, "y": 0.0},
+                                           {"action": "edge far", "kind": "goto", "x": west, "y": 500.0}]
+    runs.append((beacon, "two_opt", "energy"))
+    cases = []
+    for payload, algo, obj in runs:
+        m = MP.mission_from_dict(payload)
+        autonomy, perception = _autonomy_perception(m, dem, origin, algo, obj)
+        assert autonomy is not None, "the closed loop ran"
+        cases.append({"payload": payload, "algorithm": algo, "objective": obj, "autonomy": autonomy,
+                      "perception": perception})
+    kinds = {k for c in cases for k, n in c["perception"]["localization"]["fix_kinds"].items() if n}
+    assert {"dem", "beacon"} <= kinds, f"vacuity: both fix kinds ({kinds})"
+    write_fixture(ORACLE_FIXTURES, "autonomy_cases", "oracle/build_fixtures.py::autonomy_cases (routers.plan."
+                  "_autonomy_perception on the real Haworth DEM)",
+                  ["lode/autonomy.py", "lode/adaptive_planner.py", "lode/self_optimizing.py", "dart/map_channel.py",
+                   "dart/localization.py", "dart/slam_seam.py", "stewie/server/routers/plan.py",
+                   "stewie/server/sample_missions/01_flatten_pad.json",
+                   "stewie/server/sample_missions/02_haul_around_hazard.json",
+                   "stewie/server/sample_missions/03_blocked_infeasible.json",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"],
+                  {"origin": list(origin), "cases": cases})
+
+
+def dem_fix_cases() -> None:
+    """The DEM scan-match position fix the closed loop uses (RW-55b14c): lode.autonomy._dem_terrain_fix (dart.
+    localization.register_to_dem via slam_seam.dem_position_fix) at poses across the real Haworth tile, each with
+    the dead-reckoned guess drifted by several offsets (the poses and offsets are a SYNTHETIC sampling, labelled;
+    the terrain is real), and near the tile edge where it abstains."""
+    from lode.autonomy import _dem_terrain_fix
+    from stewie.server import state as ST
+
+    dem, origin = ST.moon_dem("haworth")
+    Z, cell = dem
+    H, W = Z.shape
+    poses = []
+    for fr in (0.1, 0.3, 0.5, 0.7, 0.9):
+        for fc in (0.15, 0.45, 0.8):
+            pose = (fc * W * cell - origin[0], fr * H * cell - origin[1])
+            for off in ((0.0, 0.0), (2.5, 0.0), (7.0, -3.0), (12.5, 9.0), (-22.0, 4.0)):
+                poses.append((pose, (pose[0] + off[0], pose[1] + off[1])))
+    poses += [((-origin[0] + 40.0, 0.0), (-origin[0] + 45.0, 0.0)),
+              ((-origin[0] + 120.0, 0.0), (-origin[0] + 82.0, 0.0))]
+    cases = []
+    for pose, guess in poses:
+        fix = _dem_terrain_fix(dem, origin, pose, guess, 0.10)
+        cases.append({"pose": list(pose), "guess": list(guess), "fix": None if fix is None else
+                      {"xy": list(fix["xy"]), "sigma": fix["sigma"], "confidence": fix["confidence"],
+                       "residual_rmse_m": fix["residual_rmse_m"], "shift_cells": list(fix["shift_cells"])}})
+    assert any(c["fix"] is None for c in cases) and any(c["fix"] for c in cases), "vacuity: fixes and abstentions"
+    write_fixture(ORACLE_FIXTURES, "dem_fix_cases", "oracle/build_fixtures.py::dem_fix_cases (lode.autonomy."
+                  "_dem_terrain_fix on the real Haworth DEM)",
+                  ["lode/autonomy.py", "dart/localization.py", "dart/slam_seam.py",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"],
+                  {"origin": list(origin), "cases": cases})
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5625,6 +5699,8 @@ def main() -> None:
     http_planmath_cases()
     endurance_cases()
     timeline_cases()
+    autonomy_cases()
+    dem_fix_cases()
 
 
 if __name__ == "__main__":

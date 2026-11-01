@@ -1729,3 +1729,118 @@ fn the_plan_timeline_and_provenance_match_the_python_on_the_real_haworth_dem() {
     }
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn the_closed_loop_autonomy_overlay_matches_the_python_on_the_real_haworth_dem() {
+    let fx = stewie_oracle::load("autonomy_cases").unwrap().payload;
+    let dir = std::env::temp_dir().join(format!("stewie-autonomy-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let cfg = stewie_oracle::repo_root()
+        .join("deploy/planner.json")
+        .display()
+        .to_string();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+        ("STEWIE_PLANNER_CONFIG", cfg),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"autonomy").into(),
+        n: Mutex::new(0),
+    }));
+    let st = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
+    let (site, origin) = st.terrain.moon_dem("haworth").unwrap();
+    assert_eq!(
+        json!([origin.0, origin.1]),
+        fx["origin"],
+        "the flattest anchor"
+    );
+    let dem = stewie_traverse::route::Dem {
+        z: &site.z,
+        width: site.cols,
+        height: site.rows,
+        cell_m: site.cell_m,
+        origin,
+    };
+    for (i, c) in fx["cases"].as_array().unwrap().iter().enumerate() {
+        let m = st.planning.mission(&c["payload"]).unwrap();
+        let inputs = st.planning.inputs(&m).unwrap();
+        let cfg = stewie_plan::assemble::PlanConfig {
+            algorithm: c["algorithm"].as_str().unwrap(),
+            objective: c["objective"].as_str().unwrap(),
+            vehicles: 1,
+            idle_power_w: inputs.idle_power_w,
+            reallocate_stranded: true,
+        };
+        let plan = stewie_plan::assemble::plan_and_simulate(
+            &m,
+            &st.planning.fleet,
+            &inputs.build(dem, 25.0),
+            &cfg,
+        )
+        .unwrap();
+        let (autonomy, perception) = st
+            .planning
+            .autonomy_perception(&m, &inputs, &plan, &dem)
+            .unwrap();
+        for (got, key) in [(autonomy, "autonomy"), (perception, "perception")] {
+            if let Err(e) = close(&got, &c[key], &format!("case {i} {key}")) {
+                panic!("{e}");
+            }
+        }
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_dem_scan_match_fix_matches_the_python_on_the_real_haworth_dem() {
+    let fx = stewie_oracle::load("dem_fix_cases").unwrap().payload;
+    let dir = std::env::temp_dir().join(format!("stewie-demfix-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"demfix").into(),
+        n: Mutex::new(0),
+    }));
+    let st = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
+    let (site, origin) = st.terrain.moon_dem("haworth").unwrap();
+    assert_eq!(
+        json!([origin.0, origin.1]),
+        fx["origin"],
+        "the flattest anchor"
+    );
+    let dem = stewie_traverse::route::Dem {
+        z: &site.z,
+        width: site.cols,
+        height: site.rows,
+        cell_m: site.cell_m,
+        origin,
+    };
+    let xy = |v: &Value| (v[0].as_f64().unwrap(), v[1].as_f64().unwrap());
+    let cases = fx["cases"].as_array().unwrap();
+    assert!(
+        cases.iter().any(|c| c["fix"].is_null()),
+        "vacuity: an abstention"
+    );
+    for (i, c) in cases.iter().enumerate() {
+        let got = stewie_plan::autonomy::dem_position_fix(&dem, xy(&c["pose"]), xy(&c["guess"]), 0.10).map(|f| {
+            json!({"xy": [f.xy.0, f.xy.1], "sigma": f.sigma, "confidence": f.confidence,
+                   "residual_rmse_m": f.residual_rmse_m, "shift_cells": [f.shift_cells.0, f.shift_cells.1]})
+        });
+        if let Err(e) = close(&json!(got), &c["fix"], &format!("case {i}")) {
+            panic!("{e}");
+        }
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}

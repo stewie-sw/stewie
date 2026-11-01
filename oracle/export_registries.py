@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,autonomy,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
 """
 from __future__ import annotations
 
@@ -116,6 +116,24 @@ def plan_provenance() -> dict:
     mode = MP._plan_provenance.__code__.co_consts
     assert "PLAN" in mode, "the provenance mode literal moved"
     return {"schema_version": MP.PLAN_RESULT_VERSION, "mode": "PLAN", "default_date": date}
+
+
+def autonomy() -> dict:
+    """What the closed-loop autonomy overlay ``/plan`` reports needs (``lode.autonomy``): the map channel's sourced
+    constants (``dart.map_channel``, with ``worksite_bbox``'s margin) and the learned slip-energy model's fitted form
+    (``adaptive_planner.learned_model()``, trained once from controlled drives; the trained artifact, not a
+    training run)."""
+    import inspect
+
+    from dart import map_channel as MC
+    from lode.adaptive_planner import learned_model
+    m = learned_model()
+    margin = inspect.signature(MC.worksite_bbox).parameters["margin_m"].default
+    return {"map_channel": {"onboard_stereo_sigma_m": MC.ONBOARD_STEREO_SIGMA_M, "prior_sigma_m": MC.PRIOR_SIGMA_M,
+                            "sensor_radius_m": MC.SENSOR_RADIUS_M, "coverage_dig_gate": MC.COVERAGE_DIG_GATE,
+                            "observe_dwell_s": MC.OBSERVE_DWELL_S, "worksite_margin_m": margin},
+            "learned_model": {"coef": [float(c) for c in m.coef], "x_min": min(m.X), "x_max": max(m.X),
+                              "distinct_slopes": len(set(m.X)), "entrap_slope": getattr(m, "entrap_slope", None)}}
 
 
 def soil_baseline() -> dict:
@@ -290,6 +308,7 @@ def main() -> None:
     print(_write("model_registries.json", model_registries()))
     print(_write("endurance.json", endurance()))
     print(_write("plan_provenance.json", plan_provenance()))
+    print(_write("autonomy.json", autonomy()))
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))

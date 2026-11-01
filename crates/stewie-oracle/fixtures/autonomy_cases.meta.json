@@ -1,0 +1,18 @@
+{
+ "fixture": "autonomy_cases",
+ "generator": "oracle/build_fixtures.py::autonomy_cases (routers.plan._autonomy_perception on the real Haworth DEM)",
+ "payload_sha256": "75a9de8dc11cd92387afec9b29594b50a6836a4103d6daaaa34337f76041c5c5",
+ "sources": {
+  "dart/localization.py": "987a693c021a16ea2e16282934e873349cf71f41dfae80ac7341ce81ac549e6d",
+  "dart/map_channel.py": "88f864eaa145e775f6a0498b70327460c78f817fd3c35e362ce810b1290f9837",
+  "dart/slam_seam.py": "2afc62b6024a36af682b24fd137a61adb9112b230c655183332eec0446e0b695",
+  "lode/adaptive_planner.py": "75576b5ba5347fe613518bb542a2782e1d264a211364c1df91378eefb057c1b3",
+  "lode/autonomy.py": "e4f42dff1611c4ad24231bd2d1e7ffe7b8a670eafe05eb81c6160d0f53079f9e",
+  "lode/self_optimizing.py": "9a0b6ab781f128c396d8870d0472647b9bb0da569720b5f72156583166ae6d99",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/server/routers/plan.py": "c039109919db9ebdbdd90b1a5223e8ff9f67c64d454e1132420464f5531ee857",
+  "stewie/server/sample_missions/01_flatten_pad.json": "95e2e79b1b238c7630a4a8a232e209b546583c872b9905450657ff0dc9fa15e7",
+  "stewie/server/sample_missions/02_haul_around_hazard.json": "d9b6c8481609061c422e9078c15147ad148ba13ae18f79fbb47fd712ef14d3d9",
+  "stewie/server/sample_missions/03_blocked_infeasible.json": "1bd723c33b713eb4d87bda31f853f65114acec7f68df47b497a80780501cbe32"
+ }
+}

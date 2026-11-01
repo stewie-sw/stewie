@@ -1,0 +1,434 @@
+{
+ "cases": [
+  {
+   "algorithm": "nearest",
+   "autonomy": {
+    "completed": true,
+    "energy_actual_kj": 32136.9,
+    "energy_learned_kj": 32156.8,
+    "energy_naive_kj": 32136.8,
+    "final_soc": 1.0,
+    "max_slip": 0.009,
+    "n_legs": 2,
+    "n_trips": 2,
+    "observe_more": 1,
+    "perception_fixes": 3,
+    "recharges": 7,
+    "replans": 0,
+    "true_vs_nominal_energy": 1.0
+   },
+   "objective": "time",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   },
+   "perception": {
+    "drum_fill_uncertainty_pct": 7.4,
+    "energy_model_sigma_J": 3538605.0,
+    "fix_sigma_m": 0.1,
+    "localization": {
+     "fix_kinds": {
+      "beacon": 0,
+      "dem": 2,
+      "none": 0
+     },
+     "trajectory": [
+      {
+       "est": [
+        10.01,
+        10.0
+       ],
+       "fix": "dem",
+       "sigma": 0.099,
+       "true": [
+        10.0,
+        10.0
+       ]
+      },
+      {
+       "est": [
+        10.0,
+        10.0
+       ],
+       "fix": "dem",
+       "sigma": 0.07,
+       "true": [
+        10.0,
+        10.0
+       ]
+      }
+     ]
+    },
+    "map_coverage": 0.209,
+    "map_fixes": 3,
+    "map_observe_more_before_dig": 1,
+    "map_survey_time_s": 60.0,
+    "map_uncertainty_m": 4.02,
+    "note": "perception-in-the-loop: a map/landmark pose fix per leg bounds dead-reckoning drift; the dig-ready gate observes more before digging when the pose is uncertain OR the dig site's local map coverage is low. map_coverage is the onboard-observability tier (what the route sees) -- the dense observed-map RMSE is the gated render/COLMAP tier (see /render).",
+    "observe_more_before_dig": 1,
+    "pose_sigma_m": 0.1
+   }
+  },
+  {
+   "algorithm": "nearest",
+   "autonomy": {
+    "completed": true,
+    "energy_actual_kj": 46855.6,
+    "energy_learned_kj": 46910.2,
+    "energy_naive_kj": 46855.6,
+    "final_soc": 1.0,
+    "max_slip": 0.004,
+    "n_legs": 2,
+    "n_trips": 2,
+    "observe_more": 1,
+    "perception_fixes": 3,
+    "recharges": 10,
+    "replans": 0,
+    "true_vs_nominal_energy": 1.0
+   },
+   "objective": "time",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 10,
+      "x": 25,
+      "y": 0
+     }
+    ],
+    "name": "Tutorial 2 — haul around a crater keep-out",
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "build berm",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 50,
+      "y": 0
+     }
+    ]
+   },
+   "perception": {
+    "drum_fill_uncertainty_pct": 7.4,
+    "energy_model_sigma_J": 4816007.9,
+    "fix_sigma_m": 0.1,
+    "localization": {
+     "fix_kinds": {
+      "beacon": 0,
+      "dem": 2,
+      "none": 0
+     },
+     "trajectory": [
+      {
+       "est": [
+        0.0,
+        0.0
+       ],
+       "fix": "dem",
+       "sigma": 0.07,
+       "true": [
+        0.0,
+        0.0
+       ]
+      },
+      {
+       "est": [
+        0.0,
+        0.0
+       ],
+       "fix": "dem",
+       "sigma": 0.057,
+       "true": [
+        0.0,
+        0.0
+       ]
+      }
+     ]
+    },
+    "map_coverage": 0.105,
+    "map_fixes": 3,
+    "map_observe_more_before_dig": 0,
+    "map_survey_time_s": 0.0,
+    "map_uncertainty_m": 4.51,
+    "note": "perception-in-the-loop: a map/landmark pose fix per leg bounds dead-reckoning drift; the dig-ready gate observes more before digging when the pose is uncertain OR the dig site's local map coverage is low. map_coverage is the onboard-observability tier (what the route sees) -- the dense observed-map RMSE is the gated render/COLMAP tier (see /render).",
+    "observe_more_before_dig": 1,
+    "pose_sigma_m": 0.05
+   }
+  },
+  {
+   "algorithm": "nearest",
+   "autonomy": {
+    "completed": true,
+    "energy_actual_kj": 46270.4,
+    "energy_learned_kj": 46270.4,
+    "energy_naive_kj": 46270.3,
+    "final_soc": 1.0,
+    "max_slip": 0.008,
+    "n_legs": 2,
+    "n_trips": 2,
+    "observe_more": 1,
+    "perception_fixes": 3,
+    "recharges": 10,
+    "replans": 0,
+    "true_vs_nominal_energy": 1.0
+   },
+   "objective": "time",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 18,
+      "x": 40,
+      "y": 0
+     }
+    ],
+    "name": "Tutorial 3 — INFEASIBLE: fill site has no safe corridor",
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "stranded fill",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 0
+     }
+    ]
+   },
+   "perception": {
+    "drum_fill_uncertainty_pct": 7.4,
+    "energy_model_sigma_J": 5552368.3,
+    "fix_sigma_m": 0.1,
+    "localization": {
+     "fix_kinds": {
+      "beacon": 0,
+      "dem": 2,
+      "none": 0
+     },
+     "trajectory": [
+      {
+       "est": [
+        0.0,
+        0.0
+       ],
+       "fix": "dem",
+       "sigma": 0.07,
+       "true": [
+        0.0,
+        0.0
+       ]
+      },
+      {
+       "est": [
+        40.0,
+        0.0
+       ],
+       "fix": "dem",
+       "sigma": 0.1,
+       "true": [
+        40.0,
+        0.0
+       ]
+      }
+     ]
+    },
+    "map_coverage": 0.242,
+    "map_fixes": 3,
+    "map_observe_more_before_dig": 0,
+    "map_survey_time_s": 0.0,
+    "map_uncertainty_m": 3.87,
+    "note": "perception-in-the-loop: a map/landmark pose fix per leg bounds dead-reckoning drift; the dig-ready gate observes more before digging when the pose is uncertain OR the dig site's local map coverage is low. map_coverage is the onboard-observability tier (what the route sees) -- the dense observed-map RMSE is the gated render/COLMAP tier (see /render).",
+    "observe_more_before_dig": 1,
+    "pose_sigma_m": 0.1
+   }
+  },
+  {
+   "algorithm": "two_opt",
+   "autonomy": {
+    "completed": true,
+    "energy_actual_kj": 46932.9,
+    "energy_learned_kj": 47015.5,
+    "energy_naive_kj": 46922.4,
+    "final_soc": 1.0,
+    "max_slip": 0.131,
+    "n_legs": 4,
+    "n_trips": 4,
+    "observe_more": 1,
+    "perception_fixes": 4,
+    "recharges": 10,
+    "replans": 0,
+    "true_vs_nominal_energy": 1.0
+   },
+   "objective": "energy",
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 10,
+      "x": 25,
+      "y": 0
+     }
+    ],
+    "lander": [
+     -4070.0,
+     0.0
+    ],
+    "name": "Tutorial 2 — haul around a crater keep-out",
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "build berm",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 50,
+      "y": 0
+     },
+     {
+      "action": "edge survey",
+      "kind": "goto",
+      "x": -4080.0,
+      "y": 0.0
+     },
+     {
+      "action": "edge far",
+      "kind": "goto",
+      "x": -4080.0,
+      "y": 500.0
+     }
+    ]
+   },
+   "perception": {
+    "drum_fill_uncertainty_pct": 7.4,
+    "energy_model_sigma_J": 4816013.2,
+    "fix_sigma_m": 0.1,
+    "localization": {
+     "fix_kinds": {
+      "beacon": 1,
+      "dem": 2,
+      "none": 1
+     },
+     "trajectory": [
+      {
+       "est": [
+        0.0,
+        0.0
+       ],
+       "fix": "dem",
+       "sigma": 0.07,
+       "true": [
+        0.0,
+        0.0
+       ]
+      },
+      {
+       "est": [
+        0.0,
+        0.0
+       ],
+       "fix": "dem",
+       "sigma": 0.057,
+       "true": [
+        0.0,
+        0.0
+       ]
+      },
+      {
+       "est": [
+        -4080.0,
+        0.0
+       ],
+       "fix": "beacon",
+       "sigma": 0.222,
+       "true": [
+        -4080.0,
+        0.0
+       ]
+      },
+      {
+       "est": [
+        -4055.0,
+        500.0
+       ],
+       "fix": "none",
+       "sigma": 25.001,
+       "true": [
+        -4080.0,
+        500.0
+       ]
+      }
+     ]
+    },
+    "map_coverage": 0.0,
+    "map_fixes": 4,
+    "map_observe_more_before_dig": 0,
+    "map_survey_time_s": 0.0,
+    "map_uncertainty_m": 5.0,
+    "note": "perception-in-the-loop: a map/landmark pose fix per leg bounds dead-reckoning drift; the dig-ready gate observes more before digging when the pose is uncertain OR the dig site's local map coverage is low. map_coverage is the onboard-observability tier (what the route sees) -- the dense observed-map RMSE is the gated render/COLMAP tier (see /render).",
+    "observe_more_before_dig": 1,
+    "pose_sigma_m": 0.1
+   }
+  }
+ ],
+ "origin": [
+  4115.0,
+  6915.0
+ ]
+}
