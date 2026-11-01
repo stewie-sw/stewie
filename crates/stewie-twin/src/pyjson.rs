@@ -15,11 +15,21 @@ use crate::TwinError;
 /// A non-finite float (Python would write `NaN`/`Infinity`, which is not JSON).
 pub fn dumps(v: &Value) -> Result<String, TwinError> {
     let mut out = String::new();
-    write_value(&mut out, v)?;
+    write_value(&mut out, v, (", ", ": "))?;
     Ok(out)
 }
 
-fn write_value(out: &mut String, v: &Value) -> Result<(), TwinError> {
+/// [`dumps`] with `separators=(",", ":")`: Python's `json.dumps(v, sort_keys=True, separators=(",", ":"))`.
+///
+/// # Errors
+/// A non-finite float.
+pub fn dumps_compact(v: &Value) -> Result<String, TwinError> {
+    let mut out = String::new();
+    write_value(&mut out, v, (",", ":"))?;
+    Ok(out)
+}
+
+fn write_value(out: &mut String, v: &Value, seps: (&str, &str)) -> Result<(), TwinError> {
     match v {
         Value::Null => out.push_str("null"),
         Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
@@ -40,9 +50,9 @@ fn write_value(out: &mut String, v: &Value) -> Result<(), TwinError> {
             out.push('[');
             for (i, x) in a.iter().enumerate() {
                 if i > 0 {
-                    out.push_str(", ");
+                    out.push_str(seps.0);
                 }
-                write_value(out, x)?;
+                write_value(out, x, seps)?;
             }
             out.push(']');
         }
@@ -52,11 +62,11 @@ fn write_value(out: &mut String, v: &Value) -> Result<(), TwinError> {
             out.push('{');
             for (i, k) in keys.into_iter().enumerate() {
                 if i > 0 {
-                    out.push_str(", ");
+                    out.push_str(seps.0);
                 }
                 write_str(out, k);
-                out.push_str(": ");
-                write_value(out, &m[k])?;
+                out.push_str(seps.1);
+                write_value(out, &m[k], seps)?;
             }
             out.push('}');
         }

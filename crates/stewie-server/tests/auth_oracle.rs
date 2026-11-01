@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use stewie_server::auth::{Auth, AuthConfig, peer_trusted};
 use stewie_server::operators::{Store, validate_email};
+use stewie_server::services::{AUDIT_DEFAULT_MAX_BYTES, Ledger};
 use stewie_server::{Clock, Entropy};
 
 /// SYNTHETIC: a settable clock.
@@ -92,11 +93,13 @@ fn the_python_auth_scenario_replays_exactly() {
         n: Mutex::new(0),
     };
     let store = Store::new(dir.clone(), &clock, &bytes);
+    let ledger = Ledger::new(dir.clone(), AUDIT_DEFAULT_MAX_BYTES, &clock);
     let auth = Auth {
         cfg: &cfg,
         store: &store,
         clock: &clock,
         entropy: &bytes,
+        ledger: &ledger,
     };
     let mut s = Vec::new();
     let s = &mut s;

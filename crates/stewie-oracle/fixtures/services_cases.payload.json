@@ -1,0 +1,498 @@
+{
+ "after_rotation": {
+  "live": [
+   {
+    "action": "after.rotation",
+    "actor": "alice",
+    "target": "",
+    "ts": 1800000002.25
+   }
+  ],
+  "rotated": [
+   "events.jsonl.1800000002250"
+  ]
+ },
+ "before_rotation": {
+  "live": [
+   {
+    "action": "auth.login",
+    "actor": "alice",
+    "target": "password",
+    "ts": 1800000000.25
+   },
+   {
+    "action": "plan.run",
+    "actor": "bob",
+    "correlation_id": "cid-0001",
+    "latency_ms": 12.5,
+    "status": 200,
+    "target": "",
+    "token": "[redacted]",
+    "ts": 1800000000.25
+   },
+   {
+    "action": "plan.run",
+    "actor": "bob",
+    "correlation_id": "cid-override",
+    "target": "t",
+    "ts": 1.5
+   },
+   {
+    "action": "operator.approve",
+    "actor": "alice",
+    "critical": true,
+    "role": "trainee",
+    "target": "carol",
+    "ts": 1800000001.25
+   }
+  ],
+  "rotated": []
+ },
+ "clock0": 1800000000.25,
+ "final": {
+  "live": [
+   {
+    "action": "after.rotation",
+    "actor": "alice",
+    "target": "",
+    "ts": 1800000002.25
+   },
+   {
+    "action": "revocation.read_failed",
+    "actor": "system",
+    "target": "<the read error>",
+    "ts": 1800000003.25
+   }
+  ],
+  "rotated": [
+   "events.jsonl.1800000002250"
+  ]
+ },
+ "steps": [
+  {
+   "args": [
+    {
+     "Password": "p",
+     "nested": {
+      "api_key": "k",
+      "keep": [
+       1,
+       {
+        "Token": "t"
+       }
+      ]
+     },
+     "user": "a"
+    }
+   ],
+   "ok": {
+    "Password": "[redacted]",
+    "nested": {
+     "api_key": "[redacted]",
+     "keep": [
+      1,
+      {
+       "Token": "[redacted]"
+      }
+     ]
+    },
+    "user": "a"
+   },
+   "op": "redact"
+  },
+  {
+   "args": [
+    [
+     {
+      "cookie": "c"
+     },
+     "x",
+     3.5
+    ]
+   ],
+   "ok": [
+    {
+     "cookie": "[redacted]"
+    },
+    "x",
+    3.5
+   ],
+   "op": "redact"
+  },
+  {
+   "args": [
+    "plain"
+   ],
+   "ok": "plain",
+   "op": "redact"
+  },
+  {
+   "args": [
+    {
+     "SESSION": {
+      "x": 1
+     },
+     "sessions": 2
+    }
+   ],
+   "ok": {
+    "SESSION": "[redacted]",
+    "sessions": 2
+   },
+   "op": "redact"
+  },
+  {
+   "args": [
+    {
+     "a": [
+      1.5,
+      "é",
+      null,
+      true
+     ],
+     "b": 1
+    }
+   ],
+   "ok": "4310c259a6f903aa",
+   "op": "hash_payload"
+  },
+  {
+   "args": [
+    []
+   ],
+   "ok": "4f53cda18c2baa0c",
+   "op": "hash_payload"
+  },
+  {
+   "args": [
+    "text"
+   ],
+   "ok": "1e1d0f251d3a76fa",
+   "op": "hash_payload"
+  },
+  {
+   "args": [
+    {
+     "z": {
+      "x": 1e+20,
+      "y": 1e-07
+     }
+    }
+   ],
+   "ok": "0ee7764a6f070199",
+   "op": "hash_payload"
+  },
+  {
+   "args": [
+    "rc.goto"
+   ],
+   "ok": true,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "rc.gotox"
+   ],
+   "ok": true,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "rc.go"
+   ],
+   "ok": false,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "operator.approve"
+   ],
+   "ok": true,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "operators"
+   ],
+   "ok": false,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "twin.publish.site"
+   ],
+   "ok": true,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "twin.pub"
+   ],
+   "ok": false,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "auth.login"
+   ],
+   "ok": false,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "admin."
+   ],
+   "ok": true,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "release.x"
+   ],
+   "ok": true,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "executive.release"
+   ],
+   "ok": true,
+   "op": "is_critical_action"
+  },
+  {
+   "args": [
+    "alice",
+    "auth.login",
+    "password"
+   ],
+   "ok": null,
+   "op": "log_event"
+  },
+  {
+   "args": [
+    "bob",
+    "plan.run",
+    "",
+    {
+     "latency_ms": 12.5,
+     "status": 200,
+     "token": "secret-ish"
+    }
+   ],
+   "ok": null,
+   "op": "log_event"
+  },
+  {
+   "args": [
+    "bob",
+    "plan.run",
+    "t",
+    {
+     "correlation_id": "cid-override",
+     "ts": 1.5
+    }
+   ],
+   "ok": null,
+   "op": "log_event"
+  },
+  {
+   "args": [
+    "alice",
+    "operator.approve",
+    "carol",
+    {
+     "role": "trainee"
+    }
+   ],
+   "ok": null,
+   "op": "critical_event"
+  },
+  {
+   "args": [],
+   "ok": {
+    "degraded": false,
+    "failures": 0,
+    "last_error": null
+   },
+   "op": "audit_health"
+  },
+  {
+   "args": [
+    "alice",
+    "after.rotation",
+    ""
+   ],
+   "ok": null,
+   "op": "log_event"
+  },
+  {
+   "args": [
+    "alice",
+    "lost",
+    ""
+   ],
+   "ok": null,
+   "op": "log_event"
+  },
+  {
+   "args": [
+    "alice",
+    "rc.goto",
+    "rover-1"
+   ],
+   "error": "AuditWriteRefused",
+   "op": "critical_event"
+  },
+  {
+   "args": [],
+   "ok": {
+    "degraded": true,
+    "failures": 2,
+    "has_error": true
+   },
+   "op": "audit_health"
+  },
+  {
+   "args": [
+    "00000000000000000000000000000000"
+   ],
+   "ok": true,
+   "op": "is_revoked"
+  },
+  {
+   "args": [],
+   "ok": {
+    "degraded": true,
+    "failures": 1,
+    "has_error": true
+   },
+   "op": "revocation_health"
+  },
+  {
+   "args": [
+    "ip1",
+    0.0,
+    1
+   ],
+   "ok": true,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip1",
+    1.0,
+    1
+   ],
+   "ok": true,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip2",
+    1.5,
+    1
+   ],
+   "ok": true,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip1",
+    2.0,
+    1
+   ],
+   "ok": true,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip1",
+    3.0,
+    1
+   ],
+   "ok": false,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip1",
+    9.99,
+    1
+   ],
+   "ok": false,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip1",
+    10.0,
+    1
+   ],
+   "ok": true,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip1",
+    10.5,
+    2
+   ],
+   "ok": true,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip1",
+    11.0,
+    1
+   ],
+   "ok": false,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip3",
+    0.0,
+    4
+   ],
+   "ok": false,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip3",
+    0.1,
+    0
+   ],
+   "ok": true,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip3",
+    0.2,
+    -5
+   ],
+   "ok": true,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip3",
+    0.3,
+    1
+   ],
+   "ok": true,
+   "op": "rate_allow"
+  },
+  {
+   "args": [
+    "ip3",
+    0.4,
+    1
+   ],
+   "ok": false,
+   "op": "rate_allow"
+  }
+ ]
+}

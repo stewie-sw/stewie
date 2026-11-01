@@ -16,6 +16,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use crate::operators::Store;
+use crate::services::Ledger;
 use crate::{Clock, Entropy};
 
 /// Session lifetime [s].
@@ -132,6 +133,8 @@ pub struct Auth<'a> {
     pub store: &'a Store<'a>,
     pub clock: &'a dyn Clock,
     pub entropy: &'a dyn Entropy,
+    /// Where an unreadable revocation store is reported (health, alert, audit line).
+    pub ledger: &'a Ledger<'a>,
 }
 
 impl std::fmt::Debug for Auth<'_> {
@@ -253,10 +256,17 @@ impl Auth<'_> {
             .collect()
     }
 
-    /// Is `jti` revoked? An unreadable store answers yes (fail closed).
+    /// Is `jti` revoked? An unreadable store answers yes (fail closed), and the failure is made visible:
+    /// degraded revocation health, an alert, and an audit line.
     #[must_use]
     pub fn is_revoked(&self, jti: &str) -> bool {
-        self.revoked_set().map_or(true, |s| s.contains(jti))
+        match self.revoked_set() {
+            Ok(s) => s.contains(jti),
+            Err(e) => {
+                self.ledger.record_revocation_failure(&e);
+                true
+            }
+        }
     }
 
     /// Revoke one session durably, refusing to overwrite an unreadable store.

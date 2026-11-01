@@ -1,9 +1,11 @@
 //! The Rust STEWIE server (RW-55). This slice (RW-55a1) is the identity core: [`auth`] (session tokens,
-//! revocation, roles, trusted-proxy identity) over [`operators`] (the account store). Time and randomness enter
+//! revocation, roles, trusted-proxy identity) over [`operators`] (the account store); RW-55a2a adds [`services`]
+//! (the audit ledger, revocation health, the rate limiter). Time and randomness enter
 //! through [`Clock`] and [`Entropy`], so the oracle replays the Python's scenario with the same clock and bytes.
 
 pub mod auth;
 pub mod operators;
+pub mod services;
 
 /// Wall-clock seconds since the Unix epoch.
 pub trait Clock: Send + Sync {

@@ -1,0 +1,9 @@
+{
+ "fixture": "services_cases",
+ "generator": "oracle/build_fixtures.py::services_cases (stewie.server.services audit ledger + revocation health + ratelimit.RateLimiter through one scripted scenario; pinned clock; every input SYNTHETIC, labelled)",
+ "payload_sha256": "7767aa5cb5b1fbccf05db5c530dddabd8037e4c00dd7d79b061f97f636f3ec83",
+ "sources": {
+  "stewie/server/ratelimit.py": "940381780d32fe526e6226d69b8d0e8b3d9ed6b964d2785f83fd4f85b479eeaa",
+  "stewie/server/services.py": "9e33ed72df5dc42c6afbf1cad70fb6c5d7cc3f7681fa5dfbe383d1934593c876"
+ }
+}

@@ -2905,6 +2905,119 @@ def auth_cases() -> None:
                    "derived_secret_hex": derived})
 
 
+def services_cases() -> None:
+    """Server services (RW-55a2a): stewie.server.services (the audit ledger: durable append, redaction,
+    correlation ids, size rotation, visible failure, the fail-closed critical path, revocation health) and
+    stewie.server.ratelimit.RateLimiter, driven through one scripted scenario in a temporary data dir with a
+    pinned clock. Actors, actions, field values and the clock are SYNTHETIC test inputs (labelled)."""
+    import tempfile
+
+    import stewie.server.auth as A
+    import stewie.server.services as S
+    from stewie.server.ratelimit import RateLimiter
+
+    clock = {"t": 1_800_000_000.25}
+    saved_env = {k: os.environ.get(k) for k in ("STEWIE_DATA_DIR", "STEWIE_AUDIT_MAX_BYTES")}
+    saved_time = S.time.time
+    steps = []
+
+    def rec(op, args, fn):
+        try:
+            out = fn()
+            steps.append({"op": op, "args": args, "ok": out})
+        except Exception as e:                              # noqa: BLE001 -- the error class is the oracle
+            steps.append({"op": op, "args": args, "error": type(e).__name__})
+
+    def ledger(d):
+        names = sorted(os.listdir(d))
+        live = os.path.join(d, "events.jsonl")
+        lines = [json.loads(x) for x in open(live)] if os.path.exists(live) else []
+        return {"rotated": [n for n in names if n.startswith("events.jsonl.")], "live": lines}
+
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ["STEWIE_DATA_DIR"] = d
+            os.environ.pop("STEWIE_AUDIT_MAX_BYTES", None)
+            S.time.time = lambda: clock["t"]
+            S.reset_audit_health()
+            S.reset_revocation_health()
+            S.set_correlation_id(None)
+            # redaction and fingerprints
+            for obj in ({"user": "a", "Password": "p", "nested": {"api_key": "k", "keep": [1, {"Token": "t"}]}},
+                        [{"cookie": "c"}, "x", 3.5], "plain", {"SESSION": {"x": 1}, "sessions": 2}):
+                rec("redact", [obj], lambda obj=obj: S.redact(obj))
+            for obj in ({"b": 1, "a": [1.5, "é", None, True]}, [], "text", {"z": {"y": 1e-7, "x": 1e20}}):
+                rec("hash_payload", [obj], lambda obj=obj: S.hash_payload(obj))
+            for a in ("rc.goto", "rc.gotox", "rc.go", "operator.approve", "operators", "twin.publish.site",
+                      "twin.pub", "auth.login", "admin.", "release.x", "executive.release"):
+                rec("is_critical_action", [a], lambda a=a: S.is_critical_action(a))
+            # the ledger: plain, with a correlation id, with fields (redacted; an explicit correlation id and a
+            # field named like a record key override)
+            rec("log_event", ["alice", "auth.login", "password"], lambda: S.log_event("alice", "auth.login", "password"))
+            clock["t"] += 0.0004
+            S.set_correlation_id("cid-0001")
+            rec("log_event", ["bob", "plan.run", "", {"status": 200, "token": "secret-ish", "latency_ms": 12.5}],
+                lambda: S.log_event("bob", "plan.run", "", status=200, token="secret-ish", latency_ms=12.5))
+            rec("log_event", ["bob", "plan.run", "t", {"correlation_id": "cid-override", "ts": 1.5}],
+                lambda: S.log_event("bob", "plan.run", "t", correlation_id="cid-override", ts=1.5))
+            S.set_correlation_id(None)
+            clock["t"] += 1.0
+            rec("critical_event", ["alice", "operator.approve", "carol", {"role": "trainee"}],
+                lambda: S.critical_event("alice", "operator.approve", "carol", role="trainee"))
+            rec("audit_health", [], S.audit_health)
+            before_rotation = ledger(d)
+            # rotation: a tiny cap rolls the live file before the next append
+            os.environ["STEWIE_AUDIT_MAX_BYTES"] = "64"
+            clock["t"] += 1.0
+            rec("log_event", ["alice", "after.rotation", ""], lambda: S.log_event("alice", "after.rotation", ""))
+            os.environ.pop("STEWIE_AUDIT_MAX_BYTES")
+            after_rotation = ledger(d)
+            # a failed write: plain events degrade visibly and return; a critical one is refused
+            blocked = os.path.join(d, "blocked")
+            open(blocked, "w").write("a file where the data dir should be")
+            os.environ["STEWIE_DATA_DIR"] = os.path.join(blocked, "sub")
+            rec("log_event", ["alice", "lost", ""], lambda: S.log_event("alice", "lost", ""))
+            rec("critical_event", ["alice", "rc.goto", "rover-1"], lambda: S.critical_event("alice", "rc.goto", "rover-1"))
+            h = S.audit_health()
+            rec("audit_health", [], lambda: {"degraded": h["degraded"], "failures": h["failures"],
+                                             "has_error": h["last_error"] is not None})
+            os.environ["STEWIE_DATA_DIR"] = d
+            # revocation health: a corrupt revocation store denies, degrades, and is audited
+            open(os.path.join(d, "revoked_jti.json"), "w").write("[not json")
+            clock["t"] += 1.0
+            rec("is_revoked", ["0" * 32], lambda: A.is_revoked("0" * 32))
+            r = S.revocation_health()
+            rec("revocation_health", [], lambda: {"degraded": r["degraded"], "failures": r["failures"],
+                                                  "has_error": r["last_error"] is not None})
+            final = ledger(d)
+            for line in final["live"]:
+                if line["action"] == "revocation.read_failed":
+                    line["target"] = "<the read error>"          # the error text is each language's own
+            # the fixed-window rate limiter
+            rl = RateLimiter(3, 10.0)
+            for key, now, cost in (("ip1", 0.0, 1), ("ip1", 1.0, 1), ("ip2", 1.5, 1), ("ip1", 2.0, 1), ("ip1", 3.0, 1),
+                                   ("ip1", 9.99, 1), ("ip1", 10.0, 1), ("ip1", 10.5, 2), ("ip1", 11.0, 1),
+                                   ("ip3", 0.0, 4), ("ip3", 0.1, 0), ("ip3", 0.2, -5), ("ip3", 0.3, 1),
+                                   ("ip3", 0.4, 1)):
+                rec("rate_allow", [key, now, cost], lambda key=key, now=now, cost=cost: rl.allow(key, now=now, cost=cost))
+        finally:
+            S.time.time = saved_time
+            S.set_correlation_id(None)
+            S.reset_audit_health()
+            S.reset_revocation_health()
+            for k, v in saved_env.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    write_fixture(ORACLE_FIXTURES, "services_cases", "oracle/build_fixtures.py::services_cases (stewie.server.services "
+                  "audit ledger + revocation health + ratelimit.RateLimiter through one scripted scenario; pinned "
+                  "clock; every input SYNTHETIC, labelled)",
+                  ["stewie/server/services.py", "stewie/server/ratelimit.py"],
+                  {"clock0": 1_800_000_000.25, "steps": steps, "before_rotation": before_rotation,
+                   "after_rotation": after_rotation, "final": final})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
@@ -2946,6 +3059,7 @@ def main() -> None:
     illumination_cases()
     solar_cases()
     auth_cases()
+    services_cases()
 
 
 if __name__ == "__main__":
