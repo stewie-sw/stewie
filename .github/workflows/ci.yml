@@ -90,6 +90,8 @@ jobs:
         run: rustup show active-toolchain
       # CI-OPT: restore the cargo registry, target dir and installed binaries (wasm-bindgen-cli) from the last run
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
+        with:
+          cache-on-failure: true   # a red run still warms the next one
       - name: external inputs (NAIF kernels, PDS LOLA LDEM) pinned by sha256 in pipeline manifests; stdlib-only fetch
         run: python3 pipeline/fetch.py
       - name: LOLA RDR shot extracts for the alignment check (RW-60c), pinned by query and sha256; stdlib-only
@@ -123,6 +125,8 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - run: node --version
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
+        with:
+          cache-on-failure: true   # a red run still warms the next one
       - name: real terrain for the engine tests (PDS LOLA tiers, sha256-pinned) and the device package built from it
         run: python3 pipeline/fetch.py terrain_sources.json && python3 pipeline/build_package.py
         working-directory: .
@@ -219,7 +223,7 @@ jobs:
           test -s /tmp/sbom.json
 
   # CI-OPT: the suite was the critical path (~23 min on a 2-core runner, run three times). Each Python now runs
-  # it in four shards (whole test files by path hash, conftest.py STEWIE_TEST_SHARD); 3.11 records coverage,
+  # it in four shards (whole test files by path hash, conftest.py CI_TEST_SHARD); 3.11 records coverage,
   # which the `coverage` job combines and gates (fail_under from pyproject). Each shard keeps the two passes:
   # the xdist pool, then the fd-sensitive `serial` tests in one process (a co-located test corrupts an xdist
   # worker's fd table under `-n auto`, OSError [Errno 9]; test_admin's backup/replicate are the victims).
@@ -232,7 +236,7 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]   # floor is 3.11 (requires-python; deps need >=3.11)
         shard: [1, 2, 3, 4]
     env:
-      STEWIE_TEST_SHARD: ${{ matrix.shard }}/4
+      CI_TEST_SHARD: ${{ matrix.shard }}/4
       COV: ${{ matrix.python-version == '3.11' && '--cov --cov-report=' || '' }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
@@ -248,7 +252,7 @@ jobs:
           pip install -e packages/stewie-bodies --no-deps   # PO-17: shim re-exports this standalone package
           pip install -e packages/stewie-forge --no-deps    # PO-18: shim re-exports this standalone package
       - name: Test (parallel pool; fd-sensitive `serial` tests run in the next step)
-        run: pytest -n auto -m "not serial" -p no:cacheprovider $COV --cov-fail-under=0
+        run: pytest -n auto --dist loadgroup -m "not serial" -p no:cacheprovider $COV --cov-fail-under=0
       - name: Serial fd-sensitive tests (out of the xdist pool; a shard without any exits 5, nothing selected)
         run: pytest -m serial -p no:cacheprovider $COV ${COV:+--cov-append} --cov-fail-under=0 || [ $? -eq 5 ]
       - if: matrix.python-version == '3.11'

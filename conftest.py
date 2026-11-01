@@ -30,16 +30,16 @@ import pytest  # noqa: E402 -- must follow the backend pin above
 
 
 def pytest_collection_modifyitems(config, items):
-    """CI sharding: with STEWIE_TEST_SHARD=k/n, run only the test files whose path hash falls in shard k of n
+    """CI sharding: with CI_TEST_SHARD=k/n, run only the test files whose path hash falls in shard k of n
     (whole files, so module fixtures and the fd-sensitive `serial` grouping stay intact). The rest are reported
     as deselected, never silently dropped; every file lands in exactly one shard."""
-    spec = os.environ.get("STEWIE_TEST_SHARD", "").strip()
+    spec = os.environ.get("CI_TEST_SHARD", "").strip()
     if not spec:
         return
     import zlib
     k, n = (int(v) for v in spec.split("/"))
     if not 1 <= k <= n:
-        raise pytest.UsageError(f"STEWIE_TEST_SHARD={spec!r}: need 1 <= k <= n")
+        raise pytest.UsageError(f"CI_TEST_SHARD={spec!r}: need 1 <= k <= n")
     keep, drop = [], []
     for item in items:
         path = item.nodeid.split("::", 1)[0]

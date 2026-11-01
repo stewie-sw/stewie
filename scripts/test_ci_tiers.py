@@ -55,10 +55,10 @@ def test_ci_gates_traceability_and_coverage_on_the_core_tier():
 
 def test_ci_shards_cover_the_whole_suite():
     """[REQ:PO-04] sharding never drops tests: the matrix lists every shard 1..n of the n the jobs split by
-    (conftest.py STEWIE_TEST_SHARD, whole files by path hash, each in exactly one shard)."""
+    (conftest.py CI_TEST_SHARD, whole files by path hash, each in exactly one shard)."""
     test = _jobs()["test"]
     shards = test["strategy"]["matrix"]["shard"]
-    n = int(test["env"]["STEWIE_TEST_SHARD"].rsplit("/", 1)[1])
+    n = int(test["env"]["CI_TEST_SHARD"].rsplit("/", 1)[1])
     assert sorted(shards) == list(range(1, n + 1))
 
 

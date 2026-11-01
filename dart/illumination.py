@@ -140,30 +140,46 @@ def horizon_clip(heightmap: np.ndarray, cell_m: float,
     # has no horizon information past its own edge (Product-69 caveat).
     max_steps = int(np.hypot(n_rows, n_cols)) + 1
 
-    rows = np.arange(n_rows)[:, None]
-    cols = np.arange(n_cols)[None, :]
-
     # M-07: a non-finite (nodata) up-sun sample must neither occlude nor silently pass. We replace NaN
     # with -inf for the bilinear OCCLUDER height (a nodata cell cannot be an occluder), and separately
     # mark the source pixels' own validity at the end. The step is a unit vector, so |step|==1 and each
     # k advances exactly one cell of distance in every azimuth (no repeated/skipped samples).
     h_occ = np.where(np.isfinite(h), h, -np.inf)
+    # The tallest terrain the REST of a ray can sample: project every cell onto the up-sun direction (t), take
+    # the per-bucket maximum and its suffix maximum. A step-k sample lies at projection t_p + k (a unit step);
+    # its bilinear stencil reaches at most sqrt(2) cells behind that, so suffix_max[t_p + k - 1.5] bounds every
+    # occluder from step k on. The bound only falls with k and the line of sight only rises, so a pixel whose
+    # line of sight clears it is settled. (A margin covers a bilinear sample rounding a few ULP above its corners.)
+    rr, cc = np.indices((n_rows, n_cols))
+    t_cell = rr * d_row + cc * d_col
+    t_min = float(t_cell.min())
+    bucket = np.floor(t_cell - t_min).astype(np.intp)
+    ahead_max = np.full(int(bucket.max()) + 1, -np.inf)
+    np.maximum.at(ahead_max, bucket.ravel(), h_occ.ravel())
+    ahead_max = np.maximum.accumulate(ahead_max[::-1])[::-1]
+    ahead_max = ahead_max + 1e-9 * np.maximum(1.0, np.abs(np.where(np.isfinite(ahead_max), ahead_max, 0.0)))
 
     illuminated = np.ones_like(h, dtype=bool)
-    last_in_bounds = max_steps        # cap k so the BILINEAR stencil (needs +1 cell) stays in-bounds
+    # Only UNSETTLED pixels are marched (same per-pixel arithmetic, so the mask is bit-identical to marching
+    # all of them): a shadowed pixel stays shadowed (`illuminated` only ever loses pixels), a ray that has left
+    # the tile never re-enters it (a straight ray out of a rectangle), and a pixel whose line of sight already
+    # clears the highest terrain still ahead of it can never be overtopped (the line of sight only rises with k).
+    act_r, act_c = np.nonzero(np.ones((n_rows, n_cols), dtype=bool))
+    act_h = h[act_r, act_c]
+    act_t = t_cell[act_r, act_c] - t_min - 1.5          # bucket coordinate of the stencil's trailing edge, k = 0
 
     for k in range(1, max_steps + 1):
+        if act_r.size == 0:
+            break  # every ray is settled: shadowed, off the tile, or above every occluder.
         # Continuous sun-ward sample position at distance k (cells) along the up-sun unit vector.
-        sr = rows + k * d_row
-        sc = cols + k * d_col
+        sr = act_r + k * d_row
+        sc = act_c + k * d_col
 
         # Bilinear stencil bounds: a sample needs cells (r0,c0)..(r0+1,c0+1). Keep the lower corner in
         # [0, n-2] and mask any sample whose true position is outside the tile.
         r0 = np.floor(sr).astype(np.intp)
         c0 = np.floor(sc).astype(np.intp)
         in_bounds = (sr >= 0) & (sr <= n_rows - 1) & (sc >= 0) & (sc <= n_cols - 1)
-        if not in_bounds.any():
-            break  # every ray has walked off the tile; no farther horizon to test.
 
         r0c = np.clip(r0, 0, n_rows - 2)
         c0c = np.clip(c0, 0, n_cols - 2)
@@ -180,13 +196,14 @@ def horizon_clip(heightmap: np.ndarray, cell_m: float,
 
         # Horizontal run to the sampled point [m] and the line-of-sight height there (|step|==1).
         dist_m = k * cell_m
-        los_height = h + dist_m * tan_el
+        los_height = act_h + dist_m * tan_el
 
         # An up-sun sample taller than the line of sight casts this pixel into shadow.
         blocked = in_bounds & (h_sample > los_height)
-        illuminated &= ~blocked
-
-    _ = last_in_bounds  # documented cap; loop already breaks once every ray is off-tile.
+        illuminated[act_r[blocked], act_c[blocked]] = False
+        bound = ahead_max[np.clip(np.floor(act_t + k).astype(np.intp), 0, ahead_max.size - 1)]
+        keep = in_bounds & ~blocked & ~(los_height > bound)
+        act_r, act_c, act_h, act_t = act_r[keep], act_c[keep], act_h[keep], act_t[keep]
 
     # non-finite (nodata) SOURCE cells: unknown height -> NOT claimed illuminated (conservative;
     # audit 2026-06-09). Occluder nodata was handled as -inf above.

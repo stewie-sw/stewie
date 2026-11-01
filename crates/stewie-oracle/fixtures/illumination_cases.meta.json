@@ -5,7 +5,7 @@
  "sources": {
   "crates/stewie-oracle/fixtures/ephem_topocentric.payload.json": "5402265f5c152548a7a3628f1f7326d352b94d79089f31c614278d38c74fa219",
   "crates/stewie-oracle/fixtures/route_cases.payload.json": "dd7a5f7b493440ec88903bfd2d6547a0b5084ff6326f03884b413334beb35eb0",
-  "dart/illumination.py": "36d5dfb6f74dc425d451db5f085cb12bdd804d0014b1cc85d2ac30104e0a94c2",
+  "dart/illumination.py": "bb43958cd3e92f5d0235ef8edd5e46b67751c3f418afbb7b435a168a98d2e298",
   "dart/illumination_cost.py": "97caceed3e6fe34dd46140ac96b203e06a61cc887453b060604d4b1acffdf9ec",
   "dart/shadow_predict.py": "36ab660a957ba18260805391876c89798b03c61b01f8c9c9d5c878f63b85d27f",
   "dart/visibility.py": "911493d62d206aa189c213f7953ae69f68f945db9a18965fe9b84343e3cf9182"

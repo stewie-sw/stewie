@@ -26,11 +26,13 @@ import numpy as np
 import pytest
 
 # The module-scoped built_samples fixture builds all 9 legacy scenes + the real-LOLA DEM ONCE;
-# the per-call cost is dart.illumination.horizon_clip (a per-pixel shadow ray-march, ~500-600s
-# single-threaded). Under CI `-n auto` parallel load that wall-clock flakes past the global 600s
-# pytest-timeout cap (the build competes for cores), so this legitimately-slow, pre-existing
-# module gets explicit headroom. Not a regression -- horizon_clip perf is a tracked product item.
-pytestmark = pytest.mark.timeout(1500)
+# the per-call cost is dart.illumination.horizon_clip (a per-pixel shadow ray-march; the full Haworth
+# tile took 167 s and takes 33 s since the march drops settled pixels, 2026-11-01). Under CI `-n auto`
+# parallel load that wall-clock can still pass the global 600s pytest-timeout cap (the build competes
+# for cores), so this legitimately-slow module keeps explicit headroom.
+# one xdist worker runs the whole module (`--dist loadgroup` in CI): the module fixture builds every scene and the
+# full-tile DEM scene, and under the default distribution each worker that drew a test rebuilt it
+pytestmark = [pytest.mark.timeout(1500), pytest.mark.xdist_group("terrain_scenes")]
 
 from stewie.specs import constants as K
 from stewie.terrain import scenes
@@ -65,15 +67,23 @@ def built_samples(tmp_path_factory):
     Exercises every builder (the nine legacy scenes) AND the DEM hook in main(); returns the
     tmp root. The committed samples/ tree is left untouched (asserted below).
     """
+    import contextlib
+    import io
     out = tmp_path_factory.mktemp("samples_built")
     orig = scenes.SAMPLES_DIR
     scenes.SAMPLES_DIR = str(out)
+    printed = io.StringIO()
     try:
-        rc = scenes.main()
+        with contextlib.redirect_stdout(printed):   # main()'s DEM hook status, checked by the hook test
+            rc = scenes.main()
     finally:
         scenes.SAMPLES_DIR = orig
     assert rc == 0
+    _MAIN_OUTPUT["text"] = printed.getvalue()
     return str(out)
+
+
+_MAIN_OUTPUT: dict[str, str] = {}
 
 
 def _height_from_fields(fields: dict) -> np.ndarray:
@@ -563,11 +573,11 @@ def test_build_from_dem_no_craters_path():
 
 
 @pytest.mark.skipif(not _DEM_PRESENT, reason="committed DEM scene not on disk")
-def test_build_dem_scene_hook_runs(capsys):
+def test_build_dem_scene_hook_runs(built_samples):
     """build_dem_scene() is the main() hook: it builds in-RAM and prints a status line; it must
-    not raise and must report the wired stack for the committed DEM scene."""
-    scenes.build_dem_scene()
-    out = capsys.readouterr().out
+    not raise and must report the wired stack for the committed DEM scene. main() runs the hook in the
+    module fixture, so this reads the line that run printed rather than building the whole tile again."""
+    out = _MAIN_OUTPUT["text"]
     assert "build_from_dem" in out
     assert "coarsen==base=True" in out
 
