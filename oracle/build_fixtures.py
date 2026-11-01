@@ -4718,6 +4718,54 @@ def http_dem_cases() -> None:
                   ["stewie/server/routers/dem.py", "stewie/terrain/site_dem.py", "dart/dem_sources.py"], payload)
 
 
+def http_spec_cases() -> None:
+    """The specification reads (RW-55b7a): /contracts/schema, /ephemeris (the analytic sun), the 3D Tiles route and
+    the /fleet roster, through one scripted session (_http_session). The tileset files are SYNTHETIC (labelled)."""
+    import stewie.server.routers.tiles as _T
+    from stewie.specs import solar as _S
+
+    # the Python's sun prefers SPICE when its kernels are present: point it at the pipeline's pinned copies
+    # (pipeline/fetch.py -> .cache/spice) so every host, CI included, answers from SPICE, not the mean-motion fallback
+    _S._KERNEL_DIR = os.path.join(REPO, ".cache", "spice")
+    assert _S.spice_available(), "the pinned NAIF kernels (pipeline/fetch.py) are needed"
+
+    def script(call, key, d, clock):
+        tdir = os.path.join(d, "tiles", "twin")                          # SYNTHETIC tileset (labelled)
+        os.makedirs(tdir)
+        with open(os.path.join(tdir, "tileset.json"), "w") as fh:
+            json.dump({"asset": {"version": "1.0"}, "geometricError": 12.5, "root": {"content": {"uri": "points.pnts"}}}, fh)
+        with open(os.path.join(tdir, "points.pnts"), "wb") as fh:
+            fh.write(bytes(range(64)))
+        saved_dir, _T._TILES_DIR = _T._TILES_DIR, os.path.realpath(os.path.join(d, "tiles"))
+        try:
+            call("GET", "/contracts/schema")
+            call("GET", "/ephemeris")
+            call("GET", "/ephemeris?mission_t_s=86400&lat_deg=-89.5&lon_deg=120")
+            call("GET", "/ephemeris?site=shackleton_rim&mission_t_s=1000000")
+            call("GET", "/ephemeris?site=adhoc_-87500_45250&mission_t_s=-5000.5")
+            call("GET", "/ephemeris?site=atlantis&mission_t_s=2551442.976")
+            call("GET", "/ephemeris?lat_deg=-91")
+            call("GET", "/ephemeris?lon_deg=400&mission_t_s=abc")
+            call("GET", "/ephemeris?site=" + "s" * 65)
+            call("GET", "/tiles/twin/tileset.json")                                   # no key
+            call("GET", "/tiles/twin/tileset.json", headers=key)
+            call("GET", "/tiles/twin/points.pnts", headers=key)
+            call("GET", "/tiles/twin/missing.json", headers=key)
+            call("GET", "/tiles/twin/..%2F..%2Foutside.json", headers=key)
+            call("GET", "/tiles/twin/sub/../tileset.json", headers=key)
+            call("GET", "/fleet")                                                     # no key
+            call("GET", "/fleet", headers=key)
+        finally:
+            _T._TILES_DIR = saved_dir
+
+    payload = _http_session("stewie-http-spec-oracle", {"STEWIE_TILES_DIR": "{data_dir}/tiles"}, script)
+    write_fixture(ORACLE_FIXTURES, "http_spec_cases", "oracle/build_fixtures.py::http_spec_cases (the FastAPI app's "
+                  "contract-schema, ephemeris, tiles and fleet routes; a SYNTHETIC tileset, labelled)",
+                  ["stewie/server/routers/schema.py", "stewie/server/routers/ephemeris.py",
+                   "stewie/server/routers/tiles.py", "stewie/server/routers/fleet.py", "stewie/specs/solar.py",
+                   "stewie/specs/vehicles.py"], payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -4828,6 +4876,7 @@ def main() -> None:
     http_world_cases()
     contour_cases()
     http_dem_cases()
+    http_spec_cases()
 
 
 if __name__ == "__main__":

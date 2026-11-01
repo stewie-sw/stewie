@@ -61,6 +61,11 @@
       "provenance": "[CALIB] energy = constants.SINTER_ENERGY_J_PER_KG (thermodynamic floor); product density = constants.RHO_SINTERED (microwave-sinter measured). Its host platform's mass/power are not sourced -> kept as a tool, not a fabricated vehicle."
     }
   },
+  "vehicle_order": [
+    "ipex",
+    "ez_rassor",
+    "rassor2"
+  ],
   "vehicles": {
     "ez_rassor": {
       "capabilities": [

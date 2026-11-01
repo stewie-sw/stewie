@@ -84,6 +84,8 @@ pub struct Settings {
     /// The public 3D viewer's per-IP quota: `STEWIE_VIZ_QUOTA_MAX` (240) per `STEWIE_VIZ_QUOTA_WINDOW_S` (60 s).
     pub viz_quota_max: i64,
     pub viz_window_s: f64,
+    /// `STEWIE_TILES_DIR`: the Cesium 3D Tiles tilesets (default the checkout's `out/colmap`).
+    pub tiles_dir: std::path::PathBuf,
     /// `STEWIE_SITE_VECTORS` and `STEWIE_GIS_DATA_DIR`: where the visible-pin site vectors are found.
     pub site_vectors: Option<String>,
     pub gis_data_dir: Option<String>,
@@ -130,6 +132,15 @@ impl Settings {
             world_window_s: num("STEWIE_WORLD_QUOTA_WINDOW_S", "60")?,
             viz_quota_max: num("STEWIE_VIZ_QUOTA_MAX", "240")? as i64,
             viz_window_s: num("STEWIE_VIZ_QUOTA_WINDOW_S", "60")?,
+            tiles_dir: get("STEWIE_TILES_DIR")
+                .filter(|v| !v.is_empty())
+                .map_or_else(
+                    || {
+                        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .join("../../out/colmap")
+                    },
+                    std::path::PathBuf::from,
+                ),
             site_vectors: get("STEWIE_SITE_VECTORS").filter(|v| !v.is_empty()),
             gis_data_dir: get("STEWIE_GIS_DATA_DIR").filter(|v| !v.is_empty()),
         })
@@ -931,6 +942,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::twin::routes())
         .merge(crate::world_routes::routes())
         .merge(crate::dem_routes::routes())
+        .merge(crate::spec_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

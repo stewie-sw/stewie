@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas}.json
 """
 from __future__ import annotations
 
@@ -164,6 +164,7 @@ def fleet() -> dict:
           "render_assets", "onboard_power", "ui_visible", "provenance")
     return {"actions": sorted(V.ACTIONS), "default_vehicle": V.DEFAULT_VEHICLE, "default_charger": V.DEFAULT_CHARGER,
             "vehicles": {k: rec(v, vk) for k, v in V.VEHICLES.items()},
+            "vehicle_order": list(V.VEHICLES),
             "tools": {k: rec(t, ("label", "capability", "energy_j_per_kg", "product_density_kg_m3", "provenance"))
                       for k, t in V.TOOLS.items()},
             "power_sources": {k: rec(p, ("label", "kind", "capacity_j", "recharge_w", "continuous_w", "mass_kg",
@@ -177,6 +178,15 @@ def dem_sources() -> dict:
     planning_grade (a render-only product is display-only)."""
     from dart.dem_sources import list_dem_sources
     return {"sources": [{**dataclasses.asdict(s), "planning_grade": s.planning_grade} for s in list_dem_sources()]}
+
+
+def contract_schemas() -> dict:
+    """The JSON Schema of every onboard-autonomy spine contract, as GET /contracts/schema serves them (the router's
+    own contract table, so the list cannot drift)."""
+    from stewie import contracts as C
+    from stewie.server.routers.schema import _SPINE
+    return {"spine_version": C.SPINE_VERSION, "order": list(_SPINE),
+            "schemas": {name: model.model_json_schema() for name, model in _SPINE.items()}}
 
 
 def _write(name: str, data: dict) -> str:
@@ -195,6 +205,7 @@ def main() -> None:
     print(_write("eva_crew.json", eva_crew()))
     print(_write("fleet.json", fleet()))
     print(_write("dem_sources.json", dem_sources()))
+    print(_write("contract_schemas.json", contract_schemas()))
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ pub mod planning;
 pub mod point;
 pub mod raster;
 pub mod services;
+pub mod spec_routes;
 pub mod state;
 pub mod twin;
 pub mod validate;

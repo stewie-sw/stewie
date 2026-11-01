@@ -1502,6 +1502,7 @@ dependencies = [
  "http-body-util",
  "httpdate",
  "lunar-dem",
+ "lunar-ephem",
  "lunar-frames",
  "pbkdf2",
  "png",

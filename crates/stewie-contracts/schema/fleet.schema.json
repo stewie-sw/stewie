@@ -12,7 +12,8 @@
     "vehicles",
     "tools",
     "power_sources",
-    "chargers"
+    "chargers",
+    "vehicle_order"
   ],
   "definitions": {
     "Action": {
@@ -278,6 +279,15 @@
       "additionalProperties": {
         "$ref": "#/definitions/Vehicle"
       }
+    },
+    "vehicle_order": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "description": "The registry's own vehicle order (the roster's order); the vehicles map is serialised with sorted keys."
     },
     "tools": {
       "type": "object",

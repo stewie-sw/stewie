@@ -211,7 +211,15 @@ async fn replay(
         .as_object()
         .unwrap()
         .iter()
-        .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned()))
+        // `{data_dir}` stands for the session's own data directory (the oracle's was a temp dir of its own)
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                v.as_str()
+                    .unwrap()
+                    .replace("{data_dir}", &dir.display().to_string()),
+            )
+        })
         .collect();
     env.insert("STEWIE_DATA_DIR".into(), dir.display().to_string());
     // the committed planner parameters (the Python planner's own values, D-R115)
@@ -771,6 +779,47 @@ async fn the_python_dem_session_replays_exactly() {
                     assert!(d < 1e-9, "{path} {key}[{i}].{c}: off by {d}");
                     *got = exp.clone();
                 }
+            }
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_python_spec_session_replays_exactly() {
+    replay(
+        "http_spec_cases",
+        b"stewie-http-spec-oracle",
+        |i, step, clock, dir| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+            // the oracle's tileset, written before its first request (SYNTHETIC, labelled)
+            if i == 0 {
+                let t = dir.join("tiles").join("twin");
+                std::fs::create_dir_all(&t).unwrap();
+                std::fs::write(
+                    t.join("tileset.json"),
+                    r#"{"asset": {"version": "1.0"}, "geometricError": 12.5, "root": {"content": {"uri": "points.pnts"}}}"#,
+                )
+                .unwrap();
+                std::fs::write(t.join("points.pnts"), (0..64).collect::<Vec<u8>>()).unwrap();
+            }
+        },
+        |step, body| {
+            // D-R131: the Rust sun is the bundled DE440 pack, named as such; the Python answered from SPICE but labels
+            // every answer `analytic`. The two agree to 1e-6 deg (RW-15).
+            let path = step["request"]["path"].as_str().unwrap_or("");
+            if !path.starts_with("/ephemeris") || step["status"] != 200 {
+                return;
+            }
+            let (got, want) = (&mut body["ephemeris"], &step["body"]["ephemeris"]);
+            assert_eq!(got["source"], "de440", "{path}: source");
+            assert_eq!(want["source"], "analytic", "{path}: the Python's label");
+            got["source"] = want["source"].clone();
+            for k in ["sun_az_deg", "sun_el_deg"] {
+                let d = (got[k].as_f64().unwrap() - want[k].as_f64().unwrap()).abs();
+                let d = if k == "sun_az_deg" { d.min(360.0 - d) } else { d };
+                assert!(d < 1e-6, "{path} {k}: off by {d} deg");
+                got[k] = want[k].clone();
             }
         },
     )

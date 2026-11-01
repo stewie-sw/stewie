@@ -1,0 +1,808 @@
+{
+  "order": [
+    "EphemerisObservation",
+    "VehicleState",
+    "FleetState",
+    "ResourceReservation",
+    "WorldState",
+    "BeliefState",
+    "PlanResult",
+    "ExecutionEvent",
+    "NavFactor",
+    "ModelArtifact",
+    "ConstructionSkill"
+  ],
+  "schemas": {
+    "BeliefState": {
+      "additionalProperties": false,
+      "description": "FS-04/FS-07: one rover's estimator belief -- map-relative pose + uncertainty + localization\nhealth. localized=False means the estimate has diverged and a relocalization stop is due (SN-10).",
+      "properties": {
+        "col": {
+          "title": "Col",
+          "type": "number"
+        },
+        "last_relocalization_t_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Relocalization T S"
+        },
+        "localized": {
+          "default": true,
+          "title": "Localized",
+          "type": "boolean"
+        },
+        "pos_sigma_m": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Pos Sigma M",
+          "type": "number"
+        },
+        "row": {
+          "title": "Row",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "vehicle_id": {
+          "title": "Vehicle Id",
+          "type": "string"
+        },
+        "yaw_rad": {
+          "default": 0.0,
+          "title": "Yaw Rad",
+          "type": "number"
+        },
+        "yaw_sigma_rad": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Yaw Sigma Rad",
+          "type": "number"
+        }
+      },
+      "required": [
+        "vehicle_id",
+        "row",
+        "col"
+      ],
+      "title": "BeliefState",
+      "type": "object"
+    },
+    "ConstructionSkill": {
+      "additionalProperties": false,
+      "description": "FS-13 / \u00a725.3: a recorded construction/docking movement primitive. `closed_loop` MUST be True --\nno primitive replays open-loop; estimator feedback + safing checks are part of it. Carries the step\ncount, the approval gate, and an acceptance note (uncertainty bands live with the acceptance event).",
+      "properties": {
+        "acceptance_note": {
+          "default": "",
+          "title": "Acceptance Note",
+          "type": "string"
+        },
+        "approved": {
+          "default": false,
+          "title": "Approved",
+          "type": "boolean"
+        },
+        "closed_loop": {
+          "default": true,
+          "title": "Closed Loop",
+          "type": "boolean"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "n_steps": {
+          "minimum": 1,
+          "title": "N Steps",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "skill_id": {
+          "title": "Skill Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill_id",
+        "name",
+        "kind",
+        "version",
+        "n_steps"
+      ],
+      "title": "ConstructionSkill",
+      "type": "object"
+    },
+    "EphemerisObservation": {
+      "additionalProperties": false,
+      "description": "FS-06 / \u00a725.3: the SINGLE ephemeris+azimuth authority record that every shadow, illumination,\nnavigation-risk, camera-policy, and Navigation consumer reads. ``azimuth_convention`` is REQUIRED and\nexplicit -- no consumer may assume a private convention; it is shared, tested, and UI-displayed.",
+      "properties": {
+        "azimuth_convention": {
+          "title": "Azimuth Convention",
+          "type": "string"
+        },
+        "body": {
+          "default": "moon",
+          "title": "Body",
+          "type": "string"
+        },
+        "frame": {
+          "default": "MOON_ME",
+          "title": "Frame",
+          "type": "string"
+        },
+        "mission_t_s": {
+          "title": "Mission T S",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "site_lat_deg": {
+          "maximum": 90.0,
+          "minimum": -90.0,
+          "title": "Site Lat Deg",
+          "type": "number"
+        },
+        "site_lon_deg": {
+          "maximum": 360.0,
+          "minimum": -360.0,
+          "title": "Site Lon Deg",
+          "type": "number"
+        },
+        "source": {
+          "default": "spice",
+          "title": "Source",
+          "type": "string"
+        },
+        "sun_az_deg": {
+          "exclusiveMaximum": 360.0,
+          "minimum": 0.0,
+          "title": "Sun Az Deg",
+          "type": "number"
+        },
+        "sun_el_deg": {
+          "maximum": 90.0,
+          "minimum": -90.0,
+          "title": "Sun El Deg",
+          "type": "number"
+        },
+        "uncertainty_deg": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Uncertainty Deg",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mission_t_s",
+        "site_lat_deg",
+        "site_lon_deg",
+        "sun_az_deg",
+        "sun_el_deg",
+        "azimuth_convention"
+      ],
+      "title": "EphemerisObservation",
+      "type": "object"
+    },
+    "ExecutionEvent": {
+      "additionalProperties": false,
+      "description": "FS-04: one timestamped event on the execution timeline -- command issued, leg complete, conflict,\nacceptance, safe, replan. The Fleet/Report panes render these; the mission executive emits them.",
+      "properties": {
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "outcome": {
+          "default": "ok",
+          "title": "Outcome",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "t_s": {
+          "title": "T S",
+          "type": "number"
+        },
+        "vehicle_id": {
+          "title": "Vehicle Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "t_s",
+        "vehicle_id",
+        "kind"
+      ],
+      "title": "ExecutionEvent",
+      "type": "object"
+    },
+    "FleetState": {
+      "$defs": {
+        "ResourceReservation": {
+          "additionalProperties": false,
+          "description": "A fleet shared-resource claim over [t_start, t_end) -- the contract-layer mirror of\nlode.fleet_resources.Reservation (FL-03).",
+          "properties": {
+            "resource_id": {
+              "title": "Resource Id",
+              "type": "string"
+            },
+            "schema_version": {
+              "default": "1.0",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "t_end": {
+              "title": "T End",
+              "type": "number"
+            },
+            "t_start": {
+              "title": "T Start",
+              "type": "number"
+            },
+            "vehicle_id": {
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "resource_id",
+            "vehicle_id",
+            "t_start",
+            "t_end"
+          ],
+          "title": "ResourceReservation",
+          "type": "object"
+        },
+        "VehicleState": {
+          "additionalProperties": false,
+          "description": "FS-04: one rover's PHYSICAL state -- the actual pose + soc/slip/sinkage/status, i.e. simulation\nTRUTH or live TELEMETRY. This is DISTINCT from BeliefState (the onboard estimator's belief about its\npose + uncertainty): the same rover from two stances -- what it IS vs what it THINKS it is, whose\ndifference is the drift the cockpit shows. PO-10 / \u00a725.3 require labelling truth vs belief vs live;\nthis is the truth/telemetry side. Domains are bounded (soc/slip in [0,1]) so a bad value is rejected\nat the boundary.",
+          "properties": {
+            "col": {
+              "title": "Col",
+              "type": "number"
+            },
+            "entrapped": {
+              "default": false,
+              "title": "Entrapped",
+              "type": "boolean"
+            },
+            "role": {
+              "default": "ipex",
+              "title": "Role",
+              "type": "string"
+            },
+            "row": {
+              "title": "Row",
+              "type": "number"
+            },
+            "schema_version": {
+              "default": "1.0",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "sinkage_m": {
+              "default": 0.0,
+              "minimum": 0.0,
+              "title": "Sinkage M",
+              "type": "number"
+            },
+            "slip": {
+              "default": 0.0,
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "title": "Slip",
+              "type": "number"
+            },
+            "soc": {
+              "default": 1.0,
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "title": "Soc",
+              "type": "number"
+            },
+            "status": {
+              "default": "idle",
+              "title": "Status",
+              "type": "string"
+            },
+            "vehicle_id": {
+              "title": "Vehicle Id",
+              "type": "string"
+            },
+            "yaw_rad": {
+              "default": 0.0,
+              "title": "Yaw Rad",
+              "type": "number"
+            }
+          },
+          "required": [
+            "vehicle_id",
+            "row",
+            "col"
+          ],
+          "title": "VehicleState",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "FS-04: the coordinated fleet snapshot the Fleet pane renders -- per-vehicle state, the active\nshared-resource reservations, and the conflict count (0 = fully deconflicted; \u00a725.3 requires both\nthe backend result and the UI to represent conflicts).",
+      "properties": {
+        "conflicts": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Conflicts",
+          "type": "integer"
+        },
+        "reservations": {
+          "items": {
+            "$ref": "#/$defs/ResourceReservation"
+          },
+          "title": "Reservations",
+          "type": "array"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "vehicles": {
+          "items": {
+            "$ref": "#/$defs/VehicleState"
+          },
+          "title": "Vehicles",
+          "type": "array"
+        }
+      },
+      "title": "FleetState",
+      "type": "object"
+    },
+    "ModelArtifact": {
+      "additionalProperties": false,
+      "description": "FS-12 / \u00a725.3: a registered learned model. Every field that gates safe deployment is explicit;\n`command_path` MUST be False -- no learned model directly controls the rover (it emits typed\nestimates; deterministic planners + safety + role gates + the executive decide command emission).",
+      "properties": {
+        "calibrated": {
+          "default": false,
+          "title": "Calibrated",
+          "type": "boolean"
+        },
+        "command_path": {
+          "default": false,
+          "title": "Command Path",
+          "type": "boolean"
+        },
+        "dataset_lineage": {
+          "title": "Dataset Lineage",
+          "type": "string"
+        },
+        "eval_split": {
+          "title": "Eval Split",
+          "type": "string"
+        },
+        "fallback": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback"
+        },
+        "input_schema": {
+          "default": "",
+          "title": "Input Schema",
+          "type": "string"
+        },
+        "latency_budget_ms": {
+          "default": 0.0,
+          "title": "Latency Budget Ms",
+          "type": "number"
+        },
+        "memory_budget_mb": {
+          "default": 0.0,
+          "title": "Memory Budget Mb",
+          "type": "number"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ood_detector": {
+          "default": false,
+          "title": "Ood Detector",
+          "type": "boolean"
+        },
+        "output_schema": {
+          "default": "",
+          "title": "Output Schema",
+          "type": "string"
+        },
+        "quantization": {
+          "default": "fp32",
+          "title": "Quantization",
+          "type": "string"
+        },
+        "rollback_to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rollback To"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model_id",
+        "name",
+        "version",
+        "task",
+        "dataset_lineage",
+        "eval_split"
+      ],
+      "title": "ModelArtifact",
+      "type": "object"
+    },
+    "NavFactor": {
+      "additionalProperties": false,
+      "description": "FS-07 (PM-07): one pose-graph factor from the Navigation articulation/shadow/parallax loop. `accepted`\nis the residual-gate verdict -- a rejected factor (false closure / bad shadow match) never enters the\ngraph. `information` (inverse-covariance scale) is non-negative.",
+      "properties": {
+        "accepted": {
+          "title": "Accepted",
+          "type": "boolean"
+        },
+        "factor_id": {
+          "title": "Factor Id",
+          "type": "string"
+        },
+        "information": {
+          "default": 1.0,
+          "minimum": 0.0,
+          "title": "Information",
+          "type": "number"
+        },
+        "keyframe_i": {
+          "minimum": 0,
+          "title": "Keyframe I",
+          "type": "integer"
+        },
+        "keyframe_j": {
+          "minimum": 0,
+          "title": "Keyframe J",
+          "type": "integer"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "residual": {
+          "title": "Residual",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "factor_id",
+        "kind",
+        "keyframe_i",
+        "keyframe_j",
+        "residual",
+        "accepted"
+      ],
+      "title": "NavFactor",
+      "type": "object"
+    },
+    "PlanResult": {
+      "additionalProperties": false,
+      "description": "CP-01/FS-02: the immutable plan SUMMARY one plan produces and every consumer shares (totals,\nfeasibility, makespan). The full per-leg Plan IR lives in the planner; this is the typed headline.\nThe cockpit's dashboard strip + CONOPS line consume this via the adapters.js view model (FS-15).",
+      "properties": {
+        "blocked_legs": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Blocked Legs",
+          "type": "integer"
+        },
+        "cut_passes": {
+          "default": 1,
+          "minimum": 0,
+          "title": "Cut Passes",
+          "type": "integer"
+        },
+        "drum_cycles": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Drum Cycles",
+          "type": "integer"
+        },
+        "energy_j": {
+          "minimum": 0.0,
+          "title": "Energy J",
+          "type": "number"
+        },
+        "feasible": {
+          "title": "Feasible",
+          "type": "boolean"
+        },
+        "makespan_s": {
+          "minimum": 0.0,
+          "title": "Makespan S",
+          "type": "number"
+        },
+        "mass_moved_kg": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Mass Moved Kg",
+          "type": "number"
+        },
+        "n_orders": {
+          "minimum": 0,
+          "title": "N Orders",
+          "type": "integer"
+        },
+        "plan_id": {
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "recharges": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Recharges",
+          "type": "integer"
+        },
+        "resolved_algorithm": {
+          "default": "",
+          "title": "Resolved Algorithm",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "vehicles": {
+          "minimum": 1,
+          "title": "Vehicles",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "plan_id",
+        "feasible",
+        "n_orders",
+        "vehicles",
+        "makespan_s",
+        "energy_j"
+      ],
+      "title": "PlanResult",
+      "type": "object"
+    },
+    "ResourceReservation": {
+      "additionalProperties": false,
+      "description": "A fleet shared-resource claim over [t_start, t_end) -- the contract-layer mirror of\nlode.fleet_resources.Reservation (FL-03).",
+      "properties": {
+        "resource_id": {
+          "title": "Resource Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "t_end": {
+          "title": "T End",
+          "type": "number"
+        },
+        "t_start": {
+          "title": "T Start",
+          "type": "number"
+        },
+        "vehicle_id": {
+          "title": "Vehicle Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource_id",
+        "vehicle_id",
+        "t_start",
+        "t_end"
+      ],
+      "title": "ResourceReservation",
+      "type": "object"
+    },
+    "VehicleState": {
+      "additionalProperties": false,
+      "description": "FS-04: one rover's PHYSICAL state -- the actual pose + soc/slip/sinkage/status, i.e. simulation\nTRUTH or live TELEMETRY. This is DISTINCT from BeliefState (the onboard estimator's belief about its\npose + uncertainty): the same rover from two stances -- what it IS vs what it THINKS it is, whose\ndifference is the drift the cockpit shows. PO-10 / \u00a725.3 require labelling truth vs belief vs live;\nthis is the truth/telemetry side. Domains are bounded (soc/slip in [0,1]) so a bad value is rejected\nat the boundary.",
+      "properties": {
+        "col": {
+          "title": "Col",
+          "type": "number"
+        },
+        "entrapped": {
+          "default": false,
+          "title": "Entrapped",
+          "type": "boolean"
+        },
+        "role": {
+          "default": "ipex",
+          "title": "Role",
+          "type": "string"
+        },
+        "row": {
+          "title": "Row",
+          "type": "number"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sinkage_m": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Sinkage M",
+          "type": "number"
+        },
+        "slip": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Slip",
+          "type": "number"
+        },
+        "soc": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Soc",
+          "type": "number"
+        },
+        "status": {
+          "default": "idle",
+          "title": "Status",
+          "type": "string"
+        },
+        "vehicle_id": {
+          "title": "Vehicle Id",
+          "type": "string"
+        },
+        "yaw_rad": {
+          "default": 0.0,
+          "title": "Yaw Rad",
+          "type": "number"
+        }
+      },
+      "required": [
+        "vehicle_id",
+        "row",
+        "col"
+      ],
+      "title": "VehicleState",
+      "type": "object"
+    },
+    "WorldState": {
+      "additionalProperties": false,
+      "description": "FS-02 (TW-05): the authoritative terrain/twin snapshot DESCRIPTOR -- grid geometry, datum,\nprovenance, observed coverage, and whether construction has mutated the terrain vs the prior DEM.\nThe raw rasters live in the twin store; the contract carries the metadata a consumer reasons over.",
+      "properties": {
+        "body": {
+          "default": "moon",
+          "title": "Body",
+          "type": "string"
+        },
+        "cell_m": {
+          "exclusiveMinimum": 0.0,
+          "title": "Cell M",
+          "type": "number"
+        },
+        "cols": {
+          "exclusiveMinimum": 0,
+          "title": "Cols",
+          "type": "integer"
+        },
+        "datum_radius_m": {
+          "default": 1737400,
+          "title": "Datum Radius M",
+          "type": "integer"
+        },
+        "dem_source": {
+          "default": "haworth_10km_5m",
+          "title": "Dem Source",
+          "type": "string"
+        },
+        "frame": {
+          "default": "MOON_ME",
+          "title": "Frame",
+          "type": "string"
+        },
+        "mutated": {
+          "default": false,
+          "title": "Mutated",
+          "type": "boolean"
+        },
+        "observed_fraction": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Observed Fraction",
+          "type": "number"
+        },
+        "rows": {
+          "exclusiveMinimum": 0,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rows",
+        "cols",
+        "cell_m"
+      ],
+      "title": "WorldState",
+      "type": "object"
+    }
+  },
+  "spine_version": "1.0"
+}
