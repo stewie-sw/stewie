@@ -5108,6 +5108,111 @@ def http_missions_cases() -> None:
                   ["stewie/server/routers/missions.py", "stewie/server/objects.py", "stewie/server/deps.py"], payload)
 
 
+def http_library_cases() -> None:
+    """The asset library (RW-55b10): browse, search, inspect, export and recover through one scripted session
+    (_http_session). The durable stores are laid down first (``seed_files``): a Terrain Memory written by the
+    Python's own TerrainMemory (two missions) and a torn one, a twin journal, report files and a DEM bundle tree
+    that STEWIE_DEM_DIR points into; the missions and templates are saved through the API. All of it is SYNTHETIC
+    (labelled). File mtimes differ between hosts, so a record's mtime-derived ``created`` is kept as ``<mtime>``."""
+    import base64
+    import tempfile
+
+    from stewie.twin.terrain_memory import TerrainMemory
+
+    mem = TerrainMemory(site="haworth", rows=4, cols=5, cell_m=2.0, origin=(-4.0, -5.0))
+    first = np.zeros((4, 5))
+    first[1, 2], first[2, 2] = -0.25, -0.125
+    mem.apply(first, mission="pad-cut", mass_moved_kg=1234.5)
+    second = np.zeros((4, 5))
+    second[3, 4] = 0.375
+    mem.apply(second, mission="berm-fill", mass_moved_kg=600.0)
+    with tempfile.TemporaryDirectory() as t:
+        mem.save(os.path.join(t, "m.npz"))
+        with open(os.path.join(t, "m.npz"), "rb") as fh:
+            npz = fh.read()
+        mem.site = "shoemaker"
+        mem.chain[0]["mission"] = "edited-after-the-fact"                  # SYNTHETIC tamper: the chain breaks
+        mem.save(os.path.join(t, "x.npz"))
+        with open(os.path.join(t, "x.npz"), "rb") as fh:
+            tampered = fh.read()
+    seed_files = {"terrain_memory/haworth.npz": npz, "terrain_memory/broken.npz": b"SYNTHETIC torn npz",
+                  "terrain_memory/shoemaker.npz": tampered,
+                  "twin/haworth.journal": b'{"e": 1}\n\n{"e": 2}\n   \n{"e": 3}\n',
+                  "reports/plan_a.pdf": b"%PDF SYNTHETIC", "reports/plan_a.md": b"# SYNTHETIC plan a\n",
+                  "reports/plan_b.md": b"# SYNTHETIC plan b\n", "reports/notes.txt": b"not a report",
+                  "dems/b1/metadata.json": json.dumps({"producer": "SYNTHETIC producer",
+                                                       "grid": {"rows": 2, "cols": 3}}).encode(),
+                  "dems/b1/z.bin": b"0123456789", "dems/b1/sub/x.bin": b"abcde",
+                  "dems/b2/metadata.json": b"{not json", "dems/b3/data.bin": b"no metadata",
+                  "dems/b4/metadata.json": json.dumps({"producer": "", "grid": {}}).encode()}
+    mtime_types = ("report", "site", "twin", "dem")
+
+    def script(call, key, d, clock):
+        for rel, data in seed_files.items():
+            os.makedirs(os.path.dirname(os.path.join(d, rel)), exist_ok=True)
+            with open(os.path.join(d, rel), "wb") as fh:
+                fh.write(data)
+        os.environ["STEWIE_DEM_DIR"] = os.path.join(d, "dems", "b1")
+        guest = {"X-Stewie-Anon-Key": "anon-key-xyz"}
+        try:
+            call("POST", "/missions/Haul%20One", headers=key, raw=json.dumps({"body": "moon", "orders": [{"a": 1}]}))
+            call("POST", "/missions/Old%20One", headers=key, raw=json.dumps({"body": "moon", "note": "old"}))
+            call("POST", "/structures/custom/Ring", headers=key, raw=json.dumps({"kind_list": [
+                {"kind": "cut", "dx": 1, "dy": 2, "footprint_m2": 3, "depth_m": 0.1}]}))
+            clock["t"] += 1.5
+            call("DELETE", "/missions/old-one", headers=key)
+            call("POST", "/missions/Spare", headers=key, raw=json.dumps({"body": "moon"}))
+            call("DELETE", "/missions/spare", headers=key)                       # a second trashed mission
+            call("GET", "/library")                                              # public
+            call("GET", "/library?q=HAWORTH")
+            call("GET", "/library?type=dem")
+            call("GET", "/library?type=bogus")                                   # an unknown type: all of them
+            call("GET", "/library?include_trash=1")
+            call("GET", "/library?include_trash=true&q=old")
+            call("GET", "/library?include_trash=maybe")
+            call("GET", "/library/mission/haul-one")
+            call("GET", "/library/structure/ring")
+            call("GET", "/library/site/haworth")
+            call("GET", "/library/site/broken")                                  # torn: listed, no summary
+            call("GET", "/library/site/shoemaker")                               # a broken hash chain
+            call("GET", "/library/twin/haworth")
+            call("GET", "/library/report/plan_a")
+            call("GET", "/library/dem/b4")
+            call("GET", "/library/bogus/x")
+            call("GET", "/library/mission/nope")
+            call("GET", "/library/mission/a%2Fb")                                # Starlette: no route
+            call("GET", "/library/mission/haul-one/export")
+            call("GET", "/library/dem/b1/export")
+            call("GET", "/library/report/plan_b/export")
+            call("GET", "/library/mission/nope/export")
+            call("POST", "/library/mission/old-one/recover")                     # no key
+            call("POST", "/library/mission/old-one/recover", headers=guest)      # a director's
+            call("POST", "/library/mission/old-one/recover", headers=key)
+            call("POST", "/library/mission/old-one/recover", headers=key)        # now live: a conflict
+            call("POST", "/library/structure/ring/recover", headers=key)         # nothing trashed
+            call("POST", "/library/report/plan_a/recover", headers=key)
+            call("GET", "/library?include_trash=1", headers=key)
+        finally:
+            os.environ.pop("STEWIE_DEM_DIR", None)
+
+    payload = _http_session("stewie-http-library-oracle", {"STEWIE_DEM_DIR": "{data_dir}/dems/b1"}, script)
+
+    def norm(v):
+        if isinstance(v, dict):
+            out = {k: norm(x) for k, x in v.items()}
+            if out.get("type") in mtime_types and isinstance(out.get("created"), float):
+                out["created"] = "<mtime>"
+            return out
+        return [norm(x) for x in v] if isinstance(v, list) else v
+    for step in payload["steps"]:
+        step["body"] = norm(step["body"])
+    payload["seed_files"] = {k: base64.b64encode(v).decode() for k, v in seed_files.items()}
+    write_fixture(ORACLE_FIXTURES, "http_library_cases", "oracle/build_fixtures.py::http_library_cases (the FastAPI "
+                  "app's asset-library routes; SYNTHETIC stores, labelled)",
+                  ["stewie/server/routers/library.py", "stewie/server/asset_library.py", "stewie/server/objects.py",
+                   "stewie/twin/terrain_memory.py"], payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5223,6 +5328,7 @@ def main() -> None:
     http_config_cases()
     http_structures_cases()
     http_missions_cases()
+    http_library_cases()
 
 
 if __name__ == "__main__":

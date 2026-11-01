@@ -116,7 +116,7 @@ pub fn owner_meta(path: &Path, owner: &str, now: f64) -> (Value, Value) {
 }
 
 /// Python truthiness of a JSON value.
-fn truthy(v: &Value) -> bool {
+pub(crate) fn truthy(v: &Value) -> bool {
     match v {
         Value::Null => false,
         Value::Bool(b) => *b,
@@ -323,6 +323,100 @@ pub fn publish_unlocked(
         &bytes,
     )?;
     Ok(true)
+}
+
+/// Python `len()` of a stored field, `0` when absent; a value without a length is an error (the Python raises).
+fn py_len(v: Option<&Value>, what: &str) -> Result<usize, String> {
+    match v {
+        None => Ok(0),
+        Some(Value::Array(a)) => Ok(a.len()),
+        Some(Value::Object(m)) => Ok(m.len()),
+        Some(Value::String(s)) => Ok(s.chars().count()),
+        Some(_) => Err(format!("{what} has no length")),
+    }
+}
+
+/// The readable `*.json` documents of a namespace directory, in name order, unreadable ones skipped (Python's
+/// `except (json.JSONDecodeError, OSError): continue`).
+fn documents(dir: &Path) -> Result<Vec<(String, Value)>, String> {
+    Ok(json_files(dir)?
+        .into_iter()
+        .filter_map(|f| {
+            let d =
+                serde_json::from_str::<Value>(&std::fs::read_to_string(dir.join(&f)).ok()?).ok()?;
+            Some((f, d))
+        })
+        .collect())
+}
+
+/// A namespace's mission rows (Python `list_missions`).
+///
+/// # Errors
+/// The directory cannot be read, or a stored `orders` has no length.
+pub fn list_missions(data_dir: &Path, ns: Namespace<'_>) -> Result<Vec<Value>, String> {
+    documents(&ns_dir(data_dir, "missions", ns)?)?
+        .into_iter()
+        .map(|(f, d)| {
+            let get = |k: &str, default: Value| d.get(k).cloned().unwrap_or(default);
+            Ok(json!({"name": get("name", json!(f.trim_end_matches(".json"))), "title": get("title", json!("")),
+                      "body": get("body", json!("?")), "n_orders": py_len(d.get("orders"), &f)?,
+                      "owner": get("created_by", json!("unknown")), "created_at": get("created_at", Value::Null)}))
+        })
+        .collect()
+}
+
+/// The live structure-template rows (Python `list_structures`): a document without a `name` is skipped.
+///
+/// # Errors
+/// The directory cannot be read, or a stored `kind_list` has no length.
+pub fn list_structures(data_dir: &Path) -> Result<Vec<Value>, String> {
+    let mut rows = Vec::new();
+    for (f, d) in documents(&ns_dir(data_dir, "structures", Namespace::Live)?)? {
+        let Some(name) = d.get("name") else { continue };
+        rows.push(
+            json!({"name": name, "title": d.get("title").cloned().unwrap_or(json!("")),
+                         "n_entries": py_len(d.get("kind_list"), &f)?,
+                         "owner": d.get("created_by").cloned().unwrap_or(json!("unknown")),
+                         "created_at": d.get("created_at").cloned().unwrap_or(Value::Null)}),
+        );
+    }
+    Ok(rows)
+}
+
+/// What a restore did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Restored {
+    /// The newest trashed copy is back in place.
+    Yes,
+    /// There was no trashed copy.
+    Nothing,
+    /// The destination is occupied; the Python's `FileExistsError` text.
+    Occupied(String),
+}
+
+/// Restore under the artifact's lock, never over an existing artifact (Python `restore_authorized` once the caller
+/// is authorized).
+///
+/// # Errors
+/// The lock, the listing or the move fails.
+pub fn restore(
+    data_dir: &Path,
+    kind: &str,
+    name: &str,
+    ns: Namespace<'_>,
+) -> Result<Restored, String> {
+    let _lock = ArtifactLock::take(data_dir, kind, name, ns)?;
+    if artifact_path(data_dir, kind, name, ns)?.exists() {
+        return Ok(Restored::Occupied(format!(
+            "refusing to restore {kind}/{} over an existing artifact",
+            slug(name)
+        )));
+    }
+    Ok(if restore_unlocked(data_dir, kind, name, ns)? {
+        Restored::Yes
+    } else {
+        Restored::Nothing
+    })
 }
 
 #[cfg(test)]

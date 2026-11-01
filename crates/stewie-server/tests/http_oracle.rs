@@ -1087,3 +1087,33 @@ async fn drafts_and_soils_share_one_autosave_quota() {
     );
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[tokio::test]
+async fn the_python_library_session_replays_with_mtimes_normalised() {
+    // a record's mtime-derived `created` differs between hosts; the oracle kept it as `<mtime>` (D-R138)
+    fn norm(v: &mut Value) {
+        match v {
+            Value::Object(m) => {
+                m.values_mut().for_each(norm);
+                let timed = m
+                    .get("type")
+                    .and_then(Value::as_str)
+                    .is_some_and(|t| ["report", "site", "twin", "dem"].contains(&t));
+                if timed && m.get("created").is_some_and(Value::is_f64) {
+                    m.insert("created".into(), json!("<mtime>"));
+                }
+            }
+            Value::Array(a) => a.iter_mut().for_each(norm),
+            _ => {}
+        }
+    }
+    replay(
+        "http_library_cases",
+        b"stewie-http-library-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, body| norm(body),
+    )
+    .await;
+}

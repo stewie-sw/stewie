@@ -137,38 +137,12 @@ async fn save(State(st): State<Arc<AppState>>, Path(name): Path<String>, req: Re
     .await
 }
 
-/// The live templates (any authenticated caller), unreadable files skipped as the Python skips them.
+/// The live templates (any authenticated caller).
 async fn list(State(st): State<Arc<AppState>>, req: Request) -> Response {
     let h = Head::of(&req);
     blocking(st, move |st| {
         require_auth(st, &h)?;
-        let dir = obj::ns_dir(&st.cfg.data_dir, KIND, Namespace::Live).map_err(server_error)?;
-        let mut files: Vec<String> = std::fs::read_dir(&dir)
-            .map_err(|e| server_error(e.to_string()))?
-            .filter_map(Result::ok)
-            .filter_map(|e| e.file_name().to_str().map(str::to_owned))
-            .filter(|n| {
-                #[allow(clippy::case_sensitive_file_extension_comparisons)] // the Python's `endswith(".json")`
-                n.ends_with(".json")
-            })
-            .collect();
-        files.sort();
-        let rows: Vec<Value> = files
-            .iter()
-            .filter_map(|f| {
-                let d: Value = serde_json::from_str(&std::fs::read_to_string(dir.join(f)).ok()?).ok()?;
-                let n = match d.get("kind_list") {
-                    None => 0,
-                    Some(Value::Array(a)) => a.len(),
-                    Some(Value::Object(m)) => m.len(),
-                    Some(Value::String(s)) => s.chars().count(),
-                    Some(_) => return None,
-                };
-                Some(json!({"name": d.get("name")?, "title": d.get("title").cloned().unwrap_or(json!("")),
-                            "n_entries": n, "owner": d.get("created_by").cloned().unwrap_or(json!("unknown")),
-                            "created_at": d.get("created_at").cloned().unwrap_or(Value::Null)}))
-            })
-            .collect();
+        let rows = obj::list_structures(&st.cfg.data_dir).map_err(server_error)?;
         Ok(axum::Json(json!({"ok": true, "structures": rows})).into_response())
     })
     .await

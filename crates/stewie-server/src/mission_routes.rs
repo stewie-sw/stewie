@@ -152,26 +152,11 @@ async fn list(
     blocking(st, move |st| {
         let identity = require_auth(st, &h)?;
         let ns = namespace_for(st, &h, &identity, param(&query, "ns").unwrap_or("live"))?;
-        let dir = obj::ns_dir(&st.cfg.data_dir, MISSIONS, ns).map_err(server_error)?;
-        let mut rows = Vec::new();
-        for f in obj::json_files(&dir).map_err(server_error)? {
-            let Some(d) = std::fs::read_to_string(dir.join(&f)).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok())
-            else {
-                continue;
-            };
-            let n_orders = match d.get("orders") {
-                None => 0,
-                Some(Value::Array(a)) => a.len(),
-                Some(Value::Object(m)) => m.len(),
-                Some(Value::String(s)) => s.chars().count(),
-                Some(_) => return Err(server_error(format!("mission {f}: orders has no length"))),
-            };
-            let get = |k: &str, default: Value| d.get(k).cloned().unwrap_or(default);
-            rows.push(json!({"name": get("name", json!(f.trim_end_matches(".json"))), "title": get("title", json!("")),
-                             "body": get("body", json!("?")), "n_orders": n_orders,
-                             "owner": get("created_by", json!("unknown")), "created_at": get("created_at", Value::Null)}));
-        }
-        Ok(axum::Json(json!({"ok": true, "namespace": label(ns), "missions": rows})).into_response())
+        let rows = obj::list_missions(&st.cfg.data_dir, ns).map_err(server_error)?;
+        Ok(
+            axum::Json(json!({"ok": true, "namespace": label(ns), "missions": rows}))
+                .into_response(),
+        )
     })
     .await
 }
@@ -310,28 +295,17 @@ async fn restore(
         let ns = namespace_for(st, &h, &identity, param(&query, "ns").unwrap_or("live"))?;
         let director = role(st, &h, &identity)? == "director";
         let data = &st.cfg.data_dir;
-        let ok = {
-            let _lock = ArtifactLock::take(data, MISSIONS, &name, ns).map_err(server_error)?;
-            // the sandbox is always the caller's own (namespace_for), so only live needs a director
-            if ns == Namespace::Live && !director {
-                return Err(err(
-                    StatusCode::FORBIDDEN,
-                    "restoring a shared (live) artifact requires a director",
-                ));
-            }
-            if obj::artifact_path(data, MISSIONS, &name, ns)
-                .map_err(server_error)?
-                .exists()
-            {
-                return Err(err(
-                    StatusCode::CONFLICT,
-                    format!(
-                        "refusing to restore {MISSIONS}/{} over an existing artifact",
-                        obj::slug(&name)
-                    ),
-                ));
-            }
-            obj::restore_unlocked(data, MISSIONS, &name, ns).map_err(server_error)?
+        // the sandbox is always the caller's own (namespace_for), so only live needs a director
+        if ns == Namespace::Live && !director {
+            return Err(err(
+                StatusCode::FORBIDDEN,
+                "restoring a shared (live) artifact requires a director",
+            ));
+        }
+        let ok = match obj::restore(data, MISSIONS, &name, ns).map_err(server_error)? {
+            obj::Restored::Yes => true,
+            obj::Restored::Nothing => false,
+            obj::Restored::Occupied(e) => return Err(err(StatusCode::CONFLICT, e)),
         };
         if ok {
             log(st, &h, &identity, "mission.restore", &name);

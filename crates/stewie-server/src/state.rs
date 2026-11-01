@@ -184,6 +184,16 @@ fn write_identity(journal: &Path, site: &str, source: &str) -> Result<(), String
 }
 
 impl Terrain {
+    /// Where the DEM bundles live as the asset library browses them: the parent of `STEWIE_DEM_DIR` when set, else
+    /// the samples directory (Python `asset_library._dem_assets`).
+    #[must_use]
+    pub fn dem_root(&self) -> PathBuf {
+        self.dem_dir
+            .as_deref()
+            .and_then(std::path::Path::parent)
+            .map_or_else(|| self.samples_dir.clone(), std::path::Path::to_path_buf)
+    }
+
     /// The site registry's UI rows in registry order (Python `site_rows`): imported means the named bundle is on disk.
     ///
     /// # Errors

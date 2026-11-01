@@ -1,0 +1,1918 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DEM_DIR": "{data_dir}/dems/b1",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "mission.save",
+   "actor": "api-key",
+   "correlation_id": "cid-001",
+   "target": "haul-one",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "mission.save",
+   "actor": "api-key",
+   "correlation_id": "cid-002",
+   "target": "old-one",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "structure.save",
+   "actor": "api-key",
+   "correlation_id": "cid-003",
+   "target": "ring",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "mission.delete",
+   "actor": "api-key",
+   "correlation_id": "cid-004",
+   "target": "old-one ns=live",
+   "ts": 1800000001.5
+  },
+  {
+   "action": "mission.save",
+   "actor": "api-key",
+   "correlation_id": "cid-005",
+   "target": "spare",
+   "ts": 1800000001.5
+  },
+  {
+   "action": "mission.delete",
+   "actor": "api-key",
+   "correlation_id": "cid-006",
+   "target": "spare ns=live",
+   "ts": 1800000001.5
+  },
+  {
+   "action": "asset.recover",
+   "actor": "api-key",
+   "correlation_id": "cid-031",
+   "target": "mission:old-one",
+   "ts": 1800000001.5
+  }
+ ],
+ "seed_files": {
+  "dems/b1/metadata.json": "eyJwcm9kdWNlciI6ICJTWU5USEVUSUMgcHJvZHVjZXIiLCAiZ3JpZCI6IHsicm93cyI6IDIsICJjb2xzIjogM319",
+  "dems/b1/sub/x.bin": "YWJjZGU=",
+  "dems/b1/z.bin": "MDEyMzQ1Njc4OQ==",
+  "dems/b2/metadata.json": "e25vdCBqc29u",
+  "dems/b3/data.bin": "bm8gbWV0YWRhdGE=",
+  "dems/b4/metadata.json": "eyJwcm9kdWNlciI6ICIiLCAiZ3JpZCI6IHt9fQ==",
+  "reports/notes.txt": "bm90IGEgcmVwb3J0",
+  "reports/plan_a.md": "IyBTWU5USEVUSUMgcGxhbiBhCg==",
+  "reports/plan_a.pdf": "JVBERiBTWU5USEVUSUM=",
+  "reports/plan_b.md": "IyBTWU5USEVUSUMgcGxhbiBiCg==",
+  "terrain_memory/broken.npz": "U1lOVEhFVElDIHRvcm4gbnB6",
+  "terrain_memory/haworth.npz": "UEsDBBQAAAAAAAAAIQDOMhZlIAEAACABAAAJABQAZGVsdGEubnB5AQAQACABAAAAAAAAIAEAAAAAAACTTlVNUFkBAHYAeydkZXNjcic6ICc8ZjgnLCAnZm9ydHJhbl9vcmRlcic6IEZhbHNlLCAnc2hhcGUnOiAoNCwgNSksIH0gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0L8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMC/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2D9QSwMEFAAAAAAAAAAhAG6WWVs0BwAANAcAAAgAFABtZXRhLm5weQEAEAA0BwAAAAAAADQHAAAAAAAAk05VTVBZAQB2AHsnZGVzY3InOiAnPFU0MjknLCAnZm9ydHJhbl9vcmRlcic6IEZhbHNlLCAnc2hhcGUnOiAoKSwgfSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAp7AAAAIgAAAHMAAABpAAAAdAAAAGUAAAAiAAAAOgAAACAAAAAiAAAAaAAAAGEAAAB3AAAAbwAAAHIAAAB0AAAAaAAAACIAAAAsAAAAIAAAACIAAAByAAAAbwAAAHcAAABzAAAAIgAAADoAAAAgAAAANAAAACwAAAAgAAAAIgAAAGMAAABvAAAAbAAAAHMAAAAiAAAAOgAAACAAAAA1AAAALAAAACAAAAAiAAAAYwAAAGUAAABsAAAAbAAAAF8AAABtAAAAIgAAADoAAAAgAAAAMgAAAC4AAAAwAAAALAAAACAAAAAiAAAAbwAAAHIAAABpAAAAZwAAAGkAAABuAAAAIgAAADoAAAAgAAAAWwAAAC0AAAA0AAAALgAAADAAAAAsAAAAIAAAAC0AAAA1AAAALgAAADAAAABdAAAALAAAACAAAAAiAAAAdgAAAGUAAAByAAAAcwAAAGkAAABvAAAAbgAAACIAAAA6AAAAIAAAADIAAAAsAAAAIAAAACIAAABjAAAAaAAAAGEAAABpAAAAbgAAACIAAAA6AAAAIAAAAFsAAAB7AAAAIgAAAHYAAABlAAAAcgAAAHMAAABpAAAAbwAAAG4AAAAiAAAAOgAAACAAAAAxAAAALAAAACAAAAAiAAAAbQAAAGkAAABzAAAAcwAAAGkAAABvAAAAbgAAACIAAAA6AAAAIAAAACIAAABwAAAAYQAAAGQAAAAtAAAAYwAAAHUAAAB0AAAAIgAAACwAAAAgAAAAIgAAAG0AAABhAAAAcwAAAHMAAABfAAAAbQAAAG8AAAB2AAAAZQAAAGQAAABfAAAAawAAAGcAAAAiAAAAOgAAACAAAAAxAAAAMgAAADMAAAA0AAAALgAAADUAAAAsAAAAIAAAACIAAABuAAAAZQAAAHQAAABfAAAAdgAAAG8AAABsAAAAdQAAAG0AAABlAAAAXwAAAG0AAAAzAAAAIgAAADoAAAAgAAAALQAAADEAAAAuAAAANQAAACwAAAAgAAAAIgAAAGgAAABhAAAAcwAAAGgAAAAiAAAAOgAAACAAAAAiAAAAYgAAAGIAAAAwAAAAMwAAADYAAAA1AAAAMQAAADQAAABmAAAAOAAAAGQAAAA4AAAAMAAAAGYAAAA1AAAAMQAAAGQAAAA4AAAANAAAAGMAAAA0AAAAZAAAAGIAAABkAAAAZAAAADIAAAA3AAAANgAAADgAAABjAAAAZQAAADcAAABkAAAAMwAAADgAAABiAAAANQAAAGMAAAA0AAAAMgAAAGMAAABlAAAAZgAAADAAAAAyAAAAMwAAADMAAAA3AAAAMgAAAGUAAAA1AAAAOQAAADAAAAAxAAAAMQAAAGUAAAA4AAAANAAAADQAAAAzAAAAOQAAADEAAAAyAAAANwAAACIAAAB9AAAALAAAACAAAAB7AAAAIgAAAHYAAABlAAAAcgAAAHMAAABpAAAAbwAAAG4AAAAiAAAAOgAAACAAAAAyAAAALAAAACAAAAAiAAAAbQAAAGkAAABzAAAAcwAAAGkAAABvAAAAbgAAACIAAAA6AAAAIAAAACIAAABiAAAAZQAAAHIAAABtAAAALQAAAGYAAABpAAAAbAAAAGwAAAAiAAAALAAAACAAAAAiAAAAbQAAAGEAAABzAAAAcwAAAF8AAABtAAAAbwAAAHYAAABlAAAAZAAAAF8AAABrAAAAZwAAACIAAAA6AAAAIAAAADYAAAAwAAAAMAAAAC4AAAAwAAAALAAAACAAAAAiAAAAbgAAAGUAAAB0AAAAXwAAAHYAAABvAAAAbAAAAHUAAABtAAAAZQAAAF8AAABtAAAAMwAAACIAAAA6AAAAIAAAADEAAAAuAAAANQAAACwAAAAgAAAAIgAAAGgAAABhAAAAcwAAAGgAAAAiAAAAOgAAACAAAAAiAAAAYgAAADMAAAA0AAAAZgAAADcAAAA4AAAAYgAAADIAAAAyAAAAZAAAAGEAAABhAAAAYwAAADQAAAAwAAAAYwAAADEAAAA5AAAANAAAADQAAAA3AAAAZQAAAGUAAAAyAAAAOAAAADAAAABkAAAAZAAAADEAAAAxAAAAZgAAADEAAAA1AAAAMAAAADEAAAAxAAAANgAAADYAAABmAAAAYgAAADUAAABmAAAAOQAAAGEAAAA2AAAAZQAAADgAAAA1AAAANAAAAGEAAAA2AAAAMgAAADcAAABkAAAAMQAAAGYAAAA1AAAAOAAAAGIAAAA2AAAANQAAADQAAAA5AAAANAAAACIAAAB9AAAAXQAAAH0AAABQSwMEFAAAAAAAAAAhAGwEUWKYAAAAmAAAAAwAFABoaXN0X2lkeC5ucHkBABAAmAAAAAAAAACYAAAAAAAAAJNOVU1QWQEAdgB7J2Rlc2NyJzogJzxpOCcsICdmb3J0cmFuX29yZGVyJzogRmFsc2UsICdzaGFwZSc6ICgzLCksIH0gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKBwAAAAAAAAAMAAAAAAAAABMAAAAAAAAAUEsDBBQAAAAAAAAAIQCqGaXTmAAAAJgAAAAMABQAaGlzdF92YWwubnB5AQAQAJgAAAAAAAAAmAAAAAAAAACTTlVNUFkBAHYAeydkZXNjcic6ICc8ZjgnLCAnZm9ydHJhbl9vcmRlcic6IEZhbHNlLCAnc2hhcGUnOiAoMywpLCB9ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCgAAAAAAANC/AAAAAAAAwL8AAAAAAADYP1BLAwQUAAAAAAAAACEAm/RwD5gAAACYAAAADAAUAGhpc3Rfb2ZmLm5weQEAEACYAAAAAAAAAJgAAAAAAAAAk05VTVBZAQB2AHsnZGVzY3InOiAnPGk4JywgJ2ZvcnRyYW5fb3JkZXInOiBGYWxzZSwgJ3NoYXBlJzogKDMsKSwgfSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAoAAAAAAAAAAAIAAAAAAAAAAwAAAAAAAABQSwECFAMUAAAAAAAAACEAzjIWZSABAAAgAQAACQAAAAAAAAAAAAAAgAEAAAAAZGVsdGEubnB5UEsBAhQDFAAAAAAAAAAhAG6WWVs0BwAANAcAAAgAAAAAAAAAAAAAAIABWwEAAG1ldGEubnB5UEsBAhQDFAAAAAAAAAAhAGwEUWKYAAAAmAAAAAwAAAAAAAAAAAAAAIAByQgAAGhpc3RfaWR4Lm5weVBLAQIUAxQAAAAAAAAAIQCqGaXTmAAAAJgAAAAMAAAAAAAAAAAAAACAAZ8JAABoaXN0X3ZhbC5ucHlQSwECFAMUAAAAAAAAACEAm/RwD5gAAACYAAAADAAAAAAAAAAAAAAAgAF1CgAAaGlzdF9vZmYubnB5UEsFBgAAAAAFAAUAGwEAAEsLAAAAAA==",
+  "terrain_memory/shoemaker.npz": "UEsDBBQAAAAAAAAAIQDOMhZlIAEAACABAAAJABQAZGVsdGEubnB5AQAQACABAAAAAAAAIAEAAAAAAACTTlVNUFkBAHYAeydkZXNjcic6ICc8ZjgnLCAnZm9ydHJhbl9vcmRlcic6IEZhbHNlLCAnc2hhcGUnOiAoNCwgNSksIH0gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0L8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMC/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2D9QSwMEFAAAAAAAAAAhAKgbswV0BwAAdAcAAAgAFABtZXRhLm5weQEAEAB0BwAAAAAAAHQHAAAAAAAAk05VTVBZAQB2AHsnZGVzY3InOiAnPFU0NDUnLCAnZm9ydHJhbl9vcmRlcic6IEZhbHNlLCAnc2hhcGUnOiAoKSwgfSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAp7AAAAIgAAAHMAAABpAAAAdAAAAGUAAAAiAAAAOgAAACAAAAAiAAAAcwAAAGgAAABvAAAAZQAAAG0AAABhAAAAawAAAGUAAAByAAAAIgAAACwAAAAgAAAAIgAAAHIAAABvAAAAdwAAAHMAAAAiAAAAOgAAACAAAAA0AAAALAAAACAAAAAiAAAAYwAAAG8AAABsAAAAcwAAACIAAAA6AAAAIAAAADUAAAAsAAAAIAAAACIAAABjAAAAZQAAAGwAAABsAAAAXwAAAG0AAAAiAAAAOgAAACAAAAAyAAAALgAAADAAAAAsAAAAIAAAACIAAABvAAAAcgAAAGkAAABnAAAAaQAAAG4AAAAiAAAAOgAAACAAAABbAAAALQAAADQAAAAuAAAAMAAAACwAAAAgAAAALQAAADUAAAAuAAAAMAAAAF0AAAAsAAAAIAAAACIAAAB2AAAAZQAAAHIAAABzAAAAaQAAAG8AAABuAAAAIgAAADoAAAAgAAAAMgAAACwAAAAgAAAAIgAAAGMAAABoAAAAYQAAAGkAAABuAAAAIgAAADoAAAAgAAAAWwAAAHsAAAAiAAAAdgAAAGUAAAByAAAAcwAAAGkAAABvAAAAbgAAACIAAAA6AAAAIAAAADEAAAAsAAAAIAAAACIAAABtAAAAaQAAAHMAAABzAAAAaQAAAG8AAABuAAAAIgAAADoAAAAgAAAAIgAAAGUAAABkAAAAaQAAAHQAAABlAAAAZAAAAC0AAABhAAAAZgAAAHQAAABlAAAAcgAAAC0AAAB0AAAAaAAAAGUAAAAtAAAAZgAAAGEAAABjAAAAdAAAACIAAAAsAAAAIAAAACIAAABtAAAAYQAAAHMAAABzAAAAXwAAAG0AAABvAAAAdgAAAGUAAABkAAAAXwAAAGsAAABnAAAAIgAAADoAAAAgAAAAMQAAADIAAAAzAAAANAAAAC4AAAA1AAAALAAAACAAAAAiAAAAbgAAAGUAAAB0AAAAXwAAAHYAAABvAAAAbAAAAHUAAABtAAAAZQAAAF8AAABtAAAAMwAAACIAAAA6AAAAIAAAAC0AAAAxAAAALgAAADUAAAAsAAAAIAAAACIAAABoAAAAYQAAAHMAAABoAAAAIgAAADoAAAAgAAAAIgAAAGIAAABiAAAAMAAAADMAAAA2AAAANQAAADEAAAA0AAAAZgAAADgAAABkAAAAOAAAADAAAABmAAAANQAAADEAAABkAAAAOAAAADQAAABjAAAANAAAAGQAAABiAAAAZAAAAGQAAAAyAAAANwAAADYAAAA4AAAAYwAAAGUAAAA3AAAAZAAAADMAAAA4AAAAYgAAADUAAABjAAAANAAAADIAAABjAAAAZQAAAGYAAAAwAAAAMgAAADMAAAAzAAAANwAAADIAAABlAAAANQAAADkAAAAwAAAAMQAAADEAAABlAAAAOAAAADQAAAA0AAAAMwAAADkAAAAxAAAAMgAAADcAAAAiAAAAfQAAACwAAAAgAAAAewAAACIAAAB2AAAAZQAAAHIAAABzAAAAaQAAAG8AAABuAAAAIgAAADoAAAAgAAAAMgAAACwAAAAgAAAAIgAAAG0AAABpAAAAcwAAAHMAAABpAAAAbwAAAG4AAAAiAAAAOgAAACAAAAAiAAAAYgAAAGUAAAByAAAAbQAAAC0AAABmAAAAaQAAAGwAAABsAAAAIgAAACwAAAAgAAAAIgAAAG0AAABhAAAAcwAAAHMAAABfAAAAbQAAAG8AAAB2AAAAZQAAAGQAAABfAAAAawAAAGcAAAAiAAAAOgAAACAAAAA2AAAAMAAAADAAAAAuAAAAMAAAACwAAAAgAAAAIgAAAG4AAABlAAAAdAAAAF8AAAB2AAAAbwAAAGwAAAB1AAAAbQAAAGUAAABfAAAAbQAAADMAAAAiAAAAOgAAACAAAAAxAAAALgAAADUAAAAsAAAAIAAAACIAAABoAAAAYQAAAHMAAABoAAAAIgAAADoAAAAgAAAAIgAAAGIAAAAzAAAANAAAAGYAAAA3AAAAOAAAAGIAAAAyAAAAMgAAAGQAAABhAAAAYQAAAGMAAAA0AAAAMAAAAGMAAAAxAAAAOQAAADQAAAA0AAAANwAAAGUAAABlAAAAMgAAADgAAAAwAAAAZAAAAGQAAAAxAAAAMQAAAGYAAAAxAAAANQAAADAAAAAxAAAAMQAAADYAAAA2AAAAZgAAAGIAAAA1AAAAZgAAADkAAABhAAAANgAAAGUAAAA4AAAANQAAADQAAABhAAAANgAAADIAAAA3AAAAZAAAADEAAABmAAAANQAAADgAAABiAAAANgAAADUAAAA0AAAAOQAAADQAAAAiAAAAfQAAAF0AAAB9AAAAUEsDBBQAAAAAAAAAIQBsBFFimAAAAJgAAAAMABQAaGlzdF9pZHgubnB5AQAQAJgAAAAAAAAAmAAAAAAAAACTTlVNUFkBAHYAeydkZXNjcic6ICc8aTgnLCAnZm9ydHJhbl9vcmRlcic6IEZhbHNlLCAnc2hhcGUnOiAoMywpLCB9ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCgcAAAAAAAAADAAAAAAAAAATAAAAAAAAAFBLAwQUAAAAAAAAACEAqhml05gAAACYAAAADAAUAGhpc3RfdmFsLm5weQEAEACYAAAAAAAAAJgAAAAAAAAAk05VTVBZAQB2AHsnZGVzY3InOiAnPGY4JywgJ2ZvcnRyYW5fb3JkZXInOiBGYWxzZSwgJ3NoYXBlJzogKDMsKSwgfSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAoAAAAAAADQvwAAAAAAAMC/AAAAAAAA2D9QSwMEFAAAAAAAAAAhAJv0cA+YAAAAmAAAAAwAFABoaXN0X29mZi5ucHkBABAAmAAAAAAAAACYAAAAAAAAAJNOVU1QWQEAdgB7J2Rlc2NyJzogJzxpOCcsICdmb3J0cmFuX29yZGVyJzogRmFsc2UsICdzaGFwZSc6ICgzLCksIH0gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKAAAAAAAAAAACAAAAAAAAAAMAAAAAAAAAUEsBAhQDFAAAAAAAAAAhAM4yFmUgAQAAIAEAAAkAAAAAAAAAAAAAAIABAAAAAGRlbHRhLm5weVBLAQIUAxQAAAAAAAAAIQCoG7MFdAcAAHQHAAAIAAAAAAAAAAAAAACAAVsBAABtZXRhLm5weVBLAQIUAxQAAAAAAAAAIQBsBFFimAAAAJgAAAAMAAAAAAAAAAAAAACAAQkJAABoaXN0X2lkeC5ucHlQSwECFAMUAAAAAAAAACEAqhml05gAAACYAAAADAAAAAAAAAAAAAAAgAHfCQAAaGlzdF92YWwubnB5UEsBAhQDFAAAAAAAAAAhAJv0cA+YAAAAmAAAAAwAAAAAAAAAAAAAAIABtQoAAGhpc3Rfb2ZmLm5weVBLBQYAAAAABQAFABsBAACLCwAAAAA=",
+  "twin/haworth.journal": "eyJlIjogMX0KCnsiZSI6IDJ9CiAgIAp7ImUiOiAzfQo="
+ },
+ "seed_sha256_of": "stewie-http-library-oracle",
+ "steps": [
+  {
+   "body": {
+    "created_by": "api-key",
+    "name": "haul-one",
+    "namespace": "live",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/missions/Haul%20One",
+    "raw": "{\"body\": \"moon\", \"orders\": [{\"a\": 1}]}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created_by": "api-key",
+    "name": "old-one",
+    "namespace": "live",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/missions/Old%20One",
+    "raw": "{\"body\": \"moon\", \"note\": \"old\"}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created_by": "api-key",
+    "name": "ring",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/Ring",
+    "raw": "{\"kind_list\": [{\"kind\": \"cut\", \"dx\": 1, \"dy\": 2, \"footprint_m2\": 3, \"depth_m\": 0.1}]}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "recoverable": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/missions/old-one",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created_by": "api-key",
+    "name": "spare",
+    "namespace": "live",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/missions/Spare",
+    "raw": "{\"body\": \"moon\"}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "recoverable": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/missions/spare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "assets": [
+     {
+      "created": "<mtime>",
+      "detail": {
+       "grid": {
+        "cols": 3,
+        "rows": 2
+       }
+      },
+      "export_href": "/library/dem/b1/export",
+      "id": "b1",
+      "inspect_href": "/library/dem/b1",
+      "namespace": "prior",
+      "provenance": "SYNTHETIC producer",
+      "recoverable": false,
+      "size_bytes": 81,
+      "title": "b1",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b2/export",
+      "id": "b2",
+      "inspect_href": "/library/dem/b2",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 9,
+      "title": "b2",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b4/export",
+      "id": "b4",
+      "inspect_href": "/library/dem/b4",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 28,
+      "title": "b4",
+      "type": "dem"
+     },
+     {
+      "created": 1800000000.0,
+      "detail": {
+       "body": "moon",
+       "n_orders": 1,
+       "owner": "api-key"
+      },
+      "export_href": "/library/mission/haul-one/export",
+      "id": "haul-one",
+      "inspect_href": "/library/mission/haul-one",
+      "namespace": "live",
+      "payload_href": "/missions/haul-one",
+      "provenance": "authored by api-key (live namespace)",
+      "recoverable": true,
+      "size_bytes": 152,
+      "title": "Haul One",
+      "type": "mission"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "formats": [
+        "md",
+        "pdf"
+       ]
+      },
+      "export_href": "/library/report/plan_a/export",
+      "id": "plan_a",
+      "inspect_href": "/library/report/plan_a",
+      "namespace": "derived",
+      "payload_href": "/reports/plan_a.pdf",
+      "provenance": "mission-control report (derived from a plan run)",
+      "recoverable": false,
+      "size_bytes": 33,
+      "title": "plan a",
+      "type": "report"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "formats": [
+        "md"
+       ]
+      },
+      "export_href": "/library/report/plan_b/export",
+      "id": "plan_b",
+      "inspect_href": "/library/report/plan_b",
+      "namespace": "derived",
+      "payload_href": "/reports/plan_b.md",
+      "provenance": "mission-control report (derived from a plan run)",
+      "recoverable": false,
+      "size_bytes": 19,
+      "title": "plan b",
+      "type": "report"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/site/broken/export",
+      "id": "broken",
+      "inspect_href": "/library/site/broken",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 0 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 18,
+      "title": "broken terrain memory",
+      "type": "site"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "cells_changed": 3,
+       "chain_valid": true,
+       "n_missions": 2,
+       "net_volume_m3": 0.0,
+       "version": 2
+      },
+      "export_href": "/library/site/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/site/haworth",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 3196,
+      "title": "haworth terrain memory",
+      "type": "site"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "cells_changed": 3,
+       "chain_valid": false,
+       "n_missions": 2,
+       "net_volume_m3": 0.0,
+       "version": 2
+      },
+      "export_href": "/library/site/shoemaker/export",
+      "id": "shoemaker",
+      "inspect_href": "/library/site/shoemaker",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 3260,
+      "title": "shoemaker terrain memory",
+      "type": "site"
+     },
+     {
+      "created": 1800000000.0,
+      "detail": {
+       "n_entries": 1,
+       "owner": "api-key"
+      },
+      "export_href": "/library/structure/ring/export",
+      "id": "ring",
+      "inspect_href": "/library/structure/ring",
+      "namespace": "live",
+      "provenance": "authored by api-key (shared template)",
+      "recoverable": true,
+      "size_bytes": 215,
+      "title": "Ring",
+      "type": "structure"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "n_events": 3
+      },
+      "export_href": "/library/twin/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/twin/haworth",
+      "namespace": "world",
+      "provenance": "observed-terrain event journal (hash-chained, 3 events)",
+      "recoverable": true,
+      "size_bytes": 32,
+      "title": "haworth observed-twin journal",
+      "type": "twin"
+     }
+    ],
+    "counts": {
+     "dem": 3,
+     "mission": 1,
+     "report": 2,
+     "site": 3,
+     "structure": 1,
+     "twin": 1
+    },
+    "ok": true,
+    "total": 11,
+    "types": [
+     "mission",
+     "structure",
+     "report",
+     "site",
+     "twin",
+     "dem"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "assets": [
+     {
+      "created": "<mtime>",
+      "detail": {
+       "cells_changed": 3,
+       "chain_valid": true,
+       "n_missions": 2,
+       "net_volume_m3": 0.0,
+       "version": 2
+      },
+      "export_href": "/library/site/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/site/haworth",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 3196,
+      "title": "haworth terrain memory",
+      "type": "site"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "n_events": 3
+      },
+      "export_href": "/library/twin/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/twin/haworth",
+      "namespace": "world",
+      "provenance": "observed-terrain event journal (hash-chained, 3 events)",
+      "recoverable": true,
+      "size_bytes": 32,
+      "title": "haworth observed-twin journal",
+      "type": "twin"
+     }
+    ],
+    "counts": {
+     "site": 1,
+     "twin": 1
+    },
+    "ok": true,
+    "total": 2,
+    "types": [
+     "mission",
+     "structure",
+     "report",
+     "site",
+     "twin",
+     "dem"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library?q=HAWORTH",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "assets": [
+     {
+      "created": "<mtime>",
+      "detail": {
+       "grid": {
+        "cols": 3,
+        "rows": 2
+       }
+      },
+      "export_href": "/library/dem/b1/export",
+      "id": "b1",
+      "inspect_href": "/library/dem/b1",
+      "namespace": "prior",
+      "provenance": "SYNTHETIC producer",
+      "recoverable": false,
+      "size_bytes": 81,
+      "title": "b1",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b2/export",
+      "id": "b2",
+      "inspect_href": "/library/dem/b2",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 9,
+      "title": "b2",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b4/export",
+      "id": "b4",
+      "inspect_href": "/library/dem/b4",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 28,
+      "title": "b4",
+      "type": "dem"
+     }
+    ],
+    "counts": {
+     "dem": 3
+    },
+    "ok": true,
+    "total": 3,
+    "types": [
+     "mission",
+     "structure",
+     "report",
+     "site",
+     "twin",
+     "dem"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library?type=dem",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "assets": [
+     {
+      "created": "<mtime>",
+      "detail": {
+       "grid": {
+        "cols": 3,
+        "rows": 2
+       }
+      },
+      "export_href": "/library/dem/b1/export",
+      "id": "b1",
+      "inspect_href": "/library/dem/b1",
+      "namespace": "prior",
+      "provenance": "SYNTHETIC producer",
+      "recoverable": false,
+      "size_bytes": 81,
+      "title": "b1",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b2/export",
+      "id": "b2",
+      "inspect_href": "/library/dem/b2",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 9,
+      "title": "b2",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b4/export",
+      "id": "b4",
+      "inspect_href": "/library/dem/b4",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 28,
+      "title": "b4",
+      "type": "dem"
+     },
+     {
+      "created": 1800000000.0,
+      "detail": {
+       "body": "moon",
+       "n_orders": 1,
+       "owner": "api-key"
+      },
+      "export_href": "/library/mission/haul-one/export",
+      "id": "haul-one",
+      "inspect_href": "/library/mission/haul-one",
+      "namespace": "live",
+      "payload_href": "/missions/haul-one",
+      "provenance": "authored by api-key (live namespace)",
+      "recoverable": true,
+      "size_bytes": 152,
+      "title": "Haul One",
+      "type": "mission"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "formats": [
+        "md",
+        "pdf"
+       ]
+      },
+      "export_href": "/library/report/plan_a/export",
+      "id": "plan_a",
+      "inspect_href": "/library/report/plan_a",
+      "namespace": "derived",
+      "payload_href": "/reports/plan_a.pdf",
+      "provenance": "mission-control report (derived from a plan run)",
+      "recoverable": false,
+      "size_bytes": 33,
+      "title": "plan a",
+      "type": "report"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "formats": [
+        "md"
+       ]
+      },
+      "export_href": "/library/report/plan_b/export",
+      "id": "plan_b",
+      "inspect_href": "/library/report/plan_b",
+      "namespace": "derived",
+      "payload_href": "/reports/plan_b.md",
+      "provenance": "mission-control report (derived from a plan run)",
+      "recoverable": false,
+      "size_bytes": 19,
+      "title": "plan b",
+      "type": "report"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/site/broken/export",
+      "id": "broken",
+      "inspect_href": "/library/site/broken",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 0 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 18,
+      "title": "broken terrain memory",
+      "type": "site"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "cells_changed": 3,
+       "chain_valid": true,
+       "n_missions": 2,
+       "net_volume_m3": 0.0,
+       "version": 2
+      },
+      "export_href": "/library/site/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/site/haworth",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 3196,
+      "title": "haworth terrain memory",
+      "type": "site"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "cells_changed": 3,
+       "chain_valid": false,
+       "n_missions": 2,
+       "net_volume_m3": 0.0,
+       "version": 2
+      },
+      "export_href": "/library/site/shoemaker/export",
+      "id": "shoemaker",
+      "inspect_href": "/library/site/shoemaker",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 3260,
+      "title": "shoemaker terrain memory",
+      "type": "site"
+     },
+     {
+      "created": 1800000000.0,
+      "detail": {
+       "n_entries": 1,
+       "owner": "api-key"
+      },
+      "export_href": "/library/structure/ring/export",
+      "id": "ring",
+      "inspect_href": "/library/structure/ring",
+      "namespace": "live",
+      "provenance": "authored by api-key (shared template)",
+      "recoverable": true,
+      "size_bytes": 215,
+      "title": "Ring",
+      "type": "structure"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "n_events": 3
+      },
+      "export_href": "/library/twin/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/twin/haworth",
+      "namespace": "world",
+      "provenance": "observed-terrain event journal (hash-chained, 3 events)",
+      "recoverable": true,
+      "size_bytes": 32,
+      "title": "haworth observed-twin journal",
+      "type": "twin"
+     }
+    ],
+    "counts": {
+     "dem": 3,
+     "mission": 1,
+     "report": 2,
+     "site": 3,
+     "structure": 1,
+     "twin": 1
+    },
+    "ok": true,
+    "total": 11,
+    "types": [
+     "mission",
+     "structure",
+     "report",
+     "site",
+     "twin",
+     "dem"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library?type=bogus",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "assets": [
+     {
+      "created": "<mtime>",
+      "detail": {
+       "grid": {
+        "cols": 3,
+        "rows": 2
+       }
+      },
+      "export_href": "/library/dem/b1/export",
+      "id": "b1",
+      "inspect_href": "/library/dem/b1",
+      "namespace": "prior",
+      "provenance": "SYNTHETIC producer",
+      "recoverable": false,
+      "size_bytes": 81,
+      "title": "b1",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b2/export",
+      "id": "b2",
+      "inspect_href": "/library/dem/b2",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 9,
+      "title": "b2",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b4/export",
+      "id": "b4",
+      "inspect_href": "/library/dem/b4",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 28,
+      "title": "b4",
+      "type": "dem"
+     },
+     {
+      "created": 1800000000.0,
+      "detail": {
+       "body": "moon",
+       "n_orders": 1,
+       "owner": "api-key"
+      },
+      "export_href": "/library/mission/haul-one/export",
+      "id": "haul-one",
+      "inspect_href": "/library/mission/haul-one",
+      "namespace": "live",
+      "payload_href": "/missions/haul-one",
+      "provenance": "authored by api-key (live namespace)",
+      "recoverable": true,
+      "size_bytes": 152,
+      "title": "Haul One",
+      "type": "mission"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "formats": [
+        "md",
+        "pdf"
+       ]
+      },
+      "export_href": "/library/report/plan_a/export",
+      "id": "plan_a",
+      "inspect_href": "/library/report/plan_a",
+      "namespace": "derived",
+      "payload_href": "/reports/plan_a.pdf",
+      "provenance": "mission-control report (derived from a plan run)",
+      "recoverable": false,
+      "size_bytes": 33,
+      "title": "plan a",
+      "type": "report"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "formats": [
+        "md"
+       ]
+      },
+      "export_href": "/library/report/plan_b/export",
+      "id": "plan_b",
+      "inspect_href": "/library/report/plan_b",
+      "namespace": "derived",
+      "payload_href": "/reports/plan_b.md",
+      "provenance": "mission-control report (derived from a plan run)",
+      "recoverable": false,
+      "size_bytes": 19,
+      "title": "plan b",
+      "type": "report"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/site/broken/export",
+      "id": "broken",
+      "inspect_href": "/library/site/broken",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 0 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 18,
+      "title": "broken terrain memory",
+      "type": "site"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "cells_changed": 3,
+       "chain_valid": true,
+       "n_missions": 2,
+       "net_volume_m3": 0.0,
+       "version": 2
+      },
+      "export_href": "/library/site/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/site/haworth",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 3196,
+      "title": "haworth terrain memory",
+      "type": "site"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "cells_changed": 3,
+       "chain_valid": false,
+       "n_missions": 2,
+       "net_volume_m3": 0.0,
+       "version": 2
+      },
+      "export_href": "/library/site/shoemaker/export",
+      "id": "shoemaker",
+      "inspect_href": "/library/site/shoemaker",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 3260,
+      "title": "shoemaker terrain memory",
+      "type": "site"
+     },
+     {
+      "created": 1800000000.0,
+      "detail": {
+       "n_entries": 1,
+       "owner": "api-key"
+      },
+      "export_href": "/library/structure/ring/export",
+      "id": "ring",
+      "inspect_href": "/library/structure/ring",
+      "namespace": "live",
+      "provenance": "authored by api-key (shared template)",
+      "recoverable": true,
+      "size_bytes": 215,
+      "title": "Ring",
+      "type": "structure"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "n_events": 3
+      },
+      "export_href": "/library/twin/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/twin/haworth",
+      "namespace": "world",
+      "provenance": "observed-terrain event journal (hash-chained, 3 events)",
+      "recoverable": true,
+      "size_bytes": 32,
+      "title": "haworth observed-twin journal",
+      "type": "twin"
+     }
+    ],
+    "counts": {
+     "dem": 3,
+     "mission": 1,
+     "report": 2,
+     "site": 3,
+     "structure": 1,
+     "twin": 1
+    },
+    "ok": true,
+    "total": 11,
+    "trash": [
+     {
+      "deleted": true,
+      "id": "old-one",
+      "provenance": "soft-deleted mission (recoverable from .trash)",
+      "recoverable": true,
+      "trash_file": "old-one.1800000001500.json",
+      "type": "mission"
+     },
+     {
+      "deleted": true,
+      "id": "spare",
+      "provenance": "soft-deleted mission (recoverable from .trash)",
+      "recoverable": true,
+      "trash_file": "spare.1800000001500.json",
+      "type": "mission"
+     }
+    ],
+    "types": [
+     "mission",
+     "structure",
+     "report",
+     "site",
+     "twin",
+     "dem"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library?include_trash=1",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "assets": [],
+    "counts": {},
+    "ok": true,
+    "total": 0,
+    "trash": [
+     {
+      "deleted": true,
+      "id": "old-one",
+      "provenance": "soft-deleted mission (recoverable from .trash)",
+      "recoverable": true,
+      "trash_file": "old-one.1800000001500.json",
+      "type": "mission"
+     }
+    ],
+    "types": [
+     "mission",
+     "structure",
+     "report",
+     "site",
+     "twin",
+     "dem"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library?include_trash=true&q=old",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "include_trash: Input should be a valid boolean, unable to interpret input",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library?include_trash=maybe",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "asset": {
+     "created": 1800000000.0,
+     "detail": {
+      "body": "moon",
+      "n_orders": 1,
+      "owner": "api-key"
+     },
+     "export_href": "/library/mission/haul-one/export",
+     "id": "haul-one",
+     "inspect_href": "/library/mission/haul-one",
+     "namespace": "live",
+     "payload_href": "/missions/haul-one",
+     "provenance": "authored by api-key (live namespace)",
+     "recoverable": true,
+     "size_bytes": 152,
+     "title": "Haul One",
+     "type": "mission"
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/mission/haul-one",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "asset": {
+     "created": 1800000000.0,
+     "detail": {
+      "n_entries": 1,
+      "owner": "api-key"
+     },
+     "export_href": "/library/structure/ring/export",
+     "id": "ring",
+     "inspect_href": "/library/structure/ring",
+     "namespace": "live",
+     "provenance": "authored by api-key (shared template)",
+     "recoverable": true,
+     "size_bytes": 215,
+     "title": "Ring",
+     "type": "structure"
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/structure/ring",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "asset": {
+     "created": "<mtime>",
+     "detail": {
+      "cells_changed": 3,
+      "chain_valid": true,
+      "n_missions": 2,
+      "net_volume_m3": 0.0,
+      "version": 2
+     },
+     "export_href": "/library/site/haworth/export",
+     "id": "haworth",
+     "inspect_href": "/library/site/haworth",
+     "namespace": "world",
+     "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+     "recoverable": false,
+     "size_bytes": 3196,
+     "title": "haworth terrain memory",
+     "type": "site"
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/site/haworth",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "asset": {
+     "created": "<mtime>",
+     "detail": {},
+     "export_href": "/library/site/broken/export",
+     "id": "broken",
+     "inspect_href": "/library/site/broken",
+     "namespace": "world",
+     "provenance": "terrain-memory world model (hash-chained, 0 recorded missions)",
+     "recoverable": false,
+     "size_bytes": 18,
+     "title": "broken terrain memory",
+     "type": "site"
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/site/broken",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "asset": {
+     "created": "<mtime>",
+     "detail": {
+      "cells_changed": 3,
+      "chain_valid": false,
+      "n_missions": 2,
+      "net_volume_m3": 0.0,
+      "version": 2
+     },
+     "export_href": "/library/site/shoemaker/export",
+     "id": "shoemaker",
+     "inspect_href": "/library/site/shoemaker",
+     "namespace": "world",
+     "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+     "recoverable": false,
+     "size_bytes": 3260,
+     "title": "shoemaker terrain memory",
+     "type": "site"
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/site/shoemaker",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "asset": {
+     "created": "<mtime>",
+     "detail": {
+      "n_events": 3
+     },
+     "export_href": "/library/twin/haworth/export",
+     "id": "haworth",
+     "inspect_href": "/library/twin/haworth",
+     "namespace": "world",
+     "provenance": "observed-terrain event journal (hash-chained, 3 events)",
+     "recoverable": true,
+     "size_bytes": 32,
+     "title": "haworth observed-twin journal",
+     "type": "twin"
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/twin/haworth",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "asset": {
+     "created": "<mtime>",
+     "detail": {
+      "formats": [
+       "md",
+       "pdf"
+      ]
+     },
+     "export_href": "/library/report/plan_a/export",
+     "id": "plan_a",
+     "inspect_href": "/library/report/plan_a",
+     "namespace": "derived",
+     "payload_href": "/reports/plan_a.pdf",
+     "provenance": "mission-control report (derived from a plan run)",
+     "recoverable": false,
+     "size_bytes": 33,
+     "title": "plan a",
+     "type": "report"
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/report/plan_a",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "asset": {
+     "created": "<mtime>",
+     "detail": {},
+     "export_href": "/library/dem/b4/export",
+     "id": "b4",
+     "inspect_href": "/library/dem/b4",
+     "namespace": "prior",
+     "provenance": "real LOLA DEM bundle",
+     "recoverable": false,
+     "size_bytes": 28,
+     "title": "b4",
+     "type": "dem"
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/dem/b4",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no bogus asset 'x'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/bogus/x",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no mission asset 'nope'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/mission/nope",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no route /library/mission/a/b",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/mission/a%2Fb",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "created": 1800000000.0,
+    "detail": {
+     "body": "moon",
+     "n_orders": 1,
+     "owner": "api-key"
+    },
+    "export_href": "/library/mission/haul-one/export",
+    "exported_at": 1800000001.5,
+    "id": "haul-one",
+    "inspect_href": "/library/mission/haul-one",
+    "namespace": "live",
+    "payload_href": "/missions/haul-one",
+    "provenance": "authored by api-key (live namespace)",
+    "recoverable": true,
+    "schema": "stewie.asset_library.v1",
+    "size_bytes": 152,
+    "title": "Haul One",
+    "type": "mission"
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/mission/haul-one/export",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created": "<mtime>",
+    "detail": {
+     "grid": {
+      "cols": 3,
+      "rows": 2
+     }
+    },
+    "export_href": "/library/dem/b1/export",
+    "exported_at": 1800000001.5,
+    "id": "b1",
+    "inspect_href": "/library/dem/b1",
+    "namespace": "prior",
+    "provenance": "SYNTHETIC producer",
+    "recoverable": false,
+    "schema": "stewie.asset_library.v1",
+    "size_bytes": 81,
+    "title": "b1",
+    "type": "dem"
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/dem/b1/export",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created": "<mtime>",
+    "detail": {
+     "formats": [
+      "md"
+     ]
+    },
+    "export_href": "/library/report/plan_b/export",
+    "exported_at": 1800000001.5,
+    "id": "plan_b",
+    "inspect_href": "/library/report/plan_b",
+    "namespace": "derived",
+    "payload_href": "/reports/plan_b.md",
+    "provenance": "mission-control report (derived from a plan run)",
+    "recoverable": false,
+    "schema": "stewie.asset_library.v1",
+    "size_bytes": 19,
+    "title": "plan b",
+    "type": "report"
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/report/plan_b/export",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no mission asset 'nope'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library/mission/nope/export",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/library/mission/old-one/recover",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'gis-anon')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-030",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/library/mission/old-one/recover",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "id": "old-one",
+    "ok": true,
+    "reason": null,
+    "restored": true,
+    "type": "mission"
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/library/mission/old-one/recover",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "refusing to restore missions/old-one over an existing artifact",
+    "ok": false,
+    "restored": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/library/mission/old-one/recover",
+    "raw": null
+   },
+   "status": 409
+  },
+  {
+   "body": {
+    "error": "refusing to restore structures/ring over an existing artifact",
+    "ok": false,
+    "restored": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/library/structure/ring/recover",
+    "raw": null
+   },
+   "status": 409
+  },
+  {
+   "body": {
+    "id": "plan_a",
+    "ok": false,
+    "reason": "report is not trash-recoverable (a report is regenerated; a twin cold-restores)",
+    "restored": false,
+    "type": "report"
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/library/report/plan_a/recover",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "assets": [
+     {
+      "created": "<mtime>",
+      "detail": {
+       "grid": {
+        "cols": 3,
+        "rows": 2
+       }
+      },
+      "export_href": "/library/dem/b1/export",
+      "id": "b1",
+      "inspect_href": "/library/dem/b1",
+      "namespace": "prior",
+      "provenance": "SYNTHETIC producer",
+      "recoverable": false,
+      "size_bytes": 81,
+      "title": "b1",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b2/export",
+      "id": "b2",
+      "inspect_href": "/library/dem/b2",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 9,
+      "title": "b2",
+      "type": "dem"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/dem/b4/export",
+      "id": "b4",
+      "inspect_href": "/library/dem/b4",
+      "namespace": "prior",
+      "provenance": "real LOLA DEM bundle",
+      "recoverable": false,
+      "size_bytes": 28,
+      "title": "b4",
+      "type": "dem"
+     },
+     {
+      "created": 1800000000.0,
+      "detail": {
+       "body": "moon",
+       "n_orders": 1,
+       "owner": "api-key"
+      },
+      "export_href": "/library/mission/haul-one/export",
+      "id": "haul-one",
+      "inspect_href": "/library/mission/haul-one",
+      "namespace": "live",
+      "payload_href": "/missions/haul-one",
+      "provenance": "authored by api-key (live namespace)",
+      "recoverable": true,
+      "size_bytes": 152,
+      "title": "Haul One",
+      "type": "mission"
+     },
+     {
+      "created": 1800000000.0,
+      "detail": {
+       "body": "moon",
+       "n_orders": 0,
+       "owner": "api-key"
+      },
+      "export_href": "/library/mission/old-one/export",
+      "id": "old-one",
+      "inspect_href": "/library/mission/old-one",
+      "namespace": "live",
+      "payload_href": "/missions/old-one",
+      "provenance": "authored by api-key (live namespace)",
+      "recoverable": true,
+      "size_bytes": 131,
+      "title": "Old One",
+      "type": "mission"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "formats": [
+        "md",
+        "pdf"
+       ]
+      },
+      "export_href": "/library/report/plan_a/export",
+      "id": "plan_a",
+      "inspect_href": "/library/report/plan_a",
+      "namespace": "derived",
+      "payload_href": "/reports/plan_a.pdf",
+      "provenance": "mission-control report (derived from a plan run)",
+      "recoverable": false,
+      "size_bytes": 33,
+      "title": "plan a",
+      "type": "report"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "formats": [
+        "md"
+       ]
+      },
+      "export_href": "/library/report/plan_b/export",
+      "id": "plan_b",
+      "inspect_href": "/library/report/plan_b",
+      "namespace": "derived",
+      "payload_href": "/reports/plan_b.md",
+      "provenance": "mission-control report (derived from a plan run)",
+      "recoverable": false,
+      "size_bytes": 19,
+      "title": "plan b",
+      "type": "report"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {},
+      "export_href": "/library/site/broken/export",
+      "id": "broken",
+      "inspect_href": "/library/site/broken",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 0 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 18,
+      "title": "broken terrain memory",
+      "type": "site"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "cells_changed": 3,
+       "chain_valid": true,
+       "n_missions": 2,
+       "net_volume_m3": 0.0,
+       "version": 2
+      },
+      "export_href": "/library/site/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/site/haworth",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 3196,
+      "title": "haworth terrain memory",
+      "type": "site"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "cells_changed": 3,
+       "chain_valid": false,
+       "n_missions": 2,
+       "net_volume_m3": 0.0,
+       "version": 2
+      },
+      "export_href": "/library/site/shoemaker/export",
+      "id": "shoemaker",
+      "inspect_href": "/library/site/shoemaker",
+      "namespace": "world",
+      "provenance": "terrain-memory world model (hash-chained, 2 recorded missions)",
+      "recoverable": false,
+      "size_bytes": 3260,
+      "title": "shoemaker terrain memory",
+      "type": "site"
+     },
+     {
+      "created": 1800000000.0,
+      "detail": {
+       "n_entries": 1,
+       "owner": "api-key"
+      },
+      "export_href": "/library/structure/ring/export",
+      "id": "ring",
+      "inspect_href": "/library/structure/ring",
+      "namespace": "live",
+      "provenance": "authored by api-key (shared template)",
+      "recoverable": true,
+      "size_bytes": 215,
+      "title": "Ring",
+      "type": "structure"
+     },
+     {
+      "created": "<mtime>",
+      "detail": {
+       "n_events": 3
+      },
+      "export_href": "/library/twin/haworth/export",
+      "id": "haworth",
+      "inspect_href": "/library/twin/haworth",
+      "namespace": "world",
+      "provenance": "observed-terrain event journal (hash-chained, 3 events)",
+      "recoverable": true,
+      "size_bytes": 32,
+      "title": "haworth observed-twin journal",
+      "type": "twin"
+     }
+    ],
+    "counts": {
+     "dem": 3,
+     "mission": 2,
+     "report": 2,
+     "site": 3,
+     "structure": 1,
+     "twin": 1
+    },
+    "ok": true,
+    "total": 12,
+    "trash": [
+     {
+      "deleted": true,
+      "id": "spare",
+      "provenance": "soft-deleted mission (recoverable from .trash)",
+      "recoverable": true,
+      "trash_file": "spare.1800000001500.json",
+      "type": "mission"
+     }
+    ],
+    "types": [
+     "mission",
+     "structure",
+     "report",
+     "site",
+     "twin",
+     "dem"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/library?include_trash=1",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": null
+}
