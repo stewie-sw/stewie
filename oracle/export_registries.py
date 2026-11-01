@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
 """
 from __future__ import annotations
 
@@ -50,6 +50,42 @@ def overlay_constants() -> dict:
     and ipex_specs.py. The Rust compiles these values in, so its server refuses to start when one is set."""
     from stewie.specs import ipex_specs as I
     return {"names": sorted({n for m in (K, I) for n, v in vars(m).items() if isinstance(v, (bool, int, float))})}
+
+
+def model_registries() -> dict:
+    """The registries the Models pane and the physics read routes serve (``routers.models``), as the routes build
+    their rows: the system profiles (with their exact-bytes sha256), the vehicle and body registries, the physics
+    model ledger and selectable backends, each body's Bekker regime, the runtime profiles, the backend authority
+    registry and the terramechanics spine."""
+    from stewie.contracts import ModelArtifact
+    from stewie.contracts import physics_model_control as PMC
+    from stewie.physics.backend import list_backends
+    from stewie.server.routers import models as R
+    from stewie.specs import bodies as B
+    from stewie.specs import profiles as P
+    from stewie.specs import vehicles as VH
+    from stewie.specs.physics_authority import list_backend_authority
+    from stewie.specs.runtime_profiles import list_runtime_profiles
+    from stewie.specs.terramechanics_spine import list_terra_spine
+    return {
+        "profiles": [R._profile_row(pid) for pid in P.available_profiles()],
+        "default_profile": P.DEFAULT_PROFILE_ID,
+        "vehicles": [R._vehicle_row(v) for v in VH.VEHICLES.values()],
+        "default_vehicle": VH.DEFAULT_VEHICLE,
+        "bodies": [R._body_row(b) for b in B.BODIES.values()],
+        "default_body": B.DEFAULT_BODY,
+        "body_in_regime": {b: B.body_in_regime(b) for b in B.BODIES},
+        "command_path_enforced": "command_path" in set(ModelArtifact.model_fields),
+        "selectable_backends": list(list_backends()),
+        "live_default_model": PMC.LIVE_DEFAULT_MODEL_ID,
+        "physics_models": [
+            {"model_id": m.model_id, "backend_id": m.backend_id, "version": m.version, "validated": m.validated,
+             "frozen": m.frozen, "deprecated": m.deprecated, "calibration": m.calibration,
+             "validated_bodies": list(m.validated_bodies), "notes": m.notes} for m in PMC.MODELS.values()],
+        "runtime_profiles": list_runtime_profiles(),
+        "backend_authority": list_backend_authority(),
+        "terra_spine": list_terra_spine(),
+    }
 
 
 def soil_baseline() -> dict:
@@ -221,6 +257,7 @@ def main() -> None:
     print(_write("sites.json", sites()))
     print(_write("site_order.json", site_order()))
     print(_write("overlay_constants.json", overlay_constants()))
+    print(_write("model_registries.json", model_registries()))
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))

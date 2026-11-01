@@ -5346,6 +5346,31 @@ def http_editsession_cases() -> None:
                   payload)
 
 
+def http_models_cases() -> None:
+    """The model and physics registries (RW-55b13): the Models pane read, the physics-backend ledger, the
+    body-by-backend compatibility matrix and the runtime-profile, authority and terramechanics-spine registries,
+    through one scripted session (_http_session). Every row comes from the real registries."""
+    def script(call, key, d, clock):
+        guest = {"X-Stewie-Anon-Key": "anon-key-xyz"}
+        call("GET", "/models")                                                   # no key
+        call("GET", "/models", headers=guest)                                    # below operator
+        call("GET", "/models", headers=key)
+        call("GET", "/physics/backends")                                         # public
+        call("GET", "/physics/compatibility")                                    # no key
+        call("GET", "/physics/compatibility", headers=key)
+        call("GET", "/physics/compatibility?allow_analog=1", headers=key)
+        call("GET", "/physics/compatibility?allow_analog=maybe", headers=key)
+        call("GET", "/runtime/profiles")
+        call("GET", "/physics/authority")
+        call("GET", "/physics/terramechanics-spine")
+
+    payload = _http_session("stewie-http-models-oracle", {}, script)
+    write_fixture(ORACLE_FIXTURES, "http_models_cases", "oracle/build_fixtures.py::http_models_cases (the FastAPI "
+                  "app's model and physics registry routes)",
+                  ["stewie/server/routers/models.py", "crates/stewie-contracts/fixtures/model_registries.json"],
+                  payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5464,6 +5489,7 @@ def main() -> None:
     http_library_cases()
     http_assets_cases()
     http_editsession_cases()
+    http_models_cases()
 
 
 if __name__ == "__main__":

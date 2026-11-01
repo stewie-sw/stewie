@@ -1498,3 +1498,16 @@ async fn concurrent_edits_to_one_session_all_land_in_order() {
     assert_eq!(fids, (1..=20).map(|i| format!("ko{i}")).collect::<Vec<_>>());
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[tokio::test]
+async fn the_python_models_session_replays_exactly() {
+    replay(
+        "http_models_cases",
+        b"stewie-http-models-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}

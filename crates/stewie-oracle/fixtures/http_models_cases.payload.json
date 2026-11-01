@@ -1,0 +1,826 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [],
+ "seed_sha256_of": "stewie-http-models-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/models",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "operator+ role required (signed in as guest 'gis-anon')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-002",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/models",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "bodies": [
+     {
+      "bekker_regime": "gravity-loaded",
+      "bulk_density_kg_m3": 1300.0,
+      "confidence": "g/density/cohesion/friction MEASURED (Apollo + ChaSTE); Bekker MEASURED (NASA LTV).",
+      "g_m_s2": 1.62,
+      "id": "moon",
+      "label": "Moon",
+      "provenance": "NASA LTV terramechanics white paper NTRS 20220010732 (k_c=1400 N/m^2, k_phi=820000 N/m^3, n=1.0, c=170 Pa); Carrier/Mitchell Lunar Sourcebook 1991; ChaSTE 2025 (rho).",
+      "repose_deg": 35.0
+     },
+     {
+      "bekker_regime": "gravity-loaded",
+      "bulk_density_kg_m3": 1500.0,
+      "confidence": "g MEASURED; density/cohesion/friction MEASURED in-situ (MER/InSight); Bekker ESTIMATED (GRC-3 simulant, no native-Mars bevameter exists).",
+      "g_m_s2": 3.71,
+      "id": "mars",
+      "label": "Mars",
+      "provenance": "Oravec et al. 2020 NASA GRC (GRC-3 simulant: k_c=23.2 kN/m^2, k_phi=606.7 kN/m^3, n=1.0); Sullivan 2011 (c 0-2 kPa, phi 30-37); Spohn 2022 InSight (duricrust 5.8 kPa).",
+      "repose_deg": 33.0
+     },
+     {
+      "bekker_regime": "gravity-loaded",
+      "bulk_density_kg_m3": 1300.0,
+      "confidence": "g MEASURED (Dawn); repose 34.5 MEASURED; near-surface density ESTIMATED (crust 1200-1360, porosity 53-72%); cohesion + Bekker UNKNOWN (no in-situ data).",
+      "g_m_s2": 0.284,
+      "id": "ceres",
+      "label": "Ceres",
+      "provenance": "Park 2016 / Ermakov 2017 (g, density); Icarus 2024 (repose 34.5+/-2.8); cohesion UNKNOWN -> lunar Bekker analog used (flagged); friction = repose proxy.",
+      "repose_deg": 34.5
+     },
+     {
+      "bekker_regime": "microgravity",
+      "bulk_density_kg_m3": 1190.0,
+      "confidence": "g/density/cohesion MEASURED (OSIRIS-REx); friction ESTIMATED (boulder morphology). Bekker N/A: microgravity rubble pile, near-zero cohesion, near-fluidized surface.",
+      "g_m_s2": 4e-05,
+      "id": "bennu",
+      "label": "Bennu (C-type asteroid)",
+      "provenance": "Scheeres 2019 (g); Lauretta 2019 / Watanabe 2019 (rho 1190); Walsh 2022 (cohesion <=2 Pa, near-fluidized); Robin 2024 (phi ~33). Bekker INVALID -> use DEM/granular.",
+      "repose_deg": 33.0
+     },
+     {
+      "bekker_regime": "microgravity",
+      "bulk_density_kg_m3": 1850.0,
+      "confidence": "g/density MEASURED; cohesion/friction ESTIMATED (tidal-fracture models, analogs). Bekker UNKNOWN (milli-g); JAXA MMX/IDEFIX will return first in-situ data ~2027.",
+      "g_m_s2": 0.0057,
+      "id": "phobos",
+      "label": "Phobos (Mars moon)",
+      "provenance": "Ernst 2023 (rho ~1850); Hurford 2016 (cohesion ~500 Pa surface model, phi ~40); Murdoch 2025 IDEFIX (phi 33.5+/-6.1 analog). Bekker UNKNOWN -> lunar analog (flagged).",
+      "repose_deg": 38.0
+     },
+     {
+      "bekker_regime": "gravity-loaded",
+      "bulk_density_kg_m3": 1600.0,
+      "confidence": "reference/validation body: Wong dry-sand Bekker table (well-established).",
+      "g_m_s2": 9.81,
+      "id": "earth",
+      "label": "Earth",
+      "provenance": "Wong, Theory of Ground Vehicles (dry sand: k_c=0.99 kN/m^(n+1), k_phi=1528.43 kN/m^(n+2), n=1.1, c=1.04 kPa, phi=28).",
+      "repose_deg": 34.0
+     },
+     {
+      "bekker_regime": "gravity-loaded",
+      "bulk_density_kg_m3": 1750.0,
+      "confidence": "density MEASURED (BP-1 compacted, WHEELTEST); shear 27-32 kPa + penetration 206-226 kPa MEASURED (BDSCALE) as provenance; Bekker [ANALOG: Wong dry sand -- a BP-1 Bekker fit is unpublished and deliberately NOT fabricated].",
+      "g_m_s2": 9.81,
+      "id": "bp1_testbed",
+      "label": "BP-1 (GMRO test bed)",
+      "provenance": "BP-1: 1.75 g/cm^3 compacted [WHEELTEST p.4]; Humboldt shear-vane 27-32 kPa, penetrometer 206-226 kPa [BDSCALE]; moduli = Wong dry-sand baseline [ANALOG].",
+      "repose_deg": 34.0
+     }
+    ],
+    "body_count": 7,
+    "default_body": "moon",
+    "default_profile": "STEWIE_IPEX_V1",
+    "default_vehicle": "ipex",
+    "model_governance": {
+     "command_path_enforced": true,
+     "command_path_invariant": "no learned model may be on the rover command path (ModelArtifact rejects command_path=True)",
+     "contract": "ModelArtifact (stewie.contracts, FS-12/§25.3)",
+     "deployed_models": [],
+     "deployment_ready_criteria": [
+      "dataset_lineage recorded (training-data lineage, RL-01)",
+      "eval_split recorded (evaluation lineage, RL-01)",
+      "input_schema declared (typed input contract)",
+      "output_schema declared (typed estimate contract)",
+      "latency_budget_ms > 0",
+      "memory_budget_mb > 0",
+      "calibrated",
+      "ood_detector present",
+      "deterministic fallback or rollback_to set",
+      "off the rover command path (command_path == False)"
+     ],
+     "schema_endpoint": "/contracts/schema",
+     "status": "No learned model is deployed on the command path. The ModelArtifact contract + ML-01 deployment-ready gate are defined (schema at /contracts/schema); a live model registry (FS-12) is gated and ships no instances on this build."
+    },
+    "note": "Registries are the real source of truth: system profiles (specs/profiles.py, exact-bytes sha256 + VERIFIED/UNVERIFIED status), the vehicle registry (specs/vehicles.py), and the body/soil registry (specs/bodies.py), each with provenance. Model governance is the real ModelArtifact (ML-01) deployment-ready gate + §25.3 no-command-path invariant; no learned model is deployed on the command path.",
+    "ok": true,
+    "profile_count": 2,
+    "profiles": [
+     {
+      "capacity_wh": 283.0,
+      "deployment_ready": false,
+      "dry_mass_kg": 30.0,
+      "id": "OFFICIAL_LAC_2025_UNVERIFIED",
+      "n_cameras": 8,
+      "sha256": "327fe919e132a1d6bce9070257b32c3dce0c88f52ca2610933bd13d298db2223",
+      "source": "package:official_lac_2025_unverified.json",
+      "status": "UNVERIFIED",
+      "substrate": "official_lac"
+     },
+     {
+      "capacity_wh": 1332.0,
+      "deployment_ready": true,
+      "dry_mass_kg": 30.0,
+      "id": "STEWIE_IPEX_V1",
+      "n_cameras": 8,
+      "sha256": "f59b07c430f70eb8c922478f7e0deb30c78a1eb3458e8d13fefef336758501df",
+      "source": "package:stewie_ipex_v1.json",
+      "status": "VERIFIED",
+      "substrate": "stewie"
+     }
+    ],
+    "profiles_deployable": 1,
+    "vehicle_count": 3,
+    "vehicles": [
+     {
+      "capabilities": [
+       "compact",
+       "drive",
+       "dump",
+       "excavate",
+       "haul"
+      ],
+      "dry_mass_kg": 30.0,
+      "id": "ipex",
+      "label": "ISRU Pilot Excavator (IPEx)",
+      "n_wheels": 4,
+      "provenance": "ipex_specs.py (Schuler et al., IPEx TRL-5, NTRS 20240008162); a RASSOR-lineage drum excavator -> no sinter tool on the baseline platform. Geometry: wheel r + drum sourced; track = 0.7 x RASSOR-2 0.5207 m; wheelbase/CG [CALIB]. Render body = CC0 self-authored (scripts/gen_ipex_mesh.py)."
+     },
+     {
+      "capabilities": [
+       "compact",
+       "drive",
+       "dump",
+       "excavate",
+       "haul"
+      ],
+      "dry_mass_kg": 30.0,
+      "id": "ez_rassor",
+      "label": "EZ-RASSOR-geometry rover (render body)",
+      "n_wheels": 4,
+      "provenance": "Geometry = the MIT EZ-RASSOR URDF (FlaSpaceInst/UCF; docs/ezrassor_assets.md), the body the default Godot mesh + the rover.py globals describe. Energy/drum REUSE the IPEx-grounded model -- EZ-RASSOR's own mass/power are not separately sourced and are NOT fabricated here. Mirrors rover.WHEEL_GAUGE_M/WHEEL_BASE_M/WHEEL_RADIUS_M + CG_HEIGHT_M."
+     },
+     {
+      "capabilities": [
+       "compact",
+       "drive",
+       "dump",
+       "excavate",
+       "haul"
+      ],
+      "dry_mass_kg": 65.0,
+      "id": "rassor2",
+      "label": "RASSOR 2.0 (TRL-4 breadboard precursor)",
+      "n_wheels": 4,
+      "provenance": "RASSOR 2.0 breadboard (Mueller 2016 / Schuler 2022 BD-scaling): dry mass 65 kg, large bucket drum 24.98 kg/drum x2, 43 cm wheels (r 0.215), 0.5207 m skid-steer track -- all SOURCED. wheelbase/CG [CALIB]. Energy reuses the IPEx model (RASSOR-2's own power not separately sourced; not fabricated). The TRL-4 precursor, registered so vehicle selection drives the planner numbers (its bigger per-cycle drum -> fewer drum cycles than IPEx)."
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/models",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "backend_count": 1,
+    "live_default_model": "tier2_numpy@1.0",
+    "model_count": 3,
+    "models": [
+     {
+      "backend_id": "tier2_numpy",
+      "calibration": "sourced-analog",
+      "deprecated": false,
+      "frozen": true,
+      "model_id": "tier2_numpy@1.0",
+      "notes": "Load-bearing Bekker/Wong-Reece + slip + mass-conserving compaction; the conserved sim authority (roversim Phase 1-2, 636f062/49c06bf/418858e). Body params sourced (Apollo/ChaSTE, MER/InSight, NASA LTV); microgravity bodies carry only a flagged analog and are excluded from LIVE.",
+      "validated": true,
+      "validated_bodies": [
+       "moon",
+       "mars",
+       "ceres",
+       "earth",
+       "bp1_testbed"
+      ],
+      "version": "1.0"
+     },
+     {
+      "backend_id": "tier2_numpy",
+      "calibration": "superseded",
+      "deprecated": true,
+      "frozen": true,
+      "model_id": "tier2_numpy@0.1",
+      "notes": "DEPRECATED: the pre-load-bearing baseline (hardcoded 0.12 compaction; the Bekker moduli were decorative, read by nothing). Superseded 2026-06-01 by the load-bearing solve (636f062/49c06bf). Kept as a ledger record; validated+frozen but deprecated -> never a LIVE default.",
+      "validated": true,
+      "validated_bodies": [
+       "moon"
+      ],
+      "version": "0.1"
+     },
+     {
+      "backend_id": "tier2_chrono",
+      "calibration": "uncalibrated",
+      "deprecated": false,
+      "frozen": false,
+      "model_id": "tier3_chrono@0.0",
+      "notes": "PX-03 Chrono/hybrid geometry oracle: a Tier-3 engine that does NOT yet conserve mass, so it is NOT release authority (deliberately unvalidated for LIVE until the euclid PyChrono oracle calibration, FIX-1/FIX-2, lands). Selectable for rehearsal/sim, never for LIVE.",
+      "validated": false,
+      "validated_bodies": [],
+      "version": "0.0"
+     }
+    ],
+    "note": "A mission's physics_backend_id selects the terramechanics engine; only conserved, release-authority backends are selectable (list_backends()). The models ledger is the EG-12 governance record (validated/frozen/deprecated per version); a not-yet-conserving oracle (tier3_chrono) appears with validated=False and is excluded from the selectable set.",
+    "ok": true,
+    "selectable_backends": [
+     "tier2_numpy"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/physics/backends",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/physics/compatibility",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "allow_analog": false,
+    "backends": [
+     "tier2_numpy"
+    ],
+    "bodies": [
+     "bennu",
+     "bp1_testbed",
+     "ceres",
+     "earth",
+     "mars",
+     "moon",
+     "phobos"
+    ],
+    "matrix": {
+     "bennu": {
+      "tier2_numpy": {
+       "reason": "microgravity: Bekker terramechanics out-of-regime (refused)",
+       "regime_ok": false,
+       "supported": false
+      }
+     },
+     "bp1_testbed": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "ceres": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "earth": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "mars": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "moon": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "phobos": {
+      "tier2_numpy": {
+       "reason": "microgravity: Bekker terramechanics out-of-regime (refused)",
+       "regime_ok": false,
+       "supported": false
+      }
+     }
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/physics/compatibility",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "allow_analog": true,
+    "backends": [
+     "tier2_numpy"
+    ],
+    "bodies": [
+     "bennu",
+     "bp1_testbed",
+     "ceres",
+     "earth",
+     "mars",
+     "moon",
+     "phobos"
+    ],
+    "matrix": {
+     "bennu": {
+      "tier2_numpy": {
+       "reason": "microgravity: supported ONLY via explicit gravity-loaded analog soil (caveated [UNKNOWN])",
+       "regime_ok": false,
+       "supported": true
+      }
+     },
+     "bp1_testbed": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "ceres": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "earth": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "mars": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "moon": {
+      "tier2_numpy": {
+       "reason": "gravity-loaded + validated for this backend",
+       "regime_ok": true,
+       "supported": true
+      }
+     },
+     "phobos": {
+      "tier2_numpy": {
+       "reason": "microgravity: supported ONLY via explicit gravity-loaded analog soil (caveated [UNKNOWN])",
+       "regime_ok": false,
+       "supported": true
+      }
+     }
+    },
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/physics/compatibility?allow_analog=1",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "allow_analog: Input should be a valid boolean, unable to interpret input",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/physics/compatibility?allow_analog=maybe",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "count": 8,
+    "note": "A SIL/twin/replay/sim profile rehearses + produces evidence but holds no live command authority (can_release/can_execute False); only hil/field_test/live_rover can release/execute on real hardware, escalating command_capability none->bounded->full.",
+    "ok": true,
+    "profiles": [
+     {
+      "can_execute": false,
+      "can_release": false,
+      "command_capability": "none",
+      "description": "Software-in-the-loop planning/analysis on the conserved numpy authority; no rover, no live command.",
+      "evidence_class": "forecast",
+      "id": "desktop_sil",
+      "kind": "software_in_loop"
+     },
+     {
+      "can_execute": false,
+      "can_release": false,
+      "command_capability": "none",
+      "description": "The observed digital twin: forecasts + belief, read-only, no command egress.",
+      "evidence_class": "forecast",
+      "id": "digital_twin",
+      "kind": "digital_twin"
+     },
+     {
+      "can_execute": false,
+      "can_release": false,
+      "command_capability": "none",
+      "description": "Deterministic bag/MCAP replay through the ROS2 spine; evidence only, no live command.",
+      "evidence_class": "replay",
+      "id": "ros2_replay",
+      "kind": "replay"
+     },
+     {
+      "can_execute": false,
+      "can_release": false,
+      "command_capability": "bounded",
+      "description": "Gazebo robot/sensor simulation (ROS2-native: URDF/SDF, ros2_control, sensor plugins on real ROS topics); drives the SIM rover under truth-isolated sim_truth, never the real rover.",
+      "evidence_class": "sim_truth",
+      "id": "gazebo_sim",
+      "kind": "simulation"
+     },
+     {
+      "can_execute": false,
+      "can_release": false,
+      "command_capability": "bounded",
+      "description": "Godot/viz2 terrain + excavation simulation on the conserved mass-exact authority (real DEM, lunar photometry, driveable over a private loopback seam); drives the SIM rover under truth-isolated sim_truth, never the real rover.",
+      "evidence_class": "sim_truth",
+      "id": "godot_sim",
+      "kind": "simulation"
+     },
+     {
+      "can_execute": true,
+      "can_release": true,
+      "command_capability": "bounded",
+      "description": "Hardware-in-the-loop on a bench rover; bounded live actuation under the SF-01 safing watchdog.",
+      "evidence_class": "hil",
+      "id": "hil",
+      "kind": "hardware_in_loop"
+     },
+     {
+      "can_execute": true,
+      "can_release": true,
+      "command_capability": "bounded",
+      "description": "Bounded field traverse on real hardware; live telemetry + bounded command under release authority.",
+      "evidence_class": "live",
+      "id": "field_test",
+      "kind": "field"
+     },
+     {
+      "can_execute": true,
+      "can_release": true,
+      "command_capability": "full",
+      "description": "Full live rover command in the live namespace; release + execute under the complete authority chain.",
+      "evidence_class": "live",
+      "id": "live_rover",
+      "kind": "live"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/runtime/profiles",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "backends": [
+     {
+      "authority_scope": [
+       "terrain",
+       "terramechanics"
+      ],
+      "conserves_mass": true,
+      "description": "The conserved terrain/terramechanics authority for local planning + mass-conserving excavation evidence.",
+      "id": "tier2_numpy",
+      "refusal_reason": null,
+      "valid_for_execute": true,
+      "valid_for_planning": true,
+      "valid_for_rehearsal": true,
+      "valid_for_release": true
+     },
+     {
+      "authority_scope": [
+       "robot",
+       "sensor",
+       "contact",
+       "clock"
+      ],
+      "conserves_mass": false,
+      "description": "Gazebo robot/sensor/contact/odometry/clock simulation: the SIM robot's OWN dynamics ARE the rehearsal truth (pose/odom from the robot model), truth-isolated from the perception stack; validates robot behavior, not terrain truth.",
+      "id": "gazebo",
+      "refusal_reason": "robot/sensor/contact simulation only; NOT the conserved terrain-mutation authority; truth-isolated.",
+      "valid_for_execute": false,
+      "valid_for_planning": false,
+      "valid_for_rehearsal": true,
+      "valid_for_release": false
+     },
+     {
+      "authority_scope": [
+       "terramechanics",
+       "contact"
+      ],
+      "conserves_mass": false,
+      "description": "Optional high-fidelity terramechanics/contact reference; a benchmark/oracle only when its limits are labeled.",
+      "id": "chrono",
+      "refusal_reason": "high-fidelity reference/oracle; not release-eligible until mass-conservation + calibration gates pass.",
+      "valid_for_execute": false,
+      "valid_for_planning": false,
+      "valid_for_rehearsal": true,
+      "valid_for_release": false
+     },
+     {
+      "authority_scope": [
+       "robot",
+       "hardware",
+       "sensor"
+      ],
+      "conserves_mass": false,
+      "description": "Real rover/testbed telemetry + actuator feedback; the live-execution authority under the release chain.",
+      "id": "hardware",
+      "refusal_reason": null,
+      "valid_for_execute": true,
+      "valid_for_planning": false,
+      "valid_for_rehearsal": true,
+      "valid_for_release": true
+     },
+     {
+      "authority_scope": [
+       "rendering"
+      ],
+      "conserves_mass": false,
+      "description": "High-fidelity rendering/replay that renders FROM the conserved authority's Seam-1 state fields (heightmap/density/disturbance) + the robot pose -- it consumes physics as a ONE-WAY render input but computes no physics and holds no command authority (a drive-in-sim view would relay control to the authority, never simulate its own).",
+      "id": "godot",
+      "refusal_reason": "visualization/rendering/replay only; never physics or command authority (no future promotion without an explicit tested row).",
+      "valid_for_execute": false,
+      "valid_for_planning": false,
+      "valid_for_rehearsal": false,
+      "valid_for_release": false
+     }
+    ],
+    "count": 5,
+    "note": "Every planner/report value must name the backend that produced it. Only tier2_numpy (conserved terrain) + hardware (real) are release/execute-eligible; gazebo/chrono are rehearsal-only; godot renders and never owns physics or command authority.",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/physics/authority",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "backend": "tier2_numpy",
+    "count": 10,
+    "note": "Each computed term names the real stewie.physics callable that produces it; input terms (slope/roughness/density) are terrain/body-derived. Calibration status is honest per term (measured vs calibrated Bekker moduli).",
+    "ok": true,
+    "terms": [
+     {
+      "backend": "tier2_numpy",
+      "calibration": "measured",
+      "description": "Local terrain slope; sets the gravity load component and the slip demand.",
+      "id": "slope",
+      "name": "Surface slope",
+      "source": "input:dem",
+      "symbol": "theta",
+      "unit": "deg"
+     },
+     {
+      "backend": "tier2_numpy",
+      "calibration": "measured",
+      "description": "Local elevation roughness over the contact patch.",
+      "id": "roughness",
+      "name": "Terrain roughness",
+      "source": "input:dem",
+      "symbol": "sigma_h",
+      "unit": "m RMS"
+     },
+     {
+      "backend": "tier2_numpy",
+      "calibration": "calibrated",
+      "description": "In-situ bulk density; sets bearing + the sinkage-to-density coupling.",
+      "id": "regolith_density",
+      "name": "Regolith bulk density",
+      "source": "input:body_params",
+      "symbol": "rho",
+      "unit": "kg/m^3"
+     },
+     {
+      "backend": "tier2_numpy",
+      "calibration": "calibrated",
+      "description": "Normal load over the contact patch; the Bekker bearing driver.",
+      "id": "contact_pressure",
+      "name": "Ground contact pressure",
+      "source": "stewie.physics.sinkage.contact_pressure",
+      "symbol": "p",
+      "unit": "Pa"
+     },
+     {
+      "backend": "tier2_numpy",
+      "calibration": "calibrated",
+      "description": "Bekker pressure-sinkage depth under the wheel/drum contact.",
+      "id": "sinkage",
+      "name": "Wheel sinkage",
+      "source": "stewie.physics.sinkage.bekker_sinkage",
+      "symbol": "z",
+      "unit": "m"
+     },
+     {
+      "backend": "tier2_numpy",
+      "calibration": "calibrated",
+      "description": "Slip ratio for the demanded thrust; entraps when demand exceeds the traction budget.",
+      "id": "slip",
+      "name": "Wheel slip ratio",
+      "source": "stewie.physics.slip.slip_for_demand",
+      "symbol": "i",
+      "unit": "1"
+     },
+     {
+      "backend": "tier2_numpy",
+      "calibration": "calibrated",
+      "description": "Available thrust ceiling from cohesion + friction under the normal load.",
+      "id": "traction",
+      "name": "Traction budget",
+      "source": "stewie.physics.slip.traction_budget",
+      "symbol": "H_max",
+      "unit": "N"
+     },
+     {
+      "backend": "tier2_numpy",
+      "calibration": "calibrated",
+      "description": "Bekker motion resistance from the sinkage the wheel must climb out of.",
+      "id": "compaction_resistance",
+      "name": "Compaction resistance",
+      "source": "stewie.physics.slip.compaction_resistance",
+      "symbol": "R_c",
+      "unit": "N"
+     },
+     {
+      "backend": "tier2_numpy",
+      "calibration": "calibrated",
+      "description": "First-principles dig draft force from the McKyes/Reece Fundamental Earthmoving Equation over the drum/blade cut (task #78 Finding 1).",
+      "id": "excavation_draft",
+      "name": "Excavation draft force",
+      "source": "stewie.physics.excavation.draft_force",
+      "symbol": "F_draft",
+      "unit": "N"
+     },
+     {
+      "backend": "tier2_numpy",
+      "calibration": "calibrated",
+      "description": "Terramechanics drive power at the commanded speed on the slope: a steady-state Watts figure (task #53 Finding 3 honesty fix).",
+      "id": "drive_energy",
+      "name": "Drive power",
+      "source": "stewie.physics.slip.bekker_drive_power_w",
+      "symbol": "P",
+      "unit": "W"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/physics/terramechanics-spine",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": null
+}

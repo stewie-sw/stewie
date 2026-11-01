@@ -1,0 +1,9 @@
+{
+ "fixture": "http_models_cases",
+ "generator": "oracle/build_fixtures.py::http_models_cases (the FastAPI app's model and physics registry routes)",
+ "payload_sha256": "6bf24d151af946734448d777ac62f41f787998d3bbed674ba79c8c2e7679e83d",
+ "sources": {
+  "crates/stewie-contracts/fixtures/model_registries.json": "d202869fe749eba0fd4e33f157de8c262fe66a625b04f7a7b0aafeb8df69b9f8",
+  "stewie/server/routers/models.py": "c4868c6617c5469a5c0177d8469dfd7c7a626ffd93334f2b8d51f64c8912ef34"
+ }
+}

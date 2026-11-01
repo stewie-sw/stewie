@@ -14,6 +14,7 @@ pub mod dem_routes;
 pub mod edit_session;
 pub mod library_routes;
 pub mod mission_routes;
+pub mod model_routes;
 pub mod objects;
 pub mod operators;
 pub mod planning;
