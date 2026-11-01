@@ -129,6 +129,27 @@ fn site_catalog_validates_and_every_named_bundle_exists() {
 }
 
 #[test]
+fn the_site_order_lists_exactly_the_catalog_sites_once() {
+    let cat = load(&crate_dir().join("fixtures/sites.json"));
+    let order = load(&crate_dir().join("fixtures/site_order.json"));
+    let mut names: Vec<&str> = order["order"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    assert_eq!(names[0], "haworth", "the registry leads with the work site");
+    names.sort_unstable();
+    let keys: Vec<&str> = cat
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(names, keys);
+}
+
+#[test]
 fn soil_baseline_validates_and_an_untagged_value_is_rejected() {
     let doc = load(&crate_dir().join("fixtures/soil_baseline.json"));
     let v = validator("soil_baseline.schema.json");

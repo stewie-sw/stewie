@@ -956,6 +956,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::dem_routes::routes())
         .merge(crate::spec_routes::routes())
         .merge(crate::content_routes::routes())
+        .merge(crate::config_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

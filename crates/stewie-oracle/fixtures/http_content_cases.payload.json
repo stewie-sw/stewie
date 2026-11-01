@@ -894,6 +894,172 @@
     "raw": null
    },
    "status": 401
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/sites",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true,
+    "sites": [
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "Haworth (work site)",
+      "lat": -86.33,
+      "lon": -25.51,
+      "name": "haworth",
+      "note": "the imported 10 km / 5 m LOLA bundle; the committed STEWIE work site"
+     },
+     {
+      "artemis_candidate": false,
+      "imported": true,
+      "label": "Haworth SfS (1 m drive site)",
+      "lat": -86.8465,
+      "lon": -21.0083,
+      "name": "haworth_sfs",
+      "note": "real LRO NAC Shape-from-Shading 1 m DEM; 2 km @ 1 m crop inside the SfS footprint; the driveable viz2 work site (Alexandrov & Beyer 2018), imported 2026-07-10"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "Shackleton rim (Site04)",
+      "lat": -89.7843,
+      "lon": -155.9041,
+      "name": "shackleton_rim",
+      "note": "PGDA Product 78 Site04 tile (4.4 km relief, imported 2026-06-10); site moved 2026-10-31 to the PGDA product 69 average-visibility peak within 5 km of the tile centre (85.5%, 4.8 km away)"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "de Gerlache Rim (Site11)",
+      "lat": -88.4138,
+      "lon": -69.3063,
+      "name": "de_gerlache_rim",
+      "note": "PGDA Product 78 Site11; 10 km / 5 m tile, imported 2026-07-07"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "Nobile Rim 1 (Site06)",
+      "lat": -85.484,
+      "lon": 39.965,
+      "name": "nobile_rim",
+      "note": "PGDA Product 78 Site06; max-relief 10 km tile, imported 2026-06-10"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "Malapert Massif (Site23)",
+      "lat": -85.6471,
+      "lon": -1.7347,
+      "name": "malapert_massif",
+      "note": "PGDA Product 78 Site23; 10 km / 5 m tile, imported 2026-07-07"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "Leibnitz Beta Plateau (Site20)",
+      "lat": -85.5017,
+      "lon": 28.4444,
+      "name": "leibnitz_beta",
+      "note": "PGDA Product 78 Site20; 10 km / 5 m tile, imported 2026-07-07"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": false,
+      "label": "Amundsen Rim",
+      "lat": -84.4,
+      "lon": 69.0,
+      "name": "amundsen_rim",
+      "note": ""
+     },
+     {
+      "artemis_candidate": true,
+      "imported": false,
+      "label": "Faustini PSR (Rim A region)",
+      "lat": -87.0,
+      "lon": 77.0,
+      "name": "faustini_psr",
+      "note": "permanently shadowed in PGDA product 69 (no sunlit rim within 5 km); kept as a PSR target and renamed from faustini_rim 2026-10-31 (D-R73)"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "Peak near Shackleton (Site07)",
+      "lat": -88.9953,
+      "lon": 113.2011,
+      "name": "peak_near_shackleton",
+      "note": "PGDA Product 78 Site07; 10 km / 5 m tile, imported 2026-07-07"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "Connecting Ridge (Site01)",
+      "lat": -89.292,
+      "lon": -117.7676,
+      "name": "connecting_ridge",
+      "note": "PGDA Product 78 Site01; 10 km / 5 m tile, imported 2026-07-07"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "Nobile Rim 2 (DM2)",
+      "lat": -84.0382,
+      "lon": 58.3314,
+      "name": "nobile_rim2",
+      "note": "PGDA Product 78 DM2; 10 km / 5 m tile, imported 2026-07-07"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": false,
+      "label": "Shoemaker Crater",
+      "lat": -87.0462,
+      "lon": 56.8443,
+      "name": "shoemaker",
+      "note": "PGDA Product 78 Shoemaker; 10 km / 5 m tile, imported 2026-07-07"
+     },
+     {
+      "artemis_candidate": true,
+      "imported": true,
+      "label": "de Gerlache-Kocher Massif (Site42)",
+      "lat": -86.0495,
+      "lon": -115.2393,
+      "name": "de_gerlache_kocher",
+      "note": "PGDA Product 78 Site42; 10 km / 5 m tile, imported 2026-07-09"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/sites",
+    "raw": null
+   },
+   "status": 200
   }
  ],
  "store": null

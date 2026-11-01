@@ -4778,8 +4778,8 @@ def http_spec_cases() -> None:
 
 
 def http_content_cases() -> None:
-    """The content reads (RW-55b7c): the bundled sample missions, the saved planning profiles and the validation
-    figures, through one scripted session (_http_session). The figure tree is SYNTHETIC (labelled): the checkout's
+    """The content reads (RW-55b7c/d): the bundled sample missions, the saved planning profiles, the validation
+    figures and the site registry, through one scripted session (_http_session). The figure tree is SYNTHETIC (labelled): the checkout's
     validation/ is partly git-ignored, so its listing differs between hosts. The tree's files ride in the payload
     (``seed_files``) for the replay to lay down, and the profile files the session wrote are pinned by sha256."""
     import base64
@@ -4847,6 +4847,8 @@ def http_content_cases() -> None:
             call("GET", "/figure/terrain/..%2F..%2Foperators.json", headers=key)
             call("GET", "/figure/nope.png", headers=key)
             call("GET", "/figure/top.png")                                       # no key
+            call("GET", "/sites")                                                # no key
+            call("GET", "/sites", headers=key)                                   # registry order, imported state
             for f in sorted(os.listdir(os.path.join(d, "profiles"))):
                 with open(os.path.join(d, "profiles", f), "rb") as fh:
                     written["profiles/" + f] = hashlib.sha256(fh.read()).hexdigest()
@@ -4861,7 +4863,8 @@ def http_content_cases() -> None:
                   ["stewie/server/routers/sample_missions.py", "stewie/server/routers/profiles.py",
                    "stewie/server/routers/figures.py", "stewie/server/sample_missions/01_flatten_pad.json",
                    "stewie/server/sample_missions/02_haul_around_hazard.json",
-                   "stewie/server/sample_missions/03_blocked_infeasible.json"], payload)
+                   "stewie/server/sample_missions/03_blocked_infeasible.json", "stewie/server/routers/config.py",
+                   "stewie/specs/sites.py"], payload)
 
 
 def contour_cases() -> None:

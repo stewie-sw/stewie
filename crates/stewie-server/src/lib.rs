@@ -6,6 +6,7 @@
 pub mod admin;
 pub mod app;
 pub mod auth;
+pub mod config_routes;
 pub mod construction;
 pub mod content_routes;
 pub mod contour;

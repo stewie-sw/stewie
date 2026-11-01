@@ -71,6 +71,9 @@ pub struct Terrain {
     site_locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
 }
 
+/// The registry's order (`site_rows` lists the sites in it; `sites.json` is keyed and sorted).
+const SITE_ORDER: &str = include_str!("../../stewie-contracts/fixtures/site_order.json");
+
 impl std::fmt::Debug for Terrain {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Terrain")
@@ -181,6 +184,25 @@ fn write_identity(journal: &Path, site: &str, source: &str) -> Result<(), String
 }
 
 impl Terrain {
+    /// The site registry's UI rows in registry order (Python `site_rows`): imported means the named bundle is on disk.
+    ///
+    /// # Errors
+    /// A registry whose order file and catalog disagree.
+    pub fn site_rows(&self) -> Result<Vec<Value>, String> {
+        let order: Value = serde_json::from_str(SITE_ORDER).map_err(|e| e.to_string())?;
+        order["order"]
+            .as_array()
+            .ok_or("the site order: no list")?
+            .iter()
+            .map(|n| {
+                let s = n.as_str().and_then(|n| self.sites.get(n)).ok_or_else(|| format!("the site order names {n}, not in the catalog"))?;
+                let imported = s["bundle"].as_str().is_some_and(|b| self.samples_dir.join(b).is_dir());
+                Ok(serde_json::json!({"name": s["name"], "label": s["label"], "lat": s["lat_deg"], "lon": s["lon_deg"],
+                                      "artemis_candidate": s["artemis_candidate"], "imported": imported, "note": s["note"]}))
+            })
+            .collect()
+    }
+
     /// The state over `data_dir`, with the bundles under `samples_dir` (Haworth's at `dem_dir` when given), the
     /// site registry and the body's sphere.
     #[must_use]

@@ -1,8 +1,8 @@
-//! Content reads (RW-55b7c; Python `routers.sample_missions`, `program`, `profiles`, `figures`): the bundled
-//! sample missions, the program board and its snapshot, the saved planning profiles, and the validation figures.
-//! The bundled files are the checkout's (`stewie/server/sample_missions`, `stewie/server/program_snapshot.json`,
-//! `stewie/server/web/program.html`); the figures are `Settings.validation_dir`'s and profiles live under the data
-//! directory.
+//! Content reads (RW-55b7c/d; Python `routers.sample_missions`, `program`, `pages`, `profiles`, `figures`): the
+//! bundled sample missions, the program board and its snapshot, the landing and 3D viewer pages, the saved
+//! planning profiles, and the validation figures. The bundled files are the checkout's
+//! (`stewie/server/sample_missions`, `stewie/server/program_snapshot.json`, `stewie/server/web/*.html`); the figures
+//! are `Settings.validation_dir`'s and profiles live under the data directory.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -81,9 +81,9 @@ async fn get_sample_mission(Path(name): Path<String>) -> Response {
     }
 }
 
-/// The program board page (public).
-async fn program_page() -> Response {
-    match std::fs::read(repo().join("stewie/server/web/program.html")) {
+/// A bundled HTML page (public), or the Python's 404 naming it when this build lacks it.
+fn page(file: &str, what: &str) -> Response {
+    match std::fs::read(repo().join("stewie/server/web").join(file)) {
         Ok(b) => {
             let mut r = b.into_response();
             r.headers_mut().insert(
@@ -94,10 +94,25 @@ async fn program_page() -> Response {
         }
         Err(_) => err(
             StatusCode::NOT_FOUND,
-            "program board page missing from this build",
+            format!("{what} missing from this build"),
         )
         .into_response(),
     }
+}
+
+/// The program board page.
+async fn program_page() -> Response {
+    page("program.html", "program board page")
+}
+
+/// The landing page (`/landing`, `/landing.html`).
+async fn landing_page() -> Response {
+    page("landing.html", "landing page")
+}
+
+/// The standalone full-resolution 3D terrain viewer (`/viz`, `/viz_haworth.html`).
+async fn viz_page() -> Response {
+    page("viz_haworth.html", "viz page")
 }
 
 /// The program board's snapshot, generated from the committed PRD (public).
@@ -319,6 +334,10 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/sample_mission/{name}", get(get_sample_mission))
         .route("/program", get(program_page))
         .route("/program/snapshot", get(program_snapshot))
+        .route("/landing", get(landing_page))
+        .route("/landing.html", get(landing_page))
+        .route("/viz", get(viz_page))
+        .route("/viz_haworth.html", get(viz_page))
         .route("/profile", post(post_profile))
         .route("/profiles", get(get_profiles))
         .route("/profile/{name}", get(get_profile))

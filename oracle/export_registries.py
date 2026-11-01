@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
 """
 from __future__ import annotations
 
@@ -38,6 +38,11 @@ def sites() -> dict:
         d["bundle"] = None if bundle_dir is None else os.path.basename(bundle_dir)
         out[key] = d
     return out
+
+
+def site_order() -> dict:
+    """The registry's own order (``site_rows`` lists the sites in it); sites.json is keyed and sorted."""
+    return {"order": list(SITES)}
 
 
 def soil_baseline() -> dict:
@@ -207,6 +212,7 @@ def _write(name: str, data: dict) -> str:
 def main() -> None:
     print(_write("bodies.json", bodies()))
     print(_write("sites.json", sites()))
+    print(_write("site_order.json", site_order()))
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))

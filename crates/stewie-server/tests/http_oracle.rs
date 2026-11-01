@@ -866,8 +866,9 @@ async fn the_python_content_session_replays_exactly() {
 }
 
 #[tokio::test]
-async fn the_program_board_serves_the_committed_page_and_snapshot() {
-    // the Python serves the two committed files as they are (FileResponse, json.load): the bytes and the types
+async fn the_static_pages_serve_the_committed_files() {
+    // the Python serves the committed files as they are (FileResponse, json.load): the bytes and the types
+    const HTML: &str = "text/html; charset=utf-8";
     let (app, dir) = bare_app("program", false);
     let root = stewie_oracle::repo_root();
     for (path, file, ctype) in [
@@ -881,6 +882,14 @@ async fn the_program_board_serves_the_committed_page_and_snapshot() {
             "stewie/server/program_snapshot.json",
             "application/json",
         ),
+        ("/landing", "stewie/server/web/landing.html", HTML),
+        ("/landing.html", "stewie/server/web/landing.html", HTML),
+        ("/viz", "stewie/server/web/viz_haworth.html", HTML),
+        (
+            "/viz_haworth.html",
+            "stewie/server/web/viz_haworth.html",
+            HTML,
+        ),
     ] {
         let mut req = Request::builder().uri(path).body(Body::empty()).unwrap();
         req.extensions_mut()
@@ -890,9 +899,7 @@ async fn the_program_board_serves_the_committed_page_and_snapshot() {
         assert_eq!(r.headers()["content-type"], ctype, "{path}");
         let got = r.into_body().collect().await.unwrap().to_bytes();
         let want = std::fs::read(root.join(file)).unwrap();
-        if path == "/program" {
-            assert_eq!(&got[..], &want[..], "{path}");
-        } else {
+        if path == "/program/snapshot" {
             let (g, w): (Value, Value) = (
                 serde_json::from_slice(&got).unwrap(),
                 serde_json::from_slice(&want).unwrap(),
@@ -902,7 +909,50 @@ async fn the_program_board_serves_the_committed_page_and_snapshot() {
                 "vacuity: a real snapshot"
             );
             assert_eq!(g, w, "{path}");
+        } else {
+            assert_eq!(&got[..], &want[..], "{path}");
         }
     }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn a_site_whose_bundle_is_not_on_disk_is_not_imported() {
+    // SYNTHETIC: an empty samples directory, so no named bundle is present
+    let dir = std::env::temp_dir().join(format!("stewie-sites-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("samples")).unwrap();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+        (
+            "STEWIE_SAMPLES_DIR",
+            dir.join("samples").display().to_string(),
+        ),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"sites").into(),
+        n: Mutex::new(0),
+    }));
+    let app = router(Arc::new(
+        AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap(),
+    ));
+    let mut req = Request::builder()
+        .uri("/sites")
+        .header("x-api-key", "automation-key-0123456789")
+        .body(Body::empty())
+        .unwrap();
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+    let r = app.oneshot(req).await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let v: Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let rows = v["sites"].as_array().unwrap();
+    assert_eq!(rows.len(), 14, "vacuity: the whole registry");
+    assert!(rows.iter().all(|s| s["imported"] == false), "{rows:?}");
     std::fs::remove_dir_all(&dir).unwrap();
 }
