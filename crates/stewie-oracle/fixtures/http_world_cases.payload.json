@@ -6,7 +6,8 @@
   "STEWIE_API_KEY": "automation-key-0123456789",
   "STEWIE_DIRECTORS": "alice@example.org",
   "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
-  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+  "STEWIE_WORLD_POINT_BUDGET": "4"
  },
  "journals": {
   "haworth.journal": "835f3394ea587fe9b0be649440119ca833761b1e575c3ceaac0b6bced3e2c9d4",
@@ -4762,6 +4763,4770 @@
     "raw": null
    },
    "status": 401
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": true,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": null
+     },
+     {
+      "enabled": true,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": null
+     },
+     {
+      "enabled": true,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": null
+     }
+    ],
+    "attributes": [
+     {
+      "available": true,
+      "id": "base.dem",
+      "label": "Elevation",
+      "unit": "m",
+      "value": 1097.7743
+     },
+     {
+      "available": true,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "unit": "deg",
+      "value": 0.3902
+     },
+     {
+      "available": true,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": true,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "unit": "Pa",
+      "value": 674.9842
+     },
+     {
+      "available": true,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "unit": "m",
+      "value": 0.0008
+     },
+     {
+      "available": true,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "unit": "slip ratio",
+      "value": 0.0041
+     },
+     {
+      "available": true,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "unit": "fraction",
+      "value": 0.9886
+     },
+     {
+      "available": true,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "unit": "W",
+      "value": 0.3174
+     },
+     {
+      "available": true,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "unit": "N",
+      "value": 16.5054
+     },
+     {
+      "available": true,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "unit": "",
+      "value": 2.0306
+     },
+     {
+      "available": true,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "reason": null,
+      "unit": "",
+      "value": true
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "reference grid overlay -- no measured cell value",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "observed traversal compaction -- only where the rover has driven",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": 823,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": true,
+     "row": 1383
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      4115.0,
+      6915.0
+     ],
+     "x_m": 0.0,
+     "y_m": 0.0
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 3.2257,
+     "as_built_version": 0,
+     "cell_source": "observed",
+     "observed_at_cell": true,
+     "observed_fraction": 1e-06,
+     "twin_version": 1
+    },
+    "site": "haworth",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&x=0&y=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": true,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": null
+     },
+     {
+      "enabled": true,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": null
+     },
+     {
+      "enabled": true,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": null
+     }
+    ],
+    "attributes": [
+     {
+      "available": true,
+      "id": "base.dem",
+      "label": "Elevation",
+      "unit": "m",
+      "value": 1097.7637
+     },
+     {
+      "available": true,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "unit": "deg",
+      "value": 0.157
+     },
+     {
+      "available": true,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": true,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "unit": "Pa",
+      "value": 674.9974
+     },
+     {
+      "available": true,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "unit": "m",
+      "value": 0.0008
+     },
+     {
+      "available": true,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "unit": "slip ratio",
+      "value": 0.0026
+     },
+     {
+      "available": true,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "unit": "fraction",
+      "value": 0.9929
+     },
+     {
+      "available": true,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "unit": "W",
+      "value": 0.1978
+     },
+     {
+      "available": true,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "unit": "N",
+      "value": 16.5054
+     },
+     {
+      "available": true,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "unit": "",
+      "value": 1.9817
+     },
+     {
+      "available": true,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "reason": null,
+      "unit": "",
+      "value": true
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "reference grid overlay -- no measured cell value",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "observed traversal compaction -- only where the rover has driven",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": 823,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": true,
+     "row": 1382
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      4115.0,
+      6915.0
+     ],
+     "x_m": 0.0,
+     "y_m": -5.0
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 2.4863,
+     "as_built_version": 0,
+     "cell_source": "observed",
+     "observed_at_cell": true,
+     "observed_fraction": 1e-06,
+     "twin_version": 1
+    },
+    "site": "haworth",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&x=0&y=-5",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": true,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": null
+     },
+     {
+      "enabled": false,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": "cell is impassable (blocked terrain)"
+     },
+     {
+      "enabled": true,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": null
+     }
+    ],
+    "attributes": [
+     {
+      "available": true,
+      "id": "base.dem",
+      "label": "Elevation",
+      "unit": "m",
+      "value": 1140.1475
+     },
+     {
+      "available": true,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "unit": "deg",
+      "value": 43.7374
+     },
+     {
+      "available": true,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+      "unit": "",
+      "value": true
+     },
+     {
+      "available": true,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "unit": "Pa",
+      "value": 487.6981
+     },
+     {
+      "available": true,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "unit": "m",
+      "value": 0.0082
+     },
+     {
+      "available": true,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "unit": "slip ratio",
+      "value": 0.99
+     },
+     {
+      "available": true,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "unit": "fraction",
+      "value": 0.0849
+     },
+     {
+      "available": true,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "unit": "W",
+      "value": 2022.1038
+     },
+     {
+      "available": true,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "unit": "N",
+      "value": 16.5054
+     },
+     {
+      "available": true,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "unit": "",
+      "value": 9.4858
+     },
+     {
+      "available": true,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "reason": "slope",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "reference grid overlay -- no measured cell value",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "observed traversal compaction -- only where the rover has driven",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": 876,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": true,
+     "row": 1348
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      4115.0,
+      6915.0
+     ],
+     "x_m": 265.0,
+     "y_m": -175.0
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 0.0,
+     "as_built_version": 0,
+     "cell_source": "pristine",
+     "observed_at_cell": false,
+     "observed_fraction": 1e-06,
+     "twin_version": 1
+    },
+    "site": "haworth",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&x=265&y=-175",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": true,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": null
+     },
+     {
+      "enabled": false,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": "cell is impassable (blocked terrain)"
+     },
+     {
+      "enabled": true,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": null
+     }
+    ],
+    "attributes": [
+     {
+      "available": true,
+      "id": "base.dem",
+      "label": "Elevation",
+      "unit": "m",
+      "value": 1094.7335
+     },
+     {
+      "available": true,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "unit": "deg",
+      "value": 6.9381
+     },
+     {
+      "available": true,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": true,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "unit": "Pa",
+      "value": 670.0572
+     },
+     {
+      "available": true,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "unit": "m",
+      "value": 0.0008
+     },
+     {
+      "available": true,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "unit": "slip ratio",
+      "value": 0.0522
+     },
+     {
+      "available": true,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "unit": "fraction",
+      "value": 0.8681
+     },
+     {
+      "available": true,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "unit": "W",
+      "value": 3.8438
+     },
+     {
+      "available": true,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "unit": "N",
+      "value": 16.5054
+     },
+     {
+      "available": true,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "unit": "",
+      "value": 4.0834
+     },
+     {
+      "available": true,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "reason": "psr",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "reference grid overlay -- no measured cell value",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "observed traversal compaction -- only where the rover has driven",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": 830,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": true,
+     "row": 1358
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      4115.0,
+      6915.0
+     ],
+     "x_m": 37.5,
+     "y_m": -122.5
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 0.0,
+     "as_built_version": 0,
+     "cell_source": "pristine",
+     "observed_at_cell": false,
+     "observed_fraction": 1e-06,
+     "twin_version": 1
+    },
+    "site": "haworth",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&x=37.5&y=-122.5",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": true,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": null
+     },
+     {
+      "enabled": false,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": "cell is impassable (blocked terrain)"
+     },
+     {
+      "enabled": true,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": null
+     }
+    ],
+    "attributes": [
+     {
+      "available": true,
+      "id": "base.dem",
+      "label": "Elevation",
+      "unit": "m",
+      "value": -28.741
+     },
+     {
+      "available": true,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "unit": "deg",
+      "value": 14.8173
+     },
+     {
+      "available": true,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": true,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "unit": "Pa",
+      "value": 652.5537
+     },
+     {
+      "available": true,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "unit": "m",
+      "value": 0.0008
+     },
+     {
+      "available": true,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "unit": "slip ratio",
+      "value": 0.1255
+     },
+     {
+      "available": true,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "unit": "fraction",
+      "value": 0.7201
+     },
+     {
+      "available": true,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "unit": "W",
+      "value": 8.6687
+     },
+     {
+      "available": true,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "unit": "N",
+      "value": 16.5054
+     },
+     {
+      "available": true,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "unit": "",
+      "value": 5.5008
+     },
+     {
+      "available": true,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "reason": "psr",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "reference grid overlay -- no measured cell value",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "observed traversal compaction -- only where the rover has driven",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": 0,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": true,
+     "row": 1383
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      4115.0,
+      6915.0
+     ],
+     "x_m": -4117.5,
+     "y_m": 0.0
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 0.0,
+     "as_built_version": 0,
+     "cell_source": "pristine",
+     "observed_at_cell": false,
+     "observed_fraction": 1e-06,
+     "twin_version": 1
+    },
+    "site": "haworth",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-030"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&x=-4117.5&y=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": false,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": "outside the site tile"
+     },
+     {
+      "enabled": false,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": "outside the site tile"
+     },
+     {
+      "enabled": false,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": "outside the site tile"
+     }
+    ],
+    "attributes": [
+     {
+      "available": false,
+      "id": "base.dem",
+      "label": "Elevation",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "m",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "Pa",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "m",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "slip ratio",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "fraction",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "W",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "N",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "note": "outside the site tile -- no data at this location",
+      "reason": null,
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": 200823,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": false,
+     "row": 1383
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      4115.0,
+      6915.0
+     ],
+     "x_m": 1000000.0,
+     "y_m": 0.0
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 0.0,
+     "as_built_version": 0,
+     "cell_source": "out_of_bounds",
+     "observed_at_cell": false,
+     "observed_fraction": 0.0,
+     "twin_version": 0
+    },
+    "site": "haworth",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&x=1e6&y=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": false,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": "outside the site tile"
+     },
+     {
+      "enabled": false,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": "outside the site tile"
+     },
+     {
+      "enabled": false,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": "outside the site tile"
+     }
+    ],
+    "attributes": [
+     {
+      "available": false,
+      "id": "base.dem",
+      "label": "Elevation",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "m",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "Pa",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "m",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "slip ratio",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "fraction",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "W",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "N",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "note": "outside the site tile -- no data at this location",
+      "reason": null,
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "outside the site tile -- no data at this location",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": -1,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": false,
+     "row": -1
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      4115.0,
+      6915.0
+     ],
+     "x_m": null,
+     "y_m": null
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 0.0,
+     "as_built_version": 0,
+     "cell_source": "out_of_bounds",
+     "observed_at_cell": false,
+     "observed_fraction": 0.0,
+     "twin_version": 0
+    },
+    "site": "haworth",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&x=nan&y=1",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": true,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": null
+     },
+     {
+      "enabled": false,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": "cell is impassable (blocked terrain)"
+     },
+     {
+      "enabled": true,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": null
+     }
+    ],
+    "attributes": [
+     {
+      "available": true,
+      "id": "base.dem",
+      "label": "Elevation",
+      "unit": "m",
+      "value": 1096.5551
+     },
+     {
+      "available": true,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "unit": "deg",
+      "value": 3.4456
+     },
+     {
+      "available": true,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": true,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "unit": "Pa",
+      "value": 673.7797
+     },
+     {
+      "available": true,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "unit": "m",
+      "value": 0.0008
+     },
+     {
+      "available": true,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "unit": "slip ratio",
+      "value": 0.0255
+     },
+     {
+      "available": true,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "unit": "fraction",
+      "value": 0.9325
+     },
+     {
+      "available": true,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "unit": "W",
+      "value": 1.9206
+     },
+     {
+      "available": true,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "unit": "N",
+      "value": 16.5054
+     },
+     {
+      "available": true,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "unit": "",
+      "value": 3.5376
+     },
+     {
+      "available": true,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "reason": "psr",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "reference grid overlay -- no measured cell value",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "observed traversal compaction -- only where the rover has driven",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": 833,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": true,
+     "row": 1376
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      4115.0,
+      6915.0
+     ],
+     "x_m": 50.0,
+     "y_m": -35.0
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 0.0,
+     "as_built_version": 0,
+     "cell_source": "pristine",
+     "observed_at_cell": false,
+     "observed_fraction": 1e-06,
+     "twin_version": 1
+    },
+    "site": "haworth",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&lat=-86.37652685731457&lon=-26.3182865963215",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": true,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": null
+     },
+     {
+      "enabled": false,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": "cell is impassable (blocked terrain)"
+     },
+     {
+      "enabled": true,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": null
+     }
+    ],
+    "attributes": [
+     {
+      "available": true,
+      "id": "base.dem",
+      "label": "Elevation",
+      "unit": "m",
+      "value": 1099.0009
+     },
+     {
+      "available": true,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "unit": "deg",
+      "value": 3.202
+     },
+     {
+      "available": true,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": true,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "unit": "Pa",
+      "value": 673.946
+     },
+     {
+      "available": true,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "unit": "m",
+      "value": 0.0008
+     },
+     {
+      "available": true,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "unit": "slip ratio",
+      "value": 0.0237
+     },
+     {
+      "available": true,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "unit": "fraction",
+      "value": 0.937
+     },
+     {
+      "available": true,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "unit": "W",
+      "value": 1.7903
+     },
+     {
+      "available": true,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "unit": "N",
+      "value": 16.5054
+     },
+     {
+      "available": true,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "unit": "",
+      "value": 3.521
+     },
+     {
+      "available": true,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "reason": "psr",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "reference grid overlay -- no measured cell value",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "observed traversal compaction -- only where the rover has driven",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": 834,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": true,
+     "row": 1385
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      4115.0,
+      6915.0
+     ],
+     "x_m": 55.0,
+     "y_m": 10.0
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 0.0,
+     "as_built_version": 0,
+     "cell_source": "pristine",
+     "observed_at_cell": false,
+     "observed_fraction": 1e-06,
+     "twin_version": 1
+    },
+    "site": "haworth",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&lat=-86.37799567600852&lon=-26.328914700094455",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "site lat/lon (0.000, 0.000) is outside the mapped Haworth tile (2000x2000 @ 5 m, IAU_2015:30135)",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&lat=0&lon=0",
+    "raw": null
+   },
+   "status": 422
+  },
+  {
+   "body": {
+    "error": "site lat/lon (90.000, 0.000) is outside the mapped Haworth tile (2000x2000 @ 5 m, IAU_2015:30135)",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-036"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&lat=90&lon=0",
+    "raw": null
+   },
+   "status": 422
+  },
+  {
+   "body": {
+    "error": "provide x & y (order-frame metres) or lat & lon (selenographic degrees)",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-037"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "x: Input should be a valid number, unable to parse string as a number; lat: Input should be a valid number, unable to parse string as a number",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-038"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=haworth&x=abc&y=1&lat=zz",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "no DEM bundle for site 'atlantis'",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-039"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=atlantis&x=0&y=0",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "actions": [
+     {
+      "enabled": true,
+      "id": "plan_here",
+      "label": "Plan here",
+      "reason": null
+     },
+     {
+      "enabled": true,
+      "id": "place_structure",
+      "label": "Place structure",
+      "reason": null
+     },
+     {
+      "enabled": true,
+      "id": "add_keepout",
+      "label": "Add keep-out",
+      "reason": null
+     }
+    ],
+    "attributes": [
+     {
+      "available": true,
+      "id": "base.dem",
+      "label": "Elevation",
+      "unit": "m",
+      "value": -2769.0203
+     },
+     {
+      "available": true,
+      "id": "terrain.slope",
+      "label": "Slope",
+      "unit": "deg",
+      "value": 0.9877
+     },
+     {
+      "available": true,
+      "id": "hazard.slope_nogo",
+      "label": "Slope no-go",
+      "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+      "unit": "",
+      "value": false
+     },
+     {
+      "available": true,
+      "id": "physics.bearing",
+      "label": "Bearing (contact pressure)",
+      "unit": "Pa",
+      "value": 674.8997
+     },
+     {
+      "available": true,
+      "id": "physics.sinkage",
+      "label": "Sinkage",
+      "unit": "m",
+      "value": 0.0008
+     },
+     {
+      "available": true,
+      "id": "physics.slip_risk",
+      "label": "Slip risk",
+      "unit": "slip ratio",
+      "value": 0.0082
+     },
+     {
+      "available": true,
+      "id": "physics.traction_margin",
+      "label": "Traction margin",
+      "unit": "fraction",
+      "value": 0.9776
+     },
+     {
+      "available": true,
+      "id": "physics.energy_cost",
+      "label": "Drive power",
+      "unit": "W",
+      "value": 0.6256
+     },
+     {
+      "available": true,
+      "id": "physics.excavation_resistance",
+      "label": "Excavation draft force",
+      "unit": "N",
+      "value": 16.5054
+     },
+     {
+      "available": true,
+      "id": "traffic.cost_global",
+      "label": "Traversal cost",
+      "unit": "",
+      "value": 2.1493
+     },
+     {
+      "available": true,
+      "id": "traffic.traversability",
+      "label": "Passable",
+      "reason": null,
+      "unit": "",
+      "value": true
+     },
+     {
+      "available": false,
+      "id": "terrain.illumination",
+      "label": "Illumination",
+      "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.incidence",
+      "label": "Incidence",
+      "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+      "unit": "deg",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "terrain.psr",
+      "label": "PSR",
+      "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "base.grid",
+      "label": "Reference grid",
+      "note": "reference grid overlay -- no measured cell value",
+      "unit": "",
+      "value": null
+     },
+     {
+      "available": false,
+      "id": "traffic.compaction",
+      "label": "Traversal compaction",
+      "note": "observed traversal compaction -- only where the rover has driven",
+      "unit": "Dr",
+      "value": null
+     }
+    ],
+    "cell": {
+     "cell_m": 5.0,
+     "col": 1915,
+     "grid_cols": 2000,
+     "grid_rows": 2000,
+     "in_bounds": true,
+     "row": 1100
+    },
+    "ok": true,
+    "position": {
+     "dem_origin_m": [
+      9565.0,
+      5490.0
+     ],
+     "x_m": 10.0,
+     "y_m": 10.0
+    },
+    "runtime_evidence": {
+     "as_built_delta_m": 0.0,
+     "as_built_version": 0,
+     "cell_source": "pristine",
+     "observed_at_cell": false,
+     "observed_fraction": 0.0,
+     "twin_version": 0
+    },
+    "site": "shackleton_rim",
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-040"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/point?site=shackleton_rim&x=10&y=10",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "points": [
+     {
+      "actions": [
+       {
+        "enabled": true,
+        "id": "plan_here",
+        "label": "Plan here",
+        "reason": null
+       },
+       {
+        "enabled": true,
+        "id": "place_structure",
+        "label": "Place structure",
+        "reason": null
+       },
+       {
+        "enabled": true,
+        "id": "add_keepout",
+        "label": "Add keep-out",
+        "reason": null
+       }
+      ],
+      "attributes": [
+       {
+        "available": true,
+        "id": "base.dem",
+        "label": "Elevation",
+        "unit": "m",
+        "value": 1097.7743
+       },
+       {
+        "available": true,
+        "id": "terrain.slope",
+        "label": "Slope",
+        "unit": "deg",
+        "value": 0.3902
+       },
+       {
+        "available": true,
+        "id": "hazard.slope_nogo",
+        "label": "Slope no-go",
+        "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+        "unit": "",
+        "value": false
+       },
+       {
+        "available": true,
+        "id": "physics.bearing",
+        "label": "Bearing (contact pressure)",
+        "unit": "Pa",
+        "value": 674.9842
+       },
+       {
+        "available": true,
+        "id": "physics.sinkage",
+        "label": "Sinkage",
+        "unit": "m",
+        "value": 0.0008
+       },
+       {
+        "available": true,
+        "id": "physics.slip_risk",
+        "label": "Slip risk",
+        "unit": "slip ratio",
+        "value": 0.0041
+       },
+       {
+        "available": true,
+        "id": "physics.traction_margin",
+        "label": "Traction margin",
+        "unit": "fraction",
+        "value": 0.9886
+       },
+       {
+        "available": true,
+        "id": "physics.energy_cost",
+        "label": "Drive power",
+        "unit": "W",
+        "value": 0.3174
+       },
+       {
+        "available": true,
+        "id": "physics.excavation_resistance",
+        "label": "Excavation draft force",
+        "unit": "N",
+        "value": 16.5054
+       },
+       {
+        "available": true,
+        "id": "traffic.cost_global",
+        "label": "Traversal cost",
+        "unit": "",
+        "value": 2.0306
+       },
+       {
+        "available": true,
+        "id": "traffic.traversability",
+        "label": "Passable",
+        "reason": null,
+        "unit": "",
+        "value": true
+       },
+       {
+        "available": false,
+        "id": "terrain.illumination",
+        "label": "Illumination",
+        "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "terrain.incidence",
+        "label": "Incidence",
+        "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+        "unit": "deg",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "terrain.psr",
+        "label": "PSR",
+        "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "base.grid",
+        "label": "Reference grid",
+        "note": "reference grid overlay -- no measured cell value",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "traffic.compaction",
+        "label": "Traversal compaction",
+        "note": "observed traversal compaction -- only where the rover has driven",
+        "unit": "Dr",
+        "value": null
+       }
+      ],
+      "cell": {
+       "cell_m": 5.0,
+       "col": 823,
+       "grid_cols": 2000,
+       "grid_rows": 2000,
+       "in_bounds": true,
+       "row": 1383
+      },
+      "ok": true,
+      "position": {
+       "dem_origin_m": [
+        4115.0,
+        6915.0
+       ],
+       "x_m": 0.0,
+       "y_m": 0.0
+      },
+      "runtime_evidence": {
+       "as_built_delta_m": 3.2257,
+       "as_built_version": 0,
+       "cell_source": "observed",
+       "observed_at_cell": true,
+       "observed_fraction": 1e-06,
+       "twin_version": 1
+      },
+      "site": "haworth",
+      "sun": {
+       "az_deg": 90.0,
+       "el_deg": 6.0
+      }
+     },
+     {
+      "actions": [
+       {
+        "enabled": true,
+        "id": "plan_here",
+        "label": "Plan here",
+        "reason": null
+       },
+       {
+        "enabled": false,
+        "id": "place_structure",
+        "label": "Place structure",
+        "reason": "cell is impassable (blocked terrain)"
+       },
+       {
+        "enabled": true,
+        "id": "add_keepout",
+        "label": "Add keep-out",
+        "reason": null
+       }
+      ],
+      "attributes": [
+       {
+        "available": true,
+        "id": "base.dem",
+        "label": "Elevation",
+        "unit": "m",
+        "value": 1097.8405
+       },
+       {
+        "available": true,
+        "id": "terrain.slope",
+        "label": "Slope",
+        "unit": "deg",
+        "value": 0.7606
+       },
+       {
+        "available": true,
+        "id": "hazard.slope_nogo",
+        "label": "Slope no-go",
+        "note": "slope > 20 deg tested-envelope no-go [WHEELTEST]",
+        "unit": "",
+        "value": false
+       },
+       {
+        "available": true,
+        "id": "physics.bearing",
+        "label": "Bearing (contact pressure)",
+        "unit": "Pa",
+        "value": 674.9404
+       },
+       {
+        "available": true,
+        "id": "physics.sinkage",
+        "label": "Sinkage",
+        "unit": "m",
+        "value": 0.0008
+       },
+       {
+        "available": true,
+        "id": "physics.slip_risk",
+        "label": "Slip risk",
+        "unit": "slip ratio",
+        "value": 0.0066
+       },
+       {
+        "available": true,
+        "id": "physics.traction_margin",
+        "label": "Traction margin",
+        "unit": "fraction",
+        "value": 0.9818
+       },
+       {
+        "available": true,
+        "id": "physics.energy_cost",
+        "label": "Drive power",
+        "unit": "W",
+        "value": 0.5082
+       },
+       {
+        "available": true,
+        "id": "physics.excavation_resistance",
+        "label": "Excavation draft force",
+        "unit": "N",
+        "value": 16.5054
+       },
+       {
+        "available": true,
+        "id": "traffic.cost_global",
+        "label": "Traversal cost",
+        "unit": "",
+        "value": 3.0987
+       },
+       {
+        "available": true,
+        "id": "traffic.traversability",
+        "label": "Passable",
+        "reason": "psr",
+        "unit": "",
+        "value": false
+       },
+       {
+        "available": false,
+        "id": "terrain.illumination",
+        "label": "Illumination",
+        "note": "sun-parameterized (horizon shadowing) -- set the sun to query per cell",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "terrain.incidence",
+        "label": "Incidence",
+        "note": "sun-parameterized (solar incidence angle) -- set the sun to query per cell",
+        "unit": "deg",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "terrain.psr",
+        "label": "PSR",
+        "note": "permanently-shadowed sweep -- an area classification, not a per-cell scalar here",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "base.grid",
+        "label": "Reference grid",
+        "note": "reference grid overlay -- no measured cell value",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "traffic.compaction",
+        "label": "Traversal compaction",
+        "note": "observed traversal compaction -- only where the rover has driven",
+        "unit": "Dr",
+        "value": null
+       }
+      ],
+      "cell": {
+       "cell_m": 5.0,
+       "col": 824,
+       "grid_cols": 2000,
+       "grid_rows": 2000,
+       "in_bounds": true,
+       "row": 1384
+      },
+      "ok": true,
+      "position": {
+       "dem_origin_m": [
+        4115.0,
+        6915.0
+       ],
+       "x_m": 5.0,
+       "y_m": 5.0
+      },
+      "runtime_evidence": {
+       "as_built_delta_m": 0.0,
+       "as_built_version": 0,
+       "cell_source": "pristine",
+       "observed_at_cell": false,
+       "observed_fraction": 1e-06,
+       "twin_version": 1
+      },
+      "site": "haworth",
+      "sun": {
+       "az_deg": 90.0,
+       "el_deg": 6.0
+      }
+     },
+     {
+      "actions": [
+       {
+        "enabled": false,
+        "id": "plan_here",
+        "label": "Plan here",
+        "reason": "outside the site tile"
+       },
+       {
+        "enabled": false,
+        "id": "place_structure",
+        "label": "Place structure",
+        "reason": "outside the site tile"
+       },
+       {
+        "enabled": false,
+        "id": "add_keepout",
+        "label": "Add keep-out",
+        "reason": "outside the site tile"
+       }
+      ],
+      "attributes": [
+       {
+        "available": false,
+        "id": "base.dem",
+        "label": "Elevation",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "m",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "terrain.slope",
+        "label": "Slope",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "deg",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "hazard.slope_nogo",
+        "label": "Slope no-go",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "physics.bearing",
+        "label": "Bearing (contact pressure)",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "Pa",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "physics.sinkage",
+        "label": "Sinkage",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "m",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "physics.slip_risk",
+        "label": "Slip risk",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "slip ratio",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "physics.traction_margin",
+        "label": "Traction margin",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "fraction",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "physics.energy_cost",
+        "label": "Drive power",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "W",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "physics.excavation_resistance",
+        "label": "Excavation draft force",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "N",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "traffic.cost_global",
+        "label": "Traversal cost",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "traffic.traversability",
+        "label": "Passable",
+        "note": "outside the site tile -- no data at this location",
+        "reason": null,
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "terrain.illumination",
+        "label": "Illumination",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "terrain.incidence",
+        "label": "Incidence",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "deg",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "terrain.psr",
+        "label": "PSR",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "base.grid",
+        "label": "Reference grid",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "",
+        "value": null
+       },
+       {
+        "available": false,
+        "id": "traffic.compaction",
+        "label": "Traversal compaction",
+        "note": "outside the site tile -- no data at this location",
+        "unit": "Dr",
+        "value": null
+       }
+      ],
+      "cell": {
+       "cell_m": 5.0,
+       "col": 200823,
+       "grid_cols": 2000,
+       "grid_rows": 2000,
+       "in_bounds": false,
+       "row": 1383
+      },
+      "ok": true,
+      "position": {
+       "dem_origin_m": [
+        4115.0,
+        6915.0
+       ],
+       "x_m": 1000000.0,
+       "y_m": 0.0
+      },
+      "runtime_evidence": {
+       "as_built_delta_m": 0.0,
+       "as_built_version": 0,
+       "cell_source": "out_of_bounds",
+       "observed_at_cell": false,
+       "observed_fraction": 0.0,
+       "twin_version": 0
+      },
+      "site": "haworth",
+      "sun": {
+       "az_deg": 90.0,
+       "el_deg": 6.0
+      }
+     }
+    ],
+    "site": "haworth"
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-041"
+    },
+    "json": {
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       5.0,
+       5.0
+      ],
+      [
+       1000000.0,
+       0
+      ]
+     ],
+     "site": "haworth"
+    },
+    "method": "POST",
+    "path": "/world/points",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "too many points (max 512 per batch)",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-042"
+    },
+    "json": {
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/points",
+    "raw": null
+   },
+   "status": 413
+  },
+  {
+   "body": {
+    "error": "points: Input should be a valid list",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-043"
+    },
+    "json": {
+     "points": "x"
+    },
+    "method": "POST",
+    "path": "/world/points",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "points.0.1: Field required; points.1: Tuple should have at most 2 items after validation, not 3; points.2.0: Input should be a valid number, unable to parse string as a number",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-044"
+    },
+    "json": {
+     "extra": 1,
+     "points": [
+      [
+       1
+      ],
+      [
+       1,
+       2,
+       3
+      ],
+      [
+       "a",
+       2
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/points",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-045"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/world/points",
+    "raw": "{bad"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "no DEM bundle for site 'atlantis'",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-046"
+    },
+    "json": {
+     "points": [
+      [
+       0,
+       0
+      ]
+     ],
+     "site": "atlantis"
+    },
+    "method": "POST",
+    "path": "/world/points",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "world point-query budget exceeded (charged per point, not per request); slow down or send smaller batches",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-047"
+    },
+    "json": {
+     "points": [
+      [
+       0,
+       0
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/points",
+    "raw": null
+   },
+   "status": 429
   }
  ],
  "store": null

@@ -9,6 +9,7 @@ pub mod auth;
 pub mod construction;
 pub mod operators;
 pub mod planning;
+pub mod point;
 pub mod services;
 pub mod state;
 pub mod twin;

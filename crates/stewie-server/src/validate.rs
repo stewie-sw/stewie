@@ -35,6 +35,8 @@ pub enum Kind {
     IntPair,
     /// A `tuple[float, float]`: exactly two numbers; required.
     FloatPair,
+    /// A `list[tuple[float, float]]`, each pair reported at its index; required.
+    FloatPairList,
     /// A required JSON object (a `dict` field without a default).
     DictRequired,
     /// A `list[dict]` of `min..=max` objects; required.
@@ -65,7 +67,7 @@ fn plural(n: usize) -> &'static str {
 }
 
 /// A float the Pydantic way: a number, a bool (0/1), or a string that parses as one after trimming.
-fn as_float(v: &Value) -> Result<f64, &'static str> {
+pub(crate) fn as_float(v: &Value) -> Result<f64, &'static str> {
     match v {
         Value::Number(n) => n.as_f64().ok_or("Input should be a valid number"),
         Value::Bool(b) => Ok(f64::from(u8::from(*b))),
@@ -169,6 +171,18 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
         },
         Kind::IntPair => check_pair(v, path, errors, false),
         Kind::FloatPair => check_pair(v, path, errors, true),
+        Kind::FloatPairList => match v {
+            Value::Array(items) => {
+                let before = errors.len();
+                let out: Vec<Value> = items
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, x)| check_pair(x, &format!("{path}.{i}"), errors, true))
+                    .collect();
+                (errors.len() == before).then_some(Value::Array(out))
+            }
+            _ => fail("Input should be a valid list".to_owned()),
+        },
         Kind::DictList { min, max } => check_dict_list(v, min, max, path, errors),
         Kind::Opt(inner) => match v {
             Value::Null => Some(Value::Null),

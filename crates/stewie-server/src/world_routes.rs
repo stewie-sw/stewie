@@ -11,13 +11,16 @@ use axum::Router;
 use axum::extract::{Query, Request, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use serde_json::{Map, Value, json};
 use stewie_twin::terrain_view::Source;
 use stewie_twin::traffic_memory::{self, Hardening};
 
-use crate::app::{ApiError, AppState, Head, blocking, err, require_auth};
+use crate::app::{
+    ApiError, AppState, Head, blocking, body_model, err, parse_body, require_auth, split,
+};
 use crate::operators::py_repr;
+use crate::point::{Spine, point_values};
 use crate::validate::{self, Field, Kind, Model};
 
 /// The LY-01 layer catalog, the committed source of truth.
@@ -738,4 +741,136 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/world/transactions", get(transactions))
         .route("/world/terrain_view", get(terrain_view))
         .route("/world/terrain_view.png", get(terrain_view_png))
+        .route("/world/point", get(world_point))
+        .route("/world/points", post(world_points))
+}
+
+const ANY_FLOAT: Kind = Kind::Float {
+    gt: None,
+    ge: None,
+    le: None,
+    default: None,
+};
+/// The point query's coordinates, each `float | None`.
+const POINT_Q: Model = Model {
+    fields: &[
+        Field("x", Kind::Opt(&ANY_FLOAT)),
+        Field("y", Kind::Opt(&ANY_FLOAT)),
+        Field("lat", Kind::Opt(&ANY_FLOAT)),
+        Field("lon", Kind::Opt(&ANY_FLOAT)),
+    ],
+    forbid_extra: false,
+};
+/// The batch body (Python `PointsReq`).
+const POINTS_REQ: Model = Model {
+    fields: &[
+        Field(
+            "site",
+            Kind::Str {
+                min: 0,
+                max: usize::MAX,
+                nullable: false,
+                default: Some("haworth"),
+            },
+        ),
+        Field("points", Kind::FloatPairList),
+    ],
+    forbid_extra: true,
+};
+/// The batch cap [points].
+const MAX_POINTS: usize = 512;
+
+/// The selection inspector's per-cell query (GW-07): order-frame `x`, `y` [m] or selenographic `lat`, `lon` [deg]
+/// to the servable layers' values at that DEM cell. Public, under the per-IP world quota.
+#[allow(clippy::many_single_char_names)] // the Python's q, h, v, x, y
+async fn world_point(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        st.world_quota(&h)?;
+        // validated as Pydantic does, then read raw (a NaN survives as a value, out of the tile)
+        let raw: Map<String, Value> = ["x", "y", "lat", "lon"]
+            .iter()
+            .filter_map(|k| {
+                q.iter()
+                    .rev()
+                    .find(|(n, _)| n == k)
+                    .map(|(_, v)| ((*k).to_owned(), json!(v)))
+            })
+            .collect();
+        validate::model(Some(&Value::Object(raw.clone())), POINT_Q)
+            .map_err(|e| err(StatusCode::BAD_REQUEST, e))?;
+        let num = |k: &str| raw.get(k).and_then(|v| validate::as_float(v).ok());
+        let site = site_of(&q);
+        let (dem, origin) = st.terrain.moon_dem(&site).ok_or_else(|| no_dem(&site))?;
+        let view = st.terrain.current_terrain_view(&site, &dem, origin);
+        let (x, y) = match (num("x"), num("y"), num("lat"), num("lon")) {
+            (Some(x), Some(y), _, _) => (x, y),
+            (_, _, Some(lat), Some(lon)) => st
+                .terrain
+                .latlon_to_order(&dem, origin, lon, lat)
+                .map_err(|e| err(StatusCode::UNPROCESSABLE_ENTITY, e))?,
+            _ => {
+                return Err(err(
+                    StatusCode::BAD_REQUEST,
+                    "provide x & y (order-frame metres) or lat & lon (selenographic degrees)",
+                ));
+            }
+        };
+        let spine =
+            Spine::ipex(&st.planning).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let v = point_values(&site, x, y, &dem, origin, &view, &spine)
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        Ok(axum::Json(v).into_response())
+    })
+    .await
+}
+
+/// A batch of point queries on one site (the transect reader): the DEM and terrain view resolved once, at most 512
+/// points, the per-IP point budget charged per point (SR-08).
+async fn world_points(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (h, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        let ip = st.world_quota(&h)?;
+        let v = body_model(body.as_ref(), POINTS_REQ)?;
+        let site = v["site"].as_str().unwrap_or("haworth").to_owned();
+        // the validated pairs, read raw so a NaN stays a value
+        let points: Vec<(f64, f64)> = body.as_ref().map_or_else(Vec::new, |b| {
+            b["points"].as_array().map_or_else(Vec::new, |ps| {
+                ps.iter()
+                    .map(|p| {
+                        let f = |i: usize| validate::as_float(&p[i]).unwrap_or(f64::NAN);
+                        (f(0), f(1))
+                    })
+                    .collect()
+            })
+        });
+        if points.len() > MAX_POINTS {
+            return Err(err(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "too many points (max 512 per batch)",
+            ));
+        }
+        if !st.world_points(&ip, points.len()) {
+            return Err(err(
+                StatusCode::TOO_MANY_REQUESTS,
+                "world point-query budget exceeded (charged per point, not per request); slow down or send \
+                 smaller batches",
+            ));
+        }
+        let (dem, origin) = st.terrain.moon_dem(&site).ok_or_else(|| no_dem(&site))?;
+        let view = st.terrain.current_terrain_view(&site, &dem, origin);
+        let spine = Spine::ipex(&st.planning).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let out = points
+            .iter()
+            .map(|&(x, y)| point_values(&site, x, y, &dem, origin, &view, &spine))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        Ok(axum::Json(json!({"ok": true, "site": site, "points": out})).into_response())
+    })
+    .await
 }

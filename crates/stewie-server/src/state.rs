@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use lunar_dem::{DemTile, flattest_anchor};
-use lunar_frames::Sphere;
+use lunar_frames::{LatLon, PolarStereographic, Sphere};
 use serde_json::{Value, json};
 use sha1::{Digest, Sha1};
 use stewie_twin::terrain_memory;
@@ -36,6 +36,8 @@ pub struct SiteDem {
     pub rows: usize,
     pub cols: usize,
     pub cell_m: f64,
+    /// Projected (easting, northing) [m] of pixel (0, 0)'s centre in the tile's south-polar stereographic frame.
+    pub pixel0_m: (f64, f64),
 }
 
 /// A twin journal that cannot be assigned to one (site, source) without operator evidence.
@@ -276,6 +278,7 @@ impl Terrain {
                         rows: t.height(),
                         cols: t.width(),
                         cell_m: t.cell_m(),
+                        pixel0_m: t.cell_center_projected(0, 0),
                     }),
                     anchor,
                 ))
@@ -453,6 +456,61 @@ impl Terrain {
         let t = Arc::new(Mutex::new(built));
         twins.insert(key, t.clone());
         Ok(t)
+    }
+
+    /// A selenographic (lon, lat) [deg] as order-frame metres (Python `gis_layers.latlon_to_order` over
+    /// `site_dem.latlon_to_dem_origin`): the nearest pixel centre of the tile's `IAU_2015:30135` frame, less the
+    /// flattest anchor `origin` (the raw pixel-metres are absolute; the point query re-adds the anchor).
+    ///
+    /// # Errors
+    /// A point outside the tile, in the Python's words.
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )] // grid sizes and in-tile indices
+    pub fn latlon_to_order(
+        &self,
+        dem: &SiteDem,
+        origin: (f64, f64),
+        lon: f64,
+        lat: f64,
+    ) -> Result<(f64, f64), String> {
+        let (w, h, cell) = (dem.cols as f64, dem.rows as f64, dem.cell_m);
+        let (ax0, ay0) = dem.pixel0_m;
+        let inside = PolarStereographic::south(self.sphere)
+            .forward(LatLon {
+                lat_deg: lat,
+                lon_deg: lon,
+            })
+            .ok()
+            .map(|(xs, ys)| ((xs - ax0) / cell, (ay0 - ys) / cell))
+            .filter(|(col, row)| (-0.5..=w - 0.5).contains(col) && (-0.5..=h - 0.5).contains(row));
+        let Some((col, row)) = inside else {
+            let f = |v: f64| {
+                if v.is_nan() {
+                    "nan".to_owned()
+                } else {
+                    format!("{v:.3}")
+                }
+            };
+            // shortcut: `{cell:g}` as the integer or the shortest repr, exact for the registry's whole-metre cells
+            let g = if cell.fract() == 0.0 && cell.abs() < 1e15 {
+                format!("{}", cell as i64)
+            } else {
+                format!("{cell}")
+            };
+            return Err(format!(
+                "site lat/lon ({}, {}) is outside the mapped Haworth tile ({}x{} @ {g} m, IAU_2015:30135)",
+                f(lat),
+                f(lon),
+                dem.cols,
+                dem.rows
+            ));
+        };
+        let ci = (col.round_ties_even().max(0.0) as usize).min(dem.cols - 1);
+        let ri = (row.round_ties_even().max(0.0) as usize).min(dem.rows - 1);
+        Ok((ci as f64 * cell - origin.0, ri as f64 * cell - origin.1))
     }
 
     /// The composed planning surface of a site's DEM (`origin` the order-frame anchor): the recorded Terrain

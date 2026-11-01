@@ -76,6 +76,11 @@ pub struct Settings {
     pub rate_window_s: f64,
     /// `STEWIE_AUDIT_MAX_BYTES` (16 MiB).
     pub audit_max_bytes: u64,
+    /// The public world reads' per-IP quota: `STEWIE_WORLD_QUOTA_MAX` requests (240) and, for the point queries,
+    /// `STEWIE_WORLD_POINT_BUDGET` points (512), per `STEWIE_WORLD_QUOTA_WINDOW_S` (60 s).
+    pub world_quota_max: i64,
+    pub world_point_budget: i64,
+    pub world_window_s: f64,
 }
 
 impl Settings {
@@ -114,6 +119,9 @@ impl Settings {
                 "STEWIE_AUDIT_MAX_BYTES",
                 &AUDIT_DEFAULT_MAX_BYTES.to_string(),
             )? as u64,
+            world_quota_max: num("STEWIE_WORLD_QUOTA_MAX", "240")? as i64,
+            world_point_budget: num("STEWIE_WORLD_POINT_BUDGET", "512")? as i64,
+            world_window_s: num("STEWIE_WORLD_QUOTA_WINDOW_S", "60")?,
         })
     }
 }
@@ -146,6 +154,8 @@ pub struct AppState {
     login_ip: RateLimiter,
     login_acct: RateLimiter,
     register_ip: RateLimiter,
+    world_quota: RateLimiter,
+    world_points: RateLimiter,
     started: Instant,
 }
 
@@ -202,6 +212,8 @@ impl AppState {
             login_ip: lim(),
             login_acct: lim(),
             register_ip: lim(),
+            world_quota: RateLimiter::new(settings.world_quota_max, settings.world_window_s),
+            world_points: RateLimiter::new(settings.world_point_budget, settings.world_window_s),
             cfg,
             settings,
             store,
@@ -235,6 +247,25 @@ impl AppState {
             ledger: &self.ledger,
             cid,
         }
+    }
+
+    /// The public world reads' per-IP request quota (Python `routers.world._world_quota`); the client's key.
+    pub(crate) fn world_quota(&self, h: &Head) -> Result<String, ApiError> {
+        let ip = h.client_ip(self);
+        if self.world_quota.allow(&ip, self.mono(), 1) {
+            Ok(ip)
+        } else {
+            Err(err(
+                StatusCode::TOO_MANY_REQUESTS,
+                "world read quota exceeded; slow down",
+            ))
+        }
+    }
+
+    /// Spend `points` of `ip`'s point-query budget (SR-08: charged per point, not per request).
+    pub(crate) fn world_points(&self, ip: &str, points: usize) -> bool {
+        self.world_points
+            .allow(ip, self.mono(), i64::try_from(points).unwrap_or(i64::MAX))
     }
 
     /// Monotonic seconds, for the rate windows.

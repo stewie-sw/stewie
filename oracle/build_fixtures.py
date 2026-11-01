@@ -4076,7 +4076,8 @@ def http_world_cases() -> None:
     clock = {"t": 1_800_000_000.0}
     env = {"STEWIE_API_KEY": "automation-key-0123456789", "STEWIE_SESSION_SECRET": "session-secret-abcdef",
            "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
-           "STEWIE_DIRECTORS": "alice@example.org", "STEWIE_GIS_ANON_KEY": "anon-key-xyz"}
+           "STEWIE_DIRECTORS": "alice@example.org", "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+           "STEWIE_WORLD_POINT_BUDGET": "4"}   # SYNTHETIC: a budget small enough to exhaust (labelled)
     unset = ("STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED", "STEWIE_DESKTOP", "STEWIE_OPERATOR_LOGIN",
              "STEWIE_TRUST_PROXY", "STEWIE_CORS_ORIGINS", "STEWIE_DEV_OPEN", "STEWIE_AUDIT_MAX_BYTES",
              "STEWIE_REGISTRATION", "STEWIE_TRUST_TAILSCALE", "STEWIE_TRUSTED_PROXIES", "STEWIE_MAX_BODY_BYTES")
@@ -4190,6 +4191,43 @@ def http_world_cases() -> None:
                 call("GET", "/world/layer-manifest?site=atlantis")
                 call("GET", "/world?site=haworth", headers=key)
                 call("GET", "/world")
+                # the selection inspector (RW-55b5c), at the registry's loose friction (D-R72) for both the slip
+                # solve and the dig; the routers module read its point budget at import, so it is set here to the
+                # env's (SYNTHETIC) 4
+                import stewie.server.routers.world as _W
+                from stewie.server.ratelimit import RateLimiter as _RL
+                from stewie.specs import constants as _K
+                _kphi, _budget = _K.PHI, _W._world_point_budget
+                _phi = _MAT.PHI_LOOSE_DEG
+                _K.PHI, _MAT.PHI_LOOSE_DEG = math.radians(35.0), 35.0
+                _W._world_point_budget = _RL(4, 60.0)
+                _W._world_ratelimiter.reset()
+                try:
+                    call("GET", "/world/point?site=haworth&x=0&y=0")
+                    call("GET", "/world/point?site=haworth&x=0&y=-5")            # the resynced (observed) cell
+                    call("GET", "/world/point?site=haworth&x=265&y=-175")        # a 43.7 deg cell: the slope veto
+                    call("GET", "/world/point?site=haworth&x=37.5&y=-122.5")     # half-cell ties round to even
+                    call("GET", "/world/point?site=haworth&x=-4117.5&y=0")       # col -0.5 -> 0: the tile edge
+                    call("GET", "/world/point?site=haworth&x=1e6&y=0")
+                    call("GET", "/world/point?site=haworth&x=nan&y=1")
+                    call("GET", "/world/point?site=haworth&lat=-86.37652685731457&lon=-26.3182865963215")
+                    call("GET", "/world/point?site=haworth&lat=-86.37799567600852&lon=-26.328914700094455")  # rounds up
+                    call("GET", "/world/point?site=haworth&lat=0&lon=0")
+                    call("GET", "/world/point?site=haworth&lat=90&lon=0")
+                    call("GET", "/world/point?site=haworth")
+                    call("GET", "/world/point?site=haworth&x=abc&y=1&lat=zz")
+                    call("GET", "/world/point?site=atlantis&x=0&y=0")
+                    call("GET", "/world/point?site=shackleton_rim&x=10&y=10")
+                    call("POST", "/world/points", json_body={"site": "haworth", "points": [[0, 0], [5.0, 5.0], [1e6, 0]]})
+                    call("POST", "/world/points", json_body={"points": [[0, 0]] * 513})
+                    call("POST", "/world/points", json_body={"points": "x"})
+                    call("POST", "/world/points", json_body={"points": [[1], [1, 2, 3], ["a", 2]], "extra": 1})
+                    call("POST", "/world/points", raw="{bad")
+                    call("POST", "/world/points", json_body={"site": "atlantis", "points": [[0, 0]]})
+                    call("POST", "/world/points", json_body={"points": [[0, 0]]})   # the budget is spent
+                finally:
+                    _K.PHI, _MAT.PHI_LOOSE_DEG = _kphi, _phi
+                    _W._world_point_budget = _budget
                 tdir = os.path.join(d, "twin")
                 journals = {f: _hl.sha256(open(os.path.join(tdir, f), "rb").read()).hexdigest()
                             for f in sorted(os.listdir(tdir)) if f.endswith(".journal")}

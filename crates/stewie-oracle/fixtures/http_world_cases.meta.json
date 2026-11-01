@@ -1,7 +1,7 @@
 {
  "fixture": "http_world_cases",
  "generator": "oracle/build_fixtures.py::http_world_cases (the FastAPI app's /world read routes; real DEMs and site vectors, SYNTHETIC patch and traffic, labelled)",
- "payload_sha256": "c2484f2e41c145c0847d01829a70089ade35ab3196fac6abb0b5f54c04fb1961",
+ "payload_sha256": "5bb24f2e0626f047ca56c9aa7d31f7079d4795517fdf052a9a8183c8f7e46f54",
  "sources": {
   "stewie/server/cache_control.py": "61b85076071411054d6cc5ef8dc2e0ce47186af40da9d132019451f676c51bec",
   "stewie/server/layer_catalog.json": "c0a4a424f041ed758a55ff48b0b8f401564aa56caab63e2e6070a9fc7cf44317",
