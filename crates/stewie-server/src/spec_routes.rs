@@ -319,6 +319,218 @@ async fn fleet(State(st): State<Arc<AppState>>, req: Request) -> Response {
     .await
 }
 
+const POSTURES: &str = include_str!("../../../stewie/physics/data/ipex_postures.json");
+const RASTER_DEFS: &str = include_str!("../../stewie-contracts/fixtures/raster_defs.json");
+
+/// The posture kinematics' drum-arm reach (pivot to drum centre), wheel radius and pivot span [m] (Python
+/// `posture_kinematics`, from the sidecar rig and `ipex_specs`).
+const FK_ARM_LENGTH_M: f64 = 0.388_245;
+const FK_WHEEL_RADIUS_M: f64 = 0.1524;
+const FK_ARM_SPAN_M: f64 = 0.40;
+/// An authored lift that contradicts the computed one by more than this is a stale second source [m].
+const FK_AUTHORITY_TOL_M: f64 = 0.02;
+/// The 8 LAC cameras' mounts in the body frame (fwd, up, lat) [m], in the rig's order (`camera_rig.gd`).
+const CAMERA_MOUNTS: [(&str, [f64; 3]); 8] = [
+    ("front_left", [0.30, -0.10, 0.035]),
+    ("front_right", [0.30, -0.10, -0.035]),
+    ("rear_left", [-0.30, -0.10, 0.035]),
+    ("rear_right", [-0.30, -0.10, -0.035]),
+    ("left_mono", [0.0, -0.05, 0.285]),
+    ("right_mono", [0.0, -0.05, -0.285]),
+    ("drum_front_cam", [0.10, 0.18, 0.0]),
+    ("drum_back_cam", [-0.10, 0.18, 0.0]),
+];
+
+/// The fore and aft support heights: each end rides on the higher of its planted arm's drop and the wheel radius.
+fn support_heights(front_pitch: f64, back_pitch: f64) -> (f64, f64) {
+    let drop = |p: f64| FK_ARM_LENGTH_M * 0.0_f64.max(-p).sin();
+    (
+        drop(front_pitch).max(FK_WHEEL_RADIUS_M),
+        drop(back_pitch).max(FK_WHEEL_RADIUS_M),
+    )
+}
+
+/// `base_link`'s height above the ground and the body pitch the arms induce.
+fn base_link(front_pitch: f64, back_pitch: f64) -> (f64, f64) {
+    let (f, b) = support_heights(front_pitch, back_pitch);
+    (0.5 * (f + b), (f - b).atan2(FK_ARM_SPAN_M))
+}
+
+/// One posture of the morphology registry, its lift computed from the arm angles.
+struct Posture {
+    front: f64,
+    back: f64,
+    lift: f64,
+    stability: Value,
+    provenance: Value,
+}
+
+/// The postures, by name (Python `postures.load_postures`): an authored lift that contradicts the FK is refused.
+fn postures() -> Result<std::collections::BTreeMap<String, Posture>, String> {
+    let doc: Value = serde_json::from_str(POSTURES).map_err(|e| e.to_string())?;
+    let mut out = std::collections::BTreeMap::new();
+    for (name, p) in doc["postures"].as_object().ok_or("no postures")? {
+        let (front, back) = (
+            p["arm_front_pitch_rad"]
+                .as_f64()
+                .ok_or(format!("posture {name}: arm_front_pitch_rad"))?,
+            p["arm_back_pitch_rad"]
+                .as_f64()
+                .ok_or(format!("posture {name}: arm_back_pitch_rad"))?,
+        );
+        let lift = base_link(front, back).0 - FK_WHEEL_RADIUS_M;
+        for k in ["chassis_lift_m", "camera_vantage_m"] {
+            if let Some(v) = p[k]
+                .as_f64()
+                .filter(|v| (v - lift).abs() > FK_AUTHORITY_TOL_M)
+            {
+                return Err(format!(
+                    "posture {name}: authored {k}={v} contradicts the FK-computed {lift:.3} m"
+                ));
+            }
+        }
+        out.insert(
+            name.clone(),
+            Posture {
+                front,
+                back,
+                lift,
+                stability: p["stability"].clone(),
+                provenance: p["provenance"].clone(),
+            },
+        );
+    }
+    Ok(out)
+}
+
+const SOLAR_Q: Model = Model {
+    fields: &[
+        Field("mission_t_s", ANY_FLOAT),
+        Field(
+            "lat_deg",
+            Kind::Float {
+                gt: None,
+                ge: Some((-90.0, "-90")),
+                le: Some((90.0, "90")),
+                default: Some(-87.45),
+            },
+        ),
+        Field(
+            "lon_deg",
+            Kind::Float {
+                gt: None,
+                ge: Some((-360.0, "-360")),
+                le: Some((360.0, "360")),
+                default: Some(0.0),
+            },
+        ),
+        Field(
+            "posture",
+            Kind::Str {
+                min: 0,
+                max: 64,
+                nullable: false,
+                default: Some("TRANSIT"),
+            },
+        ),
+        Field("leds_on", Kind::Bool { default: false }),
+        Field(
+            "site",
+            Kind::Str {
+                min: 0,
+                max: 64,
+                nullable: true,
+                default: None,
+            },
+        ),
+    ],
+    forbid_extra: false,
+};
+
+/// The Solar work area's one payload (PO-12; Python `solar_view.solar_view`): the sun vector, the sun-group raster
+/// layers, the 8 cameras' heights for the arm posture, the LED state, the posture, and the SN-02 shadow-evidence
+/// gate (idle: the route supplies no cast-shadow mask). Public.
+#[allow(clippy::too_many_lines)] // one payload, as the Python
+async fn solar(Query(q): Query<Vec<(String, String)>>) -> Response {
+    let run = || -> Result<Value, ApiError> {
+        let raw = query(&q, SOLAR_Q)?;
+        let t = num(&raw, "mission_t_s", 0.0);
+        let (mut lat, mut lon) = (num(&raw, "lat_deg", -87.45), num(&raw, "lon_deg", 0.0));
+        if let Some(site) = raw
+            .get("site")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+        {
+            (lat, lon) =
+                site_latlon(site).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        }
+        let name = raw
+            .get("posture")
+            .and_then(Value::as_str)
+            .unwrap_or("TRANSIT")
+            .to_owned();
+        let leds = raw
+            .get("leds_on")
+            .and_then(validate::as_bool)
+            .unwrap_or(false);
+        let ps = postures().map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let Some(p) = ps.get(&name) else {
+            let known: Vec<String> = ps.keys().map(|k| crate::operators::py_repr(k)).collect();
+            let msg = format!(
+                "unknown posture {}; known: [{}]",
+                crate::operators::py_repr(&name),
+                known.join(", ")
+            );
+            return Err(err(
+                StatusCode::BAD_REQUEST,
+                format!("unknown posture: {}", crate::operators::py_repr(&msg)),
+            ));
+        };
+        let (az, el, _) = sun_az_el(lat, t, lon);
+        let (az, el) = (py_mod(az, 360.0), el.clamp(-90.0, 90.0));
+        let r = stewie_twin::numpy::round;
+        let defs: Value = serde_json::from_str(RASTER_DEFS)
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        let layers: Vec<Value> = defs["raster_defs"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+            .iter()
+            .filter(|d| d["group"] == "sun" && matches!(d["key"].as_str(), Some("illumination" | "incidence" | "psr")))
+            .map(|d| json!({"key": d["key"], "name": d["name"],
+                            "raster_route": format!("/layers/raster/{}.png", d["key"].as_str().unwrap_or(""))}))
+            .collect();
+        let (base, pitch) = base_link(p.front, p.back);
+        let cameras: Vec<Value> = CAMERA_MOUNTS
+            .iter()
+            .map(|(cam, [fwd, up, lat_off])| {
+                let world_up = fwd * pitch.sin()
+                    + (up * 0.0_f64.cos() - lat_off * 0.0_f64.sin()) * pitch.cos();
+                json!({"name": cam, "world_height_m": r(base + world_up, 4), "active": true})
+            })
+            .collect();
+        Ok(json!({"ok": true, "solar": {
+            "sun_vector": {"sun_az_deg": r(az, 4), "sun_el_deg": r(el, 4),
+                           "anti_solar_az_deg": r(py_mod(az + 180.0, 360.0), 4),
+                           "azimuth_convention": "from_north_eastward", "mission_t_s": t,
+                           "site_lat_deg": lat, "site_lon_deg": lon, "lit": el > 0.0},
+            "illumination_layers": layers,
+            "cameras": cameras,
+            "leds": {"on": leds, "note": if leds { "illuminators on: shadows are illuminator-cast, not solar" }
+                                         else { "illuminators off: cast shadows are solar (usable as yaw evidence)" }},
+            "arm_posture": {"name": name, "arm_front_pitch_rad": r(p.front, 6), "arm_back_pitch_rad": r(p.back, 6),
+                            "chassis_lift_m": r(p.lift, 4), "stability": p.stability, "provenance": p.provenance,
+                            "available": ps.keys().collect::<Vec<_>>()},
+            "shadow_evidence": {"has_evidence": false, "accepted": null,
+                "reason": "no cast-shadow mask supplied: the SN-02 shadow-vector gate is idle (no evidence to accept or reject)"},
+            "authority": "stewie.specs.solar_view (ephemeris + gis sun layers + camera rig + posture + SN-02 gate)"}}))
+    };
+    match run() {
+        Ok(v) => axum::Json(v).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
 /// The specification read routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -326,6 +538,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/ephemeris", get(ephemeris))
         .route("/tiles/{name}/{*asset}", get(tile))
         .route("/fleet", get(fleet))
+        .route("/solar", get(solar))
 }
 
 #[cfg(test)]

@@ -1,13 +1,18 @@
 {
  "fixture": "http_spec_cases",
  "generator": "oracle/build_fixtures.py::http_spec_cases (the FastAPI app's contract-schema, ephemeris, tiles and fleet routes; a SYNTHETIC tileset, labelled)",
- "payload_sha256": "3d74cc91fb90b8b6ed7c6561a29c5c5520ea9ef0001c04218a9c7ed6fa9c7562",
+ "payload_sha256": "cbfc99a370c09f9ef4322128666266a3bbc7e073dcc81e4cdad9d0de3687b3b8",
  "sources": {
+  "stewie/physics/data/ipex_postures.json": "64ef0124ba90e1bb9eedb223e136258c7f57ce1e2c7d48b48a984669d3c3a545",
+  "stewie/physics/posture_kinematics.py": "2669cf8badce7ea1bd7957ce31b2478176dc97b32e82a2a9fc8b7a542ac76500",
+  "stewie/physics/postures.py": "8776fc3be162031fb008606227752ca719c23f7471c1458f27fffaf889023aa4",
   "stewie/server/routers/ephemeris.py": "7737b2058ec44c5e36dd79c069778a18adb52f8660ef78cf811311338686f3fa",
   "stewie/server/routers/fleet.py": "8240581026ecbf31632846644793cbe1e8b91b76595a4c1e23e294b116a0f9d9",
   "stewie/server/routers/schema.py": "c32b5780e10ef4d1e9387b0bdca087c482f0e54961e6a839e767ff06ef0bcbec",
+  "stewie/server/routers/solar.py": "b7a776912fd6048e27b00cef689f6f499cd05dea2f867acb5286bbf36b492900",
   "stewie/server/routers/tiles.py": "0e5cca8f163e58aeeb75ea51477c1e93fc384cad6749cfcdc608d23992662e4f",
   "stewie/specs/solar.py": "b497e7be4032501e6c28f620e1008377734a30c134308f2023f7bd4ecca194f9",
+  "stewie/specs/solar_view.py": "1a11fcb0e22fecfaa21cc8020fa8b0d7df7dbc0c3a49597fb0f82c197a42f63d",
   "stewie/specs/vehicles.py": "c0effee79d7bde16e8abd1bc87d2f776a752f2d8b8cd5b6ad614baa4d9c1fef6"
  }
 }

@@ -1,0 +1,48 @@
+{
+  "raster_defs": [
+    {
+      "group": "terrain",
+      "key": "slope",
+      "kind": "raster",
+      "name": "Slope (deg, from the real DEM)"
+    },
+    {
+      "default": true,
+      "group": "safety",
+      "key": "hazard",
+      "kind": "raster",
+      "name": "Hazard / no-go (nav cost)"
+    },
+    {
+      "group": "sun",
+      "key": "illumination",
+      "kind": "raster",
+      "name": "Shadow (horizon-clipped sun)"
+    },
+    {
+      "group": "sun",
+      "key": "incidence",
+      "kind": "raster",
+      "name": "Sun incidence (grazing-angle, from the DEM)"
+    },
+    {
+      "group": "sun",
+      "key": "psr",
+      "kind": "raster",
+      "name": "Permanently shadowed regions (PSR, never lit)"
+    },
+    {
+      "default": true,
+      "group": "reference",
+      "key": "grid",
+      "kind": "raster",
+      "name": "Site grid (100 m / 500 m)"
+    },
+    {
+      "group": "terrain",
+      "key": "traffic",
+      "kind": "raster",
+      "name": "Traffic hardening (Dr, TW-11)"
+    }
+  ]
+}

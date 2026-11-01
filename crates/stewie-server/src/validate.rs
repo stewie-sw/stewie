@@ -33,6 +33,8 @@ pub enum Kind {
     AnyList,
     /// A bare `list` defaulting to `[]`.
     AnyListDefault,
+    /// A `bool` with a default, read leniently as Pydantic does (`1/0`, `true/false`, `yes/no`, `on/off`, `t/f`, `y/n`).
+    Bool { default: bool },
     /// A `tuple[int, int]`: exactly two integers; required.
     IntPair,
     /// A `tuple[float, float]`: exactly two numbers; required.
@@ -78,6 +80,24 @@ pub(crate) fn as_float(v: &Value) -> Result<f64, &'static str> {
             .parse::<f64>()
             .map_err(|_| "Input should be a valid number, unable to parse string as a number"),
         _ => Err("Input should be a valid number"),
+    }
+}
+
+/// A boolean the Pydantic way: a bool, 0 or 1, or one of its words (any case).
+pub(crate) fn as_bool(v: &Value) -> Option<bool> {
+    match v {
+        Value::Bool(b) => Some(*b),
+        Value::Number(n) => match n.as_i64() {
+            Some(0) => Some(false),
+            Some(1) => Some(true),
+            _ => None,
+        },
+        Value::String(s) => match s.trim().to_lowercase().as_str() {
+            "1" | "on" | "t" | "true" | "y" | "yes" => Some(true),
+            "0" | "off" | "f" | "false" | "n" | "no" => Some(false),
+            _ => None,
+        },
+        _ => None,
     }
 }
 
@@ -166,6 +186,10 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
         Kind::Dict | Kind::DictRequired => match v {
             Value::Object(_) => Some(v.clone()),
             _ => fail("Input should be a valid dictionary".to_owned()),
+        },
+        Kind::Bool { .. } => match as_bool(v) {
+            Some(b) => Some(json!(b)),
+            None => fail("Input should be a valid boolean, unable to interpret input".to_owned()),
         },
         Kind::AnyList | Kind::AnyListDefault => match v {
             Value::Array(_) => Some(v.clone()),
@@ -350,6 +374,7 @@ fn fields(
             (None, Kind::Int { default, .. }) => Some(json!(default)),
             (None, Kind::Dict) => Some(json!({})),
             (None, Kind::AnyListDefault) => Some(json!([])),
+            (None, Kind::Bool { default }) => Some(json!(default)),
             // an optional value (or an optional string) defaults to null
             (
                 None,

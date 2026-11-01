@@ -4719,8 +4719,8 @@ def http_dem_cases() -> None:
 
 
 def http_spec_cases() -> None:
-    """The specification reads (RW-55b7a): /contracts/schema, /ephemeris (the analytic sun), the 3D Tiles route and
-    the /fleet roster, through one scripted session (_http_session). The tileset files are SYNTHETIC (labelled)."""
+    """The specification reads (RW-55b7a/b): /contracts/schema, /ephemeris, the 3D Tiles route, the /fleet roster and
+    the /solar view, through one scripted session (_http_session). The tileset files are SYNTHETIC (labelled)."""
     import stewie.server.routers.tiles as _T
     from stewie.specs import solar as _S
 
@@ -4755,6 +4755,15 @@ def http_spec_cases() -> None:
             call("GET", "/tiles/twin/sub/../tileset.json", headers=key)
             call("GET", "/fleet")                                                     # no key
             call("GET", "/fleet", headers=key)
+            # the Solar work area (RW-55b7b)
+            call("GET", "/solar")
+            call("GET", "/solar?posture=DIG&leds_on=true&mission_t_s=86400&site=shackleton_rim")
+            call("GET", "/solar?posture=DUMP_Z&leds_on=0&lat_deg=-89.9&lon_deg=-45&mission_t_s=1300000")
+            call("GET", "/solar?posture=COBRA&leds_on=yes")                    # a planted, asymmetric stance
+            call("GET", "/solar?posture=MEERKAT&leds_on=off")
+            call("GET", "/solar?posture=nope")
+            call("GET", "/solar?leds_on=maybe")
+            call("GET", "/solar?posture=" + "P" * 65)
         finally:
             _T._TILES_DIR = saved_dir
 
@@ -4763,7 +4772,9 @@ def http_spec_cases() -> None:
                   "contract-schema, ephemeris, tiles and fleet routes; a SYNTHETIC tileset, labelled)",
                   ["stewie/server/routers/schema.py", "stewie/server/routers/ephemeris.py",
                    "stewie/server/routers/tiles.py", "stewie/server/routers/fleet.py", "stewie/specs/solar.py",
-                   "stewie/specs/vehicles.py"], payload)
+                   "stewie/specs/vehicles.py", "stewie/server/routers/solar.py", "stewie/specs/solar_view.py",
+                   "stewie/physics/postures.py", "stewie/physics/posture_kinematics.py",
+                   "stewie/physics/data/ipex_postures.json"], payload)
 
 
 def contour_cases() -> None:

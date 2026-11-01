@@ -1294,6 +1294,653 @@
     "raw": null
    },
    "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "solar": {
+     "arm_posture": {
+      "arm_back_pitch_rad": 0.65,
+      "arm_front_pitch_rad": 0.65,
+      "available": [
+       "BRAKED_HOLD",
+       "COBRA",
+       "DIG",
+       "DRUM_WALK",
+       "DUMP_Z",
+       "IRON_CROSS",
+       "MEERKAT",
+       "SELF_RIGHT",
+       "TRANSIT"
+      ],
+      "chassis_lift_m": 0.0,
+      "name": "TRANSIT",
+      "provenance": "[ASSUMPTION] matches the sidecar drums-up clear-FOV stance",
+      "stability": "nominal"
+     },
+     "authority": "stewie.specs.solar_view (ephemeris + gis sun layers + camera rig + posture + SN-02 gate)",
+     "cameras": [
+      {
+       "active": true,
+       "name": "front_left",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "front_right",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "rear_left",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "rear_right",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "left_mono",
+       "world_height_m": 0.1024
+      },
+      {
+       "active": true,
+       "name": "right_mono",
+       "world_height_m": 0.1024
+      },
+      {
+       "active": true,
+       "name": "drum_front_cam",
+       "world_height_m": 0.3324
+      },
+      {
+       "active": true,
+       "name": "drum_back_cam",
+       "world_height_m": 0.3324
+      }
+     ],
+     "illumination_layers": [
+      {
+       "key": "illumination",
+       "name": "Shadow (horizon-clipped sun)",
+       "raster_route": "/layers/raster/illumination.png"
+      },
+      {
+       "key": "incidence",
+       "name": "Sun incidence (grazing-angle, from the DEM)",
+       "raster_route": "/layers/raster/incidence.png"
+      },
+      {
+       "key": "psr",
+       "name": "Permanently shadowed regions (PSR, never lit)",
+       "raster_route": "/layers/raster/psr.png"
+      }
+     ],
+     "leds": {
+      "note": "illuminators off: cast shadows are solar (usable as yaw evidence)",
+      "on": false
+     },
+     "shadow_evidence": {
+      "accepted": null,
+      "has_evidence": false,
+      "reason": "no cast-shadow mask supplied: the SN-02 shadow-vector gate is idle (no evidence to accept or reject)"
+     },
+     "sun_vector": {
+      "anti_solar_az_deg": 294.473,
+      "azimuth_convention": "from_north_eastward",
+      "lit": true,
+      "mission_t_s": 0.0,
+      "site_lat_deg": -87.45,
+      "site_lon_deg": 0.0,
+      "sun_az_deg": 114.473,
+      "sun_el_deg": 0.5007
+     }
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/solar",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "solar": {
+     "arm_posture": {
+      "arm_back_pitch_rad": 0.65,
+      "arm_front_pitch_rad": 0.2,
+      "available": [
+       "BRAKED_HOLD",
+       "COBRA",
+       "DIG",
+       "DRUM_WALK",
+       "DUMP_Z",
+       "IRON_CROSS",
+       "MEERKAT",
+       "SELF_RIGHT",
+       "TRANSIT"
+      ],
+      "chassis_lift_m": 0.0,
+      "name": "DIG",
+      "provenance": "[ASSUMPTION] matches sidecar ARM_FRONT_PITCH/ARM_BACK_PITCH (drum near surface)",
+      "stability": "nominal; counter-rotating drums cancel horizontal dig reaction (KSC-TOPS-7)"
+     },
+     "authority": "stewie.specs.solar_view (ephemeris + gis sun layers + camera rig + posture + SN-02 gate)",
+     "cameras": [
+      {
+       "active": true,
+       "name": "front_left",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "front_right",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "rear_left",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "rear_right",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "left_mono",
+       "world_height_m": 0.1024
+      },
+      {
+       "active": true,
+       "name": "right_mono",
+       "world_height_m": 0.1024
+      },
+      {
+       "active": true,
+       "name": "drum_front_cam",
+       "world_height_m": 0.3324
+      },
+      {
+       "active": true,
+       "name": "drum_back_cam",
+       "world_height_m": 0.3324
+      }
+     ],
+     "illumination_layers": [
+      {
+       "key": "illumination",
+       "name": "Shadow (horizon-clipped sun)",
+       "raster_route": "/layers/raster/illumination.png"
+      },
+      {
+       "key": "incidence",
+       "name": "Sun incidence (grazing-angle, from the DEM)",
+       "raster_route": "/layers/raster/incidence.png"
+      },
+      {
+       "key": "psr",
+       "name": "Permanently shadowed regions (PSR, never lit)",
+       "raster_route": "/layers/raster/psr.png"
+      }
+     ],
+     "leds": {
+      "note": "illuminators on: shadows are illuminator-cast, not solar",
+      "on": true
+     },
+     "shadow_evidence": {
+      "accepted": null,
+      "has_evidence": false,
+      "reason": "no cast-shadow mask supplied: the SN-02 shadow-vector gate is idle (no evidence to accept or reject)"
+     },
+     "sun_vector": {
+      "anti_solar_az_deg": 78.1495,
+      "azimuth_convention": "from_north_eastward",
+      "lit": true,
+      "mission_t_s": 86400.0,
+      "site_lat_deg": -89.7843,
+      "site_lon_deg": -155.9041,
+      "sun_az_deg": 258.1495,
+      "sun_el_deg": 1.5109
+     }
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/solar?posture=DIG&leds_on=true&mission_t_s=86400&site=shackleton_rim",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "solar": {
+     "arm_posture": {
+      "arm_back_pitch_rad": 0.65,
+      "arm_front_pitch_rad": 1.2,
+      "available": [
+       "BRAKED_HOLD",
+       "COBRA",
+       "DIG",
+       "DRUM_WALK",
+       "DUMP_Z",
+       "IRON_CROSS",
+       "MEERKAT",
+       "SELF_RIGHT",
+       "TRANSIT"
+      ],
+      "chassis_lift_m": 0.0,
+      "name": "DUMP_Z",
+      "provenance": "[ASSUMPTION] raised-drum dump geometry",
+      "stability": "check fore/aft margin under the raised drum mass"
+     },
+     "authority": "stewie.specs.solar_view (ephemeris + gis sun layers + camera rig + posture + SN-02 gate)",
+     "cameras": [
+      {
+       "active": true,
+       "name": "front_left",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "front_right",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "rear_left",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "rear_right",
+       "world_height_m": 0.0524
+      },
+      {
+       "active": true,
+       "name": "left_mono",
+       "world_height_m": 0.1024
+      },
+      {
+       "active": true,
+       "name": "right_mono",
+       "world_height_m": 0.1024
+      },
+      {
+       "active": true,
+       "name": "drum_front_cam",
+       "world_height_m": 0.3324
+      },
+      {
+       "active": true,
+       "name": "drum_back_cam",
+       "world_height_m": 0.3324
+      }
+     ],
+     "illumination_layers": [
+      {
+       "key": "illumination",
+       "name": "Shadow (horizon-clipped sun)",
+       "raster_route": "/layers/raster/illumination.png"
+      },
+      {
+       "key": "incidence",
+       "name": "Sun incidence (grazing-angle, from the DEM)",
+       "raster_route": "/layers/raster/incidence.png"
+      },
+      {
+       "key": "psr",
+       "name": "Permanently shadowed regions (PSR, never lit)",
+       "raster_route": "/layers/raster/psr.png"
+      }
+     ],
+     "leds": {
+      "note": "illuminators off: cast shadows are solar (usable as yaw evidence)",
+      "on": false
+     },
+     "shadow_evidence": {
+      "accepted": null,
+      "has_evidence": false,
+      "reason": "no cast-shadow mask supplied: the SN-02 shadow-vector gate is idle (no evidence to accept or reject)"
+     },
+     "sun_vector": {
+      "anti_solar_az_deg": 156.6555,
+      "azimuth_convention": "from_north_eastward",
+      "lit": true,
+      "mission_t_s": 1300000.0,
+      "site_lat_deg": -89.9,
+      "site_lon_deg": -45.0,
+      "sun_az_deg": 336.6555,
+      "sun_el_deg": 1.5679
+     }
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/solar?posture=DUMP_Z&leds_on=0&lat_deg=-89.9&lon_deg=-45&mission_t_s=1300000",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "solar": {
+     "arm_posture": {
+      "arm_back_pitch_rad": 0.3,
+      "arm_front_pitch_rad": -1.2,
+      "available": [
+       "BRAKED_HOLD",
+       "COBRA",
+       "DIG",
+       "DRUM_WALK",
+       "DUMP_Z",
+       "IRON_CROSS",
+       "MEERKAT",
+       "SELF_RIGHT",
+       "TRANSIT"
+      ],
+      "chassis_lift_m": 0.1047,
+      "name": "COBRA",
+      "provenance": "[ASSUMPTION] single raised-arm reach (RASSOR cobra maneuver)",
+      "stability": "check fore/aft margin under the high reaching arm"
+     },
+     "authority": "stewie.specs.solar_view (ephemeris + gis sun layers + camera rig + posture + SN-02 gate)",
+     "cameras": [
+      {
+       "active": true,
+       "name": "front_left",
+       "world_height_m": 0.3077
+      },
+      {
+       "active": true,
+       "name": "front_right",
+       "world_height_m": 0.3077
+      },
+      {
+       "active": true,
+       "name": "rear_left",
+       "world_height_m": 0.0294
+      },
+      {
+       "active": true,
+       "name": "rear_right",
+       "world_height_m": 0.0294
+      },
+      {
+       "active": true,
+       "name": "left_mono",
+       "world_height_m": 0.2128
+      },
+      {
+       "active": true,
+       "name": "right_mono",
+       "world_height_m": 0.2128
+      },
+      {
+       "active": true,
+       "name": "drum_front_cam",
+       "world_height_m": 0.463
+      },
+      {
+       "active": true,
+       "name": "drum_back_cam",
+       "world_height_m": 0.3702
+      }
+     ],
+     "illumination_layers": [
+      {
+       "key": "illumination",
+       "name": "Shadow (horizon-clipped sun)",
+       "raster_route": "/layers/raster/illumination.png"
+      },
+      {
+       "key": "incidence",
+       "name": "Sun incidence (grazing-angle, from the DEM)",
+       "raster_route": "/layers/raster/incidence.png"
+      },
+      {
+       "key": "psr",
+       "name": "Permanently shadowed regions (PSR, never lit)",
+       "raster_route": "/layers/raster/psr.png"
+      }
+     ],
+     "leds": {
+      "note": "illuminators on: shadows are illuminator-cast, not solar",
+      "on": true
+     },
+     "shadow_evidence": {
+      "accepted": null,
+      "has_evidence": false,
+      "reason": "no cast-shadow mask supplied: the SN-02 shadow-vector gate is idle (no evidence to accept or reject)"
+     },
+     "sun_vector": {
+      "anti_solar_az_deg": 294.473,
+      "azimuth_convention": "from_north_eastward",
+      "lit": true,
+      "mission_t_s": 0.0,
+      "site_lat_deg": -87.45,
+      "site_lon_deg": 0.0,
+      "sun_az_deg": 114.473,
+      "sun_el_deg": 0.5007
+     }
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/solar?posture=COBRA&leds_on=yes",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "solar": {
+     "arm_posture": {
+      "arm_back_pitch_rad": -1.0,
+      "arm_front_pitch_rad": -1.0,
+      "available": [
+       "BRAKED_HOLD",
+       "COBRA",
+       "DIG",
+       "DRUM_WALK",
+       "DUMP_Z",
+       "IRON_CROSS",
+       "MEERKAT",
+       "SELF_RIGHT",
+       "TRANSIT"
+      ],
+      "chassis_lift_m": 0.1743,
+      "name": "MEERKAT",
+      "provenance": "[ASSUMPTION] arms-down body-lift; lift magnitude is a calibration target, not measured",
+      "stability": "speed-limited; REJECT if SSA stability margin inadequate (AM-03)"
+     },
+     "authority": "stewie.specs.solar_view (ephemeris + gis sun layers + camera rig + posture + SN-02 gate)",
+     "cameras": [
+      {
+       "active": true,
+       "name": "front_left",
+       "world_height_m": 0.2267
+      },
+      {
+       "active": true,
+       "name": "front_right",
+       "world_height_m": 0.2267
+      },
+      {
+       "active": true,
+       "name": "rear_left",
+       "world_height_m": 0.2267
+      },
+      {
+       "active": true,
+       "name": "rear_right",
+       "world_height_m": 0.2267
+      },
+      {
+       "active": true,
+       "name": "left_mono",
+       "world_height_m": 0.2767
+      },
+      {
+       "active": true,
+       "name": "right_mono",
+       "world_height_m": 0.2767
+      },
+      {
+       "active": true,
+       "name": "drum_front_cam",
+       "world_height_m": 0.5067
+      },
+      {
+       "active": true,
+       "name": "drum_back_cam",
+       "world_height_m": 0.5067
+      }
+     ],
+     "illumination_layers": [
+      {
+       "key": "illumination",
+       "name": "Shadow (horizon-clipped sun)",
+       "raster_route": "/layers/raster/illumination.png"
+      },
+      {
+       "key": "incidence",
+       "name": "Sun incidence (grazing-angle, from the DEM)",
+       "raster_route": "/layers/raster/incidence.png"
+      },
+      {
+       "key": "psr",
+       "name": "Permanently shadowed regions (PSR, never lit)",
+       "raster_route": "/layers/raster/psr.png"
+      }
+     ],
+     "leds": {
+      "note": "illuminators off: cast shadows are solar (usable as yaw evidence)",
+      "on": false
+     },
+     "shadow_evidence": {
+      "accepted": null,
+      "has_evidence": false,
+      "reason": "no cast-shadow mask supplied: the SN-02 shadow-vector gate is idle (no evidence to accept or reject)"
+     },
+     "sun_vector": {
+      "anti_solar_az_deg": 294.473,
+      "azimuth_convention": "from_north_eastward",
+      "lit": true,
+      "mission_t_s": 0.0,
+      "site_lat_deg": -87.45,
+      "site_lon_deg": 0.0,
+      "sun_az_deg": 114.473,
+      "sun_el_deg": 0.5007
+     }
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/solar?posture=MEERKAT&leds_on=off",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown posture: \"unknown posture 'nope'; known: ['BRAKED_HOLD', 'COBRA', 'DIG', 'DRUM_WALK', 'DUMP_Z', 'IRON_CROSS', 'MEERKAT', 'SELF_RIGHT', 'TRANSIT']\"",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/solar?posture=nope",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "leds_on: Input should be a valid boolean, unable to interpret input",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/solar?leds_on=maybe",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "posture: String should have at most 64 characters",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/solar?posture=PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "raw": null
+   },
+   "status": 400
   }
  ],
  "store": null

@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
 """
 from __future__ import annotations
 
@@ -189,6 +189,13 @@ def contract_schemas() -> dict:
             "schemas": {name: model.model_json_schema() for name, model in _SPINE.items()}}
 
 
+def raster_defs() -> dict:
+    """The raster layer catalog the map's layer picker and the Solar view read (stewie.server.gis_layers.RASTER_DEFS),
+    in its own order."""
+    from stewie.server.gis_layers import RASTER_DEFS
+    return {"raster_defs": [dict(d) for d in RASTER_DEFS]}
+
+
 def _write(name: str, data: dict) -> str:
     path = os.path.normpath(os.path.join(_OUT, name))
     with open(path, "w", encoding="utf-8") as fh:
@@ -206,6 +213,7 @@ def main() -> None:
     print(_write("fleet.json", fleet()))
     print(_write("dem_sources.json", dem_sources()))
     print(_write("contract_schemas.json", contract_schemas()))
+    print(_write("raster_defs.json", raster_defs()))
 
 
 if __name__ == "__main__":
