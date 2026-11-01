@@ -1,0 +1,752 @@
+{
+ "clock0": 1800000000.0,
+ "derived_secret_hex": "b74a783907915f106d6ddfc7427b895db284aeb491cefd961942a763d9777530",
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org,carol@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+  "STEWIE_TRUSTED_PROXIES": "100.64.0.1,10.0.0.0/8,testclient",
+  "STEWIE_TRUST_TAILSCALE": "1"
+ },
+ "revoked": [
+  "70eed9f397c84ebc9ed980a41766d847"
+ ],
+ "seed_sha256_of": "stewie-auth-oracle",
+ "steps": [
+  {
+   "args": [
+    "Alice@Example.org",
+    "correct horse battery"
+   ],
+   "ok": {
+    "approved_at": null,
+    "approved_by": null,
+    "created_at": 1800000000.0,
+    "email": "alice@example.org",
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "role": "operator",
+    "status": "pending"
+   },
+   "op": "register"
+  },
+  {
+   "args": [
+    "bob@example.org",
+    "short"
+   ],
+   "error": "ValueError: password must be at least 10 characters",
+   "op": "register"
+  },
+  {
+   "args": [
+    "<img src=x>@x.co",
+    "long enough pw"
+   ],
+   "error": "ValueError: '<img src=x>@x.co' is not a valid email address (forbidden character)",
+   "op": "register"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "another password"
+   ],
+   "error": "ValueError: an account for 'alice@example.org' already exists",
+   "op": "register"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "correct horse battery",
+    "1.2.3.4"
+   ],
+   "ok": null,
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "boot",
+    "director"
+   ],
+   "ok": {
+    "approved_at": 1800000000.0,
+    "approved_by": "boot",
+    "created_at": 1800000000.0,
+    "email": "alice@example.org",
+    "fail_by_ip": {},
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "role": "director",
+    "status": "active"
+   },
+   "op": "approve"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "wrong 0",
+    "6.6.6.6"
+   ],
+   "ok": null,
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "6.6.6.6"
+   ],
+   "ok": false,
+   "op": "is_locked"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "wrong 1",
+    "6.6.6.6"
+   ],
+   "ok": null,
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "6.6.6.6"
+   ],
+   "ok": false,
+   "op": "is_locked"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "wrong 2",
+    "6.6.6.6"
+   ],
+   "ok": null,
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "6.6.6.6"
+   ],
+   "ok": false,
+   "op": "is_locked"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "wrong 3",
+    "6.6.6.6"
+   ],
+   "ok": null,
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "6.6.6.6"
+   ],
+   "ok": false,
+   "op": "is_locked"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "wrong 4",
+    "6.6.6.6"
+   ],
+   "ok": null,
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "6.6.6.6"
+   ],
+   "ok": true,
+   "op": "is_locked"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "wrong 5",
+    "6.6.6.6"
+   ],
+   "ok": null,
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "6.6.6.6"
+   ],
+   "ok": true,
+   "op": "is_locked"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "6.6.6.6"
+   ],
+   "ok": true,
+   "op": "is_locked"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "1.2.3.4"
+   ],
+   "ok": false,
+   "op": "is_locked"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "correct horse battery",
+    "1.2.3.4"
+   ],
+   "ok": "alice@example.org",
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "correct horse battery",
+    "6.6.6.6"
+   ],
+   "ok": null,
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "correct horse battery",
+    "6.6.6.6"
+   ],
+   "ok": "alice@example.org",
+   "op": "verify_credentials"
+  },
+  {
+   "args": [
+    "carol@example.org",
+    "carol password 1",
+    "trainee"
+   ],
+   "ok": {
+    "approved_at": 1800000907.0,
+    "approved_by": "alice@example.org",
+    "created_at": 1800000907.0,
+    "email": "carol@example.org",
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "role": "trainee",
+    "status": "active"
+   },
+   "op": "create_active"
+  },
+  {
+   "args": [
+    "carol@example.org",
+    "carol password 2"
+   ],
+   "ok": {
+    "approved_at": 1800000907.0,
+    "approved_by": "alice@example.org",
+    "created_at": 1800000907.0,
+    "email": "carol@example.org",
+    "fail_by_ip": {},
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "role": "trainee",
+    "status": "active"
+   },
+   "op": "set_password"
+  },
+  {
+   "args": [
+    "carol@example.org",
+    "carol password 1"
+   ],
+   "ok": false,
+   "op": "verify_old_password"
+  },
+  {
+   "args": [
+    "carol@example.org",
+    "carol password 2"
+   ],
+   "ok": true,
+   "op": "verify_old_password"
+  },
+  {
+   "args": [
+    "carol@example.org",
+    "pilot",
+    "alice@example.org"
+   ],
+   "error": "ValueError: role must be one of ('guest', 'trainee', 'operator', 'director')",
+   "op": "set_role"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "operator",
+    3600,
+    1
+   ],
+   "ok": "8HFoWE2TVcJLaW0qwq_AFmvhbp0mn76dlDS6yxgarLs",
+   "op": "create_invite"
+  },
+  {
+   "args": [
+    "<invite>",
+    "dave@example.org",
+    "weak"
+   ],
+   "error": "ValueError: password must be at least 10 characters",
+   "op": "redeem_invite"
+  },
+  {
+   "args": [
+    "<invite>",
+    "dave@example.org",
+    "dave password 1"
+   ],
+   "ok": {
+    "approved_at": 1800000907.0,
+    "approved_by": "invite:alice@example.org",
+    "created_at": 1800000907.0,
+    "email": "dave@example.org",
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "role": "operator",
+    "status": "active"
+   },
+   "op": "redeem_invite"
+  },
+  {
+   "args": [
+    "<invite>",
+    "erin@example.org",
+    "erin password 1"
+   ],
+   "error": "ValueError: invalid invite",
+   "op": "redeem_invite"
+  },
+  {
+   "args": [
+    "bob@example.org",
+    "alice@example.org"
+   ],
+   "error": "ValueError: no account for 'bob@example.org'",
+   "op": "revoke"
+  },
+  {
+   "args": [
+    "dave@example.org",
+    "alice@example.org"
+   ],
+   "ok": {
+    "approved_at": 1800000907.0,
+    "approved_by": "alice@example.org",
+    "created_at": 1800000907.0,
+    "email": "dave@example.org",
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "role": "operator",
+    "status": "revoked"
+   },
+   "op": "revoke"
+  },
+  {
+   "args": [
+    "api-key"
+   ],
+   "ok": "director",
+   "op": "role_of"
+  },
+  {
+   "args": [
+    "desktop-local"
+   ],
+   "ok": "director",
+   "op": "role_of"
+  },
+  {
+   "args": [
+    "gis-anon"
+   ],
+   "ok": "guest",
+   "op": "role_of"
+  },
+  {
+   "args": [
+    "alice@example.org"
+   ],
+   "ok": "director",
+   "op": "role_of"
+  },
+  {
+   "args": [
+    "carol@example.org"
+   ],
+   "ok": "trainee",
+   "op": "role_of"
+  },
+  {
+   "args": [
+    "dave@example.org"
+   ],
+   "ok": "operator",
+   "op": "role_of"
+  },
+  {
+   "args": [
+    "bob@example.org"
+   ],
+   "ok": "operator",
+   "op": "role_of"
+  },
+  {
+   "args": [
+    "zed@example.org"
+   ],
+   "ok": "operator",
+   "op": "role_of"
+  },
+  {
+   "args": [],
+   "ok": [
+    {
+     "approved_at": 1800000000.0,
+     "approved_by": "boot",
+     "created_at": 1800000000.0,
+     "email": "alice@example.org",
+     "fail_by_ip": {},
+     "failed": 0,
+     "last_login": 1800000907.0,
+     "locked_until": 0.0,
+     "role": "director",
+     "status": "active"
+    },
+    {
+     "approved_at": 1800000907.0,
+     "approved_by": "alice@example.org",
+     "created_at": 1800000907.0,
+     "email": "carol@example.org",
+     "fail_by_ip": {},
+     "failed": 0,
+     "last_login": null,
+     "locked_until": 0.0,
+     "role": "trainee",
+     "status": "active"
+    },
+    {
+     "approved_at": 1800000907.0,
+     "approved_by": "alice@example.org",
+     "created_at": 1800000907.0,
+     "email": "dave@example.org",
+     "failed": 0,
+     "last_login": null,
+     "locked_until": 0.0,
+     "role": "operator",
+     "status": "revoked"
+    }
+   ],
+   "op": "list_all"
+  },
+  {
+   "args": [
+    "alice@example.org"
+   ],
+   "ok": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQ0MTA3LjAsImlhdCI6MTgwMDAwMDkwNy4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNzBlZWQ5ZjM5N2M4NGViYzllZDk4MGE0MTc2NmQ4NDcifQ.GOqOJzsGAdM5f7hpTS_oEwrS5rJaC5mYkOwxpxyn0lg",
+   "op": "issue_token"
+  },
+  {
+   "args": [
+    "<alice>"
+   ],
+   "ok": "alice@example.org",
+   "op": "verify_token"
+  },
+  {
+   "args": [
+    "<alice>"
+   ],
+   "ok": {
+    "aud": "stewie-cockpit",
+    "exp": 1800044107.0,
+    "iat": 1800000907.0,
+    "iss": "stewie-auth",
+    "jti": "70eed9f397c84ebc9ed980a41766d847",
+    "op": "alice@example.org"
+   },
+   "op": "decode_claims"
+  },
+  {
+   "args": [
+    "<alice>",
+    "expired"
+   ],
+   "ok": null,
+   "op": "verify_token"
+  },
+  {
+   "args": [
+    "<alice tampered>"
+   ],
+   "ok": null,
+   "op": "verify_token"
+  },
+  {
+   "args": [
+    "zed@example.org"
+   ],
+   "ok": "eyJvcCI6InplZEBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0NDEwNy4wLCJpYXQiOjE4MDAwMDA5MDcuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImQ1ZThiMzNhZWE3NDQzZTRiNWFjNDM4NDZjNmE2NTRjIn0.ndSa9Jm7mxZB4MmicCPEK1TY3q8wU8WlpkbZZ9xybWw",
+   "op": "issue_token"
+  },
+  {
+   "args": [
+    "<zed, not allowlisted>"
+   ],
+   "ok": null,
+   "op": "verify_token"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "other-audience"
+   ],
+   "ok": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQ0MTA3LjAsImlhdCI6MTgwMDAwMDkwNy4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6Im90aGVyLWF1ZGllbmNlIiwianRpIjoiNWNlZTc5NmRkOTBjNDVkNmI3YzY5MTFmZjZlMjhmZTMifQ.6LHbNcLB1O79aEpkSQ3df4eu-MxXree6CN6VshHciu8",
+   "op": "issue_token"
+  },
+  {
+   "args": [
+    "<other audience>"
+   ],
+   "ok": null,
+   "op": "verify_token"
+  },
+  {
+   "args": [
+    "<alice jti>"
+   ],
+   "ok": null,
+   "op": "revoke_jti"
+  },
+  {
+   "args": [
+    "<alice revoked>"
+   ],
+   "ok": null,
+   "op": "verify_token"
+  },
+  {
+   "args": [
+    "<anything>",
+    "corrupt store"
+   ],
+   "ok": true,
+   "op": "is_revoked"
+  },
+  {
+   "args": [
+    "alice@example.org",
+    "derived secret"
+   ],
+   "ok": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQ0MTA3LjAsImlhdCI6MTgwMDAwMDkwNy4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiMGVjY2E3NzFiYzJmNGU1Njg2YzFkOGQ3MWYyNzcyM2EifQ.WwuR-RiyYdU1OUlxA_4iRiNowSAwQnCyaiTuo2JjuBQ",
+   "op": "issue_token"
+  },
+  {
+   "args": [
+    "100.64.0.1"
+   ],
+   "ok": true,
+   "op": "peer_trusted"
+  },
+  {
+   "args": [
+    "10.9.8.7"
+   ],
+   "ok": true,
+   "op": "peer_trusted"
+  },
+  {
+   "args": [
+    "11.0.0.1"
+   ],
+   "ok": false,
+   "op": "peer_trusted"
+  },
+  {
+   "args": [
+    "testclient"
+   ],
+   "ok": true,
+   "op": "peer_trusted"
+  },
+  {
+   "args": [
+    null
+   ],
+   "ok": false,
+   "op": "peer_trusted"
+  },
+  {
+   "args": [
+    "not-an-ip"
+   ],
+   "ok": false,
+   "op": "peer_trusted"
+  },
+  {
+   "args": [
+    "100.64.0.1",
+    "Alice@Example.org"
+   ],
+   "ok": "alice@example.org",
+   "op": "tailscale_identity"
+  },
+  {
+   "args": [
+    "11.0.0.1",
+    "alice@example.org"
+   ],
+   "ok": null,
+   "op": "tailscale_identity"
+  },
+  {
+   "args": [
+    "10.1.1.1",
+    "zed@example.org"
+   ],
+   "ok": null,
+   "op": "tailscale_identity"
+  },
+  {
+   "args": [
+    "user.name+tag@host.tld"
+   ],
+   "ok": "user.name+tag@host.tld",
+   "op": "validate_email"
+  },
+  {
+   "args": [
+    "a..b@x.co"
+   ],
+   "error": "ValueError: 'a..b@x.co' is not a valid email address",
+   "op": "validate_email"
+  },
+  {
+   "args": [
+    ".a@x.co"
+   ],
+   "error": "ValueError: '.a@x.co' is not a valid email address",
+   "op": "validate_email"
+  },
+  {
+   "args": [
+    "a@x"
+   ],
+   "error": "ValueError: 'a@x' is not a valid email address",
+   "op": "validate_email"
+  },
+  {
+   "args": [
+    "a@-x.co"
+   ],
+   "error": "ValueError: 'a@-x.co' is not a valid email address",
+   "op": "validate_email"
+  },
+  {
+   "args": [
+    "a@x.c0"
+   ],
+   "error": "ValueError: 'a@x.c0' is not a valid email address",
+   "op": "validate_email"
+  },
+  {
+   "args": [
+    "a b@x.co"
+   ],
+   "error": "ValueError: 'a b@x.co' is not a valid email address (forbidden character)",
+   "op": "validate_email"
+  },
+  {
+   "args": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@x.co"
+   ],
+   "error": "ValueError: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@x.co' is not a valid email address (local part too long)",
+   "op": "validate_email"
+  },
+  {
+   "args": [
+    "ok@sub.domain.museum"
+   ],
+   "ok": "ok@sub.domain.museum",
+   "op": "validate_email"
+  }
+ ],
+ "store": {
+  "invites": {},
+  "operators": {
+   "alice@example.org": {
+    "approved_at": 1800000000.0,
+    "approved_by": "boot",
+    "created_at": 1800000000.0,
+    "email": "alice@example.org",
+    "fail_by_ip": {},
+    "failed": 0,
+    "last_login": 1800000907.0,
+    "locked_until": 0.0,
+    "pw_hash": "a354f5b7eab71c6e2ae030188f08b69162c2ee206b2520a5620f9ac653f3f9f8",
+    "pw_salt": "1621a3a706de4f9ba02d2de76aa2ee08",
+    "role": "director",
+    "status": "active"
+   },
+   "carol@example.org": {
+    "approved_at": 1800000907.0,
+    "approved_by": "alice@example.org",
+    "created_at": 1800000907.0,
+    "email": "carol@example.org",
+    "fail_by_ip": {},
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "pw_hash": "2bb00815cbd491b928700792af7a5eaf8c1b656b29a231bec0f7928a85e2e1de",
+    "pw_salt": "aba292002061d85d666ce8496ef505c7",
+    "role": "trainee",
+    "status": "active"
+   },
+   "dave@example.org": {
+    "approved_at": 1800000907.0,
+    "approved_by": "alice@example.org",
+    "created_at": 1800000907.0,
+    "email": "dave@example.org",
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "pw_hash": "bb43fe4aa4f8fef95095452bb25f36f7ceeeef24276b53fe5b039a3a38437095",
+    "pw_salt": "ac1c390f2e81a97c3b6406781b796889",
+    "role": "operator",
+    "status": "revoked"
+   }
+  },
+  "version": 1
+ },
+ "tokens": {
+  "a": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQ0MTA3LjAsImlhdCI6MTgwMDAwMDkwNy4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNzBlZWQ5ZjM5N2M4NGViYzllZDk4MGE0MTc2NmQ4NDcifQ.GOqOJzsGAdM5f7hpTS_oEwrS5rJaC5mYkOwxpxyn0lg",
+  "d": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQ0MTA3LjAsImlhdCI6MTgwMDAwMDkwNy4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiMGVjY2E3NzFiYzJmNGU1Njg2YzFkOGQ3MWYyNzcyM2EifQ.WwuR-RiyYdU1OUlxA_4iRiNowSAwQnCyaiTuo2JjuBQ",
+  "o": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQ0MTA3LjAsImlhdCI6MTgwMDAwMDkwNy4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6Im90aGVyLWF1ZGllbmNlIiwianRpIjoiNWNlZTc5NmRkOTBjNDVkNmI3YzY5MTFmZjZlMjhmZTMifQ.6LHbNcLB1O79aEpkSQ3df4eu-MxXree6CN6VshHciu8",
+  "z": "eyJvcCI6InplZEBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0NDEwNy4wLCJpYXQiOjE4MDAwMDA5MDcuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImQ1ZThiMzNhZWE3NDQzZTRiNWFjNDM4NDZjNmE2NTRjIn0.ndSa9Jm7mxZB4MmicCPEK1TY3q8wU8WlpkbZZ9xybWw"
+ }
+}

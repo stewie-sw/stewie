@@ -1,0 +1,9 @@
+{
+ "fixture": "auth_cases",
+ "generator": "oracle/build_fixtures.py::auth_cases (stewie.server.auth + operators through one scripted scenario; pinned clock, seeded randomness; every input SYNTHETIC, labelled)",
+ "payload_sha256": "51bfafa5bd1ae7262175cd2b7ff6ada12b5e3b8fc4bb8fa2cbc3a5b3218f59d4",
+ "sources": {
+  "stewie/server/auth.py": "664b0eeb5a171f82c4c236f34f7585a1188a79acd6b3e11cb4724fa59711db8a",
+  "stewie/server/operators.py": "ece37e235d4133d5ad61aa207e15430f413f6760b466480a075fc4adac752eb1"
+ }
+}

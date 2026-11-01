@@ -2756,6 +2756,155 @@ def horizon_stacked() -> None:
                    "elev_deg": elev, "reach_m": reach})
 
 
+def auth_cases() -> None:
+    """Server auth core (RW-55a1): stewie.server.auth (session tokens, revocation, roles, proxy trust) and
+    stewie.server.operators (the account store) driven through one scripted scenario in a temporary data dir. The
+    clock is pinned and the store's randomness (salts, invite tokens, token ids) comes from a seeded generator, so
+    every result, every token and the final store are reproducible; the Rust port replays the same script with the
+    same clock and bytes. Emails, passwords, keys and the scenario are SYNTHETIC test inputs (labelled)."""
+    import copy
+    import hashlib
+    import tempfile
+    import uuid as _uuid
+
+    import stewie.server.auth as A
+    import stewie.server.operators as O
+
+    seed = hashlib.sha256(b"stewie-auth-oracle").digest()
+    stream = {"n": 0}
+
+    def det_bytes(n: int) -> bytes:                         # SYNTHETIC deterministic randomness (labelled)
+        out = b""
+        while len(out) < n:
+            out += hashlib.sha256(seed + stream["n"].to_bytes(8, "big")).digest()
+            stream["n"] += 1
+        return out[:n]
+
+    clock = {"t": 1_800_000_000.0}
+    env = {"STEWIE_API_KEY": "automation-key-0123456789", "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+           "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org,carol@example.org",
+           "STEWIE_DIRECTORS": "alice@example.org", "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+           "STEWIE_TRUST_TAILSCALE": "1", "STEWIE_TRUSTED_PROXIES": "100.64.0.1,10.0.0.0/8,testclient"}
+    saved = {k: os.environ.get(k) for k in list(env) + ["STEWIE_DATA_DIR", "STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED"]}
+    patched = {"os_urandom": O.os.urandom, "token_urlsafe": O.secrets.token_urlsafe, "clock": O._clock,
+               "uuid4": A.uuid.uuid4, "time": A.time.time}
+    steps = []
+
+    def rec(op, args, fn):
+        try:
+            out = fn()
+            steps.append({"op": op, "args": args, "ok": out})
+        except Exception as e:                              # noqa: BLE001 -- the error text is the oracle
+            steps.append({"op": op, "args": args, "error": f"{type(e).__name__}: {e}"})
+
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ.update(env)
+            os.environ["STEWIE_DATA_DIR"] = d
+            os.environ.pop("STEWIE_TOKEN_AUD", None)
+            os.environ.pop("STEWIE_TLS_TERMINATED", None)
+            O.os.urandom = det_bytes
+            O.secrets.token_urlsafe = lambda n: __import__("base64").urlsafe_b64encode(det_bytes(n)).decode().rstrip("=")
+            O._clock = lambda: clock["t"]
+            A.uuid.uuid4 = lambda: _uuid.UUID(bytes=det_bytes(16), version=4)
+            A.time.time = lambda: clock["t"]
+            # the account store
+            rec("register", ["Alice@Example.org", "correct horse battery"],
+                lambda: O.register("Alice@Example.org", "correct horse battery"))
+            rec("register", ["bob@example.org", "short"], lambda: O.register("bob@example.org", "short"))
+            rec("register", ["<img src=x>@x.co", "long enough pw"], lambda: O.register("<img src=x>@x.co", "long enough pw"))
+            rec("register", ["alice@example.org", "another password"], lambda: O.register("alice@example.org", "another password"))
+            rec("verify_credentials", ["alice@example.org", "correct horse battery", "1.2.3.4"],
+                lambda: O.verify_credentials("alice@example.org", "correct horse battery", client_ip="1.2.3.4"))
+            rec("approve", ["alice@example.org", "boot", "director"], lambda: O.approve("alice@example.org", "boot", role="director"))
+            for k in range(6):
+                clock["t"] += 1.0
+                rec("verify_credentials", ["alice@example.org", f"wrong {k}", "6.6.6.6"],
+                    lambda k=k: O.verify_credentials("alice@example.org", f"wrong {k}", client_ip="6.6.6.6"))
+                rec("is_locked", ["alice@example.org", "6.6.6.6"], lambda: O.is_locked("alice@example.org", client_ip="6.6.6.6"))
+            rec("is_locked", ["alice@example.org", "6.6.6.6"], lambda: O.is_locked("alice@example.org", client_ip="6.6.6.6"))
+            rec("is_locked", ["alice@example.org", "1.2.3.4"], lambda: O.is_locked("alice@example.org", client_ip="1.2.3.4"))
+            rec("verify_credentials", ["alice@example.org", "correct horse battery", "1.2.3.4"],
+                lambda: O.verify_credentials("alice@example.org", "correct horse battery", client_ip="1.2.3.4"))
+            rec("verify_credentials", ["alice@example.org", "correct horse battery", "6.6.6.6"],
+                lambda: O.verify_credentials("alice@example.org", "correct horse battery", client_ip="6.6.6.6"))
+            clock["t"] += 15 * 60 + 1
+            rec("verify_credentials", ["alice@example.org", "correct horse battery", "6.6.6.6"],
+                lambda: O.verify_credentials("alice@example.org", "correct horse battery", client_ip="6.6.6.6"))
+            rec("create_active", ["carol@example.org", "carol password 1", "trainee"],
+                lambda: O.create_active("carol@example.org", "carol password 1", role="trainee", by="alice@example.org"))
+            rec("set_password", ["carol@example.org", "carol password 2"], lambda: O.set_password("carol@example.org", "carol password 2"))
+            rec("verify_old_password", ["carol@example.org", "carol password 1"], lambda: O.verify_old_password("carol@example.org", "carol password 1"))
+            rec("verify_old_password", ["carol@example.org", "carol password 2"], lambda: O.verify_old_password("carol@example.org", "carol password 2"))
+            rec("set_role", ["carol@example.org", "pilot", "alice@example.org"], lambda: O.set_role("carol@example.org", "pilot", "alice@example.org"))
+            invite = {}
+            rec("create_invite", ["alice@example.org", "operator", 3600, 1],
+                lambda: invite.setdefault("t", O.create_invite("alice@example.org", role="operator", ttl_s=3600, max_uses=1)))
+            rec("redeem_invite", ["<invite>", "dave@example.org", "weak"], lambda: O.redeem_invite(invite["t"], "dave@example.org", "weak"))
+            rec("redeem_invite", ["<invite>", "dave@example.org", "dave password 1"],
+                lambda: O.redeem_invite(invite["t"], "dave@example.org", "dave password 1"))
+            rec("redeem_invite", ["<invite>", "erin@example.org", "erin password 1"],
+                lambda: O.redeem_invite(invite["t"], "erin@example.org", "erin password 1"))
+            rec("revoke", ["bob@example.org", "alice@example.org"], lambda: O.revoke("bob@example.org", "alice@example.org"))
+            rec("revoke", ["dave@example.org", "alice@example.org"], lambda: O.revoke("dave@example.org", "alice@example.org"))
+            for who in ("api-key", "desktop-local", "gis-anon", "alice@example.org", "carol@example.org",
+                        "dave@example.org", "bob@example.org", "zed@example.org"):
+                rec("role_of", [who], lambda who=who: A.role_of(who))
+            rec("list_all", [], O.list_all)
+            store = json.load(open(os.path.join(d, "operators.json")))
+            # session tokens: issued, verified, revoked
+            tok = {}
+            rec("issue_token", ["alice@example.org"], lambda: tok.setdefault("a", A.issue_token("alice@example.org")))
+            rec("verify_token", ["<alice>"], lambda: A.verify_token(tok["a"]))
+            rec("decode_claims", ["<alice>"], lambda: A.decode_claims(tok["a"]))
+            rec("verify_token", ["<alice>", "expired"], lambda: A.verify_token(tok["a"], now=clock["t"] + 12 * 3600 + 1))
+            tampered = tok["a"][:-2] + ("A" if tok["a"][-2] != "A" else "B") + tok["a"][-1]
+            rec("verify_token", ["<alice tampered>"], lambda: A.verify_token(tampered))
+            rec("issue_token", ["zed@example.org"], lambda: tok.setdefault("z", A.issue_token("zed@example.org")))
+            rec("verify_token", ["<zed, not allowlisted>"], lambda: A.verify_token(tok["z"]))
+            os.environ["STEWIE_TOKEN_AUD"] = "other-audience"
+            rec("issue_token", ["alice@example.org", "other-audience"], lambda: tok.setdefault("o", A.issue_token("alice@example.org")))
+            os.environ.pop("STEWIE_TOKEN_AUD")
+            rec("verify_token", ["<other audience>"], lambda: A.verify_token(tok["o"]))
+            rec("revoke_jti", ["<alice jti>"], lambda: A.revoke_jti(A.decode_claims(tok["a"])["jti"]))
+            rec("verify_token", ["<alice revoked>"], lambda: A.verify_token(tok["a"]))
+            revoked_store = json.load(open(os.path.join(d, "revoked_jti.json")))
+            open(os.path.join(d, "revoked_jti.json"), "w").write("{not json")
+            rec("is_revoked", ["<anything>", "corrupt store"], lambda: A.is_revoked("0" * 32))
+            os.environ.pop("STEWIE_SESSION_SECRET")
+            rec("issue_token", ["alice@example.org", "derived secret"], lambda: tok.setdefault("d", A.issue_token("alice@example.org")))
+            derived = A._signing_secret().hex()
+            os.environ["STEWIE_SESSION_SECRET"] = env["STEWIE_SESSION_SECRET"]
+            # proxy trust and the Tailscale identity
+            for peer in ("100.64.0.1", "10.9.8.7", "11.0.0.1", "testclient", None, "not-an-ip"):
+                rec("peer_trusted", [peer], lambda peer=peer: A._peer_trusted(peer, A.trusted_proxies()))
+            for peer, login in (("100.64.0.1", "Alice@Example.org"), ("11.0.0.1", "alice@example.org"),
+                                ("10.1.1.1", "zed@example.org")):
+                rec("tailscale_identity", [peer, login],
+                    lambda peer=peer, login=login: A.tailscale_identity({"tailscale-user-login": login}, peer_ip=peer))
+            for addr in ("user.name+tag@host.tld", "a..b@x.co", ".a@x.co", "a@x", "a@-x.co", "a@x.c0", "a b@x.co",
+                         "x" * 65 + "@x.co", "ok@sub.domain.museum"):
+                rec("validate_email", [addr], lambda addr=addr: O._validate_email(addr))
+        finally:
+            O.os.urandom = patched["os_urandom"]
+            O.secrets.token_urlsafe = patched["token_urlsafe"]
+            O._clock = patched["clock"]
+            A.uuid.uuid4 = patched["uuid4"]
+            A.time.time = patched["time"]
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    assert any("error" in s for s in steps) and any(s.get("ok") is None for s in steps if "ok" in s)
+    write_fixture(ORACLE_FIXTURES, "auth_cases", "oracle/build_fixtures.py::auth_cases (stewie.server.auth + operators "
+                  "through one scripted scenario; pinned clock, seeded randomness; every input SYNTHETIC, labelled)",
+                  ["stewie/server/auth.py", "stewie/server/operators.py"],
+                  {"env": env, "seed_sha256_of": "stewie-auth-oracle", "clock0": 1_800_000_000.0, "steps": steps,
+                   "store": store, "revoked": revoked_store, "tokens": {k: v for k, v in tok.items()},
+                   "derived_secret_hex": derived})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
@@ -2796,6 +2945,7 @@ def main() -> None:
     record_cases()
     illumination_cases()
     solar_cases()
+    auth_cases()
 
 
 if __name__ == "__main__":
