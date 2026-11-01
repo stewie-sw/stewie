@@ -23,6 +23,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import check_backup_separation as B  # noqa: E402
 
@@ -68,6 +70,9 @@ def test_missing_repo_is_refused_not_silently_ok():
     assert B.evaluate(None, {"m": _SDA})["ok"] is False
 
 
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true",
+                    reason="SG-01 is a property of the development host; a CI runner is a fresh checkout with no "
+                           "backups by design")
 def test_check_runs_against_this_host_and_passes_now():
     """The real invariant on the real machine -- this is what the fix had to achieve."""
     v = B.check()

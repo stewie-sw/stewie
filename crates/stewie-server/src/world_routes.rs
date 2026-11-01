@@ -285,16 +285,12 @@ async fn terramechanics_layers() -> Response {
 
 /// The visible-pin `GeoJSON`: `STEWIE_SITE_VECTORS`, else `STEWIE_GIS_DATA_DIR/vectors/`, else the checkout's
 /// `data/gis/vectors/` beside the code (the Python's order).
-fn site_vectors_path() -> Option<PathBuf> {
+fn site_vectors_path(st: &AppState) -> Option<PathBuf> {
     let mut cands: Vec<PathBuf> = Vec::new();
-    if let Ok(p) = std::env::var("STEWIE_SITE_VECTORS")
-        && !p.is_empty()
-    {
+    if let Some(p) = &st.settings.site_vectors {
         cands.push(PathBuf::from(p));
     }
-    if let Ok(g) = std::env::var("STEWIE_GIS_DATA_DIR")
-        && !g.is_empty()
-    {
+    if let Some(g) = &st.settings.gis_data_dir {
         cands.push(
             PathBuf::from(g)
                 .join("vectors")
@@ -309,8 +305,8 @@ fn site_vectors_path() -> Option<PathBuf> {
 }
 
 /// One public marker per visible pin (a Point feature): name, label, lon, lat, extent; nothing else.
-fn site_markers() -> Vec<Value> {
-    let Some(doc) = site_vectors_path()
+fn site_markers(st: &AppState) -> Vec<Value> {
+    let Some(doc) = site_vectors_path(st)
         .and_then(|p| std::fs::read_to_string(p).ok())
         .and_then(|t| serde_json::from_str::<Value>(&t).ok())
     else {
@@ -353,8 +349,8 @@ fn site_markers() -> Vec<Value> {
     out
 }
 
-async fn world_site_markers() -> Response {
-    axum::Json(json!({"ok": true, "sites": site_markers()})).into_response()
+async fn world_site_markers(State(st): State<Arc<AppState>>) -> Response {
+    axum::Json(json!({"ok": true, "sites": site_markers(&st)})).into_response()
 }
 
 fn site_of(q: &[(String, String)]) -> String {

@@ -13,7 +13,7 @@
       "westernlon": 355,
       "easternlon": 359,
       "for": "south polar tiers (ldem_85s_40m, ldem_75s_240m)",
-      "sha256": "4323370e000838ddf823a05404ac8d249bef2f3400880834ad7756ddf2b94520",
+      "sha256": "293d2de8ce13fcfff9bfad4a1754a6969cd1164371bc296e8373d296f831a7e8",
       "rows": 140136
     },
     "peary_north": {
@@ -22,7 +22,7 @@
       "westernlon": 20,
       "easternlon": 40,
       "for": "north polar tier (ldem_75n_240m)",
-      "sha256": "aba8f0b15cac59f9ed415b77531283343f55a9c04b7ab6f8d8af67846179b258",
+      "sha256": "39a88e5dcac3756082c6369eab11ff7fed071f90c6f290a67b5904d4f749b29b",
       "rows": 228464
     },
     "hadley_equatorial": {
@@ -31,7 +31,7 @@
       "westernlon": 2,
       "easternlon": 5,
       "for": "global grid (ldem_16)",
-      "sha256": "ac01ef3ffab562c3534a1f41cc3dce1e722b017edb0b3c80c3ea0dc55671cdf4",
+      "sha256": "c42e70ff8f33b848378fc7526a53fe770c4073ec0bf85ea3ccc9607ab3c01e2e",
       "rows": 228545
     }
   }

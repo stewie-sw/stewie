@@ -79,7 +79,11 @@ def test_native_route_equivalence_and_safety(case):
         assert max(abs(nr - r), abs(nc - c)) == 1
         if r != nr and c != nc:
             assert passable[nr, c] and passable[r, nc]
-    assert length == sum(math.hypot(nr - r, nc - c) for (r, c), (nr, nc) in zip(cells, cells[1:]))
+    # left to right, as the router accumulates: builtin sum() of floats is compensated from Python 3.12
+    total = 0.0
+    for (r, c), (nr, nc) in zip(cells, cells[1:]):
+        total += math.hypot(nr - r, nc - c)
+    assert length == total
     assert terms["slope"] == [float(cost[r, c]) for r, c in cells]
 
 

@@ -81,6 +81,9 @@ pub struct Settings {
     pub world_quota_max: i64,
     pub world_point_budget: i64,
     pub world_window_s: f64,
+    /// `STEWIE_SITE_VECTORS` and `STEWIE_GIS_DATA_DIR`: where the visible-pin site vectors are found.
+    pub site_vectors: Option<String>,
+    pub gis_data_dir: Option<String>,
 }
 
 impl Settings {
@@ -122,6 +125,8 @@ impl Settings {
             world_quota_max: num("STEWIE_WORLD_QUOTA_MAX", "240")? as i64,
             world_point_budget: num("STEWIE_WORLD_POINT_BUDGET", "512")? as i64,
             world_window_s: num("STEWIE_WORLD_QUOTA_WINDOW_S", "60")?,
+            site_vectors: get("STEWIE_SITE_VECTORS").filter(|v| !v.is_empty()),
+            gis_data_dir: get("STEWIE_GIS_DATA_DIR").filter(|v| !v.is_empty()),
         })
     }
 }

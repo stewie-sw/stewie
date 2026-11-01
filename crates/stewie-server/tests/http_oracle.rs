@@ -147,6 +147,14 @@ async fn replay(
             .display()
             .to_string(),
     );
+    // the in-repo verbatim subset of the real site vectors (the oracle reads the same file)
+    env.insert(
+        "STEWIE_SITE_VECTORS".into(),
+        stewie_oracle::repo_root()
+            .join("stewie/server/fixtures/artemis_sites_sample.geojson")
+            .display()
+            .to_string(),
+    );
     let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(
         fx["clock0"].as_f64().unwrap(),
     ))));

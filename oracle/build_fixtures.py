@@ -4080,7 +4080,8 @@ def http_world_cases() -> None:
            "STEWIE_WORLD_POINT_BUDGET": "4"}   # SYNTHETIC: a budget small enough to exhaust (labelled)
     unset = ("STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED", "STEWIE_DESKTOP", "STEWIE_OPERATOR_LOGIN",
              "STEWIE_TRUST_PROXY", "STEWIE_CORS_ORIGINS", "STEWIE_DEV_OPEN", "STEWIE_AUDIT_MAX_BYTES",
-             "STEWIE_REGISTRATION", "STEWIE_TRUST_TAILSCALE", "STEWIE_TRUSTED_PROXIES", "STEWIE_MAX_BODY_BYTES")
+             "STEWIE_REGISTRATION", "STEWIE_TRUST_TAILSCALE", "STEWIE_TRUSTED_PROXIES", "STEWIE_MAX_BODY_BYTES",
+             "STEWIE_SITE_VECTORS", "STEWIE_GIS_DATA_DIR")
     saved = {k: os.environ.get(k) for k in list(env) + list(unset) + ["STEWIE_DATA_DIR"]}
     patched = {"urandom": O.os.urandom, "token_urlsafe": O.secrets.token_urlsafe, "token_hex": S.secrets.token_hex,
                "clock": O._clock, "uuid4": A.uuid.uuid4, "a_time": A.time.time, "s_time": S.time.time}
@@ -4092,6 +4093,8 @@ def http_world_cases() -> None:
             os.environ["STEWIE_DATA_DIR"] = d
             for k in unset:
                 os.environ.pop(k, None)
+            # the in-repo verbatim subset of the real site vectors, not the host-only data/ sibling (CI has none)
+            os.environ["STEWIE_SITE_VECTORS"] = os.path.join(REPO, "stewie/server/fixtures/artemis_sites_sample.geojson")
             O.os.urandom = det_bytes
             O.secrets.token_urlsafe = lambda n: __import__("base64").urlsafe_b64encode(det_bytes(n)).decode().rstrip("=")
             S.secrets.token_hex = lambda n: det_bytes(n).hex()
@@ -4502,7 +4505,7 @@ def _http_session(seed_text: str, env_extra: dict, script) -> dict:
     unset = ("STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED", "STEWIE_DESKTOP", "STEWIE_OPERATOR_LOGIN",
              "STEWIE_TRUST_PROXY", "STEWIE_CORS_ORIGINS", "STEWIE_DEV_OPEN", "STEWIE_AUDIT_MAX_BYTES",
              "STEWIE_REGISTRATION", "STEWIE_TRUST_TAILSCALE", "STEWIE_TRUSTED_PROXIES", "STEWIE_MAX_BODY_BYTES",
-             "STEWIE_DEM_DIR", "STEWIE_DATABASE_URL")
+             "STEWIE_DEM_DIR", "STEWIE_DATABASE_URL", "STEWIE_SITE_VECTORS", "STEWIE_GIS_DATA_DIR")
     saved = {k: os.environ.get(k) for k in list(env) + list(unset) + ["STEWIE_DATA_DIR"]}
     patched = (O.os.urandom, O.secrets.token_urlsafe, S.secrets.token_hex, O._clock, A.uuid.uuid4, A.time.time,
                S.time.time)
@@ -4514,6 +4517,7 @@ def _http_session(seed_text: str, env_extra: dict, script) -> dict:
             os.environ["STEWIE_DATA_DIR"] = d
             for k in unset:
                 os.environ.pop(k, None)
+            os.environ["STEWIE_SITE_VECTORS"] = os.path.join(REPO, "stewie/server/fixtures/artemis_sites_sample.geojson")
             O.os.urandom = det_bytes
             O.secrets.token_urlsafe = lambda n: base64.urlsafe_b64encode(det_bytes(n)).decode().rstrip("=")
             S.secrets.token_hex = lambda n: det_bytes(n).hex()

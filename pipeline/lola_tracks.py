@@ -41,9 +41,17 @@ def fetch_box(endpoint: str, box: dict, dest: str) -> None:
     urls = re.findall(r"<URL>([^<]*topo_simple_csv\.csv)</URL>", xml)
     if len(urls) != 1:
         raise RuntimeError(f"ODE returned {len(urls)} CSV files: {xml[:400]}")
-    data = _get(urls[0])
     with open(dest, "wb") as fh:
-        fh.write(data)
+        fh.write(canonical(_get(urls[0])))
+
+
+def canonical(data: bytes) -> bytes:
+    """The extract with its header first and its shot rows sorted: ODE returns the same rows in a different
+    order on each query, so only the sorted form can be pinned by sha256."""
+    lines = data.splitlines(keepends=True)
+    if lines and not lines[-1].endswith(b"\n"):
+        lines[-1] += b"\n"
+    return b"".join(lines[:1] + sorted(lines[1:]))
 
 
 def main(pin: bool) -> dict[str, str]:
@@ -54,6 +62,11 @@ def main(pin: bool) -> dict[str, str]:
     for name, box in sorted(m["boxes"].items()):
         dest = os.path.join(cache, f"{name}.csv")
         want = box.get("sha256")
+        if os.path.exists(dest):                     # a cache from before the canonical form is re-sorted, not refetched
+            raw = open(dest, "rb").read()
+            if canonical(raw) != raw:
+                with open(dest, "wb") as fh:
+                    fh.write(canonical(raw))
         if not (os.path.exists(dest) and want and fetch.sha256(dest) == want):
             fetch_box(m["endpoint"], box, dest)
         got = fetch.sha256(dest)

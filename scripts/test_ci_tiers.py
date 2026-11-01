@@ -39,11 +39,27 @@ def test_ci_gates_the_browser_js_tier_recursively():
 
 
 def test_ci_gates_traceability_and_coverage_on_the_core_tier():
-    """[REQ:PO-04] the python core tier runs req_trace (V=D must be test-cited) and the coverage-
-    gated configured suite."""
-    text = _steps_text(_jobs()["lint-type-cov"])
-    assert "req_trace.py" in text
-    assert "--cov" in text
+    """[REQ:PO-04] the python core tier runs req_trace (V=D must be test-cited), and the configured suite is
+    coverage-gated: the py3.11 shards record coverage and a job that needs every shard combines and gates it
+    (fail_under from pyproject; D-R124)."""
+    jobs = _jobs()
+    assert "req_trace.py" in _steps_text(jobs["lint-type-cov"])
+    test = jobs["test"]
+    assert "3.11" in test["strategy"]["matrix"]["python-version"]
+    assert "--cov" in test["env"]["COV"] and "3.11" in test["env"]["COV"]
+    cov = jobs["coverage"]
+    assert cov["needs"] == "test"
+    text = _steps_text(cov)
+    assert "coverage combine" in text and "coverage report" in text
+
+
+def test_ci_shards_cover_the_whole_suite():
+    """[REQ:PO-04] sharding never drops tests: the matrix lists every shard 1..n of the n the jobs split by
+    (conftest.py STEWIE_TEST_SHARD, whole files by path hash, each in exactly one shard)."""
+    test = _jobs()["test"]
+    shards = test["strategy"]["matrix"]["shard"]
+    n = int(test["env"]["STEWIE_TEST_SHARD"].rsplit("/", 1)[1])
+    assert sorted(shards) == list(range(1, n + 1))
 
 
 def test_ci_gates_the_package_smoke_tier():

@@ -3,35 +3,35 @@
     "ldem_16": {
       "admitted": true,
       "box": "hadley_equatorial",
-      "residual_rms_m": 74.64381726165425,
+      "residual_rms_m": 75.93646347032497,
       "shift_east_m": 236.90117518866782,
-      "shift_north_m": 236.90117518866782,
-      "shots_rejected": 11259,
-      "shots_sha256": "ac01ef3ffab562c3534a1f41cc3dce1e722b017edb0b3c80c3ea0dc55671cdf4",
-      "shots_used": 217286,
-      "vertical_offset_m": -2.5323045224032756
+      "shift_north_m": 0.0,
+      "shots_rejected": 9582,
+      "shots_sha256": "c42e70ff8f33b848378fc7526a53fe770c4073ec0bf85ea3ccc9607ab3c01e2e",
+      "shots_used": 218963,
+      "vertical_offset_m": -4.960133873345465
     },
     "ldem_75s_240m": {
       "admitted": true,
       "box": "haworth_south",
-      "residual_rms_m": 2.8242070109360844,
+      "residual_rms_m": 2.824207010936053,
       "shift_east_m": 0.0,
       "shift_north_m": 0.0,
       "shots_rejected": 2516,
-      "shots_sha256": "4323370e000838ddf823a05404ac8d249bef2f3400880834ad7756ddf2b94520",
+      "shots_sha256": "293d2de8ce13fcfff9bfad4a1754a6969cd1164371bc296e8373d296f831a7e8",
       "shots_used": 137620,
-      "vertical_offset_m": -0.2354893659452668
+      "vertical_offset_m": -0.23548936594526668
     },
     "ldem_85s_40m": {
       "admitted": true,
       "box": "haworth_south",
-      "residual_rms_m": 0.8688149777098653,
+      "residual_rms_m": 0.8688149777098698,
       "shift_east_m": 0.0,
       "shift_north_m": 0.0,
       "shots_rejected": 1106,
-      "shots_sha256": "4323370e000838ddf823a05404ac8d249bef2f3400880834ad7756ddf2b94520",
+      "shots_sha256": "293d2de8ce13fcfff9bfad4a1754a6969cd1164371bc296e8373d296f831a7e8",
       "shots_used": 139030,
-      "vertical_offset_m": -0.2367261867931589
+      "vertical_offset_m": -0.23672618679316115
     },
     "ldem_85s_40m_amundsen_rim": {
       "inherited_from": "ldem_85s_40m"

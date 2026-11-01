@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   lint-type-cov:
-    name: lint + type + coverage gate (py3.11)
+    name: lint + type + reproducibility gate (py3.11)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
@@ -50,8 +50,11 @@ jobs:
         run: python scripts/req_trace.py
       - name: AC-01 TS API client drift gate (the generated client must match the live FastAPI OpenAPI)
         run: python scripts/gen_ts_api_client.py --check
-      - name: oracle fixtures and package manifests are reproducible (regenerate byte-identically)
-        run: python pipeline/fetch.py && (cd pipeline && python ephem_pack.py) && (cd oracle && python build_fixtures.py) && python pipeline/build_package.py && git diff --exit-code -- crates/stewie-contracts/fixtures crates/stewie-oracle/fixtures crates/lunar-ephem/data pipeline/packages
+      # Regenerated on the runner, the float-heavy oracles move by an ULP or so (its libm and SIMD paths are not the
+      # dev host's): structure, strings and integers must match exactly, floats within 1e-9 relative
+      # (scripts/check_fixtures_reproduce.py; the measured drift is <= 7.6e-11).
+      - name: oracle fixtures and package manifests are reproducible (exact structure, floats within 1e-9)
+        run: python pipeline/fetch.py && (cd pipeline && python ephem_pack.py) && (cd oracle && python build_fixtures.py) && python pipeline/build_package.py && python scripts/check_fixtures_reproduce.py crates/stewie-contracts/fixtures crates/stewie-oracle/fixtures crates/lunar-ephem/data pipeline/packages
       - name: Large-file / tracked-artifact policy (MT-01 -- a new large binary must be shrunk/externalized/allowlisted)
         run: python scripts/check_tracked_artifacts.py
       - name: Power-of-10 profile on the conserved core (PRD 19.2; complexity<=10, bounded branching)
@@ -64,16 +67,6 @@ jobs:
         run: mypy
       - name: Gated-tier report (PO-04 -- chrono/godot/ros skips VISIBLE, never faked; requires each tier to stay declared)
         run: python scripts/ci_tier_report.py --require chrono --require godot --require ros
-      # The suite runs in TWO passes: the parallel pool (`-n auto`, most tests) then a small SERIAL pass
-      # (`-m serial`, fd-sensitive tests). A co-located test transiently corrupts an xdist worker's fd
-      # table under `-n auto` (OSError [Errno 9] Bad file descriptor), and file-I/O tests (test_admin's
-      # twin backup/replicate) are the victims -- they pass serially + under xdist alone, only the full
-      # parallel co-location breaks them. Quarantining them to a single-process pass avoids the corruption
-      # while still running them. Coverage is COMBINED (--cov-append) so `fail_under=85` sees the whole run.
-      - name: Test + coverage (parallel pool; fd-sensitive `serial` tests run in the next step)
-        run: pytest -n auto -m "not serial" --cov --cov-report= --cov-fail-under=0   # accumulate, do not gate yet
-      - name: Serial fd-sensitive tests + combined coverage gate (fail_under from pyproject)
-        run: pytest -m serial --cov --cov-append --cov-report=term-missing
 
   test-js:
     name: browser-JS tier (node --test)
@@ -95,6 +88,8 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - name: toolchain (pinned by rust-toolchain.toml; rustup is preinstalled on the runner)
         run: rustup show active-toolchain
+      # CI-OPT: restore the cargo registry, target dir and installed binaries (wasm-bindgen-cli) from the last run
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
       - name: external inputs (NAIF kernels, PDS LOLA LDEM) pinned by sha256 in pipeline manifests; stdlib-only fetch
         run: python3 pipeline/fetch.py
       - name: LOLA RDR shot extracts for the alignment check (RW-60c), pinned by query and sha256; stdlib-only
@@ -102,15 +97,15 @@ jobs:
       - name: install the lola_base data package (N11) the package and guard tests open; stdlib-only
         run: python3 pipeline/build_package.py
       - name: every package's LOLA alignment record (RW-60c, N32), and the committed copies unchanged
-        run: cargo run -q --release -p xtask -- align-packages && git diff --exit-code -- pipeline/packages
+        run: cargo run -q --release -p xtask -- align-packages && python3 scripts/check_fixtures_reproduce.py pipeline/packages
       - name: the polar map's display tiles from the real 240 m tier (RW-71c), and their web grid fixture unchanged
-        run: cargo run -q --release -p xtask -- display-tiles && git diff --exit-code -- web/src/fixtures/display_grid.json
+        run: cargo run -q --release -p xtask -- display-tiles && python3 scripts/check_fixtures_reproduce.py web/src/fixtures/display_grid.json
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: cargo run -q -p xtask -- no-stubs
       - name: engine-generated goldens are reproducible (R10 scenario, web comparison fixture)
-        run: cargo run -q --release -p xtask -- wasm-golden && cargo run -q --release -p xtask -- web-fixtures && git diff --exit-code -- crates/stewie-wasm/golden web/src/fixtures
+        run: cargo run -q --release -p xtask -- wasm-golden && cargo run -q --release -p xtask -- web-fixtures && python3 scripts/check_fixtures_reproduce.py crates/stewie-wasm/golden web/src/fixtures
       - name: wasm32 clippy (the browser build of the geometry engine)
         run: cargo clippy -p stewie-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings
       - name: R10 native vs WASM determinism (wasm-bindgen-cli pinned to the crate's wasm-bindgen 0.2.130)
@@ -127,6 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - run: node --version
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2.9.3
       - name: real terrain for the engine tests (PDS LOLA tiers, sha256-pinned) and the device package built from it
         run: python3 pipeline/fetch.py terrain_sources.json && python3 pipeline/build_package.py
         working-directory: .
@@ -222,13 +218,22 @@ jobs:
           python scripts/gen_sbom.py --lock requirements-dev.lock -o /tmp/sbom.json
           test -s /tmp/sbom.json
 
+  # CI-OPT: the suite was the critical path (~23 min on a 2-core runner, run three times). Each Python now runs
+  # it in four shards (whole test files by path hash, conftest.py STEWIE_TEST_SHARD); 3.11 records coverage,
+  # which the `coverage` job combines and gates (fail_under from pyproject). Each shard keeps the two passes:
+  # the xdist pool, then the fd-sensitive `serial` tests in one process (a co-located test corrupts an xdist
+  # worker's fd table under `-n auto`, OSError [Errno 9]; test_admin's backup/replicate are the victims).
   test:
-    name: test (py${{ matrix.python-version }})
+    name: test (py${{ matrix.python-version }}, shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13"]   # 3.11 = lint-type-cov job; floor is 3.11 (requires-python; deps need >=3.11)
+        python-version: ["3.11", "3.12", "3.13"]   # floor is 3.11 (requires-python; deps need >=3.11)
+        shard: [1, 2, 3, 4]
+    env:
+      STEWIE_TEST_SHARD: ${{ matrix.shard }}/4
+      COV: ${{ matrix.python-version == '3.11' && '--cov --cov-report=' || '' }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
@@ -242,9 +247,36 @@ jobs:
           pip install -e . --no-deps
           pip install -e packages/stewie-bodies --no-deps   # PO-17: shim re-exports this standalone package
           pip install -e packages/stewie-forge --no-deps    # PO-18: shim re-exports this standalone package
-      # Two passes (see the lint-cov job): the parallel pool then the SERIAL fd-sensitive tests, so the
-      # co-located xdist worker fd corruption (Errno 9) can't hit the file-I/O victims (test_admin backup).
       - name: Test (parallel pool; fd-sensitive `serial` tests run in the next step)
-        run: pytest -n auto -m "not serial" -p no:cacheprovider   # CI-OPT #158: parallel across runner cores
-      - name: Serial fd-sensitive tests (test_admin out of the xdist pool)
-        run: pytest -m serial -p no:cacheprovider
+        run: pytest -n auto -m "not serial" -p no:cacheprovider $COV --cov-fail-under=0
+      - name: Serial fd-sensitive tests (out of the xdist pool; a shard without any exits 5, nothing selected)
+        run: pytest -m serial -p no:cacheprovider $COV ${COV:+--cov-append} --cov-fail-under=0 || [ $? -eq 5 ]
+      - if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: coverage-${{ matrix.shard }}
+          path: .coverage
+          include-hidden-files: true
+          if-no-files-found: error
+
+  coverage:
+    name: coverage gate (py3.11 shards combined; fail_under from pyproject)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install (core + dev, from the hashed lock -- SEC-05)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r requirements-dev.lock
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          pattern: coverage-*
+      - name: Combine the four shards and gate
+        run: |
+          coverage combine coverage-*/.coverage
+          coverage report --show-missing
