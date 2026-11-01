@@ -276,6 +276,12 @@ impl DemTile {
         self.cell_m
     }
 
+    /// The tile's projected extent `[x0, y0, x1, y1]` [m] (the bundle's `world_bounds_m`).
+    #[must_use]
+    pub fn bounds(&self) -> [f64; 4] {
+        self.bounds
+    }
+
     /// Every height [m], row-major, widened to `f64` (exactly, as numpy's `astype(float64)`).
     #[must_use]
     pub fn heights_f64(&self) -> Vec<f64> {

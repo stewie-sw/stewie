@@ -246,7 +246,7 @@ impl Terra {
     }
 }
 
-/// The AS-11 costmap on a DEM window at the drape's sun and slope cap, the drop cap one cell at that grade.
+/// The AS-11 costmap on a DEM window at the drape's sun and a slope cap, the drop cap one cell at that grade.
 ///
 /// # Errors
 /// The costmap's refusal.
@@ -256,6 +256,7 @@ pub fn drape_costmap(
     height: usize,
     cell_m: f64,
     sun_az_deg: f64,
+    max_slope_deg: f64,
     s: &Spine,
 ) -> Result<stewie_traverse::layers::Composite, String> {
     compose(&Context {
@@ -263,9 +264,9 @@ pub fn drape_costmap(
         width,
         height,
         cell_m,
-        max_slope_deg: MAX_SLOPE_DEG,
+        max_slope_deg,
         slip_alpha: SLIP_ALPHA,
-        max_drop_m: cell_m * MAX_SLOPE_DEG.to_radians().tan(),
+        max_drop_m: cell_m * max_slope_deg.to_radians().tan(),
         sun_az_deg,
         sun_el_deg: SUN_EL_DEG,
         payload_kg: 0.0,
@@ -435,7 +436,7 @@ pub fn point_values(
     let slope_map = slope_deg_grid(&patch, pw, ph, cell);
     let slope = slope_map[at];
     let f = Terra::over(&slope_map, s)?.at(slope);
-    let cm = drape_costmap(&patch, pw, ph, cell, SUN_AZ_DEG, s)?;
+    let cm = drape_costmap(&patch, pw, ph, cell, SUN_AZ_DEG, MAX_SLOPE_DEG, s)?;
     let passable = cm.passable[at];
     let scalar = |id: &str| match id {
         "base.dem" => Some(elevation),
@@ -615,7 +616,7 @@ pub fn site_suitability(
     sun_az_grid_deg: f64,
     s: &Spine,
 ) -> Result<Value, String> {
-    let cm = drape_costmap(crop, cols, rows, cell_m, sun_az_grid_deg, s)?;
+    let cm = drape_costmap(crop, cols, rows, cell_m, sun_az_grid_deg, MAX_SLOPE_DEG, s)?;
     let n = cm.passable.len();
     let n_suitable = cm.passable.iter().filter(|p| **p).count();
     let fraction = if n > 0 {
@@ -789,6 +790,160 @@ pub fn transect_profile(
                               ice-relevant proxy; a quantitative depth-to-ice needs a Diviner/LOLA thermal dataset.",
         },
     }))
+}
+
+/// The costmap layers that are physical terrain barriers (the PSR veto, keep-outs and reservations are not).
+const HAZARD_LAYERS: [&str; 4] = ["slope", "sinkage", "tip_risk", "negative_obstacle"];
+/// The keep-out output's caps: regions, then vertices.
+const MAX_POLYS: usize = 400;
+const MAX_VERTICES: usize = 100_000;
+
+/// The absolute shoelace area [m^2] of a ring of projected metres (Python `gis_layers._ring_area_m2`).
+fn ring_area_m2(ring: &[[f64; 2]]) -> f64 {
+    let n = ring.len();
+    if n < 3 {
+        return 0.0;
+    }
+    let (mut a, mut b) = (0.0, 0.0);
+    for i in 0..n {
+        let next = ring[(i + 1) % n];
+        a += ring[i][0] * next[1];
+        b += ring[i][1] * next[0];
+    }
+    (a - b).abs() / 2.0
+}
+
+/// Drop the vertices exactly collinear with their neighbours (Python `gis_layers._dedup_collinear`), re-closing
+/// the ring; a ring that would degenerate keeps its distinct vertices.
+#[allow(clippy::many_single_char_names)] // the Python's n, m, p, c, q
+fn dedup_collinear(ring: &[[f64; 2]]) -> Vec<[f64; 2]> {
+    let n = ring.len();
+    if n <= 3 {
+        return ring.to_vec();
+    }
+    let close = |a: f64, b: f64| (a - b).abs() <= 1e-8 + 1e-5 * b.abs();
+    let (first, last) = (ring[0], ring[n - 1]);
+    let pts = if close(first[0], last[0]) && close(first[1], last[1]) {
+        &ring[..n - 1]
+    } else {
+        ring
+    };
+    let m = pts.len();
+    let mut keep: Vec<[f64; 2]> = (0..m)
+        .filter(|&i| {
+            let (p, c, q) = (pts[(i + m - 1) % m], pts[i], pts[(i + 1) % m]);
+            ((c[0] - p[0]) * (q[1] - p[1]) - (c[1] - p[1]) * (q[0] - p[0])).abs() > 1e-6
+        })
+        .map(|i| pts[i])
+        .collect();
+    if keep.len() < 3 {
+        keep = pts.to_vec();
+    }
+    keep.push(keep[0]);
+    keep
+}
+
+/// Council #52's hazard keep-outs (Python `gis_layers.hazard_keepouts_geojson`): the physical terrain-hazard
+/// no-go mask of the work-area crop, traced by the contourpy port, reprojected to selenographic lon/lat, as a
+/// `GeoJSON` `FeatureCollection` of polygons; regions whose outer ring is under `min_area_m2` are dropped and
+/// counted. `crop` sits at `(r0, c0)` in `dem`, whose frame `proj` inverts.
+///
+/// # Errors
+/// A solve the physics refuses, or a crop the tracer refuses.
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::too_many_arguments,
+    clippy::too_many_lines
+)] // grid indices; the Python's inputs; one payload
+pub fn hazard_keepouts(
+    site: &str,
+    crop: &[f64],
+    (rows, cols): (usize, usize),
+    (r0, c0): (usize, usize),
+    dem: &SiteDem,
+    proj: &lunar_frames::PolarStereographic,
+    min_area_m2: f64,
+    max_slope_deg: f64,
+    s: &Spine,
+) -> Result<Value, String> {
+    let cell = dem.cell_m;
+    let cm = drape_costmap(crop, cols, rows, cell, SUN_AZ_DEG, max_slope_deg, s)?;
+    let nogo: Vec<f64> = cm
+        .reason
+        .iter()
+        .map(|r| f64::from(u8::from(r.is_some_and(|r| HAZARD_LAYERS.contains(&r)))))
+        .collect();
+    let n_nogo = nogo.iter().filter(|v| **v > 0.0).count();
+    let per_block: serde_json::Map<String, Value> = cm
+        .per_layer
+        .iter()
+        .filter(|(name, _, _)| HAZARD_LAYERS.contains(name))
+        .map(|(name, _, blocked)| ((*name).to_owned(), json!(blocked)))
+        .collect();
+    // crop pixel to tile-frame metres, point-registered over the full tile's extent
+    let [x0, y0, x1, y1] = dem.bounds_m;
+    let (wd, hd) = (
+        dem.cols.saturating_sub(1).max(1) as f64,
+        dem.rows.saturating_sub(1).max(1) as f64,
+    );
+    let xs: Vec<f64> = (0..cols)
+        .map(|k| x0 + (x1 - x0) * (c0 + k) as f64 / wd)
+        .collect();
+    let ys: Vec<f64> = (0..rows)
+        .map(|k| y1 - (y1 - y0) * (r0 + k) as f64 / hd)
+        .collect();
+    let (mut features, mut n_vertices, mut n_specks, mut truncated) = (Vec::new(), 0, 0, false);
+    if n_nogo > 0 {
+        for (pts, offs) in crate::contour::filled(&xs, &ys, &nogo, 0.5, 2.0)? {
+            let rings: Vec<&[[f64; 2]]> = offs.windows(2).map(|w| &pts[w[0]..w[1]]).collect();
+            if rings.first().is_none_or(|r| ring_area_m2(r) < min_area_m2) {
+                n_specks += 1;
+                continue;
+            }
+            let coords: Vec<Value> = rings
+                .iter()
+                .filter_map(|ring| {
+                    let line: Vec<Value> = dedup_collinear(ring)
+                        .iter()
+                        .map(|p| {
+                            let ll = proj.inverse(p[0], p[1]);
+                            json!([round(ll.lon_deg, 6), round(ll.lat_deg, 6)])
+                        })
+                        .collect();
+                    (line.len() >= 4).then(|| {
+                        n_vertices += line.len();
+                        Value::Array(line)
+                    })
+                })
+                .collect();
+            if coords.is_empty() {
+                continue;
+            }
+            features.push(json!({"type": "Feature",
+                "properties": {"kind": "hazard_keepout", "area_m2": round(ring_area_m2(rings[0]), 2),
+                               "holes": coords.len() - 1},
+                "geometry": {"type": "Polygon", "coordinates": coords}}));
+            if features.len() >= MAX_POLYS || n_vertices >= MAX_VERTICES {
+                truncated = true;
+                break;
+            }
+        }
+    }
+    let cells = nogo.len();
+    Ok(json!({"type": "FeatureCollection",
+        "properties": {"site": site, "crs": "OGC:CRS84", "n_features": features.len(),
+            "n_specks_dropped": n_specks, "nogo_cells": n_nogo, "grid_cells": cells,
+            "nogo_fraction": if cells > 0 { round(n_nogo as f64 / cells as f64, 6) } else { 0.0 },
+            "hazard_gate": HAZARD_LAYERS, "per_layer_block": per_block,
+            "thresholds": {"max_slope_deg": max_slope_deg, "min_area_m2": min_area_m2},
+            "grid": {"rows": rows, "cols": cols, "cell_m": cell},
+            "truncated": truncated,
+            "source": "FORGE costmap terrain-hazard impassable mask (lode.costmap_layers: \
+                       slope/sinkage/tip_risk/negative_obstacle; PSR-shadow + operator keepout + reservation \
+                       EXCLUDED) traced by contourpy over the real work-area crop, reprojected to selenographic \
+                       lon/lat",
+            "eligibility": "mission keep-outs (the planner routes around them)"},
+        "features": features}))
 }
 
 #[cfg(test)]

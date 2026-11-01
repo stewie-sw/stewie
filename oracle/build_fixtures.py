@@ -4240,6 +4240,16 @@ def http_world_cases() -> None:
                     call("POST", "/world/transect", json_body={"points": [[0, 0]] * 513})
                     call("POST", "/world/transect", json_body={"site": "atlantis", "points": [[0, 0], [1, 1]]})
                     call("POST", "/world/transect", json_body={"points": [[0, 0], [1, 1]], "extra": 1})
+                    # council #52 hazard keep-outs (RW-55b5c-3)
+                    call("GET", "/world/keepouts-from-hazard?site=haworth")
+                    call("GET", "/world/keepouts-from-hazard?site=haworth&min_area_m2=0&max_slope_deg=10")
+                    call("GET", "/world/keepouts-from-hazard?site=haworth&min_area_m2=-5&max_slope_deg=90")
+                    call("GET", "/world/keepouts-from-hazard?site=haworth&min_area_m2=nan&max_slope_deg=inf")
+                    call("GET", "/world/keepouts-from-hazard?site=shackleton_rim&min_area_m2=25&max_slope_deg=10")
+                    call("GET", "/world/keepouts-from-hazard?site=shackleton_rim&max_slope_deg=40")   # no hazard
+                    call("GET", "/world/keepouts-from-hazard?site=haworth&min_area_m2=abc")
+                    call("GET", "/world/keepouts-from-hazard?site=atlantis")
+                    call("GET", "/world/keepouts-from-hazard?site=shoemaker")
                 finally:
                     _K.PHI, _MAT.PHI_LOOSE_DEG = _kphi, _phi
                     _W._world_point_budget = _budget
@@ -4453,6 +4463,61 @@ def http_record_cases() -> None:
                    "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger, "journals": journals})
 
 
+def contour_cases() -> None:
+    """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
+    on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
+    coordinates the keep-out route traces them in; (2) a real Haworth work-area height window filled between two
+    of its quantiles (interpolated edges, the upper level, saddles); (3) the whole real height window over its
+    upper level; and (4) SYNTHETIC seeded random binary and three-level grids (labelled), which reach start and
+    hole configurations the real masks may not."""
+    from contourpy import contour_generator
+
+    from lode import mission_planner as mp
+    from stewie.server import gis_layers as GL
+
+    def run(name, xs, ys, z, lower, upper):
+        gen = contour_generator(np.asarray(xs, float), np.asarray(ys, float), np.asarray(z, float),
+                                fill_type="OuterOffset")
+        pts, offs = gen.filled(lower, upper)
+        return {"name": name, "xs": [float(v) for v in xs], "ys": [float(v) for v in ys],
+                "rows": int(np.asarray(z).shape[0]), "cols": int(np.asarray(z).shape[1]),
+                "z": [float(v) for v in np.asarray(z, float).ravel()], "lower": lower, "upper": upper,
+                "polygons": [{"points": np.asarray(p, float).tolist(), "offsets": np.asarray(o, int).tolist()}
+                             for p, o in zip(pts, offs)]}
+
+    cases = []
+    for site in ("haworth", "shackleton_rim"):
+        bundle_dir = mp.bundle_for_site(site)
+        dem, (r0, c0), cell_m = GL._work_area(mp, bundle_dir)
+        demf = np.asarray(dem, dtype=float)
+        h, w = demf.shape
+        dem_full, _c, b, _f, _crs = GL._tile_geo(mp, bundle_dir)
+        hf, wf = np.asarray(dem_full).shape
+        xs = b["x0"] + (b["x1"] - b["x0"]) * (c0 + np.arange(w)) / max(1, wf - 1)
+        ys = b["y1"] - (b["y1"] - b["y0"]) * (r0 + np.arange(h)) / max(1, hf - 1)
+        for cap in (10.0, 25.0, 40.0):
+            nogo, _per = GL._hazard_nogo_mask(demf, cell_m, max_slope_deg=cap)
+            cases.append(run(f"{site}_nogo_{cap:g}", xs, ys, nogo.astype(float), 0.5, 2.0))
+        if site == "haworth":
+            win = demf[:48, :48]
+            lo, hi = (float(v) for v in np.quantile(win, [0.35, 0.7]))
+            cases.append(run("haworth_heights_band", xs[:48], ys[:48], win, lo, hi))
+            cases.append(run("haworth_heights_above", xs[:48], ys[:48], win, float(np.quantile(win, 0.5)),
+                             float(win.max()) + 1.0))
+    rng = np.random.default_rng(20261101)                              # SYNTHETIC seeded grids (labelled)
+    for k in range(6):
+        ny, nx = int(rng.integers(2, 24)), int(rng.integers(2, 24))
+        z = (rng.random((ny, nx)) < (0.3 + 0.08 * k)).astype(float)
+        cases.append(run(f"synthetic_binary_{k}", np.arange(nx) * 2.0, 100.0 - np.arange(ny) * 3.0, z, 0.5, 2.0))
+    for k in range(4):
+        ny, nx = int(rng.integers(3, 20)), int(rng.integers(3, 20))
+        z = rng.integers(0, 3, (ny, nx)).astype(float) + rng.random((ny, nx)) * 0.2
+        cases.append(run(f"synthetic_levels_{k}", np.arange(nx) * 1.0, np.arange(ny) * 1.0, z, 0.9, 1.9))
+    write_fixture(ORACLE_FIXTURES, "contour_cases", "oracle/build_fixtures.py::contour_cases "
+                  "(contourpy 1.3.3 serial filled, OuterOffset; real work-area masks and heights, plus SYNTHETIC "
+                  "seeded grids, labelled)", ["stewie/server/gis_layers.py"], {"cases": cases})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
@@ -4506,6 +4571,7 @@ def main() -> None:
     http_twin_cases()
     http_record_cases()
     http_world_cases()
+    contour_cases()
 
 
 if __name__ == "__main__":

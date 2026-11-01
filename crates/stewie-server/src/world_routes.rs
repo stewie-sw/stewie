@@ -21,7 +21,8 @@ use crate::app::{
 };
 use crate::operators::py_repr;
 use crate::point::{
-    SUN_AZ_DEG, Spine, grid_sun_az, point_values, site_suitability, transect_profile, work_area,
+    SUN_AZ_DEG, Spine, grid_sun_az, hazard_keepouts, point_values, site_suitability,
+    transect_profile, work_area,
 };
 use crate::validate::{self, Field, Kind, Model};
 
@@ -747,7 +748,36 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/world/points", post(world_points))
         .route("/world/site-suitability", get(world_site_suitability))
         .route("/world/transect", post(world_transect))
+        .route(
+            "/world/keepouts-from-hazard",
+            get(world_keepouts_from_hazard),
+        )
 }
+
+/// The keep-out query's two numbers, each a float with a default.
+const KEEPOUT_Q: Model = Model {
+    fields: &[
+        Field(
+            "min_area_m2",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(100.0),
+            },
+        ),
+        Field(
+            "max_slope_deg",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(25.0),
+            },
+        ),
+    ],
+    forbid_extra: false,
+};
 
 const ANY_FLOAT: Kind = Kind::Float {
     gt: None,
@@ -918,14 +948,8 @@ async fn world_site_suitability(
     blocking(st, move |st| {
         st.world_quota(&h)?;
         let site = site_of(&q);
-        if let Err(e) = st.terrain.bundle_for_site(&site) {
-            // an unknown site is the Python's KeyError, whose text is the message's repr
-            let msg = if st.terrain.is_known(&site) {
-                e
-            } else {
-                py_repr(&e)
-            };
-            return Err(err(StatusCode::NOT_FOUND, msg));
+        if let Some(e) = site_missing(st, &site) {
+            return Err(e);
         }
         let (dem, origin) = st.terrain.moon_dem(&site).ok_or_else(|| no_dem(&site))?;
         let (crop, rows, cols, (r0, c0)) = work_area(&dem, origin);
@@ -944,6 +968,78 @@ async fn world_site_suitability(
         let v = site_suitability(&site, &crop, rows, cols, dem.cell_m, sun, &spine)
             .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
         Ok(axum::Json(v).into_response())
+    })
+    .await
+}
+
+/// A site's 404 the Python's way: an unknown site is a `KeyError`, whose text is its message's repr.
+fn site_missing(st: &AppState, site: &str) -> Option<ApiError> {
+    st.terrain.bundle_for_site(site).err().map(|e| {
+        let msg = if st.terrain.is_known(site) {
+            e
+        } else {
+            py_repr(&e)
+        };
+        err(StatusCode::NOT_FOUND, msg)
+    })
+}
+
+/// Council #52's hazard keep-outs: the work-area crop's physical terrain-hazard regions as a `GeoJSON`
+/// `FeatureCollection` in selenographic lon/lat. Public, under the per-IP world quota; a non-destructive read.
+async fn world_keepouts_from_hazard(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        st.world_quota(&h)?;
+        let raw: Map<String, Value> = ["min_area_m2", "max_slope_deg"]
+            .iter()
+            .filter_map(|k| {
+                q.iter()
+                    .rev()
+                    .find(|(n, _)| n == k)
+                    .map(|(_, v)| ((*k).to_owned(), json!(v)))
+            })
+            .collect();
+        validate::model(Some(&Value::Object(raw.clone())), KEEPOUT_Q)
+            .map_err(|e| err(StatusCode::BAD_REQUEST, e))?;
+        // a non-finite value takes the default; then the speck gate and the slope cap clamp to sane ranges
+        let num = |k: &str, d: f64| {
+            raw.get(k)
+                .and_then(|v| validate::as_float(v).ok())
+                .filter(|v| v.is_finite())
+                .unwrap_or(d)
+        };
+        let min_area = num("min_area_m2", 100.0).clamp(0.0, 1e9);
+        let max_slope = num("max_slope_deg", 25.0).clamp(1.0, 45.0);
+        let site = site_of(&q);
+        if let Some(e) = site_missing(st, &site) {
+            return Err(e);
+        }
+        let (dem, origin) = st.terrain.moon_dem(&site).ok_or_else(|| no_dem(&site))?;
+        let (crop, rows, cols, offset) = work_area(&dem, origin);
+        let spine =
+            Spine::ipex(&st.planning).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let fc = hazard_keepouts(
+            &site,
+            &crop,
+            (rows, cols),
+            offset,
+            &dem,
+            &st.terrain.projection(),
+            min_area,
+            max_slope,
+            &spine,
+        )
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let mut r = axum::Json(fc).into_response();
+        r.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/geo+json"),
+        );
+        Ok(r)
     })
     .await
 }

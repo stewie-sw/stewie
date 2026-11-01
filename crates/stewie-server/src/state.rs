@@ -38,6 +38,8 @@ pub struct SiteDem {
     pub cell_m: f64,
     /// Projected (easting, northing) [m] of pixel (0, 0)'s centre in the tile's south-polar stereographic frame.
     pub pixel0_m: (f64, f64),
+    /// The tile's projected extent `[x0, y0, x1, y1]` [m].
+    pub bounds_m: [f64; 4],
 }
 
 /// A twin journal that cannot be assigned to one (site, source) without operator evidence.
@@ -279,6 +281,7 @@ impl Terrain {
                         cols: t.width(),
                         cell_m: t.cell_m(),
                         pixel0_m: t.cell_center_projected(0, 0),
+                        bounds_m: t.bounds(),
                     }),
                     anchor,
                 ))
@@ -511,6 +514,12 @@ impl Terrain {
         let ci = (col.round_ties_even().max(0.0) as usize).min(dem.cols - 1);
         let ri = (row.round_ties_even().max(0.0) as usize).min(dem.rows - 1);
         Ok((ci as f64 * cell - origin.0, ri as f64 * cell - origin.1))
+    }
+
+    /// The tiles' south-polar stereographic frame (`IAU_2015:30135`).
+    #[must_use]
+    pub fn projection(&self) -> PolarStereographic {
+        PolarStereographic::south(self.sphere)
     }
 
     /// Whether the site registry names `site`.
