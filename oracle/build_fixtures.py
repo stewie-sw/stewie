@@ -4995,6 +4995,119 @@ def http_structures_cases() -> None:
                   ["stewie/server/routers/structures.py", "stewie/server/objects.py"], payload)
 
 
+def http_missions_cases() -> None:
+    """Missions, drafts and soils (RW-55b9): the namespace-aware mission CRUD, publish, restore and trash routes and
+    the per-owner draft and soil overlays, through one scripted session (_http_session) as the automation key (a
+    director), bob@example.org signed in by it (an operator) and the anonymous key (a guest, confined to its
+    sandbox). The missions, drafts, soils and the seeded non-mission trash file are SYNTHETIC (labelled). Every file the session leaves under
+    missions/, draft/ and soil/ is pinned by sha256."""
+    import base64
+    import hashlib
+
+    written = {}
+    seed_files = {"missions/.trash/notes.txt": b"SYNTHETIC, not a trashed mission"}
+
+    def script(call, key, d, clock):
+        for rel, data in seed_files.items():
+            os.makedirs(os.path.dirname(os.path.join(d, rel)), exist_ok=True)
+            with open(os.path.join(d, rel), "wb") as fh:
+                fh.write(data)
+        guest = {"X-Stewie-Anon-Key": "anon-key-xyz"}
+        haul = {"body": "moon", "orders": [{"action": "cut", "x": 1.5, "y": -2}], "keepouts": [],
+                "note": "first", "mission_t0_s": 86400}
+        call("GET", "/missions")                                                 # no key
+        call("GET", "/missions", headers=key)
+        call("GET", "/missions", headers=guest)                                  # confined to its sandbox
+        call("POST", "/missions/Haul%20One", headers=key, raw=json.dumps(haul))
+        call("POST", "/missions/bad", headers=key, raw=json.dumps({"zeta": 1, "alpha": 2, "body": "moon"}))
+        call("POST", "/missions/bad", headers=key, json_body=[1])
+        call("POST", "/missions/bad", headers=key, raw="{not json")
+        call("POST", "/missions/bad", raw=json.dumps(haul))                      # no key
+        r = call("POST", "/auth/login", headers=key, json_body={"email": "bob@example.org"})
+        bob = {"Authorization": f"Bearer {r.json()['token']}"}
+        clock["t"] += 1.25
+        call("POST", "/missions/haul-one", headers=bob, raw=json.dumps(haul))   # another's live mission
+        call("POST", "/missions/Bob%20Plan", headers=bob, raw=json.dumps({"body": "moon", "orders": []}))
+        call("POST", "/missions/Bob%20Plan?ns=sandbox", headers=bob,
+             raw=json.dumps({"body": "mars", "orders": [{"action": "goto"}, {"action": "cut"}]}))
+        call("POST", "/missions/Guest%20Draft?ns=live", headers=guest, raw=json.dumps({"body": "moon"}))
+        call("GET", "/missions?ns=sandbox", headers=bob)
+        call("GET", "/missions?ns=live", headers=guest)
+        call("GET", "/missions", headers=bob)
+        call("GET", "/missions/haul-one", headers=key)
+        call("GET", "/missions/Haul%20One", headers=guest)                      # not in its sandbox
+        call("GET", "/missions/nope", headers=key)
+        call("GET", "/missions/a%2Fb", headers=key)                             # Starlette: no route
+        clock["t"] += 1.0
+        call("POST", "/missions/bob-plan/publish?owner=", headers=bob)          # an empty owner is its own
+        call("POST", "/missions/haul-one/publish", headers=bob)                 # over another's live
+        call("POST", "/missions/guest-draft/publish?owner=gis-anon", headers=bob)
+        call("POST", "/missions/guest-draft/publish?owner=gis-anon", headers=key)
+        call("POST", "/missions/nothing/publish", headers=key)
+        call("POST", "/missions/guest-draft/publish", headers=guest)            # below operator
+        call("DELETE", "/missions/bob-plan", headers=bob)                       # live: a director's
+        call("DELETE", "/missions/bob-plan?ns=sandbox", headers=bob)            # its own sandbox
+        call("DELETE", "/missions/guest-draft", headers=guest)
+        clock["t"] += 2.5
+        call("DELETE", "/missions/haul-one", headers=key)
+        call("DELETE", "/missions/haul-one", headers=key)                       # nothing left: a no-op
+        call("POST", "/missions/haul-one", headers=key, raw=json.dumps(dict(haul, note="second")))
+        clock["t"] += 0.125
+        call("DELETE", "/missions/haul-one", headers=key)                       # two trashed copies now
+        call("POST", "/missions/haul-one/restore", headers=bob)                 # live: a director's
+        call("POST", "/missions/haul-one/restore", headers=key)                 # the newest copy
+        call("GET", "/missions/haul-one", headers=key)
+        call("POST", "/missions/haul-one/restore", headers=key)                 # occupied: a conflict
+        call("POST", "/missions/bob-plan/restore?ns=sandbox", headers=key)      # its own sandbox has none
+        call("POST", "/missions/bob-plan/restore?ns=sandbox", headers=bob)
+        call("POST", "/missions/haul-one/restore", headers=guest)               # below operator
+        clock["t"] += 0.5
+        call("DELETE", "/missions/Haul%20One", headers=key)
+        call("GET", "/admin/trash/missions", headers=bob)                       # a director's
+        r = call("GET", "/admin/trash/missions", headers=key)
+        call("DELETE", "/admin/trash/missions/" + r.json()["trash"][0], headers=key)
+        call("DELETE", "/admin/trash/missions/haul-one.1.json", headers=key)    # no such file
+        call("DELETE", "/admin/trash/missions/notes.txt", headers=key)
+        call("DELETE", "/admin/trash/missions/a%2Fb", headers=key)              # Starlette: 405
+        call("GET", "/admin/trash/missions", headers=key)
+        call("GET", "/draft", headers=key)                                       # none yet
+        call("PUT", "/draft", headers=key, raw=json.dumps({"orders": [{"action": "cut"}], "wiz_step": 2,
+                                                            "landmarks": {"b": 1, "a": 2}}))
+        clock["t"] += 3.0
+        call("PUT", "/draft", headers=key, raw=json.dumps({"orders": [], "step_done": [1, 2]}))   # keeps its stamp
+        call("PUT", "/draft", headers=key, raw=json.dumps({"orders": [], "x": 1}))
+        call("PUT", "/draft", headers=key, json_body=[1])
+        call("GET", "/draft", headers=key)
+        call("GET", "/draft", headers=bob)                                       # per owner
+        call("PUT", "/draft", raw="{}")                                          # no key
+        call("GET", "/soils", headers=key)
+        call("POST", "/soil/Regolith%20A", headers=key, raw=json.dumps({
+            "provenance": "bevameter fit, 2026 field campaign", "confidence": "ESTIMATED", "cohesion_pa": 170,
+            "friction_deg": 35.5, "bekker": {"n": 1.0, "k_c": 1400, "k_phi": 820000}}))
+        call("POST", "/soil/Regolith%20B", headers=key, raw=json.dumps({"confidence": "ESTIMATED"}))
+        call("POST", "/soil/Regolith%20B", headers=key, raw=json.dumps({"provenance": "  ", "confidence": 0}))
+        call("POST", "/soil/Regolith%20B", headers=key, raw=json.dumps({"provenance": "x", "confidence": "y",
+                                                                         "zz": 1, "aa": 2}))
+        call("POST", "/soil/Regolith%20C", headers=bob, raw=json.dumps({"provenance": "lab", "confidence": True}))
+        call("GET", "/soils", headers=key)
+        call("GET", "/soils", headers=bob)
+        call("POST", "/soil/a%2Fb", headers=key, raw="{}")                       # Starlette: no route
+        for kind in ("missions", "draft", "soil"):
+            for root, dirs, files in os.walk(os.path.join(d, kind)):
+                dirs[:] = sorted(x for x in dirs if x != ".locks")
+                for f in sorted(files):
+                    p = os.path.join(root, f)
+                    with open(p, "rb") as fh:
+                        written[os.path.relpath(p, d)] = hashlib.sha256(fh.read()).hexdigest()
+
+    payload = _http_session("stewie-http-missions-oracle", {}, script)
+    payload["data_files"] = dict(sorted(written.items()))
+    payload["seed_files"] = {k: base64.b64encode(v).decode() for k, v in seed_files.items()}
+    write_fixture(ORACLE_FIXTURES, "http_missions_cases", "oracle/build_fixtures.py::http_missions_cases (the "
+                  "FastAPI app's mission, draft and soil routes over the object store; SYNTHETIC documents, labelled)",
+                  ["stewie/server/routers/missions.py", "stewie/server/objects.py", "stewie/server/deps.py"], payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5109,6 +5222,7 @@ def main() -> None:
     http_content_cases()
     http_config_cases()
     http_structures_cases()
+    http_missions_cases()
 
 
 if __name__ == "__main__":

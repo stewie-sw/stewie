@@ -7,7 +7,7 @@
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 /// A name's file slug (Python `_slug`): runs outside `[a-z0-9]` become `-`, trimmed, at most 64 characters.
 #[must_use]
@@ -188,6 +188,140 @@ pub fn soft_delete_unlocked(
     let ms = (now * 1000.0) as i64;
     std::fs::rename(&src, trash.join(format!("{}.{ms}.json", slug(name))))
         .map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+/// The Python's sorted list repr of the fields outside `allowed`, if any (`sorted(set(doc) - KEYS)`).
+#[must_use]
+pub fn unknown_fields(doc: &Map<String, Value>, allowed: &[&str]) -> Option<String> {
+    let mut unknown: Vec<&String> = doc
+        .keys()
+        .filter(|k| !allowed.contains(&k.as_str()))
+        .collect();
+    unknown.sort();
+    (!unknown.is_empty()).then(|| {
+        format!(
+            "[{}]",
+            unknown
+                .iter()
+                .map(|k| crate::operators::py_repr(k))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    })
+}
+
+/// Write `{**head, created_by, created_at, **doc}` as the Python's `json.dumps(..., indent=1, sort_keys=True)`,
+/// atomically.
+///
+/// # Errors
+/// A non-finite number, or the write fails.
+pub fn write_doc(
+    path: &Path,
+    head: &[(&str, Value)],
+    meta: (Value, Value),
+    doc: &Map<String, Value>,
+) -> Result<(), String> {
+    let mut m: Map<String, Value> = head
+        .iter()
+        .map(|(k, v)| ((*k).to_owned(), v.clone()))
+        .collect();
+    m.insert("created_by".to_owned(), meta.0);
+    m.insert("created_at".to_owned(), meta.1);
+    m.extend(doc.iter().map(|(k, v)| (k.clone(), v.clone())));
+    let text =
+        stewie_twin::pyjson::dumps_indent(&Value::Object(m), 1).map_err(|e| e.to_string())?;
+    crate::atomic_write(path, text.as_bytes())
+}
+
+/// A stored document, if the file exists.
+///
+/// # Errors
+/// An unreadable or malformed file (the Python raises).
+pub fn load(path: &Path) -> Result<Option<Value>, String> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&text)
+        .map(Some)
+        .map_err(|e| e.to_string())
+}
+
+/// The `*.json` file names of a directory, sorted as the Python's `sorted(os.listdir(...))`.
+///
+/// # Errors
+/// The directory cannot be read.
+pub fn json_files(dir: &Path) -> Result<Vec<String>, String> {
+    let mut out: Vec<String> = std::fs::read_dir(dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(Result::ok)
+        .filter_map(|e| e.file_name().to_str().map(str::to_owned))
+        .filter(|n| {
+            #[allow(clippy::case_sensitive_file_extension_comparisons)]
+            // the Python's `endswith(".json")`
+            n.ends_with(".json")
+        })
+        .collect();
+    out.sort();
+    Ok(out)
+}
+
+/// The namespace's `.trash` directory, created.
+///
+/// # Errors
+/// It cannot be created.
+pub fn trash_dir(data_dir: &Path, kind: &str, ns: Namespace<'_>) -> Result<PathBuf, String> {
+    let d = ns_dir(data_dir, kind, ns)?.join(".trash");
+    std::fs::create_dir_all(&d).map_err(|e| e.to_string())?;
+    Ok(d)
+}
+
+/// Restore the newest trashed copy (the last `<slug>.*.json` in name order) into the namespace (Python
+/// `_restore_unlocked`); `false` when there is none. The caller holds the lock and has checked the destination.
+///
+/// # Errors
+/// The move fails.
+pub fn restore_unlocked(
+    data_dir: &Path,
+    kind: &str,
+    name: &str,
+    ns: Namespace<'_>,
+) -> Result<bool, String> {
+    let prefix = format!("{}.", slug(name));
+    let tdir = trash_dir(data_dir, kind, ns)?;
+    let hits: Vec<String> = json_files(&tdir)?
+        .into_iter()
+        .filter(|f| f.starts_with(&prefix))
+        .collect();
+    let Some(newest) = hits.last() else {
+        return Ok(false);
+    };
+    std::fs::rename(tdir.join(newest), artifact_path(data_dir, kind, name, ns)?)
+        .map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+/// Copy a sandbox draft over the live artifact of its slug (Python `_publish_unlocked`); `false` when the draft is
+/// absent. The caller holds the live lock and has authorized the destination.
+///
+/// # Errors
+/// The read or the write fails.
+pub fn publish_unlocked(
+    data_dir: &Path,
+    kind: &str,
+    name: &str,
+    source_owner: &str,
+) -> Result<bool, String> {
+    let src = artifact_path(data_dir, kind, name, Namespace::Sandbox(Some(source_owner)))?;
+    if !src.exists() {
+        return Ok(false);
+    }
+    let bytes = std::fs::read(&src).map_err(|e| e.to_string())?;
+    crate::atomic_write(
+        &artifact_path(data_dir, kind, name, Namespace::Live)?,
+        &bytes,
+    )?;
     Ok(true)
 }
 

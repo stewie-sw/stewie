@@ -1033,3 +1033,57 @@ async fn the_python_structures_session_replays_exactly() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn the_python_missions_session_replays_exactly() {
+    replay(
+        "http_missions_cases",
+        b"stewie-http-missions-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn drafts_and_soils_share_one_autosave_quota() {
+    // SYNTHETIC: the Python's _draft_quota (120 per 60 s per identity), shared by PUT /draft and POST /soil
+    let (app, dir) = bare_app("autosave", false);
+    let send = |method: &str, path: &str, body: &str| {
+        let mut req = Request::builder()
+            .method(method)
+            .uri(path)
+            .header("x-api-key", "automation-key-0123456789")
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_owned()))
+            .unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+        let app = app.clone();
+        async move {
+            let r = app.oneshot(req).await.unwrap();
+            let status = r.status().as_u16();
+            let v: Value =
+                serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+            (status, v)
+        }
+    };
+    for i in 0..119 {
+        assert_eq!(send("PUT", "/draft", "{}").await.0, 200, "draft {i}");
+    }
+    let soil = r#"{"provenance": "lab", "confidence": "ESTIMATED"}"#;
+    assert_eq!(send("POST", "/soil/s", soil).await.0, 200, "the 120th unit");
+    let (status, v) = send("PUT", "/draft", "{}").await;
+    assert_eq!(
+        (status, v["error"].clone()),
+        (429, json!("draft autosave quota exceeded; slow down"))
+    );
+    let (status, v) = send("POST", "/soil/s", soil).await;
+    assert_eq!(
+        (status, v["error"].clone()),
+        (429, json!("soil-save quota exceeded; slow down"))
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}

@@ -1,0 +1,10 @@
+{
+ "fixture": "http_missions_cases",
+ "generator": "oracle/build_fixtures.py::http_missions_cases (the FastAPI app's mission, draft and soil routes over the object store; SYNTHETIC documents, labelled)",
+ "payload_sha256": "7d6ed160c96879f472e46dff3d993eaf8d1491741c48a700562ddac060f29d55",
+ "sources": {
+  "stewie/server/deps.py": "b6534254f6276754db3847d9002d4b68e8d5f8ef5176651dfc58bebe51cc55c1",
+  "stewie/server/objects.py": "2c57b92be6d3e15b0d28bd20f2108b712339592c651f494085418af14ad3313d",
+  "stewie/server/routers/missions.py": "aff90b225ae9ad6f03cd20d27fe9880bf45a2fd0e57154f9563dc2162222ed37"
+ }
+}

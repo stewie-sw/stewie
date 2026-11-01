@@ -220,6 +220,7 @@ pub struct AppState {
     world_quota: RateLimiter,
     world_points: RateLimiter,
     viz_quota: RateLimiter,
+    draft_quota: RateLimiter,
     started: Instant,
     /// The process's `STEWIE_*` variables, which `/config` reports as the overlay's overrides
     /// ([`AppState::with_environment`]; empty until given).
@@ -293,6 +294,7 @@ impl AppState {
             world_quota: RateLimiter::new(settings.world_quota_max, settings.world_window_s),
             world_points: RateLimiter::new(settings.world_point_budget, settings.world_window_s),
             viz_quota: RateLimiter::new(settings.viz_quota_max, settings.viz_window_s),
+            draft_quota: RateLimiter::new(120, 60.0),
             cfg,
             settings,
             store,
@@ -363,6 +365,12 @@ impl AppState {
     /// Monotonic seconds, for the rate windows.
     fn mono(&self) -> f64 {
         self.started.elapsed().as_secs_f64()
+    }
+
+    /// The per-identity autosave quota drafts and soil saves share (Python `routers.missions._draft_quota`, 120 per
+    /// 60 s).
+    pub(crate) fn draft_allowed(&self, identity: &str) -> bool {
+        self.draft_quota.allow(identity, self.mono(), 1)
     }
 }
 
@@ -1005,6 +1013,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::content_routes::routes())
         .merge(crate::config_routes::routes())
         .merge(crate::structure_routes::routes())
+        .merge(crate::mission_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())
