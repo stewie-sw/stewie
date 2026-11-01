@@ -95,13 +95,22 @@ fn normalise(body: &mut Value) {
 
 /// A PNG as the oracle records it: its size and the sha256 of its decoded RGB pixels.
 fn png_summary(bytes: &[u8]) -> Value {
-    let mut dec = png::Decoder::new(std::io::Cursor::new(bytes))
-        .read_info()
-        .unwrap();
+    let mut d = png::Decoder::new(std::io::Cursor::new(bytes));
+    d.set_transformations(png::Transformations::EXPAND);
+    let mut dec = d.read_info().unwrap();
     let mut buf = vec![0; dec.output_buffer_size().unwrap()];
     let info = dec.next_frame(&mut buf).unwrap();
-    assert_eq!(info.color_type, png::ColorType::Rgb, "an RGB image");
-    let rgb = &buf[..info.buffer_size()];
+    assert_eq!(info.bit_depth, png::BitDepth::Eight, "an 8-bit image");
+    let px = &buf[..info.buffer_size()];
+    // as PIL's convert("RGB"): alpha dropped, grey replicated
+    let rgb: Vec<u8> = match info.color_type {
+        png::ColorType::Rgb => px.to_vec(),
+        png::ColorType::Rgba => px.chunks(4).flat_map(|c| [c[0], c[1], c[2]]).collect(),
+        png::ColorType::Grayscale => px.iter().flat_map(|g| [*g; 3]).collect(),
+        png::ColorType::GrayscaleAlpha => px.chunks(2).flat_map(|c| [c[0]; 3]).collect(),
+        png::ColorType::Indexed => panic!("palette not expanded"),
+    };
+    let rgb = rgb.as_slice();
     let digest = Sha256::digest(rgb).iter().fold(String::new(), |mut h, b| {
         use std::fmt::Write as _;
         let _ = write!(h, "{b:02x}");
@@ -201,7 +210,7 @@ async fn replay(
                 .unwrap_or_else(|_| json!(String::from_utf8_lossy(&raw).into_owned()))
         };
         normalise(&mut body);
-        departure(r, &mut body);
+        departure(step, &mut body);
         let what = format!("step {} {} {}", i + 1, r["method"], r["path"]);
         assert_eq!(
             u64::from(status),
@@ -228,8 +237,9 @@ async fn replay(
     let store: Value = std::fs::read_to_string(dir.join("operators.json"))
         .map_or(Value::Null, |t| serde_json::from_str(&t).unwrap());
     assert_eq!(store, fx["store"], "the account store");
+    // a session that audited nothing leaves no ledger (the fixture records an empty one)
     let mut ledger: Vec<Value> = std::fs::read_to_string(dir.join("events.jsonl"))
-        .unwrap()
+        .unwrap_or_default()
         .lines()
         .map(|l| serde_json::from_str(l).unwrap())
         .collect();
@@ -303,7 +313,8 @@ async fn the_python_construction_session_replays_with_the_recorded_departure() {
         |_, step, clock, _| {
             *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
         },
-        |request, body| {
+        |step, body| {
+            let request = &step["request"];
             let (Some(clear), Some(adv)) =
                 (body.get("clearances").cloned(), body.get_mut("advisories"))
             else {
@@ -612,6 +623,48 @@ async fn the_python_world_session_replays_exactly() {
             }
         },
         |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_python_dem_session_replays_exactly() {
+    replay(
+        "http_dem_cases",
+        b"stewie-http-dem-oracle",
+        |i, _, _, dir| {
+            // the oracle wrote this boulder scene after its second request (SYNTHETIC, labelled)
+            if i == 2 {
+                std::fs::write(
+                    dir.join("clasts_scene.json"),
+                    r#"{"n": 2, "clasts": [{"x": 1.5, "y": -2.0, "z": 0.25, "r": 0.4}, {"x": 3.0, "y": 4.5, "z": 0.1, "r": 0.2}], "solver": "test"}"#,
+                )
+                .unwrap();
+            }
+        },
+        |step, body| {
+            // the georef's unrounded lat/lon: the closed-form inverse against PROJ's agrees to 1e-9 deg
+            // (RW-10), not bit for bit; checked, then taken as recorded
+            let path = step["request"]["path"].as_str().unwrap_or("");
+            if !path.starts_with("/dem/georef") || step["status"] != 200 {
+                return;
+            }
+            let want = &step["body"];
+            let mut pairs: Vec<(String, usize)> = vec![("center".into(), usize::MAX)];
+            pairs.extend((0..4).map(|i| ("corners".to_owned(), i)));
+            for (key, i) in pairs {
+                for c in ["lat", "lon"] {
+                    let (got, exp) = if i == usize::MAX {
+                        (&mut body[&key][c], &want[&key][c])
+                    } else {
+                        (&mut body[&key][i][c], &want[&key][i][c])
+                    };
+                    let d = (got.as_f64().unwrap() - exp.as_f64().unwrap()).abs();
+                    assert!(d < 1e-9, "{path} {key}[{i}].{c}: off by {d}");
+                    *got = exp.clone();
+                }
+            }
+        },
     )
     .await;
 }

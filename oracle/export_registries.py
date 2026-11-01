@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew,fleet}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources}.json
 """
 from __future__ import annotations
 
@@ -172,6 +172,13 @@ def fleet() -> dict:
                          for k, c in V.CHARGERS.items()}}
 
 
+def dem_sources() -> dict:
+    """The lunar DEM source catalog (dart.dem_sources), in catalog order, with each row's derived
+    planning_grade (a render-only product is display-only)."""
+    from dart.dem_sources import list_dem_sources
+    return {"sources": [{**dataclasses.asdict(s), "planning_grade": s.planning_grade} for s in list_dem_sources()]}
+
+
 def _write(name: str, data: dict) -> str:
     path = os.path.normpath(os.path.join(_OUT, name))
     with open(path, "w", encoding="utf-8") as fh:
@@ -187,6 +194,7 @@ def main() -> None:
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))
     print(_write("fleet.json", fleet()))
+    print(_write("dem_sources.json", dem_sources()))
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ pub mod app;
 pub mod auth;
 pub mod construction;
 pub mod contour;
+pub mod dem_routes;
 pub mod operators;
 pub mod planning;
 pub mod point;

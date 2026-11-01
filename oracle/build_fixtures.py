@@ -4463,6 +4463,171 @@ def http_record_cases() -> None:
                    "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger, "journals": journals})
 
 
+def _http_session(seed_text: str, env_extra: dict, script) -> dict:
+    """One scripted FastAPI TestClient session on a throwaway data dir, as the http_*_cases builders run it:
+    the pinned clock, the seeded byte stream, the synthetic keys and operators, the auth limiters reset, the
+    server state caches cleared and the app reloaded. ``script(call, key, d, clock)`` makes the requests. Returns
+    the replay payload (env, steps, the account store and the audit ledger). The clock, bytes, emails and keys
+    are SYNTHETIC test inputs (labelled)."""
+    import base64
+    import hashlib
+    import importlib
+    import io as _io
+    import tempfile
+    import uuid as _uuid
+
+    from fastapi.testclient import TestClient
+    from PIL import Image as _Image
+
+    import stewie.server.auth as A
+    import stewie.server.operators as O
+    import stewie.server.routers.auth as R
+    import stewie.server.services as S
+    import stewie.server.state as ST
+
+    seed = hashlib.sha256(seed_text.encode()).digest()
+    stream = {"n": 0}
+
+    def det_bytes(n: int) -> bytes:
+        out = b""
+        while len(out) < n:
+            out += hashlib.sha256(seed + stream["n"].to_bytes(8, "big")).digest()
+            stream["n"] += 1
+        return out[:n]
+
+    clock = {"t": 1_800_000_000.0}
+    env = {"STEWIE_API_KEY": "automation-key-0123456789", "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+           "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+           "STEWIE_DIRECTORS": "alice@example.org", "STEWIE_GIS_ANON_KEY": "anon-key-xyz", **env_extra}
+    unset = ("STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED", "STEWIE_DESKTOP", "STEWIE_OPERATOR_LOGIN",
+             "STEWIE_TRUST_PROXY", "STEWIE_CORS_ORIGINS", "STEWIE_DEV_OPEN", "STEWIE_AUDIT_MAX_BYTES",
+             "STEWIE_REGISTRATION", "STEWIE_TRUST_TAILSCALE", "STEWIE_TRUSTED_PROXIES", "STEWIE_MAX_BODY_BYTES",
+             "STEWIE_DEM_DIR", "STEWIE_DATABASE_URL")
+    saved = {k: os.environ.get(k) for k in list(env) + list(unset) + ["STEWIE_DATA_DIR"]}
+    patched = (O.os.urandom, O.secrets.token_urlsafe, S.secrets.token_hex, O._clock, A.uuid.uuid4, A.time.time,
+               S.time.time)
+    saved_state = (ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS)
+    steps: list = []
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ.update(env)
+            os.environ["STEWIE_DATA_DIR"] = d
+            for k in unset:
+                os.environ.pop(k, None)
+            O.os.urandom = det_bytes
+            O.secrets.token_urlsafe = lambda n: base64.urlsafe_b64encode(det_bytes(n)).decode().rstrip("=")
+            S.secrets.token_hex = lambda n: det_bytes(n).hex()
+            O._clock = lambda: clock["t"]
+            A.uuid.uuid4 = lambda: _uuid.UUID(bytes=det_bytes(16), version=4)
+            A.time.time = lambda: clock["t"]
+            S.time.time = lambda: clock["t"]
+            S.reset_audit_health()
+            S.reset_revocation_health()
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS = {}, None, None, {}, None
+            import stewie.server.server as srv
+            importlib.reload(srv)
+            client = TestClient(srv.app, client=("127.0.0.1", 50000))
+            n = {"i": 0}
+
+            def call(method, path, *, headers=None, json_body=None, raw=None):
+                n["i"] += 1
+                h = dict(headers or {})
+                h["X-Correlation-Id"] = f"cid-{n['i']:03d}"
+                client.cookies.clear()
+                kw = {}
+                if json_body is not None:
+                    kw["json"] = json_body
+                if raw is not None:
+                    kw["content"] = raw
+                    h.setdefault("Content-Type", "application/json")
+                r = client.request(method, path, headers=h, **kw)
+                ctype = r.headers.get("content-type", "")
+                if ctype.startswith("image/png"):
+                    im = _Image.open(_io.BytesIO(r.content)).convert("RGB")
+                    body = {"png": {"width": im.width, "height": im.height,
+                                    "rgb_sha256": hashlib.sha256(im.tobytes()).hexdigest()}}
+                elif ctype.startswith("application/octet-stream"):
+                    body = {"bytes_sha256": hashlib.sha256(r.content).hexdigest(), "len": len(r.content)}
+                else:
+                    try:
+                        body = r.json()
+                    except ValueError:
+                        body = r.text
+                steps.append({"request": {"method": method, "path": path, "headers": h, "json": json_body,
+                                          "raw": raw}, "clock": clock["t"], "status": r.status_code, "body": body,
+                              "cache_control": r.headers.get("cache-control"), "content_type": ctype or None})
+                return r
+
+            script(call, {"X-API-Key": env["STEWIE_API_KEY"]}, d, clock)
+            store = (json.load(open(os.path.join(d, "operators.json")))
+                     if os.path.exists(os.path.join(d, "operators.json")) else None)
+            led = os.path.join(d, "events.jsonl")
+            ledger = [json.loads(x) for x in open(led)] if os.path.exists(led) else []   # nothing audited
+        finally:
+            (O.os.urandom, O.secrets.token_urlsafe, S.secrets.token_hex, O._clock, A.uuid.uuid4, A.time.time,
+             S.time.time) = patched
+            ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS = saved_state
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            importlib.reload(srv)
+    return {"env": env, "seed_sha256_of": seed_text, "clock0": 1_800_000_000.0, "client": "127.0.0.1",
+            "steps": steps, "store": store, "ledger": ledger}
+
+
+def http_dem_cases() -> None:
+    """The DEM read surface (RW-55b6a): the real FastAPI app's /dem georeference, transform, metadata, catalog,
+    height-grid and preview routes and /clasts/scene, on the real site bundles, through one scripted session
+    (_http_session). The boulder scene file is a SYNTHETIC test input (labelled)."""
+    def script(call, key, d, clock):
+        call("GET", "/dem/georef")                                       # no key
+        call("GET", "/clasts/scene", headers=key)                        # no scene yet
+        with open(os.path.join(d, "clasts_scene.json"), "w") as fh:      # SYNTHETIC scene (labelled)
+            json.dump({"n": 2, "clasts": [{"x": 1.5, "y": -2.0, "z": 0.25, "r": 0.4},
+                                          {"x": 3.0, "y": 4.5, "z": 0.1, "r": 0.2}], "solver": "test"}, fh)
+        call("GET", "/clasts/scene", headers=key)
+        for site in ("haworth", "shackleton_rim", "atlantis", "shoemaker"):
+            call("GET", f"/dem/georef?site={site}", headers=key)
+            call("GET", f"/dem/site_meta?site={site}", headers=key)
+        call("GET", "/dem/site_xy?lat=-86.37652685731457&lon=-26.3182865963215", headers=key)
+        call("GET", "/dem/site_xy?lat=-86.37799567600852&lon=-26.328914700094455&site=haworth", headers=key)
+        call("GET", "/dem/site_xy?lat=0&lon=0", headers=key)
+        call("GET", "/dem/site_xy?lat=-86.4", headers=key)
+        call("GET", "/dem/site_xy?lat=abc&lon=1", headers=key)
+        call("GET", "/dem/site_xy?lat=-86.4&lon=-26.3&site=atlantis", headers=key)
+        call("GET", "/dem/site_xy?lat=-86.4&lon=-26.3&site=shoemaker", headers=key)
+        call("GET", "/dem/site_lonlat?x=4167&y=6878", headers=key)
+        call("GET", "/dem/site_lonlat?x=0&y=0&site=shackleton_rim", headers=key)
+        call("GET", "/dem/site_lonlat?x=1e7&y=0", headers=key)
+        call("GET", "/dem/site_lonlat?x=-2.5&y=9997.5", headers=key)
+        call("GET", "/dem/site_lonlat?y=1", headers=key)
+        call("GET", "/dem/sources", headers=key)
+        call("GET", "/dem/heightfield", headers=key)
+        call("GET", "/dem/heightfield?n=17&window_m=5000&site=shackleton_rim", headers=key)
+        call("GET", "/dem/heightfield?n=1&window_m=1", headers=key)
+        call("GET", "/dem/heightfield?n=300&window_m=10", headers=key)       # the 257 cap
+        call("GET", "/dem/heightfield?n=2.5", headers=key)
+        call("GET", "/dem/heightfield?site=shoemaker", headers=key)
+        call("GET", "/dem/terrain_grid?n=24", headers=key)
+        call("GET", "/dem/terrain_grid?n=1000&site=shackleton_rim", headers=key)
+        call("GET", "/dem/terrain_grid?site=atlantis", headers=key)
+        call("GET", "/dem/hillshade.png", headers=key)
+        call("GET", "/dem/height.png?site=shackleton_rim", headers=key)
+        call("GET", "/dem/other.png", headers=key)
+        call("GET", "/dem/height.png?site=atlantis", headers=key)
+
+    payload = _http_session("stewie-http-dem-oracle", {}, script)
+    write_fixture(ORACLE_FIXTURES, "http_dem_cases", "oracle/build_fixtures.py::http_dem_cases (the FastAPI app's "
+                  "/dem read routes; real site bundles, a SYNTHETIC boulder scene, labelled)",
+                  ["stewie/server/routers/dem.py", "stewie/terrain/site_dem.py", "dart/dem_sources.py"], payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -4572,6 +4737,7 @@ def main() -> None:
     http_record_cases()
     http_world_cases()
     contour_cases()
+    http_dem_cases()
 
 
 if __name__ == "__main__":
