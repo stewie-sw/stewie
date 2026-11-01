@@ -2773,6 +2773,99 @@ def flattest_cases() -> None:
                   ["stewie/terrain/site_dem.py"], {"cases": cases})
 
 
+def state_cases() -> None:
+    """The server's terrain state (RW-55b3b; stewie.server.state): the per-site DEM cache with its flattest anchor
+    (an imported site, a registered site with no bundle, an unknown site), the per-(site, source) observed-twin
+    registry with its journal naming and the SR-03 migration guards (legacy and raw-source journals planted in a
+    temporary data dir), and the composed current terrain view (an as-built Terrain Memory, then an observed twin
+    patch) on the real Haworth DEM. The memory delta, the patch and the legacy files are SYNTHETIC (labelled); the
+    DEMs are real."""
+    import hashlib
+    import tempfile
+
+    import stewie.server.state as ST
+    from stewie.twin import terrain_memory as TM
+
+    saved_env = {k: os.environ.get(k) for k in ("STEWIE_DATA_DIR", "STEWIE_DEM_DIR")}
+    saved = (ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS)
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ["STEWIE_DATA_DIR"] = d
+            os.environ.pop("STEWIE_DEM_DIR", None)
+            ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS = {}, None, None, {}
+            dems = []
+            for site in ("haworth", "shackleton_rim", "amundsen_rim", "atlantis"):
+                dem, anchor = ST.moon_dem(site)
+                dems.append({"site": site, "has_dem": dem is not None,
+                             "shape": list(dem[0].shape) if dem is not None else None,
+                             "cell_m": float(dem[1]) if dem is not None else None, "anchor": list(anchor)})
+            jdir = os.path.join(d, "twin")
+
+            def twin(*args):
+                try:
+                    t = ST.twin(*args)
+                    return {"args": list(args), "ok": {
+                        "journal": os.path.relpath(t.journal_path, d), "version": int(t.version),
+                        "shape": list(t.base.shape), "is_default": t is ST._TWIN}}
+                except ST.TwinJournalMigrationRequired as e:
+                    return {"args": list(args), "error": str(e).replace(d, "<data>")}
+
+            twins = [twin("haworth"), twin("Haworth"), twin("  HAWORTH ", "Stereo_SGBM"), twin("haworth", "lidar"),
+                     twin("shackleton_rim")]
+            # a raw-source legacy journal (pre-SR-03 "<site>__stereo_sgbm") must stop the default twin
+            open(os.path.join(jdir, "haworth__stereo_sgbm.journal"), "w").close()
+            twins.append(twin("haworth", "Stereo_SGBM"))
+            os.remove(os.path.join(jdir, "haworth__stereo_sgbm.journal"))
+            # a lossy legacy stem: "Malapert Massif" sanitises onto another site's legacy file
+            open(os.path.join(jdir, "malapert_massif.journal"), "w").close()
+            twins.append(twin("Malapert Massif"))
+            ST._write_journal_identity(os.path.join(jdir, "malapert_massif.journal"), "malapert_massif", "stereo_sgbm")
+            twins.append(twin("Malapert Massif"))
+            # an unregistered site on its plain stem: an unmarked journal there may be anyone's
+            open(os.path.join(jdir, "atlantis.journal"), "w").close()
+            twins.append(twin("atlantis"))
+            # a current path whose marker names another identity
+            ST._write_journal_identity(os.path.join(jdir, "nobile_rim1__radar.journal"), "nobile_rim1", "lidar")
+            twins.append(twin("nobile_rim1", "radar"))
+            markers = {}
+            for f in sorted(os.listdir(jdir)):
+                if f.endswith(".identity.json"):
+                    markers[f] = json.load(open(os.path.join(jdir, f)))
+            # the composed view: an as-built memory, then an observed patch over part of it
+            dem, anchor = ST.moon_dem("haworth")
+            mem = TM.TerrainMemory(site="haworth", rows=4, cols=6, cell_m=5.0, origin=(-10.0, -5.0))
+            delta = np.zeros((4, 6))                                # SYNTHETIC as-built change (labelled)
+            delta[1:3, 1:5] = -0.25
+            delta[0, 0] = 0.00005                                   # below the as-built epsilon: stays pristine
+            mem.apply(delta, mission="oracle-pad", mass_moved_kg=120.0)
+            TM.save_site(d, mem)
+            r0, c0 = int(round(anchor[1] / 5.0)) - 1, int(round(anchor[0] / 5.0))
+            patch = np.full((2, 3), float(dem[0][r0, c0]) + 0.5)    # SYNTHETIC observed patch (labelled)
+            ST.twin("haworth").apply_patch(patch, origin_rc=(r0, c0), provenance="oracle-observation")
+            view = ST.current_terrain_view("haworth", dem, anchor)
+            h = np.asarray(view.heights, dtype=np.float64)
+            src = np.asarray(view.source)
+            changed = [{"row": int(r), "col": int(c), "height": float(h[r, c]), "source": int(src[r, c])}
+                       for r, c in zip(*np.nonzero(src))]
+            composed = {"heights_sha256": hashlib.sha256(np.ascontiguousarray(h).tobytes()).hexdigest(),
+                        "cell_m": float(view.cell_m), "as_built_version": int(view.as_built_version),
+                        "twin_version": int(view.twin_version), "observed_fraction": float(view.observed_fraction),
+                        "changed": changed, "patch_origin_rc": [r0, c0], "anchor": list(anchor)}
+            assert any(c["source"] == 1 for c in changed) and any(c["source"] == 2 for c in changed)
+        finally:
+            ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS = saved
+            for k, v in saved_env.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    assert any("error" in t for t in twins) and any("ok" in t for t in twins)
+    write_fixture(ORACLE_FIXTURES, "state_cases", "oracle/build_fixtures.py::state_cases (stewie.server.state: site "
+                  "DEM cache, twin registry and journal guards, the composed terrain view; real DEMs, SYNTHETIC "
+                  "memory, patch and legacy files, labelled)",
+                  ["stewie/server/state.py", "stewie/twin/terrain_view.py", "stewie/twin/terrain_memory.py"],
+                  {"dems": dems, "twins": twins, "markers": markers, "composed": composed})
+
 def auth_cases() -> None:
     """Server auth core (RW-55a1): stewie.server.auth (session tokens, revocation, roles, proxy trust) and
     stewie.server.operators (the account store) driven through one scripted scenario in a temporary data dir. The
@@ -3621,6 +3714,7 @@ def main() -> None:
     illumination_cases()
     solar_cases()
     flattest_cases()
+    state_cases()
     auth_cases()
     services_cases()
     http_auth_cases()

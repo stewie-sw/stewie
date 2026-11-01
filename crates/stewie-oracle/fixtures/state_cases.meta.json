@@ -1,0 +1,10 @@
+{
+ "fixture": "state_cases",
+ "generator": "oracle/build_fixtures.py::state_cases (stewie.server.state: site DEM cache, twin registry and journal guards, the composed terrain view; real DEMs, SYNTHETIC memory, patch and legacy files, labelled)",
+ "payload_sha256": "7fc0ad269ed6bb3eaaca1cc6fcfb8536d83a91542776d20bf5b393f8ecdaeed2",
+ "sources": {
+  "stewie/server/state.py": "614f2f1526bb2c9b953aa1ed34a0ef4f790ea5b45dbdadcda8575783d2aae9dd",
+  "stewie/twin/terrain_memory.py": "d3f12f7d939d9d8d93703eacac1296333171f24c33c60a1a2f9a2bf0918b0233",
+  "stewie/twin/terrain_view.py": "a43a33cab4903391c43531feb96360e13152bb661b6e2e678847a777e7687ecf"
+ }
+}

@@ -1,0 +1,279 @@
+{
+ "composed": {
+  "anchor": [
+   4115.0,
+   6915.0
+  ],
+  "as_built_version": 1,
+  "cell_m": 5.0,
+  "changed": [
+   {
+    "col": 823,
+    "height": 1098.263671875,
+    "row": 1382,
+    "source": 2
+   },
+   {
+    "col": 824,
+    "height": 1098.263671875,
+    "row": 1382,
+    "source": 2
+   },
+   {
+    "col": 825,
+    "height": 1098.263671875,
+    "row": 1382,
+    "source": 2
+   },
+   {
+    "col": 822,
+    "height": 1097.4927978515625,
+    "row": 1383,
+    "source": 1
+   },
+   {
+    "col": 823,
+    "height": 1098.263671875,
+    "row": 1383,
+    "source": 2
+   },
+   {
+    "col": 824,
+    "height": 1098.263671875,
+    "row": 1383,
+    "source": 2
+   },
+   {
+    "col": 825,
+    "height": 1098.263671875,
+    "row": 1383,
+    "source": 2
+   },
+   {
+    "col": 822,
+    "height": 1097.47998046875,
+    "row": 1384,
+    "source": 1
+   },
+   {
+    "col": 823,
+    "height": 1097.5338134765625,
+    "row": 1384,
+    "source": 1
+   },
+   {
+    "col": 824,
+    "height": 1097.5904541015625,
+    "row": 1384,
+    "source": 1
+   },
+   {
+    "col": 825,
+    "height": 1097.6510009765625,
+    "row": 1384,
+    "source": 1
+   }
+  ],
+  "heights_sha256": "b994afd485ee5df48940ea685c1c4afefeac18b58cb3faf2dadfccfed7b7eb6f",
+  "observed_fraction": 1.5e-06,
+  "patch_origin_rc": [
+   1382,
+   823
+  ],
+  "twin_version": 1
+ },
+ "dems": [
+  {
+   "anchor": [
+    4115.0,
+    6915.0
+   ],
+   "cell_m": 5.0,
+   "has_dem": true,
+   "shape": [
+    2000,
+    2000
+   ],
+   "site": "haworth"
+  },
+  {
+   "anchor": [
+    9565.0,
+    5490.0
+   ],
+   "cell_m": 5.0,
+   "has_dem": true,
+   "shape": [
+    2000,
+    2000
+   ],
+   "site": "shackleton_rim"
+  },
+  {
+   "anchor": [
+    0.0,
+    0.0
+   ],
+   "cell_m": null,
+   "has_dem": false,
+   "shape": null,
+   "site": "amundsen_rim"
+  },
+  {
+   "anchor": [
+    0.0,
+    0.0
+   ],
+   "cell_m": null,
+   "has_dem": false,
+   "shape": null,
+   "site": "atlantis"
+  }
+ ],
+ "markers": {
+  "haworth.journal.identity.json": {
+   "schema": "stewie.twin-journal-identity/v1",
+   "site": "haworth",
+   "source": "stereo_sgbm"
+  },
+  "haworth__lidar.journal.identity.json": {
+   "schema": "stewie.twin-journal-identity/v1",
+   "site": "haworth",
+   "source": "lidar"
+  },
+  "malapert_massif.journal.identity.json": {
+   "schema": "stewie.twin-journal-identity/v1",
+   "site": "malapert_massif",
+   "source": "stereo_sgbm"
+  },
+  "malapert_massif_2641b150.journal.identity.json": {
+   "schema": "stewie.twin-journal-identity/v1",
+   "site": "malapert massif",
+   "source": "stereo_sgbm"
+  },
+  "nobile_rim1__radar.journal.identity.json": {
+   "schema": "stewie.twin-journal-identity/v1",
+   "site": "nobile_rim1",
+   "source": "lidar"
+  },
+  "shackleton_rim.journal.identity.json": {
+   "schema": "stewie.twin-journal-identity/v1",
+   "site": "shackleton_rim",
+   "source": "stereo_sgbm"
+  }
+ },
+ "twins": [
+  {
+   "args": [
+    "haworth"
+   ],
+   "ok": {
+    "is_default": true,
+    "journal": "twin/haworth.journal",
+    "shape": [
+     2000,
+     2000
+    ],
+    "version": 0
+   }
+  },
+  {
+   "args": [
+    "Haworth"
+   ],
+   "ok": {
+    "is_default": true,
+    "journal": "twin/haworth.journal",
+    "shape": [
+     2000,
+     2000
+    ],
+    "version": 0
+   }
+  },
+  {
+   "args": [
+    "  HAWORTH ",
+    "Stereo_SGBM"
+   ],
+   "ok": {
+    "is_default": true,
+    "journal": "twin/haworth.journal",
+    "shape": [
+     2000,
+     2000
+    ],
+    "version": 0
+   }
+  },
+  {
+   "args": [
+    "haworth",
+    "lidar"
+   ],
+   "ok": {
+    "is_default": false,
+    "journal": "twin/haworth__lidar.journal",
+    "shape": [
+     2000,
+     2000
+    ],
+    "version": 0
+   }
+  },
+  {
+   "args": [
+    "shackleton_rim"
+   ],
+   "ok": {
+    "is_default": false,
+    "journal": "twin/shackleton_rim.journal",
+    "shape": [
+     2000,
+     2000
+    ],
+    "version": 0
+   }
+  },
+  {
+   "args": [
+    "haworth",
+    "Stereo_SGBM"
+   ],
+   "error": "raw-source legacy twin journal '<data>/twin/haworth__stereo_sgbm.journal' has no identity marker for ('haworth', 'stereo_sgbm'); inspect it and explicitly migrate/quarantine it"
+  },
+  {
+   "args": [
+    "Malapert Massif"
+   ],
+   "error": "raw-source legacy twin journal '<data>/twin/malapert_massif.journal' has no identity marker for ('malapert massif', 'stereo_sgbm'); inspect it and explicitly migrate/quarantine it"
+  },
+  {
+   "args": [
+    "Malapert Massif"
+   ],
+   "ok": {
+    "is_default": false,
+    "journal": "twin/malapert_massif_2641b150.journal",
+    "shape": [
+     64,
+     64
+    ],
+    "version": 0
+   }
+  },
+  {
+   "args": [
+    "atlantis"
+   ],
+   "error": "legacy twin journal '<data>/twin/atlantis.journal' has no identity marker and is ambiguous for ('atlantis', 'stereo_sgbm'); inspect it, then migrate/quarantine it and create '<data>/twin/atlantis.journal.identity.json'"
+  },
+  {
+   "args": [
+    "nobile_rim1",
+    "radar"
+   ],
+   "error": "twin journal marker '<data>/twin/nobile_rim1__radar.journal.identity.json' is assigned to ('nobile_rim1', 'lidar'), not ('nobile_rim1', 'radar')"
+  }
+ ]
+}

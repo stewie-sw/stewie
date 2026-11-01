@@ -114,6 +114,12 @@ impl TwinStore {
         (self.rows, self.cols)
     }
 
+    /// The journal this twin appends to, when it is durable.
+    #[must_use]
+    pub fn journal_path(&self) -> Option<&std::path::Path> {
+        self.journal.as_deref()
+    }
+
     #[must_use]
     pub fn version(&self) -> u64 {
         self.version
