@@ -1,0 +1,8 @@
+{
+ "fixture": "flattest_cases",
+ "generator": "oracle/build_fixtures.py::flattest_cases (stewie.terrain.site_dem.flattest_anchor on every bundled DEM; real data)",
+ "payload_sha256": "88bb9c535de87d3091e17369b9148289f37b2312f1eefa410d6bc22ef15ec82b",
+ "sources": {
+  "stewie/terrain/site_dem.py": "ac5aaf0a3ee382098b2b12d38c59deabe5bd80e786efed9276308942d20444c8"
+ }
+}

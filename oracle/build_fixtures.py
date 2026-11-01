@@ -2756,6 +2756,23 @@ def horizon_stacked() -> None:
                    "elev_deg": elev, "reach_m": reach})
 
 
+def flattest_cases() -> None:
+    """The flattest buildable anchor (RW-55b3; stewie.terrain.site_dem.flattest_anchor): the cell minimising the
+    mean slope over a window (SciPy uniform_filter, mode nearest) on every real bundled DEM at the default 20 m
+    window, and on Haworth at windows giving odd and even and unit kernels. Real data only; the windows are the
+    planner's own parameter values."""
+    cases = []
+    for name in _bundled_dems():
+        dem = site_dem.load_haworth_dem(bundle_dir=os.path.join(REPO, "samples", "lunar_dem", name))
+        # 12.5 m and 22.5 m put the kernel on a half (2.5, 4.5): Python's round is half-to-even
+        for window_m in ((20.0, 15.0, 5.0, 33.0, 12.5, 22.5) if name == "haworth_10km_5m" else (20.0,)):
+            x, y = site_dem.flattest_anchor(dem, window_m=window_m)
+            cases.append({"bundle": name, "window_m": window_m, "cell_m": float(dem[1]), "x": x, "y": y})
+    write_fixture(ORACLE_FIXTURES, "flattest_cases", "oracle/build_fixtures.py::flattest_cases "
+                  "(stewie.terrain.site_dem.flattest_anchor on every bundled DEM; real data)",
+                  ["stewie/terrain/site_dem.py"], {"cases": cases})
+
+
 def auth_cases() -> None:
     """Server auth core (RW-55a1): stewie.server.auth (session tokens, revocation, roles, proxy trust) and
     stewie.server.operators (the account store) driven through one scripted scenario in a temporary data dir. The
@@ -3603,6 +3620,7 @@ def main() -> None:
     record_cases()
     illumination_cases()
     solar_cases()
+    flattest_cases()
     auth_cases()
     services_cases()
     http_auth_cases()

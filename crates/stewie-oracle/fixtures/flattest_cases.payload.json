@@ -1,0 +1,109 @@
+{
+ "cases": [
+  {
+   "bundle": "connecting_ridge_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 20.0,
+   "x": 8950.0,
+   "y": 7785.0
+  },
+  {
+   "bundle": "de_gerlache_rim_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 20.0,
+   "x": 3810.0,
+   "y": 6595.0
+  },
+  {
+   "bundle": "haworth_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 20.0,
+   "x": 4115.0,
+   "y": 6915.0
+  },
+  {
+   "bundle": "haworth_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 15.0,
+   "x": 4115.0,
+   "y": 6910.0
+  },
+  {
+   "bundle": "haworth_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 5.0,
+   "x": 9335.0,
+   "y": 3760.0
+  },
+  {
+   "bundle": "haworth_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 33.0,
+   "x": 4115.0,
+   "y": 6910.0
+  },
+  {
+   "bundle": "haworth_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 12.5,
+   "x": 4115.0,
+   "y": 6910.0
+  },
+  {
+   "bundle": "haworth_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 22.5,
+   "x": 4115.0,
+   "y": 6915.0
+  },
+  {
+   "bundle": "haworth_sfs_2km_1m",
+   "cell_m": 1.0,
+   "window_m": 20.0,
+   "x": 43.0,
+   "y": 1597.0
+  },
+  {
+   "bundle": "leibnitz_beta_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 20.0,
+   "x": 6565.0,
+   "y": 2775.0
+  },
+  {
+   "bundle": "malapert_massif_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 20.0,
+   "x": 2020.0,
+   "y": 9005.0
+  },
+  {
+   "bundle": "nobile_rim1_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 20.0,
+   "x": 30.0,
+   "y": 2350.0
+  },
+  {
+   "bundle": "nobile_rim2_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 20.0,
+   "x": 4320.0,
+   "y": 135.0
+  },
+  {
+   "bundle": "peak_near_shackleton_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 20.0,
+   "x": 6560.0,
+   "y": 6225.0
+  },
+  {
+   "bundle": "shackleton_rim_10km_5m",
+   "cell_m": 5.0,
+   "window_m": 20.0,
+   "x": 9565.0,
+   "y": 5490.0
+  }
+ ]
+}

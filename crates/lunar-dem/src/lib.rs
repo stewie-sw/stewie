@@ -276,6 +276,12 @@ impl DemTile {
         self.cell_m
     }
 
+    /// Every height [m], row-major, widened to `f64` (exactly, as numpy's `astype(float64)`).
+    #[must_use]
+    pub fn heights_f64(&self) -> Vec<f64> {
+        self.z.iter().map(|v| f64::from(*v)).collect()
+    }
+
     /// Height [m] of a cell, or `None` outside the grid.
     #[must_use]
     pub fn height_at(&self, row: usize, col: usize) -> Option<f64> {
@@ -402,6 +408,66 @@ pub fn slope_deg_grid(z: &[f64], width: usize, height: usize, cell_m: f64) -> Ve
             )
         })
         .collect()
+}
+
+/// `SciPy` `ndimage.uniform_filter(v, size, mode="nearest")` on a row-major grid, bit for bit: a separable running
+/// mean along axis 0 then axis 1, each output the window sum `[i - size/2, i + size - size/2 - 1]` (edges
+/// extended with the nearest value) divided by `size`, the sum slid by adding the entering and subtracting the
+/// leaving value.
+#[must_use]
+pub fn uniform_filter_nearest(v: &[f64], width: usize, height: usize, size: usize) -> Vec<f64> {
+    #[allow(clippy::cast_precision_loss)] // a kernel width
+    let n = size as f64;
+    let pass =
+        |src: &[f64], len: usize, lines: usize, at: &dyn Fn(usize, usize) -> usize| -> Vec<f64> {
+            let mut out = vec![0.0; src.len()];
+            let (before, after) = (size / 2, size - size / 2 - 1);
+            let mut ext = Vec::with_capacity(len + size);
+            for line in 0..lines {
+                ext.clear();
+                ext.extend(std::iter::repeat_n(src[at(line, 0)], before));
+                ext.extend((0..len).map(|i| src[at(line, i)]));
+                ext.extend(std::iter::repeat_n(src[at(line, len - 1)], after));
+                let mut sum: f64 = ext[..size].iter().sum();
+                out[at(line, 0)] = sum / n;
+                for i in 1..len {
+                    sum += ext[i + size - 1] - ext[i - 1];
+                    out[at(line, i)] = sum / n;
+                }
+            }
+            out
+        };
+    let down = pass(v, height, width, &|col, row| row * width + col);
+    pass(&down, width, height, &|row, col| row * width + col)
+}
+
+/// The flattest buildable anchor (Python `site_dem.flattest_anchor`): the `(x, y)` [m] of the cell whose mean
+/// slope over a `window_m` box is least (the first such cell, row-major, as numpy `argmin`).
+#[must_use]
+pub fn flattest_anchor(
+    z: &[f64],
+    width: usize,
+    height: usize,
+    cell_m: f64,
+    window_m: f64,
+) -> (f64, f64) {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    // a small positive kernel width
+    let k = ((window_m / cell_m).round_ties_even() as usize).max(1);
+    let smooth =
+        uniform_filter_nearest(&slope_deg_grid(z, width, height, cell_m), width, height, k);
+    // numpy argmin: the first NaN if there is one, else the first minimum
+    let best = smooth.iter().position(|x| x.is_nan()).unwrap_or_else(|| {
+        smooth
+            .iter()
+            .enumerate()
+            .fold(0, |b, (i, x)| if *x < smooth[b] { i } else { b })
+    });
+    #[allow(clippy::cast_precision_loss)] // grid indices
+    (
+        (best % width) as f64 * cell_m,
+        (best / width) as f64 * cell_m,
+    )
 }
 
 /// Anything that answers "terrain height here?" in the body's frame: a local tile, a global grid.
