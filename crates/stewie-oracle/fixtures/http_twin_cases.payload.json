@@ -1,0 +1,572 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "journals": {
+  "haworth.journal": "c32d24750689fcc2cb4245771ab95f94926cfc973649c74a319572ee2fd4a28a",
+  "shackleton_rim.journal": "731932a0288def694e61ca7ad372ac02c924cbbc125e392ca622f142c4834e8d",
+  "world.journal": "0c4d15f2ed5e76c70de9d058f7e42502d180ea652afb13528fec5524e348c6a8"
+ },
+ "ledger": [
+  {
+   "action": "twin.resync",
+   "actor": "api-key",
+   "correlation_id": "cid-008",
+   "target": "oracle observation",
+   "ts": 1800000001.0
+  },
+  {
+   "action": "twin.resync",
+   "actor": "api-key",
+   "correlation_id": "cid-014",
+   "target": "rim pass",
+   "ts": 1800000002.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-twin-oracle",
+ "steps": [
+  {
+   "body": {
+    "binding_axis": "pitch",
+    "cg_dx_m": 0.0,
+    "cg_dz_m": 0.0,
+    "cg_height_m": 0.21,
+    "margin_deg": 35.538,
+    "ok": true,
+    "risk": "ok",
+    "ssa_pitch_deg": 35.538,
+    "ssa_roll_deg": 40.953
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/cg",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "binding_axis": "pitch",
+    "cg_dx_m": 0.0646,
+    "cg_dz_m": 0.0468,
+    "cg_height_m": 0.2568,
+    "margin_deg": 8.392,
+    "ok": true,
+    "risk": "ok",
+    "ssa_pitch_deg": 18.392,
+    "ssa_roll_deg": 35.364
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/cg?front_deg=45&back_deg=-30&front_kg=12.5&back_kg=4&pitch_deg=10&roll_deg=5",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "binding_axis": "pitch",
+    "cg_dx_m": -0.0596,
+    "cg_dz_m": -0.1504,
+    "cg_height_m": 0.0596,
+    "margin_deg": 16.593,
+    "ok": true,
+    "risk": "warn",
+    "ssa_pitch_deg": 56.593,
+    "ssa_roll_deg": 71.877
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/cg?front_deg=200&back_deg=-300&front_kg=-3&back_kg=40&pitch_deg=40&roll_deg=-35",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "front_deg: Input should be a valid number, unable to parse string as a number",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/cg?front_deg=abc&roll_deg=1e400",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "chain_valid": true,
+    "twin_version": 0
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/version",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/version",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "operator+ role required (signed in as guest 'gis-anon')",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-007",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": {
+     "heights_m": [
+      [
+       1100.25,
+       1100.5,
+       1100.75
+      ],
+      [
+       1101.0,
+       1101.25,
+       1101.5
+      ]
+     ],
+     "origin_rc": [
+      1382,
+      823
+     ],
+     "provenance": "guest"
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "ok": true,
+    "twin_version": 1
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "heights_m": [
+      [
+       1100.25,
+       1100.5,
+       1100.75
+      ],
+      [
+       1101.0,
+       1101.25,
+       1101.5
+      ]
+     ],
+     "origin_rc": [
+      1382,
+      823
+     ],
+     "provenance": "oracle observation"
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "patch (2, 3) at (1999,1999) exceeds the twin extent (2000, 2000)",
+    "ok": false
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "heights_m": [
+      [
+       1100.25,
+       1100.5,
+       1100.75
+      ],
+      [
+       1101.0,
+       1101.25,
+       1101.5
+      ]
+     ],
+     "origin_rc": [
+      1999,
+      1999
+     ],
+     "provenance": "off the grid"
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "every twin edit requires non-empty provenance",
+    "ok": false
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "heights_m": [
+      [
+       1100.25,
+       1100.5,
+       1100.75
+      ],
+      [
+       1101.0,
+       1101.25,
+       1101.5
+      ]
+     ],
+     "origin_rc": [
+      10,
+      10
+     ],
+     "provenance": "   "
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "origin_rc.1: Field required",
+    "ok": false
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "heights_m": [
+      [
+       1100.25,
+       1100.5,
+       1100.75
+      ],
+      [
+       1101.0,
+       1101.25,
+       1101.5
+      ]
+     ],
+     "origin_rc": [
+      5
+     ],
+     "provenance": "short origin"
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "x: Extra inputs are not permitted",
+    "ok": false
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "heights_m": [
+      [
+       1100.25,
+       1100.5,
+       1100.75
+      ],
+      [
+       1101.0,
+       1101.25,
+       1101.5
+      ]
+     ],
+     "origin_rc": [
+      1,
+      2
+     ],
+     "provenance": "p",
+     "x": 1
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "heights_m: Input should be a valid list; origin_rc.0: Input should be a valid integer, unable to parse string as an integer; origin_rc.1: Input should be a valid integer, got a number with a fractional part",
+    "ok": false
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {
+     "heights_m": "flat",
+     "origin_rc": [
+      "a",
+      2.5
+     ],
+     "provenance": 7
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "ok": true,
+    "twin_version": 1
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "heights_m": [
+      [
+       2000.0,
+       2000.5
+      ]
+     ],
+     "origin_rc": [
+      100,
+      200
+     ],
+     "provenance": "rim pass",
+     "site": "shackleton_rim"
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "chain_valid": true,
+    "twin_version": 1
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/version",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "chain_valid": true,
+    "events": [
+     {
+      "hash": "4960b267a218be6df08fb45b796a204778ad2de385e6977d377cb17b1565240e",
+      "kind": "patch",
+      "origin_rc": [
+       1382,
+       823
+      ],
+      "provenance": "oracle observation",
+      "seq": 0,
+      "shape": [
+       2,
+       3
+      ]
+     }
+    ],
+    "twin_version": 1
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/history",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'gis-anon')",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-017",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/history",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "cells_changed": 0,
+    "max_cut_m": 0.0,
+    "max_fill_m": 0.0,
+    "missions": [],
+    "net_volume_m3": 0.0,
+    "ok": true,
+    "recorded": false,
+    "site": "haworth",
+    "version": 0
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/terrain/haworth",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cells_changed": 3,
+    "chain_valid": true,
+    "max_cut_m": 0.2,
+    "max_fill_m": 0.15,
+    "missions": [
+     "rim-pad"
+    ],
+    "net_volume_m3": -0.0625,
+    "ok": true,
+    "recorded": true,
+    "site": "shackleton_rim",
+    "version": 1
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/terrain/shackleton_rim",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/terrain/haworth",
+    "raw": null
+   },
+   "status": 401
+  }
+ ],
+ "store": null
+}

@@ -84,7 +84,7 @@ const INVITE_REDEEM: Model = Model {
 };
 
 /// The identity iff its role is director.
-fn require_director(st: &AppState, h: &Head) -> Result<String, ApiError> {
+pub(crate) fn require_director(st: &AppState, h: &Head) -> Result<String, ApiError> {
     let identity = require_auth(st, h)?;
     let role = st
         .auth(Some(&h.cid))

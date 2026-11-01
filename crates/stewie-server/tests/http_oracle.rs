@@ -186,6 +186,19 @@ async fn replay(
         }
     }
     assert_eq!(Value::Array(ledger), fx["ledger"], "the audit ledger");
+    // the durable journals, byte for byte, where the fixture recorded them
+    if let Some(journals) = fx.get("journals").and_then(Value::as_object) {
+        for (name, want) in journals {
+            let raw = std::fs::read(dir.join("twin").join(name)).unwrap();
+            let got = Sha256::digest(&raw).iter().fold(String::new(), |mut h, b| {
+                use std::fmt::Write as _;
+                let _ = write!(h, "{b:02x}");
+                h
+            });
+            assert_eq!(&json!(got), want, "the journal {name}");
+        }
+        assert!(!journals.is_empty(), "vacuity: journals were recorded");
+    }
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -298,4 +311,108 @@ fn startup_refuses_a_configured_database_projection() {
     })
     .unwrap_err();
     assert!(e.contains("D-R113"), "{e}");
+}
+
+#[tokio::test]
+async fn the_python_twin_session_replays_exactly() {
+    replay(
+        "http_twin_cases",
+        b"stewie-http-twin-oracle",
+        |_, step, clock, dir| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+            // the oracle recorded this memory between requests (SYNTHETIC, labelled)
+            if step["request"]["path"] == "/twin/terrain/shackleton_rim" {
+                let mut mem = stewie_twin::terrain_memory::TerrainMemory::new(
+                    "shackleton_rim",
+                    3,
+                    4,
+                    0.5,
+                    (2.0, -1.0),
+                )
+                .unwrap();
+                let mut delta = vec![0.0; 12];
+                delta[0] = -0.2;
+                delta[1] = -0.2;
+                delta[11] = 0.15;
+                mem.apply(&delta, "rim-pad", 64.0).unwrap();
+                stewie_twin::terrain_memory::save_site(dir, &mem).unwrap();
+            }
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn a_resync_whose_world_commit_fails_is_rolled_back() {
+    // SYNTHETIC: a directory where the world journal belongs makes the commit fail; the patch must be undone
+    let dir = std::env::temp_dir().join(format!("stewie-resync-rollback-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("twin")).unwrap();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"stewie-resync-rollback").into(),
+        n: Mutex::new(0),
+    }));
+    let state = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
+    std::fs::create_dir(dir.join("twin/world.journal")).unwrap();
+    let app = router(Arc::new(state));
+    let send = |method: &str, path: &str, body: Option<Value>| {
+        let builder = Request::builder()
+            .method(method)
+            .uri(path)
+            .header("x-api-key", "automation-key-0123456789");
+        let (builder, text) = match body {
+            Some(b) => (
+                builder.header("content-type", "application/json"),
+                b.to_string(),
+            ),
+            None => (builder, String::new()),
+        };
+        let mut req = builder.body(Body::from(text)).unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+        app.clone().oneshot(req)
+    };
+    let r = send(
+        "POST",
+        "/twin/resync",
+        Some(json!({"heights_m": [[1100.0]], "origin_rc": [10, 10], "provenance": "doomed"})),
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.status().as_u16(), 500);
+    let body: Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap()
+            .starts_with("resync rolled back: world-state commit failed"),
+        "{body}"
+    );
+    let v = send("GET", "/twin/version", None).await.unwrap();
+    let v: Value =
+        serde_json::from_slice(&v.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    // the store is append-only (as the Python's): the patch stays in history, compensated by an undo event
+    assert_eq!(v["twin_version"], 2, "a patch then its undo");
+    assert_eq!(v["chain_valid"], true);
+    let hist = send("GET", "/twin/history", None).await.unwrap();
+    let hist: Value =
+        serde_json::from_slice(&hist.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    let kinds: Vec<&str> = hist["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["kind"].as_str().unwrap())
+        .collect();
+    assert_eq!(kinds, ["patch", "undo"], "{hist}");
+    assert_eq!(hist["events"][1]["target"], hist["events"][0]["seq"]);
+    std::fs::remove_dir_all(&dir).unwrap();
 }

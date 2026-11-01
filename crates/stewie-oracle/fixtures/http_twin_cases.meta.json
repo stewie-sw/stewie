@@ -1,0 +1,12 @@
+{
+ "fixture": "http_twin_cases",
+ "generator": "oracle/build_fixtures.py::http_twin_cases (the FastAPI app's /twin routes through one scripted TestClient session; real DEMs, SYNTHETIC patches, labelled)",
+ "payload_sha256": "4971ca7217599e5108445aaf579a7b583019456be5f9e80437fa71895996b0dd",
+ "sources": {
+  "stewie/physics/stability.py": "5c30002a4e5f77580c5a6ae9621c2dc70345b15cd583190f080e0d966d0a4e3f",
+  "stewie/server/routers/twin.py": "6ad7ba690bf72c72c32282e4f407032cab3cbce48f86d0c8606bf07d3f8b079e",
+  "stewie/server/state.py": "614f2f1526bb2c9b953aa1ed34a0ef4f790ea5b45dbdadcda8575783d2aae9dd",
+  "stewie/server/world_state.py": "6d015fe84522f1b5198b890a1c947a83b705a1d06a3e0e87df90e3dae091395a",
+  "stewie/specs/arm_state.py": "0bd877cf06d300518831054d680edd594d043d215abd512c051540939967beb4"
+ }
+}

@@ -118,6 +118,17 @@ impl Settings {
     }
 }
 
+/// The Moon's reference sphere, from the body registry.
+fn moon_sphere() -> Result<lunar_frames::Sphere, String> {
+    let reg: Value =
+        serde_json::from_str(include_str!("../../stewie-contracts/fixtures/bodies.json"))
+            .map_err(|e| format!("the body registry: {e}"))?;
+    let r = reg["moon"]["ellipsoid_radius_m"]
+        .as_f64()
+        .ok_or("the body registry has no Moon radius")?;
+    lunar_frames::Sphere::new(r).map_err(|e| e.to_string())
+}
+
 /// Everything a request may touch, built once.
 pub struct AppState {
     pub cfg: AuthConfig,
@@ -126,6 +137,10 @@ pub struct AppState {
     pub ledger: Ledger<'static>,
     pub clock: &'static dyn Clock,
     pub entropy: &'static dyn Entropy,
+    /// The site DEMs, observed twins and composed terrain view.
+    pub terrain: crate::state::Terrain,
+    /// The linked world-state log (`data_dir/twin/world.journal`).
+    pub world: crate::world::WorldState,
     login_ip: RateLimiter,
     login_acct: RateLimiter,
     register_ip: RateLimiter,
@@ -156,7 +171,30 @@ impl AppState {
         let store = Store::new(cfg.data_dir.clone(), clock, entropy);
         let ledger = Ledger::new(cfg.data_dir.clone(), settings.audit_max_bytes, clock);
         let lim = || RateLimiter::new(settings.rate_max, settings.rate_window_s);
+        let terrain = crate::state::Terrain::new(
+            cfg.data_dir.clone(),
+            get("STEWIE_SAMPLES_DIR")
+                .filter(|d| !d.is_empty())
+                .map_or_else(
+                    // the bundles of the checkout this binary was built from, as the Python's repo-relative path
+                    || {
+                        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .join("../../samples/lunar_dem")
+                    },
+                    std::path::PathBuf::from,
+                ),
+            get("STEWIE_DEM_DIR")
+                .filter(|d| !d.is_empty())
+                .map(std::path::PathBuf::from),
+            serde_json::from_str(include_str!("../../stewie-contracts/fixtures/sites.json"))
+                .map_err(|e| format!("the site registry: {e}"))?,
+            moon_sphere()?,
+        );
+        let world =
+            crate::world::WorldState::open(&cfg.data_dir.join("twin").join("world.journal"))?;
         let state = Self {
+            terrain,
+            world,
             login_ip: lim(),
             login_acct: lim(),
             register_ip: lim(),
@@ -754,6 +792,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/auth/password", post(auth_password))
         .merge(crate::admin::routes())
         .merge(crate::construction::routes())
+        .merge(crate::twin::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

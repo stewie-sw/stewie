@@ -78,7 +78,9 @@ impl WorldState {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    /// Commit one linked snapshot of the current identities and the twin's (caller holds the lock).
+    /// Commit one linked snapshot of the current identities and the twin's (caller holds the lock). With no
+    /// `twin` this locks the default twin itself, so a caller holding the default twin's lock must pass it (as
+    /// the resync route does): the twin locks are not re-entrant.
     fn commit(
         inner: &mut Inner,
         terrain: &Terrain,

@@ -210,7 +210,8 @@ impl TwinStore {
         }
         if r0 + h > self.rows || c0 + w > self.cols {
             return Err(TwinError::Invalid(format!(
-                "patch {h}x{w} at ({r0},{c0}) exceeds the twin extent {}x{}",
+                // the Python's text: numpy shapes written as tuples
+                "patch ({h}, {w}) at ({r0},{c0}) exceeds the twin extent ({}, {})",
                 self.rows, self.cols
             )));
         }

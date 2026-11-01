@@ -29,6 +29,10 @@ pub enum Kind {
     Int { ge: i64, le: i64, default: i64 },
     /// Any JSON object; `{}` when absent.
     Dict,
+    /// Any JSON array (a bare `list`); required.
+    AnyList,
+    /// A `tuple[int, int]`: exactly two integers; required.
+    IntPair,
     /// A list of `min..=max` items, each validated against a nested model.
     List {
         min: usize,
@@ -151,43 +155,85 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
             Value::Object(_) => Some(v.clone()),
             _ => fail("Input should be a valid dictionary".to_owned()),
         },
-        Kind::List { min, max, item } => {
-            let Value::Array(items) = v else {
-                return fail("Input should be a valid list".to_owned());
-            };
-            let before = errors.len();
-            let mut out = Vec::with_capacity(items.len());
-            for (i, x) in items.iter().enumerate() {
-                let at = format!("{path}.{i}");
-                if let Value::Object(o) = x {
-                    out.push(Value::Object(fields(o, *item, &at, errors)));
-                } else {
-                    errors.push(format!(
-                        "{at}: Input should be a valid dictionary or object to extract fields from"
-                    ));
-                }
-            }
-            let items_word = |n: usize| if n == 1 { "item" } else { "items" };
-            if errors.len() > before {
-                None
-            } else if items.len() < min {
-                errors.push(format!(
-                    "{path}: List should have at least {min} {} after validation, not {}",
-                    items_word(min),
-                    items.len()
-                ));
-                None
-            } else if items.len() > max {
-                errors.push(format!(
-                    "{path}: List should have at most {max} {} after validation, not {}",
-                    items_word(max),
-                    items.len()
-                ));
-                None
-            } else {
-                Some(Value::Array(out))
-            }
+        Kind::AnyList => match v {
+            Value::Array(_) => Some(v.clone()),
+            _ => fail("Input should be a valid list".to_owned()),
+        },
+        Kind::IntPair => check_pair(v, path, errors),
+        Kind::List { min, max, item } => check_list(v, min, max, item, path, errors),
+    }
+}
+
+/// A `tuple[int, int]`: two integers, each reported at its index.
+fn check_pair(v: &Value, path: &str, errors: &mut Vec<String>) -> Option<Value> {
+    let Value::Array(items) = v else {
+        errors.push(format!("{path}: Input should be a valid tuple"));
+        return None;
+    };
+    if items.len() > 2 {
+        errors.push(format!(
+            "{path}: Tuple should have at most 2 items after validation, not {}",
+            items.len()
+        ));
+        return None;
+    }
+    let before = errors.len();
+    let mut out = Vec::new();
+    for i in 0..2 {
+        let at = format!("{path}.{i}");
+        match items.get(i).map(as_int) {
+            Some(Ok(x)) => out.push(json!(x)),
+            Some(Err(e)) => errors.push(format!("{at}: {e}")),
+            None => errors.push(format!("{at}: Field required")),
         }
+    }
+    (errors.len() == before).then_some(Value::Array(out))
+}
+
+/// A list of `min..=max` items, each a nested model: item errors first, then the length.
+fn check_list(
+    v: &Value,
+    min: usize,
+    max: usize,
+    item: &Model,
+    path: &str,
+    errors: &mut Vec<String>,
+) -> Option<Value> {
+    let Value::Array(items) = v else {
+        errors.push(format!("{path}: Input should be a valid list"));
+        return None;
+    };
+    let before = errors.len();
+    let mut out = Vec::with_capacity(items.len());
+    for (i, x) in items.iter().enumerate() {
+        let at = format!("{path}.{i}");
+        if let Value::Object(o) = x {
+            out.push(Value::Object(fields(o, *item, &at, errors)));
+        } else {
+            errors.push(format!(
+                "{at}: Input should be a valid dictionary or object to extract fields from"
+            ));
+        }
+    }
+    let word = |n: usize| if n == 1 { "item" } else { "items" };
+    if errors.len() > before {
+        None
+    } else if items.len() < min {
+        errors.push(format!(
+            "{path}: List should have at least {min} {} after validation, not {}",
+            word(min),
+            items.len()
+        ));
+        None
+    } else if items.len() > max {
+        errors.push(format!(
+            "{path}: List should have at most {max} {} after validation, not {}",
+            word(max),
+            items.len()
+        ));
+        None
+    } else {
+        Some(Value::Array(out))
     }
 }
 

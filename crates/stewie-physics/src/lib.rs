@@ -5,6 +5,7 @@
 //! Terzaghi/Vesic shallow-foundation capacity. Every function is a port of the Python implementation it
 //! replaces and is checked against that oracle to 1e-9 relative.
 
+pub mod arm;
 pub mod bearing;
 pub mod column;
 pub mod drive;
