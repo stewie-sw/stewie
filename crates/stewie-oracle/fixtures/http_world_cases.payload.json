@@ -1,0 +1,2896 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "journals": {
+  "haworth.journal": "835f3394ea587fe9b0be649440119ca833761b1e575c3ceaac0b6bced3e2c9d4",
+  "world.journal": "1b04e48990aa442cae9f471e694c23d3e31793a7d95b45b4def70e241a442f92"
+ },
+ "ledger": [
+  {
+   "action": "twin.resync",
+   "actor": "api-key",
+   "correlation_id": "cid-010",
+   "target": "world oracle",
+   "ts": 1800000001.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-world-oracle",
+ "steps": [
+  {
+   "body": {
+    "count": 68,
+    "domains": [
+     "base",
+     "design",
+     "evidence",
+     "hazard",
+     "map",
+     "mission",
+     "physics",
+     "regolith",
+     "robot",
+     "runtime",
+     "terrain",
+     "traffic"
+    ],
+    "layers": [
+     {
+      "confidence": {
+       "basis": "prior",
+       "cls": "reference",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "base",
+      "id": "base.imagery",
+      "planning_eligible": false,
+      "planning_note": "no by default",
+      "purpose": "visual basemap or orthomosaic",
+      "release_execute_eligible": false,
+      "release_execute_note": "no",
+      "source_class": "prior",
+      "tier": "world",
+      "type": "raster/tile"
+     },
+     {
+      "confidence": {
+       "basis": "prior/observed",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "base",
+      "id": "base.dem",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "authoritative elevation source for site",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if fresh/provenanced",
+      "source_class": "prior/observed",
+      "tier": "world",
+      "type": "raster/DEM"
+     },
+     {
+      "confidence": {
+       "basis": "prior/derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "base",
+      "id": "base.hillshade",
+      "planning_eligible": false,
+      "planning_note": "no",
+      "purpose": "visual terrain relief",
+      "release_execute_eligible": false,
+      "release_execute_note": "no",
+      "source_class": "prior/derived",
+      "tier": "world",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "base",
+      "id": "base.contours",
+      "planning_eligible": false,
+      "planning_note": "no by default",
+      "purpose": "elevation interpretation",
+      "release_execute_eligible": false,
+      "release_execute_note": "no",
+      "source_class": "derived",
+      "tier": "world",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "base",
+      "id": "base.grid",
+      "planning_eligible": false,
+      "planning_note": "no",
+      "purpose": "local frame/grid reference",
+      "release_execute_eligible": false,
+      "release_execute_note": "no",
+      "source_class": "derived",
+      "tier": "world",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "prior",
+       "cls": "reference",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "base",
+      "id": "base.crs_control",
+      "planning_eligible": true,
+      "planning_note": "yes for validation",
+      "purpose": "CRS/frame control points",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if verified",
+      "source_class": "prior",
+      "tier": "world",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "terrain",
+      "id": "terrain.slope",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "slope angle",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if DEM valid",
+      "source_class": "derived",
+      "tier": "derived",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived/observed",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "terrain",
+      "id": "terrain.roughness",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "terrain roughness/mobility proxy",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if calibrated",
+      "source_class": "derived/observed",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "terrain",
+      "id": "terrain.aspect",
+      "planning_eligible": false,
+      "planning_note": "no by default",
+      "purpose": "slope aspect (gradient azimuth)",
+      "release_execute_eligible": false,
+      "release_execute_note": "no",
+      "source_class": "derived",
+      "tier": "derived",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "terrain",
+      "id": "terrain.curvature",
+      "planning_eligible": false,
+      "planning_note": "no by default",
+      "purpose": "surface curvature (Laplacian)",
+      "release_execute_eligible": false,
+      "release_execute_note": "no",
+      "source_class": "derived",
+      "tier": "derived",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "terrain",
+      "id": "terrain.incidence",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "solar incidence",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if ephemeris valid",
+      "source_class": "derived",
+      "tier": "derived",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "forecast/observed",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "terrain",
+      "id": "terrain.illumination",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "lit/shadow state by mission time",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if time-bound",
+      "source_class": "forecast/observed",
+      "tier": "belief",
+      "type": "raster/time"
+     },
+     {
+      "confidence": {
+       "basis": "forecast/observed",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "terrain",
+      "id": "terrain.shadow",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "shadow hazard",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if time-bound",
+      "source_class": "forecast/observed",
+      "tier": "belief",
+      "type": "raster/time"
+     },
+     {
+      "confidence": {
+       "basis": "prior/derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "terrain",
+      "id": "terrain.psr",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "permanently shadowed region",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if sourced",
+      "source_class": "prior/derived",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "forecast/observed",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "terrain",
+      "id": "terrain.thermal",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "thermal exposure risk",
+      "release_execute_eligible": false,
+      "release_execute_note": "profile-dependent",
+      "source_class": "forecast/observed",
+      "tier": "belief",
+      "type": "raster/time"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "terrain",
+      "id": "terrain.los",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "line-of-sight/visibility",
+      "release_execute_eligible": false,
+      "release_execute_note": "profile-dependent",
+      "source_class": "derived",
+      "tier": "derived",
+      "type": "raster/vector"
+     },
+     {
+      "confidence": {
+       "basis": "forecast/observed",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "terrain",
+      "id": "terrain.comms",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "communications access",
+      "release_execute_eligible": false,
+      "release_execute_note": "profile-dependent",
+      "source_class": "forecast/observed",
+      "tier": "belief",
+      "type": "raster/vector"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "hazard",
+      "id": "hazard.slope_nogo",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "no-go steep slope mask",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes",
+      "source_class": "derived",
+      "tier": "derived",
+      "type": "raster/vector"
+     },
+     {
+      "confidence": {
+       "basis": "observed/belief",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "hazard",
+      "id": "hazard.rocks",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "rock/obstacle detections",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if sensor fresh",
+      "source_class": "observed/belief",
+      "tier": "belief",
+      "type": "raster/vector"
+     },
+     {
+      "confidence": {
+       "basis": "observed/belief",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "hazard",
+      "id": "hazard.negative_obstacles",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "holes/dropoffs",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if sensor fresh",
+      "source_class": "observed/belief",
+      "tier": "belief",
+      "type": "raster/vector"
+     },
+     {
+      "confidence": {
+       "basis": "prior/observed",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "hazard",
+      "id": "hazard.keepouts",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "user/imported no-go regions",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if approved",
+      "source_class": "prior/observed",
+      "tier": "belief",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "derived/observed",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "hazard",
+      "id": "hazard.low_confidence",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "low-confidence/no-data mask",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes as refusal input",
+      "source_class": "derived/observed",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived/belief",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "traffic",
+      "id": "traffic.traversability",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "combined mobility score",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if terms valid",
+      "source_class": "derived/belief",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived/forecast",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "traffic",
+      "id": "traffic.cost_global",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "global route cost",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if reproducible",
+      "source_class": "derived/forecast",
+      "tier": "belief",
+      "type": "costmap"
+     },
+     {
+      "confidence": {
+       "basis": "observed/belief",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "traffic",
+      "id": "traffic.cost_local",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "local planner cost",
+      "release_execute_eligible": false,
+      "release_execute_note": "execute-profile dependent",
+      "source_class": "observed/belief",
+      "tier": "belief",
+      "type": "costmap"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "traffic",
+      "id": "traffic.backlink",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "accumulated-cost backlink/allocation",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence only",
+      "source_class": "derived",
+      "tier": "derived",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "observed/derived",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "traffic",
+      "id": "traffic.compaction",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "traversal-hardening (Dr) from repeated traffic",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if measured or approved",
+      "source_class": "observed/derived",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "prior/observed",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "regolith",
+      "id": "regolith.class",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "soil/regolith class",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if sourced",
+      "source_class": "prior/observed",
+      "tier": "belief",
+      "type": "raster/vector"
+     },
+     {
+      "confidence": {
+       "basis": "derived/estimated",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "physics",
+      "id": "physics.bearing",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "bearing capacity",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if calibrated",
+      "source_class": "derived/estimated",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived/estimated",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "physics",
+      "id": "physics.sinkage",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "predicted wheel/tool sinkage",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if calibrated",
+      "source_class": "derived/estimated",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived/estimated/learned",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "physics",
+      "id": "physics.slip_risk",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "slip probability/risk",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if calibrated",
+      "source_class": "derived/estimated/learned",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "physics",
+      "id": "physics.traction_margin",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "traction/drawbar margin",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if calibrated",
+      "source_class": "derived",
+      "tier": "derived",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived/forecast",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "physics",
+      "id": "physics.energy_cost",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "steady drive power (W), not an energy total -- legacy id (task #53)",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if calibrated",
+      "source_class": "derived/forecast",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "derived/estimated",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "physics",
+      "id": "physics.excavation_resistance",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "dig draft force from the McKyes/Reece earthmoving equation over the bucket-drum cut (task #78)",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if calibrated",
+      "source_class": "derived/estimated",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "observed/derived",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "physics",
+      "id": "physics.compaction",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "compaction/sinter/support state",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if measured or approved",
+      "source_class": "observed/derived",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "user/prior",
+       "cls": "reference",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "mission",
+      "id": "mission.waypoints",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "planned traverse points",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if released",
+      "source_class": "user/prior",
+      "tier": "mission",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "forecast",
+       "cls": "predicted",
+       "conditional": false,
+       "tier": "low"
+      },
+      "domain": "mission",
+      "id": "mission.route_candidates",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "candidate routes",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence only",
+      "source_class": "forecast",
+      "tier": "mission",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "forecast/released",
+       "cls": "approved",
+       "conditional": false,
+       "tier": "high"
+      },
+      "domain": "mission",
+      "id": "mission.selected_route",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "selected plan route",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if released",
+      "source_class": "forecast/released",
+      "tier": "mission",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "forecast/live",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "mission",
+      "id": "mission.local_trajectory",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "local planner trajectory",
+      "release_execute_eligible": false,
+      "release_execute_note": "execute-profile dependent",
+      "source_class": "forecast/live",
+      "tier": "mission",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "released/live",
+       "cls": "measured",
+       "conditional": false,
+       "tier": "high"
+      },
+      "domain": "mission",
+      "id": "mission.command_queue",
+      "planning_eligible": false,
+      "planning_note": "no",
+      "purpose": "pending command geometry",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes",
+      "source_class": "released/live",
+      "tier": "mission",
+      "type": "vector/evidence"
+     },
+     {
+      "confidence": {
+       "basis": "user/prior",
+       "cls": "reference",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "design",
+      "id": "design.work_zones",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "work/exclusion zones",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if approved",
+      "source_class": "user/prior",
+      "tier": "mission",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "user/forecast",
+       "cls": "predicted",
+       "conditional": false,
+       "tier": "low"
+      },
+      "domain": "design",
+      "id": "design.cut",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "cut/excavation region",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if validated",
+      "source_class": "user/forecast",
+      "tier": "mission",
+      "type": "vector/raster"
+     },
+     {
+      "confidence": {
+       "basis": "user/forecast",
+       "cls": "predicted",
+       "conditional": false,
+       "tier": "low"
+      },
+      "domain": "design",
+      "id": "design.fill",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "fill/deposition region",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if validated",
+      "source_class": "user/forecast",
+      "tier": "mission",
+      "type": "vector/raster"
+     },
+     {
+      "confidence": {
+       "basis": "user/forecast",
+       "cls": "predicted",
+       "conditional": false,
+       "tier": "low"
+      },
+      "domain": "design",
+      "id": "design.berm",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "berm geometry",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if validated",
+      "source_class": "user/forecast",
+      "tier": "mission",
+      "type": "vector/mesh"
+     },
+     {
+      "confidence": {
+       "basis": "user/forecast",
+       "cls": "predicted",
+       "conditional": false,
+       "tier": "low"
+      },
+      "domain": "design",
+      "id": "design.pad",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "landing/work pad",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if validated",
+      "source_class": "user/forecast",
+      "tier": "mission",
+      "type": "vector/mesh"
+     },
+     {
+      "confidence": {
+       "basis": "user/forecast",
+       "cls": "predicted",
+       "conditional": false,
+       "tier": "low"
+      },
+      "domain": "design",
+      "id": "design.road",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "route/road surface design",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if validated",
+      "source_class": "user/forecast",
+      "tier": "mission",
+      "type": "vector/raster"
+     },
+     {
+      "confidence": {
+       "basis": "user/forecast",
+       "cls": "predicted",
+       "conditional": false,
+       "tier": "low"
+      },
+      "domain": "design",
+      "id": "design.trench",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "trench geometry",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if validated",
+      "source_class": "user/forecast",
+      "tier": "mission",
+      "type": "vector/mesh"
+     },
+     {
+      "confidence": {
+       "basis": "user/forecast",
+       "cls": "predicted",
+       "conditional": false,
+       "tier": "low"
+      },
+      "domain": "design",
+      "id": "design.stockpile",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "stockpile area/volume",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if validated",
+      "source_class": "user/forecast",
+      "tier": "mission",
+      "type": "vector/mesh"
+     },
+     {
+      "confidence": {
+       "basis": "user/forecast",
+       "cls": "predicted",
+       "conditional": false,
+       "tier": "low"
+      },
+      "domain": "design",
+      "id": "design.sinter",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "sintered surface",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if validated",
+      "source_class": "user/forecast",
+      "tier": "mission",
+      "type": "vector/raster"
+     },
+     {
+      "confidence": {
+       "basis": "observed/belief",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "map",
+      "id": "map.observed_dem",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "perception-updated DEM",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if fresh",
+      "source_class": "observed/belief",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "observed/belief",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "map",
+      "id": "map.occupancy",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "occupancy/obstacle grid",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if fresh",
+      "source_class": "observed/belief",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "observed/belief",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "map",
+      "id": "map.rocks",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "rock detections/object graph",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if fresh",
+      "source_class": "observed/belief",
+      "tier": "belief",
+      "type": "vector/raster"
+     },
+     {
+      "confidence": {
+       "basis": "observed/belief",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "map",
+      "id": "map.object_graph",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "mapped objects/features",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence dependent",
+      "source_class": "observed/belief",
+      "tier": "belief",
+      "type": "vector/graph"
+     },
+     {
+      "confidence": {
+       "basis": "derived/belief",
+       "cls": "derived",
+       "conditional": false,
+       "tier": "medium"
+      },
+      "domain": "map",
+      "id": "map.uncertainty",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "map/pose/terrain uncertainty",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes as refusal input",
+      "source_class": "derived/belief",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "observed",
+       "cls": "measured",
+       "conditional": false,
+       "tier": "high"
+      },
+      "domain": "map",
+      "id": "map.changed_terrain",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "changed/as-built terrain mask",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if reconciled",
+      "source_class": "observed",
+      "tier": "mission",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "observed/belief",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "map",
+      "id": "map.excavation_state",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "excavation/as-built state",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes if reconciled",
+      "source_class": "observed/belief",
+      "tier": "belief",
+      "type": "raster"
+     },
+     {
+      "confidence": {
+       "basis": "belief/live",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "robot",
+      "id": "robot.pose",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "current/estimated rover pose",
+      "release_execute_eligible": false,
+      "release_execute_note": "execute-profile dependent",
+      "source_class": "belief/live",
+      "tier": "belief",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "belief/live",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "robot",
+      "id": "robot.covariance",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "localization covariance",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes as refusal input",
+      "source_class": "belief/live",
+      "tier": "belief",
+      "type": "raster/vector"
+     },
+     {
+      "confidence": {
+       "basis": "prior/live",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "robot",
+      "id": "robot.footprint",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "vehicle footprint/collision envelope",
+      "release_execute_eligible": true,
+      "release_execute_note": "yes",
+      "source_class": "prior/live",
+      "tier": "belief",
+      "type": "vector"
+     },
+     {
+      "confidence": {
+       "basis": "live/sim/replay",
+       "cls": "measured",
+       "conditional": false,
+       "tier": "high"
+      },
+      "domain": "robot",
+      "id": "robot.sensor_frustums",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "camera/depth/LiDAR coverage",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence only",
+      "source_class": "live/sim/replay",
+      "tier": "belief",
+      "type": "vector/mesh"
+     },
+     {
+      "confidence": {
+       "basis": "live/replay",
+       "cls": "measured",
+       "conditional": false,
+       "tier": "high"
+      },
+      "domain": "robot",
+      "id": "robot.telemetry_track",
+      "planning_eligible": false,
+      "planning_note": "no",
+      "purpose": "actual telemetry path",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence",
+      "source_class": "live/replay",
+      "tier": "belief",
+      "type": "vector/time"
+     },
+     {
+      "confidence": {
+       "basis": "live/replay/sim",
+       "cls": "measured",
+       "conditional": false,
+       "tier": "high"
+      },
+      "domain": "robot",
+      "id": "robot.executed_path",
+      "planning_eligible": false,
+      "planning_note": "no",
+      "purpose": "executed trajectory",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence",
+      "source_class": "live/replay/sim",
+      "tier": "belief",
+      "type": "vector/time"
+     },
+     {
+      "confidence": {
+       "basis": "sim_truth",
+       "cls": "measured",
+       "conditional": false,
+       "tier": "high"
+      },
+      "domain": "runtime",
+      "id": "runtime.gazebo_truth",
+      "planning_eligible": false,
+      "planning_note": "no for autonomy",
+      "purpose": "simulator truth channel",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence/scoring only",
+      "source_class": "sim_truth",
+      "tier": "raw",
+      "type": "vector/time"
+     },
+     {
+      "confidence": {
+       "basis": "replay/live/sim",
+       "cls": "measured",
+       "conditional": false,
+       "tier": "high"
+      },
+      "domain": "runtime",
+      "id": "runtime.rviz_status",
+      "planning_eligible": false,
+      "planning_note": "no",
+      "purpose": "RViz display/topic status",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence only",
+      "source_class": "replay/live/sim",
+      "tier": "raw",
+      "type": "evidence"
+     },
+     {
+      "confidence": {
+       "basis": "forecast/replay/live",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "runtime",
+      "id": "runtime.godot_capture",
+      "planning_eligible": false,
+      "planning_note": "no",
+      "purpose": "Godot rendered view/capture",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence only",
+      "source_class": "forecast/replay/live",
+      "tier": "belief",
+      "type": "evidence/media"
+     },
+     {
+      "confidence": {
+       "basis": "observed/reconciled",
+       "cls": "measured",
+       "conditional": false,
+       "tier": "high"
+      },
+      "domain": "evidence",
+      "id": "evidence.before_after_dem",
+      "planning_eligible": true,
+      "planning_note": "yes",
+      "purpose": "before/after terrain delta",
+      "release_execute_eligible": false,
+      "release_execute_note": "report/release evidence",
+      "source_class": "observed/reconciled",
+      "tier": "mission",
+      "type": "raster/evidence"
+     },
+     {
+      "confidence": {
+       "basis": "forecast/replay/live",
+       "cls": "measured",
+       "conditional": true,
+       "tier": "high"
+      },
+      "domain": "evidence",
+      "id": "evidence.rehearsal_divergence",
+      "planning_eligible": true,
+      "planning_note": "yes for replan",
+      "purpose": "plan-vs-sim/actual divergence",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence",
+      "source_class": "forecast/replay/live",
+      "tier": "belief",
+      "type": "raster/vector"
+     },
+     {
+      "confidence": {
+       "basis": "evidence",
+       "cls": "evidence",
+       "conditional": false,
+       "tier": "n/a"
+      },
+      "domain": "evidence",
+      "id": "evidence.report_snapshot",
+      "planning_eligible": false,
+      "planning_note": "no",
+      "purpose": "frozen map/report snapshot",
+      "release_execute_eligible": false,
+      "release_execute_note": "evidence",
+      "source_class": "evidence",
+      "tier": "derived",
+      "type": "media/evidence"
+     }
+    ],
+    "missing_layer_kinds": [
+     {
+      "available": true,
+      "catalog_ids": [
+       "map.changed_terrain",
+       "evidence.before_after_dem"
+      ],
+      "kind": "digital-twin-difference",
+      "note": "the LY-07 signed as-built/observed-minus-base elevation-difference drape (render_globe 'changed_terrain'): excavation (cut) negative/red, deposited material (fill/berm) positive/blue, unworked ground transparent; per-cell depth via /world/point runtime_evidence.as_built_delta_m; the drape carries the as_built/twin versions it was computed from.",
+      "producer": "changed_terrain",
+      "provenance": {
+       "evidence.before_after_dem": {
+        "planning_eligible": true,
+        "release_execute_eligible": false,
+        "source_class": "observed/reconciled"
+       },
+       "map.changed_terrain": {
+        "planning_eligible": true,
+        "release_execute_eligible": true,
+        "source_class": "observed"
+       }
+      }
+     },
+     {
+      "available": false,
+      "catalog_ids": [
+       "terrain.psr",
+       "terrain.thermal"
+      ],
+      "kind": "ice-probability",
+      "reason": "NO quantitative per-cell ice-probability producer -- terrain.thermal is catalog-only (no Diviner/LOLA thermal ice-stability raster wired). NOT fabricated. The real ice-relevant proxy that IS available is terrain.psr (permanently-shadowed cold-trap candidate, horizon-computed on the real DEM), a distinct classification rather than an ice probability; a quantitative depth-to-ice needs a Diviner/thermal dataset (the same gap transect_profile declares for ice_stability)."
+     },
+     {
+      "available": false,
+      "catalog_ids": [
+       "robot.covariance",
+       "map.uncertainty"
+      ],
+      "kind": "localization-confidence",
+      "reason": "NO producer on the static-prior GIS server -- localization covariance (robot.covariance) and map/pose uncertainty (map.uncertainty) are belief/live channels that only exist during a live run/replay (SLAM/EKF), not a per-cell raster over the fixed prior DEM. Typed + registered in the LY-01 catalog but not rendered here. NOT fabricated."
+     },
+     {
+      "available": false,
+      "catalog_ids": [
+       "robot.sensor_frustums",
+       "terrain.los"
+      ],
+      "kind": "sensor-coverage",
+      "reason": "NO viewshed/coverage producer wired -- robot.sensor_frustums is a live/sim/replay channel; the horizon-marched line-of-sight visibility producer for terrain.los/terrain.comms is tracked as LY-06 (not yet built). NOT fabricated."
+     }
+    ],
+    "schema_version": "1.0",
+    "source": "PRD2 explicit layer catalog"
+   },
+   "cache_control": "no-store",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/layer-catalog",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "consumers": [
+     "display",
+     "planner",
+     "costmap",
+     "rehearsal",
+     "release",
+     "execute",
+     "report",
+     "export"
+    ],
+    "count": 68,
+    "layers": [
+     {
+      "consumers": [
+       "display",
+       "report",
+       "export"
+      ],
+      "domain": "base",
+      "id": "base.imagery"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "base",
+      "id": "base.dem"
+     },
+     {
+      "consumers": [
+       "display",
+       "report",
+       "export"
+      ],
+      "domain": "base",
+      "id": "base.hillshade"
+     },
+     {
+      "consumers": [
+       "display",
+       "report",
+       "export"
+      ],
+      "domain": "base",
+      "id": "base.contours"
+     },
+     {
+      "consumers": [
+       "display",
+       "report",
+       "export"
+      ],
+      "domain": "base",
+      "id": "base.grid"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "base",
+      "id": "base.crs_control"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.slope"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.roughness"
+     },
+     {
+      "consumers": [
+       "display",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.aspect"
+     },
+     {
+      "consumers": [
+       "display",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.curvature"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.incidence"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.illumination"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.shadow"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.psr"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.thermal"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.los"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "terrain",
+      "id": "terrain.comms"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "hazard",
+      "id": "hazard.slope_nogo"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "hazard",
+      "id": "hazard.rocks"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "hazard",
+      "id": "hazard.negative_obstacles"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "hazard",
+      "id": "hazard.keepouts"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "hazard",
+      "id": "hazard.low_confidence"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "traffic",
+      "id": "traffic.traversability"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "traffic",
+      "id": "traffic.cost_global"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "traffic",
+      "id": "traffic.cost_local"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "report",
+       "export"
+      ],
+      "domain": "traffic",
+      "id": "traffic.backlink"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "traffic",
+      "id": "traffic.compaction"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "regolith",
+      "id": "regolith.class"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "physics",
+      "id": "physics.bearing"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "physics",
+      "id": "physics.sinkage"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "physics",
+      "id": "physics.slip_risk"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "physics",
+      "id": "physics.traction_margin"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "physics",
+      "id": "physics.energy_cost"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "physics",
+      "id": "physics.excavation_resistance"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "costmap",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "physics",
+      "id": "physics.compaction"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "mission",
+      "id": "mission.waypoints"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "mission",
+      "id": "mission.route_candidates"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "mission",
+      "id": "mission.selected_route"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "mission",
+      "id": "mission.local_trajectory"
+     },
+     {
+      "consumers": [
+       "display",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "mission",
+      "id": "mission.command_queue"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "design",
+      "id": "design.work_zones"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "design",
+      "id": "design.cut"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "design",
+      "id": "design.fill"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "design",
+      "id": "design.berm"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "design",
+      "id": "design.pad"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "design",
+      "id": "design.road"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "design",
+      "id": "design.trench"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "design",
+      "id": "design.stockpile"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "design",
+      "id": "design.sinter"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "map",
+      "id": "map.observed_dem"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "map",
+      "id": "map.occupancy"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "map",
+      "id": "map.rocks"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "map",
+      "id": "map.object_graph"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "map",
+      "id": "map.uncertainty"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "map",
+      "id": "map.changed_terrain"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "map",
+      "id": "map.excavation_state"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "robot",
+      "id": "robot.pose"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "robot",
+      "id": "robot.covariance"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "release",
+       "execute",
+       "report",
+       "export"
+      ],
+      "domain": "robot",
+      "id": "robot.footprint"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "robot",
+      "id": "robot.sensor_frustums"
+     },
+     {
+      "consumers": [
+       "display",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "robot",
+      "id": "robot.telemetry_track"
+     },
+     {
+      "consumers": [
+       "display",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "robot",
+      "id": "robot.executed_path"
+     },
+     {
+      "consumers": [
+       "display",
+       "rehearsal",
+       "report"
+      ],
+      "domain": "runtime",
+      "id": "runtime.gazebo_truth"
+     },
+     {
+      "consumers": [
+       "display",
+       "rehearsal",
+       "report"
+      ],
+      "domain": "runtime",
+      "id": "runtime.rviz_status"
+     },
+     {
+      "consumers": [
+       "display",
+       "rehearsal",
+       "report"
+      ],
+      "domain": "runtime",
+      "id": "runtime.godot_capture"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "rehearsal",
+       "report",
+       "export"
+      ],
+      "domain": "evidence",
+      "id": "evidence.before_after_dem"
+     },
+     {
+      "consumers": [
+       "display",
+       "planner",
+       "report",
+       "export"
+      ],
+      "domain": "evidence",
+      "id": "evidence.rehearsal_divergence"
+     },
+     {
+      "consumers": [
+       "display",
+       "report",
+       "export"
+      ],
+      "domain": "evidence",
+      "id": "evidence.report_snapshot"
+     }
+    ],
+    "ok": true
+   },
+   "cache_control": "no-store",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/layer-consumption",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "backend": "tier2_numpy",
+    "count": 12,
+    "derived_layers": [
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [],
+      "from_terms": [
+       "slope"
+      ],
+      "layer": "terrain.slope"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [],
+      "from_terms": [
+       "roughness"
+      ],
+      "layer": "terrain.roughness"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "contact_pressure"
+      ],
+      "from_terms": [
+       "contact_pressure"
+      ],
+      "layer": "physics.bearing"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "sinkage"
+      ],
+      "from_terms": [
+       "sinkage"
+      ],
+      "layer": "physics.sinkage"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "slip"
+      ],
+      "from_terms": [
+       "slip",
+       "slope"
+      ],
+      "layer": "physics.slip_risk"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "traction",
+       "slip"
+      ],
+      "from_terms": [
+       "traction",
+       "slip"
+      ],
+      "layer": "physics.traction_margin"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "drive_energy"
+      ],
+      "from_terms": [
+       "drive_energy"
+      ],
+      "layer": "physics.energy_cost"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "excavation_draft"
+      ],
+      "from_terms": [
+       "excavation_draft"
+      ],
+      "layer": "physics.excavation_resistance"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "compaction_resistance",
+       "sinkage"
+      ],
+      "from_terms": [
+       "compaction_resistance",
+       "sinkage"
+      ],
+      "layer": "physics.compaction"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "slip",
+       "traction"
+      ],
+      "from_terms": [
+       "slip",
+       "slope",
+       "traction"
+      ],
+      "layer": "traffic.traversability"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "drive_energy"
+      ],
+      "from_terms": [
+       "drive_energy",
+       "slope"
+      ],
+      "layer": "traffic.cost_global"
+     },
+     {
+      "backend": "tier2_numpy",
+      "computed_terms": [
+       "contact_pressure",
+       "sinkage"
+      ],
+      "from_terms": [
+       "contact_pressure",
+       "sinkage"
+      ],
+      "layer": "traffic.compaction"
+     }
+    ],
+    "ok": true
+   },
+   "cache_control": "no-store",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/terramechanics-layers",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "sites": [
+     {
+      "extent_m": [
+       -19000.0,
+       -20000.0,
+       -3000.0,
+       -4000.0
+      ],
+      "label": "Connecting Ridge",
+      "lat": -89.46316283,
+      "lon": -137.48955292,
+      "name": "Site01"
+     },
+     {
+      "extent_m": [
+       -9000.0,
+       -15000.0,
+       7000.0,
+       1000.0
+      ],
+      "label": "Shackleton Rim",
+      "lat": -89.76681145,
+      "lon": -171.86989765,
+      "name": "Site04"
+     },
+     {
+      "extent_m": [
+       74000.0,
+       100000.0,
+       94000.0,
+       120000.0
+      ],
+      "label": "Nobile Rim 1",
+      "lat": -85.43810048,
+      "lon": 37.36666941,
+      "name": "Site06"
+     },
+     {
+      "extent_m": [
+       22000.0,
+       -28000.0,
+       38000.0,
+       -12000.0
+      ],
+      "label": "Peak near Shackleton",
+      "lat": -88.81100807,
+      "lon": 123.69006753,
+      "name": "Site07"
+     },
+     {
+      "extent_m": [
+       -45000.0,
+       7000.0,
+       -29000.0,
+       23000.0
+      ],
+      "label": "de Gerlache Rim",
+      "lat": -88.68341815,
+      "lon": -67.93210044,
+      "name": "Site11"
+     },
+     {
+      "extent_m": [
+       65000.0,
+       110000.0,
+       81000.0,
+       126000.0
+      ],
+      "label": "Leibnitz Beta Plateau",
+      "lat": -85.42657728,
+      "lon": 31.74276115,
+      "name": "Site20"
+     },
+     {
+      "extent_m": [
+       -11000.0,
+       111000.0,
+       10000.0,
+       132000.0
+      ],
+      "label": "Malapert Massif",
+      "lat": -85.99478468,
+      "lon": -0.23578377,
+      "name": "Site23"
+     },
+     {
+      "extent_m": [
+       -123400.0,
+       -66100.0,
+       -103400.0,
+       -46100.0
+      ],
+      "label": "de Gerlache-Kocher Massif",
+      "lat": -85.82955053,
+      "lon": -116.32201645,
+      "name": "Site42"
+     },
+     {
+      "extent_m": [
+       -40120.0,
+       83260.0,
+       -28460.0,
+       95320.0
+      ],
+      "label": "Haworth",
+      "lat": -86.84653289,
+      "lon": -21.00826576,
+      "name": "Haworth"
+     }
+    ]
+   },
+   "cache_control": "no-store",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/site-markers",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "committed": false,
+    "note": "no traffic hardening recorded for this site yet",
+    "ok": true,
+    "site": "haworth"
+   },
+   "cache_control": "no-store",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/traffic-layer",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "committed": true,
+    "grid": {
+     "cell_m": 0.5,
+     "cols": 5,
+     "origin": [
+      1.0,
+      -2.0
+     ],
+     "rows": 4
+    },
+    "ok": true,
+    "provenance": {
+     "calibration": {
+      "road_layer_mass_areal": "[CALIB]",
+      "sigma_c_n": "[CALIB]"
+     },
+     "chain_head": "43a17175bb833cdd6f994c5437b31f3c5d40746eb1260d7e53a17d78e049c353",
+     "mass_areal_kg_m2": 130.0,
+     "sigma_c_n": 60.0,
+     "verified": true,
+     "version": 1
+    },
+    "site": "shackleton_rim",
+    "summary": {
+     "cells_firm_dr_gt_0p5": 4,
+     "cells_trafficked": 4,
+     "max_load_cycles_n": 2400.0,
+     "max_passes": 1,
+     "missions": [
+      "haul-1"
+     ],
+     "peak_bearing_uplift_pa": 199929.3,
+     "peak_relative_density": 1.0,
+     "site": "shackleton_rim",
+     "version": 1
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/traffic-layer?site=shackleton_rim",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "committed": false,
+    "count": 0,
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/transaction",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/transaction",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true,
+    "provenance": {
+     "as_built_version": 0,
+     "cell_m": 5.0,
+     "cells": {
+      "as_built": 0,
+      "observed": 0,
+      "pristine": 4000000
+     },
+     "cols": 2000,
+     "observed_fraction": 0.0,
+     "rows": 2000,
+     "twin_version": 0
+    },
+    "site": "haworth"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/terrain_view?site=haworth",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "twin_version": 1
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "heights_m": [
+      [
+       1100.25,
+       1100.5
+      ],
+      [
+       1101.0,
+       1101.25
+      ]
+     ],
+     "origin_rc": [
+      1382,
+      823
+     ],
+     "provenance": "world oracle"
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "committed": true,
+    "count": 1,
+    "ok": true,
+    "transaction": {
+     "authority_sha": "genesis",
+     "belief": {},
+     "body": "moon",
+     "chain_hash": "0d1ba20349791e47841ddff73c730aab0cebde32e0cbdc4d2383e71ca1430442",
+     "mission": "none",
+     "mission_t_s": 0.0,
+     "packet_sha": "",
+     "plan_id": "none",
+     "prev_hash": "genesis",
+     "provenance": "twin.resync: world oracle",
+     "seq": 0,
+     "site": "haworth",
+     "twin_hash": "131045c058ae2c77ee0b9ede9fb43f44a143b32eee2ddf5b3ddfd08cddf055e2",
+     "twin_version": 1,
+     "uncertainty_m": 0.0,
+     "vehicle_sha": "",
+     "world_sha": "cb29d8e69d15c1ca48c2cad2b4e110c5fcf9305bba037d9705c5a76d198efd19"
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/transaction",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "count": 1,
+    "ok": true,
+    "transactions": [
+     {
+      "authority_sha": "genesis",
+      "mission": "none",
+      "mission_t_s": 0.0,
+      "plan_id": "none",
+      "provenance": "twin.resync: world oracle",
+      "seq": 0,
+      "twin_version": 1,
+      "world_sha": "cb29d8e69d15c1ca48c2cad2b4e110c5fcf9305bba037d9705c5a76d198efd19"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/transactions?limit=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "limit: Input should be a valid integer, unable to parse string as an integer",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/transactions?limit=abc",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "count": 1,
+    "ok": true,
+    "transactions": [
+     {
+      "authority_sha": "genesis",
+      "mission": "none",
+      "mission_t_s": 0.0,
+      "plan_id": "none",
+      "provenance": "twin.resync: world oracle",
+      "seq": 0,
+      "twin_version": 1,
+      "world_sha": "cb29d8e69d15c1ca48c2cad2b4e110c5fcf9305bba037d9705c5a76d198efd19"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/transactions",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "provenance": {
+     "as_built_version": 0,
+     "cell_m": 5.0,
+     "cells": {
+      "as_built": 0,
+      "observed": 4,
+      "pristine": 3999996
+     },
+     "cols": 2000,
+     "observed_fraction": 1e-06,
+     "rows": 2000,
+     "twin_version": 1
+    },
+    "site": "haworth"
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/terrain_view?site=haworth",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no DEM bundle for site 'atlantis'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/terrain_view?site=atlantis",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "png": {
+     "height": 63,
+     "rgb_sha256": "67d2676e442af57e966ab5e40b5e01fa5e03bab6ebf9c7e6dea9b7b68a410e9b",
+     "width": 63
+    }
+   },
+   "cache_control": "no-cache",
+   "clock": 1800000001.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/terrain_view.png?site=haworth&max_px=64",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 16,
+     "rgb_sha256": "ad683968c54d1f082c4ebf5587650b1c8d2f0179564cc699647d1062a4fa729b",
+     "width": 16
+    }
+   },
+   "cache_control": "no-cache",
+   "clock": 1800000001.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/terrain_view.png?site=haworth&max_px=5",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no DEM bundle for site 'atlantis'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/terrain_view.png?site=atlantis",
+    "raw": null
+   },
+   "status": 404
+  }
+ ],
+ "store": null
+}

@@ -1,0 +1,13 @@
+{
+ "fixture": "http_world_cases",
+ "generator": "oracle/build_fixtures.py::http_world_cases (the FastAPI app's /world read routes; real DEMs and site vectors, SYNTHETIC patch and traffic, labelled)",
+ "payload_sha256": "eb5bb22372760d77f49c64d44db5ab4f544c19dca37f4b1fc569219789218703",
+ "sources": {
+  "stewie/server/cache_control.py": "61b85076071411054d6cc5ef8dc2e0ce47186af40da9d132019451f676c51bec",
+  "stewie/server/layer_catalog.json": "c0a4a424f041ed758a55ff48b0b8f401564aa56caab63e2e6070a9fc7cf44317",
+  "stewie/server/layer_consumption.py": "42298f77c5fa37122f04b13783779d01d9286a39a4666f43e5fe509c1594ceff",
+  "stewie/server/layer_tier.py": "ab2540074c1a99923eefe2dd25d7e621e61357758967afe600587828d5ab0c71",
+  "stewie/server/routers/world.py": "fb2e98c93d593de4369f9e78d2f3ef5afa7fa3eb9b0f80f5943ab567da4007e0",
+  "stewie/specs/terramechanics_spine.py": "a767515c7bc1cf581c516fb5b85eea6b8b0ec7ec788a73ac4205752a065d530a"
+ }
+}

@@ -1504,6 +1504,7 @@ dependencies = [
  "lunar-dem",
  "lunar-frames",
  "pbkdf2",
+ "png",
  "regex",
  "serde",
  "serde_json",

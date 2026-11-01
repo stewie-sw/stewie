@@ -732,6 +732,83 @@ async fn security_headers(req: Request, next: Next) -> Response {
     r
 }
 
+/// The public-GET caching policy (Python `cache_control.classify`): dynamic world and planner reads are never
+/// stored (set even on errors), static DEM-derived products may be edge-cached five minutes (set only on a 200
+/// that does not already say). The `traffic` drape is the one dynamic kind.
+fn cache_directive(path: &str, query: Option<&str>) -> Option<(&'static str, bool)> {
+    const NO_STORE_PATHS: [&str; 11] = [
+        "/world/site-markers",
+        "/world/point",
+        "/world/points",
+        "/world/transect",
+        "/world/layer-manifest",
+        "/world/layer-catalog",
+        "/world/layer-consumption",
+        "/world/traffic-layer",
+        "/world/terramechanics-layers",
+        "/world/site-suitability",
+        "/world/keepouts-from-hazard",
+    ];
+    const STATIC_EXACT: [&str; 4] = [
+        "/dem/heightfield_full",
+        "/dem/heightfield_full/meta",
+        "/dem/graticule",
+        "/layers/legend",
+    ];
+    const NO_STORE: (&str, bool) = ("no-store", true);
+    const STATIC: (&str, bool) = ("public, max-age=300", false);
+    let by_kind = |k: Option<&str>| {
+        if k == Some("traffic") {
+            NO_STORE
+        } else {
+            STATIC
+        }
+    };
+    let param = |name: &str| {
+        query?.split('&').find_map(|kv| {
+            let (k, v) = kv.split_once('=').unwrap_or((kv, ""));
+            k.eq_ignore_ascii_case(name).then_some(v)
+        })
+    };
+    if NO_STORE_PATHS.contains(&path) {
+        return Some(NO_STORE);
+    }
+    if let Some(rest) = path.strip_prefix("/layers/globe/") {
+        if let Some(kind) = rest.strip_suffix(".png").filter(|k| !k.contains('/')) {
+            return Some(by_kind(Some(kind)));
+        }
+        if rest.strip_suffix("/bbox").is_some_and(|k| !k.contains('/')) {
+            return Some(STATIC);
+        }
+    }
+    if path == "/dem/heightfield_full/layer.png" {
+        return Some(by_kind(Some(
+            param("kind").filter(|k| !k.is_empty()).unwrap_or("dem"),
+        )));
+    }
+    if path == "/ogc/wms" {
+        let layer = param("layers")
+            .filter(|v| !v.is_empty())
+            .map(|v| v.split(',').next().unwrap_or("").trim());
+        return Some(by_kind(layer));
+    }
+    STATIC_EXACT.contains(&path).then_some(STATIC)
+}
+
+async fn cache_control(req: Request, next: Next) -> Response {
+    let directive = cache_directive(req.uri().path(), req.uri().query());
+    let mut r = next.run(req).await;
+    if let Some((value, overwrite)) = directive {
+        let v = HeaderValue::from_static(value);
+        if overwrite {
+            r.headers_mut().insert(header::CACHE_CONTROL, v);
+        } else if r.status() == StatusCode::OK {
+            r.headers_mut().entry(header::CACHE_CONTROL).or_insert(v);
+        }
+    }
+    r
+}
+
 /// The outermost layer: the correlation id (an inbound `X-Correlation-Id` / `X-Request-Id`, else a fresh one),
 /// and the body-size cap on POST/PUT/PATCH (declared, then actual). An over-cap request is answered here, before
 /// any other layer, as the Python's.
@@ -797,10 +874,12 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::admin::routes())
         .merge(crate::construction::routes())
         .merge(crate::twin::routes())
+        .merge(crate::world_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())
         .layer(middleware::from_fn(security_headers))
+        .layer(middleware::from_fn(cache_control))
         .layer(middleware::from_fn_with_state(state.clone(), correlate))
         .with_state(state)
 }

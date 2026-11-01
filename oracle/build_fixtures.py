@@ -3966,6 +3966,176 @@ def http_twin_cases() -> None:
                    "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger, "journals": journals})
 
 
+def http_world_cases() -> None:
+    """The world read surface (RW-55b5a): the real FastAPI app's public catalog reads (/world/layer-catalog,
+    layer-consumption, terramechanics-layers, site-markers, traffic-layer), the world transaction views and the
+    composed terrain-view provenance (JSON and PNG), through one scripted TestClient session with the response
+    Cache-Control recorded; a PNG is recorded by its decoded pixels. Real site DEMs and the real site-vector
+    file; the resync patch, the planted traffic memory and the keys are SYNTHETIC test inputs (labelled). The
+    traffic summary runs at the registry's loose friction (D-R72)."""
+    import hashlib
+    import importlib
+    import tempfile
+    import uuid as _uuid
+
+    from fastapi.testclient import TestClient
+
+    import stewie.server.auth as A
+    import stewie.server.operators as O
+    import stewie.server.routers.auth as R
+    import stewie.server.services as S
+
+    seed = hashlib.sha256(b"stewie-http-world-oracle").digest()
+    stream = {"n": 0}
+
+    def det_bytes(n: int) -> bytes:                         # SYNTHETIC deterministic randomness (labelled)
+        out = b""
+        while len(out) < n:
+            out += hashlib.sha256(seed + stream["n"].to_bytes(8, "big")).digest()
+            stream["n"] += 1
+        return out[:n]
+
+    clock = {"t": 1_800_000_000.0}
+    env = {"STEWIE_API_KEY": "automation-key-0123456789", "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+           "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+           "STEWIE_DIRECTORS": "alice@example.org", "STEWIE_GIS_ANON_KEY": "anon-key-xyz"}
+    unset = ("STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED", "STEWIE_DESKTOP", "STEWIE_OPERATOR_LOGIN",
+             "STEWIE_TRUST_PROXY", "STEWIE_CORS_ORIGINS", "STEWIE_DEV_OPEN", "STEWIE_AUDIT_MAX_BYTES",
+             "STEWIE_REGISTRATION", "STEWIE_TRUST_TAILSCALE", "STEWIE_TRUSTED_PROXIES", "STEWIE_MAX_BODY_BYTES")
+    saved = {k: os.environ.get(k) for k in list(env) + list(unset) + ["STEWIE_DATA_DIR"]}
+    patched = {"urandom": O.os.urandom, "token_urlsafe": O.secrets.token_urlsafe, "token_hex": S.secrets.token_hex,
+               "clock": O._clock, "uuid4": A.uuid.uuid4, "a_time": A.time.time, "s_time": S.time.time}
+    steps = []
+
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ.update(env)
+            os.environ["STEWIE_DATA_DIR"] = d
+            for k in unset:
+                os.environ.pop(k, None)
+            O.os.urandom = det_bytes
+            O.secrets.token_urlsafe = lambda n: __import__("base64").urlsafe_b64encode(det_bytes(n)).decode().rstrip("=")
+            S.secrets.token_hex = lambda n: det_bytes(n).hex()
+            O._clock = lambda: clock["t"]
+            A.uuid.uuid4 = lambda: _uuid.UUID(bytes=det_bytes(16), version=4)
+            A.time.time = lambda: clock["t"]
+            S.time.time = lambda: clock["t"]
+            S.reset_audit_health()
+            S.reset_revocation_health()
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            import stewie.server.server as srv
+            importlib.reload(srv)
+            client = TestClient(srv.app, client=("127.0.0.1", 50000))
+            n = {"i": 0}
+
+            def call(method, path, *, headers=None, json_body=None, raw=None):
+                n["i"] += 1
+                h = dict(headers or {})
+                h["X-Correlation-Id"] = f"cid-{n['i']:03d}"
+                client.cookies.clear()
+                kw = {}
+                if json_body is not None:
+                    kw["json"] = json_body
+                if raw is not None:
+                    kw["content"] = raw
+                    h.setdefault("Content-Type", "application/json")
+                r = client.request(method, path, headers=h, **kw)
+                try:
+                    body = r.json()
+                except ValueError:
+                    body = r.text
+                if r.headers.get("content-type", "").startswith("image/png"):
+                    import hashlib as _h
+                    import io as _io
+
+                    from PIL import Image as _Image
+                    im = _Image.open(_io.BytesIO(r.content)).convert("RGB")
+                    body = {"png": {"width": im.width, "height": im.height,
+                                    "rgb_sha256": _h.sha256(im.tobytes()).hexdigest()}}
+                steps.append({"request": {"method": method, "path": path, "headers": h, "json": json_body,
+                                          "raw": raw}, "clock": clock["t"], "status": r.status_code, "body": body,
+                              "cache_control": r.headers.get("cache-control"),
+                              "content_type": r.headers.get("content-type")})
+                return r
+
+            import hashlib as _hl
+
+            import stewie.server.state as ST
+            from stewie.twin import terrain_memory as TM
+            saved_state = (ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS)
+            ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS = {}, None, None, {}, None
+            os.environ.pop("STEWIE_DEM_DIR", None)
+            os.environ.pop("STEWIE_DATABASE_URL", None)
+            key = {"X-API-Key": env["STEWIE_API_KEY"]}
+            from stewie.twin import traffic_memory as TW
+            try:
+                call("GET", "/world/layer-catalog")
+                call("GET", "/world/layer-consumption")
+                call("GET", "/world/terramechanics-layers")
+                call("GET", "/world/site-markers")
+                call("GET", "/world/traffic-layer")
+                tm = TW.TrafficMemory(site="shackleton_rim", rows=4, cols=5, cell_m=0.5, origin=(1.0, -2.0))
+                load = np.zeros((4, 5))                            # SYNTHETIC wheel load field (labelled)
+                load[1, 1:4] = 2400.0
+                load[2, 2] = 900.0
+                tm.apply(load, mission="haul-1", event_id="ev-1")
+                TW.save_site(d, tm)
+                # D-R72: the loose-end friction is the body registry's 35 deg, not the Python constant's 37
+                from stewie.physics import material as _MAT
+                _phi = _MAT.PHI_LOOSE_DEG
+                _MAT.PHI_LOOSE_DEG = 35.0
+                try:
+                    call("GET", "/world/traffic-layer?site=shackleton_rim")
+                finally:
+                    _MAT.PHI_LOOSE_DEG = _phi
+                call("GET", "/world/transaction", headers=key)
+                call("GET", "/world/transaction")
+                call("GET", "/world/terrain_view?site=haworth", headers=key)
+                clock["t"] += 1.0
+                call("POST", "/twin/resync", headers=key,
+                     json_body={"heights_m": [[1100.25, 1100.5], [1101.0, 1101.25]], "origin_rc": [1382, 823],
+                                "provenance": "world oracle"})
+                call("GET", "/world/transaction", headers=key)
+                call("GET", "/world/transactions?limit=0", headers=key)
+                call("GET", "/world/transactions?limit=abc", headers=key)
+                call("GET", "/world/transactions", headers=key)
+                call("GET", "/world/terrain_view?site=haworth", headers=key)
+                call("GET", "/world/terrain_view?site=atlantis", headers=key)
+                call("GET", "/world/terrain_view.png?site=haworth&max_px=64", headers=key)
+                call("GET", "/world/terrain_view.png?site=haworth&max_px=5", headers=key)
+                call("GET", "/world/terrain_view.png?site=atlantis", headers=key)
+                tdir = os.path.join(d, "twin")
+                journals = {f: _hl.sha256(open(os.path.join(tdir, f), "rb").read()).hexdigest()
+                            for f in sorted(os.listdir(tdir)) if f.endswith(".journal")}
+            finally:
+                ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS = saved_state
+            store = json.load(open(os.path.join(d, "operators.json"))) if os.path.exists(os.path.join(d, "operators.json")) else None
+            ledger = [json.loads(x) for x in open(os.path.join(d, "events.jsonl"))]
+        finally:
+            O.os.urandom = patched["urandom"]
+            O.secrets.token_urlsafe = patched["token_urlsafe"]
+            S.secrets.token_hex = patched["token_hex"]
+            O._clock = patched["clock"]
+            A.uuid.uuid4 = patched["uuid4"]
+            A.time.time = patched["a_time"]
+            S.time.time = patched["s_time"]
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            importlib.reload(srv)
+    write_fixture(ORACLE_FIXTURES, "http_world_cases", "oracle/build_fixtures.py::http_world_cases (the FastAPI app's "
+                  "/world read routes; real DEMs and site vectors, SYNTHETIC patch and traffic, labelled)",
+                  ["stewie/server/routers/world.py", "stewie/server/layer_catalog.json", "stewie/server/layer_tier.py",
+                   "stewie/server/layer_consumption.py", "stewie/specs/terramechanics_spine.py", "stewie/server/cache_control.py"],
+                  {"env": env, "seed_sha256_of": "stewie-http-world-oracle", "clock0": 1_800_000_000.0,
+                   "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger, "journals": journals})
+
+
 def http_record_cases() -> None:
     """Recording terrain and the volume evidence (RW-55b4b-2): the real FastAPI app's POST /twin/terrain/{site}
     (operator+; a mission's flat-mantle terrain change folded into the site's Terrain Memory and committed to the
@@ -4196,6 +4366,7 @@ def main() -> None:
     http_build_cases()
     http_twin_cases()
     http_record_cases()
+    http_world_cases()
 
 
 if __name__ == "__main__":

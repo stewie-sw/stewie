@@ -93,6 +93,23 @@ fn normalise(body: &mut Value) {
     }
 }
 
+/// A PNG as the oracle records it: its size and the sha256 of its decoded RGB pixels.
+fn png_summary(bytes: &[u8]) -> Value {
+    let mut dec = png::Decoder::new(std::io::Cursor::new(bytes))
+        .read_info()
+        .unwrap();
+    let mut buf = vec![0; dec.output_buffer_size().unwrap()];
+    let info = dec.next_frame(&mut buf).unwrap();
+    assert_eq!(info.color_type, png::ColorType::Rgb, "an RGB image");
+    let rgb = &buf[..info.buffer_size()];
+    let digest = Sha256::digest(rgb).iter().fold(String::new(), |mut h, b| {
+        use std::fmt::Write as _;
+        let _ = write!(h, "{b:02x}");
+        h
+    });
+    json!({"png": {"width": info.width, "height": info.height, "rgb_sha256": digest}})
+}
+
 /// Replay the fixture `name` (seeded from `seed`) through a fresh app; `before(i, step, clock, dir)` reproduces
 /// what the oracle did between requests. Headers and cookies are compared where the fixture recorded them.
 #[allow(clippy::too_many_lines)] // one request loop, then the stores and journals
@@ -169,9 +186,20 @@ async fn replay(
             })
             .collect();
         let cookies = cookies_of(resp.headers());
+        let header_of = |n: &str| {
+            resp.headers()
+                .get(n)
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_owned)
+        };
+        let (resp_cache, resp_type) = (header_of("cache-control"), header_of("content-type"));
         let raw = resp.into_body().collect().await.unwrap().to_bytes();
-        let mut body: Value = serde_json::from_slice(&raw)
-            .unwrap_or_else(|_| json!(String::from_utf8_lossy(&raw).into_owned()));
+        let mut body: Value = if resp_type.as_deref() == Some("image/png") {
+            png_summary(&raw)
+        } else {
+            serde_json::from_slice(&raw)
+                .unwrap_or_else(|_| json!(String::from_utf8_lossy(&raw).into_owned()))
+        };
         normalise(&mut body);
         departure(r, &mut body);
         let what = format!("step {} {} {}", i + 1, r["method"], r["path"]);
@@ -181,6 +209,16 @@ async fn replay(
             "{what}: status ({body})"
         );
         assert_eq!(body, step["body"], "{what}: body");
+        // the caching policy and media type, where the fixture recorded them
+        if step.get("cache_control").is_some() {
+            let got = resp_cache.as_deref().map_or(Value::Null, |v| json!(v));
+            assert_eq!(got, step["cache_control"], "{what}: Cache-Control");
+            assert_eq!(
+                resp_type.as_deref().map_or(Value::Null, |v| json!(v)),
+                step["content_type"],
+                "{what}: Content-Type"
+            );
+        }
         if step.get("headers").is_some() {
             assert_eq!(Value::Object(headers), step["headers"], "{what}: headers");
             assert_eq!(Value::Array(cookies), step["cookies"], "{what}: cookies");
@@ -540,4 +578,40 @@ async fn the_planning_routes_refuse_without_planner_parameters() {
     .await;
     assert_eq!(status, 503);
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn the_python_world_session_replays_exactly() {
+    replay(
+        "http_world_cases",
+        b"stewie-http-world-oracle",
+        |_, step, clock, dir| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+            // the oracle recorded this traffic memory between requests (SYNTHETIC, labelled)
+            if step["request"]["path"] == "/world/traffic-layer?site=shackleton_rim" {
+                let mut tm = stewie_twin::traffic_memory::TrafficMemory::new(
+                    "shackleton_rim",
+                    4,
+                    5,
+                    0.5,
+                    (1.0, -2.0),
+                    stewie_twin::traffic_memory::TrafficParams {
+                        mass_areal: 130.0,
+                        sigma_c_n: 60.0,
+                        contact_width_m: 0.18,
+                    },
+                )
+                .unwrap();
+                let mut load = vec![0.0; 20];
+                for c in 1..4 {
+                    load[5 + c] = 2400.0;
+                }
+                load[12] = 900.0;
+                tm.apply(&load, "haul-1", "ev-1").unwrap();
+                stewie_twin::traffic_memory::save_site(dir, &tm).unwrap();
+            }
+        },
+        |_, _| {},
+    )
+    .await;
 }
