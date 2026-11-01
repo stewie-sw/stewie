@@ -577,6 +577,63 @@ impl Ordered {
         }
     }
 
+    /// Python's `json.dumps(value, indent=2)` of the value `json.loads` would have made, keys in the client's order.
+    ///
+    /// # Errors
+    /// A non-finite float.
+    pub fn py_dumps_indent2(&self) -> Result<String, String> {
+        fn write(out: &mut String, v: &Ordered, depth: usize) -> Result<(), String> {
+            let pad = |out: &mut String, d: usize| {
+                out.push('\n');
+                out.push_str(&"  ".repeat(d));
+            };
+            match v {
+                Ordered::Null => out.push_str("null"),
+                Ordered::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+                Ordered::Number(n) => match (n.as_i64(), n.as_u64(), n.as_f64()) {
+                    (Some(i), ..) => out.push_str(&i.to_string()),
+                    (_, Some(u), _) => out.push_str(&u.to_string()),
+                    (.., Some(x)) => out
+                        .push_str(&stewie_twin::pyjson::float_repr(x).map_err(|e| e.to_string())?),
+                    _ => return Err(format!("number {n}")),
+                },
+                Ordered::String(s) => stewie_twin::pyjson::write_str(out, s),
+                Ordered::Array(a) if a.is_empty() => out.push_str("[]"),
+                Ordered::Array(a) => {
+                    out.push('[');
+                    for (i, x) in a.iter().enumerate() {
+                        if i > 0 {
+                            out.push(',');
+                        }
+                        pad(out, depth + 1);
+                        write(out, x, depth + 1)?;
+                    }
+                    pad(out, depth);
+                    out.push(']');
+                }
+                Ordered::Object(m) if m.is_empty() => out.push_str("{}"),
+                Ordered::Object(m) => {
+                    out.push('{');
+                    for (i, (k, x)) in m.iter().enumerate() {
+                        if i > 0 {
+                            out.push(',');
+                        }
+                        pad(out, depth + 1);
+                        stewie_twin::pyjson::write_str(out, k);
+                        out.push_str(": ");
+                        write(out, x, depth + 1)?;
+                    }
+                    pad(out, depth);
+                    out.push('}');
+                }
+            }
+            Ok(())
+        }
+        let mut out = String::new();
+        write(&mut out, self, 0)?;
+        Ok(out)
+    }
+
     /// Python's `repr` of the value `json.loads` would have made.
     #[must_use]
     pub fn py_repr(&self) -> String {

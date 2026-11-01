@@ -207,6 +207,18 @@ async fn replay(
     let dir = std::env::temp_dir().join(format!("stewie-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
+    // files the oracle laid down in its data directory before its first request (SYNTHETIC inputs, labelled there)
+    if let Some(files) = fx.get("seed_files").and_then(Value::as_object) {
+        use base64::Engine as _;
+        for (rel, b64) in files {
+            let p = dir.join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(b64.as_str().unwrap())
+                .unwrap();
+            std::fs::write(p, bytes).unwrap();
+        }
+    }
     let mut env: HashMap<String, String> = fx["env"]
         .as_object()
         .unwrap()
@@ -376,6 +388,20 @@ async fn replay(
             assert_eq!(&json!(got), want, "the journal {name}");
         }
         assert!(!journals.is_empty(), "vacuity: journals were recorded");
+    }
+    // the data-directory files the session wrote, byte for byte, where the fixture recorded them
+    if let Some(files) = fx.get("data_files").and_then(Value::as_object) {
+        for (rel, want) in files {
+            let got = Sha256::digest(std::fs::read(dir.join(rel)).unwrap())
+                .iter()
+                .fold(String::new(), |mut h, b| {
+                    use std::fmt::Write as _;
+                    let _ = write!(h, "{b:02x}");
+                    h
+                });
+            assert_eq!(&json!(got), want, "the data file {rel}");
+        }
+        assert!(!files.is_empty(), "vacuity: data files were recorded");
     }
     std::fs::remove_dir_all(&dir).unwrap();
 }
@@ -824,4 +850,59 @@ async fn the_python_spec_session_replays_exactly() {
         },
     )
     .await;
+}
+
+#[tokio::test]
+async fn the_python_content_session_replays_exactly() {
+    replay(
+        "http_content_cases",
+        b"stewie-http-content-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_program_board_serves_the_committed_page_and_snapshot() {
+    // the Python serves the two committed files as they are (FileResponse, json.load): the bytes and the types
+    let (app, dir) = bare_app("program", false);
+    let root = stewie_oracle::repo_root();
+    for (path, file, ctype) in [
+        (
+            "/program",
+            "stewie/server/web/program.html",
+            "text/html; charset=utf-8",
+        ),
+        (
+            "/program/snapshot",
+            "stewie/server/program_snapshot.json",
+            "application/json",
+        ),
+    ] {
+        let mut req = Request::builder().uri(path).body(Body::empty()).unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+        let r = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(r.status().as_u16(), 200, "{path}");
+        assert_eq!(r.headers()["content-type"], ctype, "{path}");
+        let got = r.into_body().collect().await.unwrap().to_bytes();
+        let want = std::fs::read(root.join(file)).unwrap();
+        if path == "/program" {
+            assert_eq!(&got[..], &want[..], "{path}");
+        } else {
+            let (g, w): (Value, Value) = (
+                serde_json::from_slice(&got).unwrap(),
+                serde_json::from_slice(&want).unwrap(),
+            );
+            assert!(
+                w.as_object().is_some_and(|m| !m.is_empty()),
+                "vacuity: a real snapshot"
+            );
+            assert_eq!(g, w, "{path}");
+        }
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
 }

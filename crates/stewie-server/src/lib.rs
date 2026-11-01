@@ -7,6 +7,7 @@ pub mod admin;
 pub mod app;
 pub mod auth;
 pub mod construction;
+pub mod content_routes;
 pub mod contour;
 pub mod dem_routes;
 pub mod operators;

@@ -86,6 +86,9 @@ pub struct Settings {
     pub viz_window_s: f64,
     /// `STEWIE_TILES_DIR`: the Cesium 3D Tiles tilesets (default the checkout's `out/colmap`).
     pub tiles_dir: std::path::PathBuf,
+    /// `STEWIE_VALIDATION_DIR`: the validation figures `/figures` lists (default the checkout's `validation/`; the
+    /// Python always reads the checkout's, so the variable is this server's packaging hook, D-R133).
+    pub validation_dir: std::path::PathBuf,
     /// `STEWIE_SITE_VECTORS` and `STEWIE_GIS_DATA_DIR`: where the visible-pin site vectors are found.
     pub site_vectors: Option<String>,
     pub gis_data_dir: Option<String>,
@@ -138,6 +141,15 @@ impl Settings {
                     || {
                         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                             .join("../../out/colmap")
+                    },
+                    std::path::PathBuf::from,
+                ),
+            validation_dir: get("STEWIE_VALIDATION_DIR")
+                .filter(|v| !v.is_empty())
+                .map_or_else(
+                    || {
+                        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .join("../../validation")
                     },
                     std::path::PathBuf::from,
                 ),
@@ -943,6 +955,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::world_routes::routes())
         .merge(crate::dem_routes::routes())
         .merge(crate::spec_routes::routes())
+        .merge(crate::content_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

@@ -1,0 +1,900 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "data_files": {
+  "profiles/haworth-pad-1-run.json": "9957b26a722ec90f7688db45107f8cfdaedbcf31c308662093a05cd430484559",
+  "profiles/mixed__case--name.json": "a7509ef6b71098c24d73250489dc44b4faceeec77cb8adf275bfa7425b4df753",
+  "profiles/profile.json": "2ec3f44aa973e71ae3d6f3c81beca852b9d1d60cfc55af6e1a704afdac02b9ac"
+ },
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+  "STEWIE_VALIDATION_DIR": "{data_dir}/validation"
+ },
+ "ledger": [
+  {
+   "action": "profile.save",
+   "actor": "api-key",
+   "correlation_id": "cid-011",
+   "target": "haworth-pad-1-run",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "profile.save",
+   "actor": "api-key",
+   "correlation_id": "cid-012",
+   "target": "profile",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "profile.save",
+   "actor": "api-key",
+   "correlation_id": "cid-013",
+   "target": "mixed__case--name",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_files": {
+  "validation/excavation/forces.png": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAECAIAAADAusJtAAAAEUlEQVR4nGPg4jrBxMDAAMMAC4oA48QQWzEAAAAASUVORK5CYII=",
+  "validation/terrain/deep/hazard.png": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGPkOsHFwMDAxMDAwMDAAAAKegDg/nDfggAAAABJRU5ErkJggg==",
+  "validation/terrain/notes.txt": "bm90IGEgZmlndXJl",
+  "validation/terrain/slope.png": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAAFUlEQVR4nGM8wcXFwMDAwMDAxAADABByAOAp6i43AAAAAElFTkSuQmCC",
+  "validation/top.png": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGNgYGBgYGAAAAAHAAFXIWIZAAAAAElFTkSuQmCC"
+ },
+ "seed_sha256_of": "stewie-http-content-oracle",
+ "steps": [
+  {
+   "body": {
+    "ok": true,
+    "samples": [
+     {
+      "name": "01_flatten_pad",
+      "url": "/sample_mission/01_flatten_pad"
+     },
+     {
+      "name": "02_haul_around_hazard",
+      "url": "/sample_mission/02_haul_around_hazard"
+     },
+     {
+      "name": "03_blocked_infeasible",
+      "url": "/sample_mission/03_blocked_infeasible"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/sample_missions",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/sample_mission/01_flatten_pad",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 10,
+      "x": 25,
+      "y": 0
+     }
+    ],
+    "name": "Tutorial 2 — haul around a crater keep-out",
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "build berm",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 50,
+      "y": 0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/sample_mission/02_haul_around_hazard",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [
+     {
+      "r": 18,
+      "x": 40,
+      "y": 0
+     }
+    ],
+    "name": "Tutorial 3 — INFEASIBLE: fill site has no safe corridor",
+    "orders": [
+     {
+      "action": "borrow pit",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 0,
+      "y": 0
+     },
+     {
+      "action": "stranded fill",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/sample_mission/03_blocked_infeasible",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no sample mission 04_nope",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/sample_mission/04_nope",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no route /sample_mission/../sample_missions/01_flatten_pad",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/sample_mission/..%2Fsample_missions%2F01_flatten_pad",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/profiles",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true,
+    "profiles": []
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/profiles",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "name": "x"
+    },
+    "method": "POST",
+    "path": "/profile",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "operator+ role required (signed in as guest 'gis-anon')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-010",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": {
+     "name": "x"
+    },
+    "method": "POST",
+    "path": "/profile",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "name": "haworth-pad-1-run",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/profile",
+    "raw": "{\"name\": \"Haworth Pad #1 \\u2014 \\u03a9 run\", \"profile\": {\"soil\": {\"phi_deg\": 35.0, \"c_kpa\": 0.17, \"n\": 1}, \"body\": \"ipex\", \"fleet\": [], \"orders\": [{\"op\": \"cut\", \"depth_m\": 0.05}, {\"op\": \"haul\", \"note\": \"caf\\u00e9 \\\"q\\\"\"}], \"big\": 1e+22, \"tiny\": 1.5e-07, \"neg\": -0.0, \"flag\": true, \"none\": null, \"empty\": {}}}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "name": "profile",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "name": "!!!"
+    },
+    "method": "POST",
+    "path": "/profile",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "name": "mixed__case--name",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/profile",
+    "raw": "{\"name\": \"--Mixed__Case--Name--\", \"profile\": {\"b\": 2, \"a\": 1}}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "name: String should have at least 1 character",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "name": ""
+    },
+    "method": "POST",
+    "path": "/profile",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "name: String should have at most 80 characters",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": {
+     "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+    },
+    "method": "POST",
+    "path": "/profile",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "profile: Input should be a valid dictionary",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "name": "ok",
+     "profile": [
+      1,
+      2
+     ]
+    },
+    "method": "POST",
+    "path": "/profile",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "name: Field required",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "profile": {}
+    },
+    "method": "POST",
+    "path": "/profile",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/profile",
+    "raw": "{not json"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "ok": true,
+    "profiles": [
+     "haworth-pad-1-run",
+     "mixed__case--name",
+     "profile"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/profiles",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "profiles": [
+     "haworth-pad-1-run",
+     "mixed__case--name",
+     "profile"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-020",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/profiles",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "name": "Haworth Pad #1 — Ω run",
+    "profile": {
+     "big": 1e+22,
+     "body": "ipex",
+     "empty": {},
+     "flag": true,
+     "fleet": [],
+     "neg": -0.0,
+     "none": null,
+     "orders": [
+      {
+       "depth_m": 0.05,
+       "op": "cut"
+      },
+      {
+       "note": "café \"q\"",
+       "op": "haul"
+      }
+     ],
+     "soil": {
+      "c_kpa": 0.17,
+      "n": 1,
+      "phi_deg": 35.0
+     },
+     "tiny": 1.5e-07
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/profile/Haworth%20Pad%20%231%20%E2%80%94%20%CE%A9%20run",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "name": "Haworth Pad #1 — Ω run",
+    "profile": {
+     "big": 1e+22,
+     "body": "ipex",
+     "empty": {},
+     "flag": true,
+     "fleet": [],
+     "neg": -0.0,
+     "none": null,
+     "orders": [
+      {
+       "depth_m": 0.05,
+       "op": "cut"
+      },
+      {
+       "note": "café \"q\"",
+       "op": "haul"
+      }
+     ],
+     "soil": {
+      "c_kpa": 0.17,
+      "n": 1,
+      "phi_deg": 35.0
+     },
+     "tiny": 1.5e-07
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/profile/haworth-pad-1-run",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "name": "!!!",
+    "profile": {}
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/profile/PROFILE",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no profile 'missing'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/profile/missing",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/profile/haworth-pad-1-run",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/figures",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "figures": [
+     {
+      "category": "excavation",
+      "key": "excavation/forces.png",
+      "url": "/figure/excavation/forces.png"
+     },
+     {
+      "category": "terrain",
+      "key": "terrain/deep/hazard.png",
+      "url": "/figure/terrain/deep/hazard.png"
+     },
+     {
+      "category": "terrain",
+      "key": "terrain/slope.png",
+      "url": "/figure/terrain/slope.png"
+     },
+     {
+      "category": "top.png",
+      "key": "top.png",
+      "url": "/figure/top.png"
+     }
+    ],
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/figures",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 2,
+     "rgba_b64": "CsgK/wrICv8KyAr/CsgK/w==",
+     "rgba_sha256": "dfea329aca0f608af2dc4c8c2afaafb584cfa0108cafd1c3e6daab9ab56d42f7",
+     "width": 2
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/figure/terrain/deep/hazard.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1,
+     "rgba_b64": "AAAA/wAAAP8=",
+     "rgba_sha256": "d5953f0c4e8f8c1510a9c0b37278a3b3855b97c5cf8155f2f4efe96b63da630b",
+     "width": 2
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-029",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/figure/top.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no figure terrain/notes.txt",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-030"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/figure/terrain/notes.txt",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no figure terrain/../../operators.json",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/figure/terrain/..%2F..%2Foperators.json",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no figure nope.png",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/figure/nope.png",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/figure/top.png",
+    "raw": null
+   },
+   "status": 401
+  }
+ ],
+ "store": null
+}

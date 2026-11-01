@@ -74,7 +74,8 @@ fn write_value(out: &mut String, v: &Value, seps: (&str, &str)) -> Result<(), Tw
     Ok(())
 }
 
-fn write_str(out: &mut String, s: &str) {
+/// A JSON string literal as Python's `json.dumps` writes it (`ensure_ascii=True`).
+pub fn write_str(out: &mut String, s: &str) {
     out.push('"');
     for c in s.chars() {
         match c {

@@ -4777,6 +4777,93 @@ def http_spec_cases() -> None:
                    "stewie/physics/data/ipex_postures.json"], payload)
 
 
+def http_content_cases() -> None:
+    """The content reads (RW-55b7c): the bundled sample missions, the saved planning profiles and the validation
+    figures, through one scripted session (_http_session). The figure tree is SYNTHETIC (labelled): the checkout's
+    validation/ is partly git-ignored, so its listing differs between hosts. The tree's files ride in the payload
+    (``seed_files``) for the replay to lay down, and the profile files the session wrote are pinned by sha256."""
+    import base64
+    import hashlib
+    import io as _io
+
+    from PIL import Image as _Image
+
+    import stewie.server.routers.figures as _F
+
+    def png(w, h, rgb):                                                  # SYNTHETIC figure (labelled)
+        buf = _io.BytesIO()
+        _Image.new("RGB", (w, h), rgb).save(buf, format="PNG")
+        return buf.getvalue()
+
+    seed_files = {"validation/terrain/slope.png": png(3, 2, (200, 10, 10)),
+                  "validation/terrain/deep/hazard.png": png(2, 2, (10, 200, 10)),
+                  "validation/excavation/forces.png": png(1, 4, (10, 10, 200)),
+                  "validation/top.png": png(2, 1, (0, 0, 0)),
+                  "validation/terrain/notes.txt": b"not a figure"}
+    written = {}
+
+    def script(call, key, d, clock):
+        for rel, b in seed_files.items():
+            os.makedirs(os.path.dirname(os.path.join(d, rel)), exist_ok=True)
+            with open(os.path.join(d, rel), "wb") as fh:
+                fh.write(b)
+        saved_dir, _F._validation_dir = _F._validation_dir, (lambda: os.path.join(d, "validation"))
+        guest = {"X-Stewie-Anon-Key": "anon-key-xyz"}
+        try:
+            call("GET", "/sample_missions")
+            for n in ("01_flatten_pad", "02_haul_around_hazard", "03_blocked_infeasible"):
+                call("GET", "/sample_mission/" + n)
+            call("GET", "/sample_mission/04_nope")
+            call("GET", "/sample_mission/..%2Fsample_missions%2F01_flatten_pad")
+            call("GET", "/profiles")                                             # no key
+            call("GET", "/profiles", headers=key)                                # no profiles yet
+            call("POST", "/profile", json_body={"name": "x"})                    # no key
+            call("POST", "/profile", headers=guest, json_body={"name": "x"})     # below operator
+            # raw bodies where the client's key order matters (the file keeps it; the fixture's json would sort it)
+            call("POST", "/profile", headers=key, raw=json.dumps({
+                "name": "Haworth Pad #1 \u2014 \u03a9 run",
+                "profile": {"soil": {"phi_deg": 35.0, "c_kpa": 0.17, "n": 1}, "body": "ipex", "fleet": [],
+                            "orders": [{"op": "cut", "depth_m": 0.05}, {"op": "haul", "note": "caf\u00e9 \"q\""}],
+                            "big": 1e22, "tiny": 1.5e-07, "neg": -0.0, "flag": True, "none": None, "empty": {}}}))
+            call("POST", "/profile", headers=key, json_body={"name": "!!!"})       # slug falls back; profile {}
+            call("POST", "/profile", headers=key, raw=json.dumps({"name": "--Mixed__Case--Name--", "profile": {"b": 2, "a": 1}}))
+            call("POST", "/profile", headers=key, json_body={"name": ""})
+            call("POST", "/profile", headers=key, json_body={"name": "n" * 81})
+            call("POST", "/profile", headers=key, json_body={"name": "ok", "profile": [1, 2]})
+            call("POST", "/profile", headers=key, json_body={"profile": {}})
+            call("POST", "/profile", headers=key, raw="{not json")
+            call("GET", "/profiles", headers=key)
+            call("GET", "/profiles", headers=guest)
+            call("GET", "/profile/Haworth%20Pad%20%231%20%E2%80%94%20%CE%A9%20run", headers=key)
+            call("GET", "/profile/haworth-pad-1-run", headers=key)
+            call("GET", "/profile/PROFILE", headers=key)
+            call("GET", "/profile/missing", headers=key)
+            call("GET", "/profile/haworth-pad-1-run")                            # no key
+            call("GET", "/figures")                                              # no key
+            call("GET", "/figures", headers=key)
+            call("GET", "/figure/terrain/deep/hazard.png", headers=key)
+            call("GET", "/figure/top.png", headers=guest)
+            call("GET", "/figure/terrain/notes.txt", headers=key)
+            call("GET", "/figure/terrain/..%2F..%2Foperators.json", headers=key)
+            call("GET", "/figure/nope.png", headers=key)
+            call("GET", "/figure/top.png")                                       # no key
+            for f in sorted(os.listdir(os.path.join(d, "profiles"))):
+                with open(os.path.join(d, "profiles", f), "rb") as fh:
+                    written["profiles/" + f] = hashlib.sha256(fh.read()).hexdigest()
+        finally:
+            _F._validation_dir = saved_dir
+
+    payload = _http_session("stewie-http-content-oracle", {"STEWIE_VALIDATION_DIR": "{data_dir}/validation"}, script)
+    payload["seed_files"] = {k: base64.b64encode(v).decode() for k, v in seed_files.items()}
+    payload["data_files"] = written
+    write_fixture(ORACLE_FIXTURES, "http_content_cases", "oracle/build_fixtures.py::http_content_cases (the FastAPI "
+                  "app's sample-mission, profile and figure routes; a SYNTHETIC figure tree, labelled)",
+                  ["stewie/server/routers/sample_missions.py", "stewie/server/routers/profiles.py",
+                   "stewie/server/routers/figures.py", "stewie/server/sample_missions/01_flatten_pad.json",
+                   "stewie/server/sample_missions/02_haul_around_hazard.json",
+                   "stewie/server/sample_missions/03_blocked_infeasible.json"], payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -4888,6 +4975,7 @@ def main() -> None:
     contour_cases()
     http_dem_cases()
     http_spec_cases()
+    http_content_cases()
 
 
 if __name__ == "__main__":
