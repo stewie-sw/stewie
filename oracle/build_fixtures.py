@@ -5126,15 +5126,24 @@ def http_library_cases() -> None:
     second = np.zeros((4, 5))
     second[3, 4] = 0.375
     mem.apply(second, mission="berm-fill", mass_moved_kg=600.0)
+    def canonical(path):
+        # numpy's zip framing differs between versions (numpy 2 writes zip64 headers), so the members are repacked
+        # into a fixed container: stored, a fixed timestamp, zip64 only when needed. The arrays are numpy's own.
+        import io
+        import zipfile
+        out = io.BytesIO()
+        with zipfile.ZipFile(path) as src, zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as dst:
+            for info in src.infolist():
+                dst.writestr(zipfile.ZipInfo(info.filename, date_time=(1980, 1, 1, 0, 0, 0)), src.read(info))
+        return out.getvalue()
+
     with tempfile.TemporaryDirectory() as t:
         mem.save(os.path.join(t, "m.npz"))
-        with open(os.path.join(t, "m.npz"), "rb") as fh:
-            npz = fh.read()
+        npz = canonical(os.path.join(t, "m.npz"))
         mem.site = "shoemaker"
         mem.chain[0]["mission"] = "edited-after-the-fact"                  # SYNTHETIC tamper: the chain breaks
         mem.save(os.path.join(t, "x.npz"))
-        with open(os.path.join(t, "x.npz"), "rb") as fh:
-            tampered = fh.read()
+        tampered = canonical(os.path.join(t, "x.npz"))
     seed_files = {"terrain_memory/haworth.npz": npz, "terrain_memory/broken.npz": b"SYNTHETIC torn npz",
                   "terrain_memory/shoemaker.npz": tampered,
                   "twin/haworth.journal": b'{"e": 1}\n\n{"e": 2}\n   \n{"e": 3}\n',

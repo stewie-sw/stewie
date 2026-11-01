@@ -1,7 +1,7 @@
 {
  "fixture": "http_library_cases",
  "generator": "oracle/build_fixtures.py::http_library_cases (the FastAPI app's asset-library routes; SYNTHETIC stores, labelled)",
- "payload_sha256": "182db2365c16a3bf089a06c2dff865d2bb531c97dc9dfb4bba9ba13993c3aa9f",
+ "payload_sha256": "3bf8015bfa54fbca7498aad0bc8c77f8a54c164ad3fd81eca12d97a71316104f",
  "sources": {
   "stewie/server/asset_library.py": "760fd7cc956d038996920fd100e8430b06e6c66a5755b864deab5dfacecaf3a8",
   "stewie/server/objects.py": "2c57b92be6d3e15b0d28bd20f2108b712339592c651f494085418af14ad3313d",
