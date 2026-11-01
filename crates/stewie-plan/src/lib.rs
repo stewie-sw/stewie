@@ -4,5 +4,6 @@
 
 pub mod balance;
 pub mod mission;
+pub mod optimize;
 pub mod sim;
 pub mod trips;

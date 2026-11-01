@@ -1600,6 +1600,72 @@ def sim_cases() -> None:
                   {"runs": runs})
 
 
+def sequencing_cases() -> None:
+    """Sequencing (RW-33d1): lode.planner_optimize.optimize_sequence for every algorithm and several objectives on
+    missions routed over the real Haworth route window (tie-free balances), including a mission large enough for
+    auto's Held-Karp + LK path and a budgeted one whose constraint penalty bites; objective parsing and the
+    optimality labels. Mission layouts beyond trips_cases are SYNTHETIC placements on the real terrain (labelled)."""
+    import copy
+
+    from lode.planner_model import mission_from_dict
+    from lode.planner_optimize import (_objective_optimality, effective_algorithm, optimize_sequence,
+                                       parse_objective)
+    from lode.planner_trips import _build_trips, _make_routes, trip_precedence
+
+    with open(os.path.join(ORACLE_FIXTURES, "trips_cases.payload.json")) as fh:
+        tc = json.load(fh)
+    tc = tc.get("payload", tc)
+    base, _ = __import__("stewie.physics.worksite", fromlist=["coarse_base_from_bundle"]).coarse_base_from_bundle(
+        os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    dem, origin = (Z, 5.0), (100.0, 50.0)
+    payloads = {mc["name"]: mc["payload"] for mc in tc["missions"]}
+    main = payloads["haul_two_pairs"]
+    many = copy.deepcopy(main)
+    reachable = [(o["x"], o["y"]) for name in ("deficit", "cuts_only", "heavy_rassor") for o in payloads[name]["orders"]]
+    many["orders"] = [o for o in main["orders"]] + [
+        {"action": f"g{k}", "kind": "goto", "x": x, "y": y} for k, (x, y) in enumerate(reachable[:4], 1)]
+    budget = copy.deepcopy(main)
+    budget["objective_constraints"] = {"max_time_s": 1.0e6, "risk_weight": 50.0}
+    cases = []
+
+    def run(name, payload, algos, objectives):
+        m = mission_from_dict(payload)
+        trips, _f, _s, _meta = _build_trips(m, dem, origin, 25.0)
+        prec = trip_precedence(trips, m)
+        rd = _make_routes(m, dem, origin, 25.0)
+        for algo in algos:
+            for obj in objectives:
+                order = optimize_sequence(trips, m, algorithm=algo, objective=obj, precedence=prec, routes=rd)
+                resolved = effective_algorithm(algo, len(trips))
+                label = _objective_optimality(resolved, obj)
+                cases.append({"mission": name, "payload": payload, "n_trips": len(trips), "algorithm": algo,
+                              "objective": obj, "order": list(order), "resolved": resolved,
+                              "label": list(label)})
+
+    algos = ["nearest", "greedy", "two_opt", "or_opt", "lk", "brute", "held_karp", "auto"]
+    run("haul_two_pairs", main, algos, ["time", "energy", "distance", "charges", "time:0.6,energy:0.4", "mass"])
+    run("heavy_rassor", payloads["heavy_rassor"], algos, ["time", "distance"])
+    run("many", many, ["auto", "brute", "held_karp", "lk", "nearest", "two_opt", "or_opt", "greedy"], ["time", "distance"])
+    run("budget", budget, ["brute", "two_opt"], ["time", "energy:1,charges:1"])
+    assert any(c["resolved"] == "held_karp_lk" for c in cases) and any(c["algorithm"] == "brute" and c["resolved"] == "lk"
+                                                                          for c in cases)
+    assert len({tuple(c["order"]) for c in cases if c["mission"] == "haul_two_pairs"}) > 1, "orders differ by solver"
+    parses = []
+    for spec in ("time", "time:0.6,energy:0.4", "energy:1,charges:1", "distance:", "time:-1", "time:nan",
+                 "time:0", "time,time", "time:abc", "speed", "power:2,mass:2"):
+        try:
+            parses.append({"spec": spec, "weights": [[k, v] for k, v in parse_objective(spec).items()]})
+        except ValueError as e:
+            parses.append({"spec": spec, "error": str(e)})
+    write_fixture(ORACLE_FIXTURES, "sequencing_cases", "oracle/build_fixtures.py::sequencing_cases (lode.planner_optimize "
+                  "on missions over the real Haworth route window; extra placements SYNTHETIC, labelled)",
+                  ["lode/planner_optimize.py", "lode/planner_sim.py", "lode/planner_trips.py",
+                   "crates/stewie-oracle/fixtures/trips_cases.payload.json"],
+                  {"cases": cases, "parses": parses})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1871,6 +1937,7 @@ def main() -> None:
     balance_cases()
     trips_cases()
     sim_cases()
+    sequencing_cases()
 
 
 if __name__ == "__main__":
