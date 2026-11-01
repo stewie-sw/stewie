@@ -305,7 +305,7 @@ pub struct BuildInputs<'a> {
     pub params: &'a PlannerParams,
 }
 
-fn leg(
+pub(crate) fn leg(
     dem: Dem<'_>,
     a: (f64, f64),
     b: (f64, f64),

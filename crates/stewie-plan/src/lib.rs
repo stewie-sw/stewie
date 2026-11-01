@@ -5,6 +5,7 @@
 pub mod assemble;
 pub mod balance;
 pub mod fleet;
+pub mod ir;
 pub mod mission;
 pub mod optimize;
 pub mod sim;

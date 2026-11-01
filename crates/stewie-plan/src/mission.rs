@@ -58,6 +58,17 @@ impl OrderKind {
         })
     }
 
+    /// The payload name.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Cut => "cut",
+            Self::Fill => "fill",
+            Self::Sinter => "sinter",
+            Self::Goto => "goto",
+        }
+    }
+
     /// The fleet capability the order needs.
     #[must_use]
     pub fn capability(self) -> Option<&'static str> {

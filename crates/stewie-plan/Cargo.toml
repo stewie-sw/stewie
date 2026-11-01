@@ -13,6 +13,7 @@ stewie-physics = { path = "../stewie-physics" }
 stewie-traverse = { path = "../stewie-traverse" }
 stewie-twin = { path = "../stewie-twin" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
+sha1 = "0.10"
 
 [dev-dependencies]
 stewie-oracle = { path = "../stewie-oracle" }

@@ -1961,6 +1961,72 @@ def plan_cases() -> None:
                   {"cases": cases, "refusals": refusals})
 
 
+def plan_ir_cases() -> None:
+    """Executable plan IR (RW-33d2b): lode.planner_views.plan_ir for one rover and fleets over the real Haworth route
+    window -- every action, precondition, waypoint polyline, the precedence DAG, the headline expectations and the
+    content-hash plan_id. Each case also records the mission vehicle's planning context: the Python IR prices drive
+    legs and the reserve with the IPEx module constants whatever the vehicle (D-R95). Multi-site layouts and the
+    footprint shape are SYNTHETIC placements on the real terrain (labelled). The Rust IR splits an action one charge
+    cannot finish into per-charge parts (D-R96); the Python IR here is the unsplit reference."""
+    import copy
+
+    from lode.planner_model import mission_from_dict, plan_context
+    from lode.planner_views import plan_ir
+
+    with open(os.path.join(ORACLE_FIXTURES, "trips_cases.payload.json")) as fh:
+        tc = json.load(fh)
+    tc = tc.get("payload", tc)
+    base, _ = __import__("stewie.physics.worksite", fromlist=["coarse_base_from_bundle"]).coarse_base_from_bundle(
+        os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    dem, origin = (Z, 5.0), (100.0, 50.0)
+    payloads = {mc["name"]: mc["payload"] for mc in tc["missions"]}
+    cases = []
+
+    def run(name, payload, vehicles=1, algo="nearest", obj="time"):
+        m = mission_from_dict(payload)
+        ir = plan_ir(m, dem=dem, dem_origin=origin, max_traverse_slope_deg=25.0, algorithm=algo, objective=obj,
+                     vehicles=vehicles)
+        ir.pop("provenance")                                 # hashes the Python object dump; RW-33f defines Rust's
+        ctx = plan_context(m)
+        cases.append({"name": name, "payload": payload, "vehicles": vehicles, "algorithm": algo, "objective": obj,
+                      "vehicle": m.vehicle, "ctx": {"drive_j_per_m": ctx.drive_j_per_m,
+                                                    "drive_speed_ms": ctx.drive_speed_ms,
+                                                    "battery_j": ctx.battery_j,
+                                                    "reserve_j": ctx.reserve_frac * ctx.battery_j},
+                      "ir": ir})
+
+    main = payloads["haul_two_pairs"]
+    run("two_pairs", main)
+    run("two_pairs_auto_energy", main, algo="auto", obj="energy")
+    for nm in ("deficit", "unreachable_fill", "cuts_only", "heavy_rassor"):
+        run(nm, payloads[nm])
+    shaped = copy.deepcopy(main)
+    shaped["orders"][0] = dict(shaped["orders"][0], shape={"kind": "rectangle", "w": 4.0, "h": 2.5, "theta_deg": 30.0})
+    run("shaped_footprint", shaped)
+    small = copy.deepcopy(main)
+    small["orders"] = [dict(o, footprint_m2=1.0, depth_m=0.05) if o["kind"] != "goto" else o for o in main["orders"]]
+    run("small_orders", small)
+    run("small_orders_x2", small, vehicles=2)
+    walled = copy.deepcopy(small)
+    walled["orders"] = list(small["orders"]) + [{"action": "probe", "kind": "goto", "x": 142.5, "y": -47.5}]
+    run("blocked_waypoint", walled)
+    run("two_pairs_x2", main, vehicles=2)
+    run("two_pairs_x3", main, vehicles=3)
+    assert any(not c["ir"]["feasible"] for c in cases), "vacuity: a blocked leg makes the IR infeasible"
+    assert any(a.get("footprint") for c in cases for a in c["ir"]["actions"]), "vacuity: a footprint view"
+    assert any(c["ir"]["precedence"] for c in cases), "vacuity: a precedence DAG"
+    assert any(c["vehicle"] != "ipex" for c in cases), "vacuity: a non-IPEx vehicle"
+    assert any(all(a["pre"]["battery_J_min"] <= c["ctx"]["battery_j"] for a in c["ir"]["actions"]) for c in cases), \
+        "vacuity: an IR whose every action fits one charge (no split, so identical to the Rust IR)"
+    write_fixture(ORACLE_FIXTURES, "plan_ir_cases", "oracle/build_fixtures.py::plan_ir_cases (lode.planner_views.plan_ir "
+                  "over the real Haworth route window; layouts and the footprint shape SYNTHETIC, labelled)",
+                  ["lode/planner_views.py", "lode/planner_assembly.py", "lode/planner_routing.py",
+                   "crates/stewie-oracle/fixtures/trips_cases.payload.json"],
+                  {"cases": cases})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -2235,6 +2301,7 @@ def main() -> None:
     sequencing_cases()
     fleet_cases()
     plan_cases()
+    plan_ir_cases()
 
 
 if __name__ == "__main__":

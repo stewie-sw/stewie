@@ -1,0 +1,11 @@
+{
+ "fixture": "plan_ir_cases",
+ "generator": "oracle/build_fixtures.py::plan_ir_cases (lode.planner_views.plan_ir over the real Haworth route window; layouts and the footprint shape SYNTHETIC, labelled)",
+ "payload_sha256": "93505e599e85e566f0900bbc43aef9bc4f1d931d24f0b0d72693c4d3b9871c14",
+ "sources": {
+  "crates/stewie-oracle/fixtures/trips_cases.payload.json": "7f87344455f20944b51e99a7d2e33b14e830bdf087f49b587cefa5dafb32eb17",
+  "lode/planner_assembly.py": "7dd0a07dd38d7f86f7cbcbfbffa2ae4d527d0642cd1841c3b7b0c0cb5a7de298",
+  "lode/planner_routing.py": "5ce65415b2fe381303555cb909495198a2023119419e544b274847023e7ae0c5",
+  "lode/planner_views.py": "0e711d6668713f629e555040cefbc8f59863a5a63114f0f377da3c938aed24d4"
+ }
+}
