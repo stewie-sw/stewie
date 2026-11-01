@@ -1,0 +1,9 @@
+{
+ "fixture": "acceptance_flat_cases",
+ "generator": "oracle/build_fixtures.py::acceptance_flat_cases (validate_plan + mission_terrain_delta with no DEM, at bank density D-R98; acceptance_cases' SYNTHETIC missions, labelled)",
+ "payload_sha256": "2df0087c8ac237ed338030b5c1c85275478cd67928c4c66c10172df870bf18aa",
+ "sources": {
+  "crates/stewie-oracle/fixtures/acceptance_cases.payload.json": "8646246364dcad0f2cd28337a9341ae91975990df42fd83735d082c5b494dbad",
+  "lode/planner_acceptance.py": "808a7e6c7e0b324390bce48b4d665668577be20a3a3d734ec53efa928549091a"
+ }
+}

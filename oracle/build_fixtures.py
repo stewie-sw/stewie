@@ -2946,6 +2946,57 @@ def world_state_cases() -> None:
                   ["stewie/server/world_state.py", "stewie/twin/envelope.py"],
                   {"steps": steps, "journal": journal})
 
+def acceptance_flat_cases() -> None:
+    """Pooled acceptance on the flat mantle (RW-55b4b): lode.planner_acceptance.validate_plan and
+    mission_terrain_delta with no DEM (the Python's default, which the terrain record and the volume evidence use)
+    on the acceptance_cases missions and settings, with the acceptance column at bank density (D-R98). The DEM-
+    free branch skips the siting gates and measures the as-built surface on the mantle; the terrain delta is
+    recorded by digest of its float64 grids plus its count and extremes. The missions are acceptance_cases' own
+    (SYNTHETIC layouts, labelled)."""
+    import hashlib
+
+    import lode.planner_acceptance as PA
+    from lode.planner_model import mission_from_dict
+
+    with open(os.path.join(ORACLE_FIXTURES, "acceptance_cases.payload.json")) as fh:
+        ac = json.load(fh)
+    ac = ac.get("payload", ac)
+    stock_cs = PA.ColumnState
+
+    def bank_density_column(**kw):
+        kw.setdefault("density", kw["mass_areal"] / 10.0)
+        return stock_cs(**kw)
+
+    def digest(a):
+        return hashlib.sha256(np.ascontiguousarray(np.asarray(a, dtype=np.float64)).tobytes()).hexdigest()
+
+    cases = []
+    PA.ColumnState = bank_density_column
+    try:
+        for c in ac["cases"]:
+            kw = {k: v for k, v in c["params"].items() if k not in ("dem", "dem_origin", "return_grids")}
+            m = mission_from_dict(c["payload"])
+            r = {k: v for k, v in PA.validate_plan(m, **kw).items() if k != "terrain_grids"}
+            d = PA.mission_terrain_delta(m, **kw)
+            delta = np.asarray(d["delta"], dtype=np.float64)
+            cases.append({"name": c["name"], "payload": c["payload"], "params": c["params"], "result": r,
+                          "delta": {"x0": d["x0"], "y0": d["y0"], "cell_m": d["cell_m"], "rows": d["rows"],
+                                    "cols": d["cols"], "mass_moved_kg": d["mass_moved_kg"],
+                                    "delta_sha256": digest(delta), "base_sha256": digest(d["base"]),
+                                    "as_built_sha256": digest(d["as_built"]),
+                                    "nonzero": int(np.count_nonzero(delta)), "sum": float(delta.sum()),
+                                    "min": float(delta.min()), "max": float(delta.max())}})
+    finally:
+        PA.ColumnState = stock_cs
+    assert all(c["result"]["as_built_on_real_dem"] is False for c in cases)
+    assert any(c["delta"]["nonzero"] for c in cases), "vacuity: a mission that changes the terrain"
+    write_fixture(ORACLE_FIXTURES, "acceptance_flat_cases", "oracle/build_fixtures.py::acceptance_flat_cases "
+                  "(validate_plan + mission_terrain_delta with no DEM, at bank density D-R98; acceptance_cases' "
+                  "SYNTHETIC missions, labelled)",
+                  ["lode/planner_acceptance.py", "crates/stewie-oracle/fixtures/acceptance_cases.payload.json"],
+                  {"cases": cases})
+
+
 def auth_cases() -> None:
     """Server auth core (RW-55a1): stewie.server.auth (session tokens, revocation, roles, proxy trust) and
     stewie.server.operators (the account store) driven through one scripted scenario in a temporary data dir. The
@@ -3956,6 +4007,7 @@ def main() -> None:
     illumination_cases()
     solar_cases()
     flattest_cases()
+    acceptance_flat_cases()
     state_cases()
     world_state_cases()
     auth_cases()

@@ -32,13 +32,14 @@ pub struct TerrainDelta {
     pub mass_moved_kg: f64,
 }
 
-/// The mission's conserved terrain change: the acceptance run's as-built surface minus its pre-build surface.
+/// The mission's conserved terrain change: the acceptance run's as-built surface minus its pre-build surface, on
+/// the real terrain when a DEM is given, else on the flat mantle (the Python's default).
 ///
 /// # Errors
 /// A column the physics refuses.
 pub fn mission_terrain_delta(
     m: &Mission,
-    dem: Dem<'_>,
+    dem: Option<Dem<'_>>,
     inp: &AcceptanceInputs<'_>,
     p: &AcceptanceParams,
 ) -> Result<TerrainDelta, String> {

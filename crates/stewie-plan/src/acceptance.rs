@@ -243,35 +243,40 @@ impl Grid {
 )]
 pub fn column_over(
     g: &Grid,
-    dem: Dem<'_>,
+    dem: Option<Dem<'_>>,
     regolith_depth_m: f64,
     rho_bank: f64,
     regolith: &Regolith,
 ) -> Result<ColumnState, String> {
-    let idx = |v: f64, n: usize| (v.trunc().max(0.0) as usize).min(n - 1);
-    let ci: Vec<usize> = (0..g.cols)
-        .map(|c| {
-            idx(
-                (g.x0 + (c as f64 + 0.5) * g.cell_m + dem.origin.0) / dem.cell_m,
-                dem.width,
-            )
-        })
-        .collect();
-    let ri: Vec<usize> = (0..g.rows)
-        .map(|r| {
-            idx(
-                (g.y0 + (r as f64 + 0.5) * g.cell_m + dem.origin.1) / dem.cell_m,
-                dem.height,
-            )
-        })
-        .collect();
-    let datum: Vec<f64> = ri
-        .iter()
-        .flat_map(|&r| {
-            ci.iter()
-                .map(move |&c| dem.z[r * dem.width + c] - regolith_depth_m)
-        })
-        .collect();
+    // no DEM: the flat mantle (the column's own zero datum), as the Python's dem=None
+    let datum: Vec<f64> = match dem {
+        None => vec![0.0; g.rows * g.cols],
+        Some(dem) => {
+            let idx = |v: f64, n: usize| (v.trunc().max(0.0) as usize).min(n - 1);
+            let ci: Vec<usize> = (0..g.cols)
+                .map(|c| {
+                    idx(
+                        (g.x0 + (c as f64 + 0.5) * g.cell_m + dem.origin.0) / dem.cell_m,
+                        dem.width,
+                    )
+                })
+                .collect();
+            let ri: Vec<usize> = (0..g.rows)
+                .map(|r| {
+                    idx(
+                        (g.y0 + (r as f64 + 0.5) * g.cell_m + dem.origin.1) / dem.cell_m,
+                        dem.height,
+                    )
+                })
+                .collect();
+            ri.iter()
+                .flat_map(|&r| {
+                    ci.iter()
+                        .map(move |&c| dem.z[r * dem.width + c] - regolith_depth_m)
+                })
+                .collect()
+        }
+    };
     let n = g.rows * g.cols;
     ColumnState::new(
         g.cols,
@@ -320,7 +325,7 @@ pub struct BuiltGrids {
 /// A column the physics refuses.
 pub fn validate_plan(
     m: &Mission,
-    dem: Dem<'_>,
+    dem: Option<Dem<'_>>,
     inp: &AcceptanceInputs<'_>,
     p: &AcceptanceParams,
 ) -> Result<Value, String> {
@@ -338,7 +343,7 @@ pub fn validate_plan(
 )] // the Python's report
 pub fn validate_plan_grids(
     m: &Mission,
-    dem: Dem<'_>,
+    dem: Option<Dem<'_>>,
     inp: &AcceptanceInputs<'_>,
     p: &AcceptanceParams,
 ) -> Result<(Value, BuiltGrids), String> {
@@ -461,7 +466,11 @@ pub fn validate_plan_grids(
         v.iter()
             .all(|r| r.get(k).and_then(Value::as_bool).unwrap_or(true))
     };
-    let (slope_violations, off_dem) = siting(m, dem, p.max_slope_deg);
+    // no DEM, no siting to check (the Python's)
+    let (slope_violations, off_dem) = dem.map_or_else(
+        || (Vec::new(), Vec::new()),
+        |d| siting(m, d, p.max_slope_deg),
+    );
     let drum = inp.drum_kg;
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let shuttle: u64 = if drum > 0.0 {
@@ -493,7 +502,7 @@ pub fn validate_plan_grids(
         "drum_remaining_kg": cs.drum_inventory(),
         "executed_dig_J": exec_cut * inp.dig_j_per_kg,
         "grid": {"rows": g.rows, "cols": g.cols, "cell_m": g.cell_m},
-        "as_built_on_real_dem": true,
+        "as_built_on_real_dem": dem.is_some(),
         "as_built_flatness_rmse_m": worst_flat,
         "as_built_flatness_mean_m": mean_flat,
         "as_built_tol_m": p.accept_flatness_tol_m,
@@ -585,7 +594,7 @@ pub fn execute_plan_acceptance(
     let swell = inp.regolith.rho_deep / inp.regolith.rho_spoil;
     let (rho_bank, rho_loose) = (inp.body_density * swell, inp.body_density);
     let g = Grid::around(&m.orders, p.cell_m, p.max_cells);
-    let mut cs = column_over(&g, dem, p.regolith_depth_m, rho_bank, inp.regolith)?;
+    let mut cs = column_over(&g, Some(dem), p.regolith_depth_m, rho_bank, inp.regolith)?;
     let m0 = cs.total_mass();
     let phys = |e: stewie_physics::PhysicsError| e.to_string();
     let count = |mask: &[bool]| mask.iter().filter(|b| **b).count();

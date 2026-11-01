@@ -135,7 +135,7 @@ fn the_recorded_change_is_the_executed_change() {
             drum_kg: ctx.drum_kg,
             dig_j_per_kg: ctx.dig_j_per_kg,
         };
-        let d = mission_terrain_delta(&m, dem, &ai, &p).unwrap();
+        let d = mission_terrain_delta(&m, Some(dem), &ai, &p).unwrap();
         for (got, key) in [(d.x0, "x0"), (d.y0, "y0"), (d.cell_m, "cell_m")] {
             same(&got.into(), &c[key], &format!("{name} {key}"));
         }

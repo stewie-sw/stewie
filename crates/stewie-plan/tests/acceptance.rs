@@ -4,10 +4,13 @@
 //! only in the repose figures, which the oracle itself asserts.
 
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use stewie_contracts::fleet::Fleet;
 use stewie_physics::column::Regolith;
 use stewie_physics::soil::{SoilParams, bundled};
-use stewie_plan::acceptance::{AcceptanceInputs, AcceptanceParams, validate_plan};
+use stewie_plan::acceptance::{
+    AcceptanceInputs, AcceptanceParams, validate_plan, validate_plan_grids,
+};
 use stewie_plan::mission::{Registries, mission_from_value};
 use stewie_plan::trips::{PlannerParams, context};
 use stewie_traverse::route::Dem;
@@ -64,7 +67,7 @@ fn same(got: &Value, want: &Value, what: &str) {
 }
 
 #[test]
-#[allow(clippy::too_many_lines)] // setup shared by every case
+#[allow(clippy::too_many_lines, clippy::many_single_char_names)] // setup shared by every case; the Python's m, p, k, c, g
 fn acceptance_matches_the_python_at_bank_density() {
     let fx = stewie_oracle::load("acceptance_cases").unwrap().payload;
     let tc = stewie_oracle::load("trips_cases").unwrap().payload;
@@ -133,7 +136,7 @@ fn acceptance_matches_the_python_at_bank_density() {
             bearing_load_pa: k["bearing_load_pa"].as_f64(),
             bearing_fs: f(&k["bearing_fs"]),
         };
-        let mut got = validate_plan(&m, dem, &inp, &p).unwrap();
+        let mut got = validate_plan(&m, Some(dem), &inp, &p).unwrap();
         // the drift is summation noise on a ~1e9 kg column (each side sums in its own order); compare it to
         // 1 g, then the rest exactly
         let drift = f(&got["mass_drift_kg"]);
@@ -146,4 +149,80 @@ fn acceptance_matches_the_python_at_bank_density() {
         seen_repose_fix |= c["result"]["repose"] != c["stock"]["repose"];
     }
     assert!(seen_repose_fix, "vacuity: D-R98 changes some repose figure");
+
+    // RW-55b4b: the same missions on the flat mantle (no DEM), the Python's default for the terrain record and
+    // the volume evidence: no siting, the as-built surface measured on the mantle, the grids exact
+    let flat = stewie_oracle::load("acceptance_flat_cases")
+        .unwrap()
+        .payload;
+    let digest = |v: &[f64]| {
+        let bytes: Vec<u8> = v.iter().flat_map(|x| x.to_le_bytes()).collect();
+        Sha256::digest(&bytes)
+            .iter()
+            .fold(String::new(), |mut h, b| {
+                use std::fmt::Write as _;
+                let _ = write!(h, "{b:02x}");
+                h
+            })
+    };
+    let mut changed = 0;
+    for c in flat["cases"].as_array().unwrap() {
+        let name = c["name"].as_str().unwrap();
+        let m = mission_from_value(&c["payload"], &reg).unwrap();
+        let ctx = context(&m, &fleet, &params).unwrap();
+        let sp = soil_of(name);
+        let inp = AcceptanceInputs {
+            body_density: rho,
+            regolith: &regolith,
+            soil: &sp,
+            gravity_ms2: params.gravity_ms2,
+            drum_kg: ctx.drum_kg,
+            dig_j_per_kg: ctx.dig_j_per_kg,
+        };
+        let k = &c["params"];
+        let p = AcceptanceParams {
+            cell_m: f(&k["cell_m"]),
+            max_cells: usize::try_from(k["max_cells"].as_u64().unwrap()).unwrap(),
+            regolith_depth_m: f(&k["regolith_depth_m"]),
+            max_slope_deg: f(&k["max_slope_deg"]),
+            accept_flatness_tol_m: f(&k["accept_flatness_tol_m"]),
+            bearing_load_pa: k["bearing_load_pa"].as_f64(),
+            bearing_fs: f(&k["bearing_fs"]),
+        };
+        let (mut got, g) = validate_plan_grids(&m, None, &inp, &p).unwrap();
+        let drift = f(&got["mass_drift_kg"]);
+        assert!(
+            (drift - f(&c["result"]["mass_drift_kg"])).abs() <= 1e-3,
+            "{name} flat mass drift {drift}"
+        );
+        got["mass_drift_kg"] = c["result"]["mass_drift_kg"].clone();
+        same(&got, &c["result"], &format!("{name} (flat)"));
+        let delta: Vec<f64> = g.as_built.iter().zip(&g.base).map(|(a, b)| a - b).collect();
+        let d = &c["delta"];
+        assert_eq!(
+            (g.grid.rows, g.grid.cols),
+            (
+                usize::try_from(d["rows"].as_u64().unwrap()).unwrap(),
+                usize::try_from(d["cols"].as_u64().unwrap()).unwrap()
+            ),
+            "{name}"
+        );
+        assert_eq!(
+            digest(&g.base),
+            d["base_sha256"].as_str().unwrap(),
+            "{name} base"
+        );
+        assert_eq!(
+            digest(&g.as_built),
+            d["as_built_sha256"].as_str().unwrap(),
+            "{name} as-built"
+        );
+        assert_eq!(
+            digest(&delta),
+            d["delta_sha256"].as_str().unwrap(),
+            "{name} delta"
+        );
+        changed += usize::from(d["nonzero"].as_u64().unwrap() > 0);
+    }
+    assert!(changed > 0, "vacuity: a flat mission changes the terrain");
 }
