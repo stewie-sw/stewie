@@ -1545,6 +1545,61 @@ def trips_cases() -> None:
                    "windows": windows, "gates": gates, "missions": out})
 
 
+def sim_cases() -> None:
+    """The battery-aware trip simulation (RW-33c2): lode.planner_sim._simulate over the trips_cases missions on the
+    real Haworth route window, in build order, reversed, and under SYNTHETIC mission-clock windows (labelled) that
+    force drive, work and recharge waits and a closed window."""
+    import copy
+
+    from lode.planner_model import mission_from_dict
+    from lode.planner_sim import _simulate
+    from lode.planner_trips import _build_trips, _make_routes
+
+    with open(os.path.join(ORACLE_FIXTURES, "trips_cases.payload.json")) as fh:
+        tc = json.load(fh)
+    tc = tc.get("payload", tc)
+    base, _ = __import__("stewie.physics.worksite", fromlist=["coarse_base_from_bundle"]).coarse_base_from_bundle(
+        os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    dem, origin = (Z, 5.0), (100.0, 50.0)
+    runs = []
+
+    def run(name, payload, reverse=False):
+        m = mission_from_dict(payload)
+        trips, _flows, _surplus, _meta = _build_trips(m, dem, origin, 25.0)
+        order = list(range(len(trips)))[::-1] if reverse else list(range(len(trips)))
+        tl, per, core = _simulate(m, [trips[i] for i in order], routes=_make_routes(m, dem, origin, 25.0))
+        runs.append({"name": name, "payload": payload, "order": order,
+                     "timeline": [{k: s[k] for k in ("t0", "t1", "kind", "batt0", "batt1", "mass", "speed", "x0", "y0", "x1", "y1")}
+                                  for s in tl],
+                     "per_trip": [{"t_start": p["t_start"], "t_end": p["t_end"]} for p in per], "core": core})
+
+    for mc in tc["missions"]:
+        run(mc["name"], mc["payload"])
+    main = next(mc["payload"] for mc in tc["missions"] if mc["name"] == "haul_two_pairs")
+    run("haul_two_pairs_reversed", main, reverse=True)
+    windowed = copy.deepcopy(main)
+    windowed["mission_windows"] = {"drive": [[600.0, 1.0e9]], "work": [[2000.0, 6.0e5], [7.0e5, 9.0e5]],
+                                   "recharge": [[0.0, 5.0e4], [3.0e5, 1.0e9]]}
+    run("haul_two_pairs_windowed", windowed)
+    closed = copy.deepcopy(main)
+    closed["mission_windows"] = {"work": [[0.0, 100.0]]}
+    run("work_window_closes", closed)
+    stranded = copy.deepcopy(main)
+    stranded["mission_windows"] = {"recharge": [[0.0, 1000.0]]}   # the first mid-dig recharge finds it closed
+    run("recharge_window_closes_mid_work", stranded)
+    kinds = {s["kind"] for r in runs for s in r["timeline"]}
+    assert {"drive", "charge", "dig", "offload", "wait"} <= kinds, kinds
+    assert any(not r["core"]["feasible"] for r in runs) and any(r["core"]["charges"] > 1 for r in runs)
+    last = runs[-1]                                          # stranded mid-dig: some, not all, mass credited
+    assert "recharge window closed" in last["core"]["infeasible_reasons"][0] and last["core"]["mass_kg"] > 0
+    write_fixture(ORACLE_FIXTURES, "sim_cases", "oracle/build_fixtures.py::sim_cases (lode.planner_sim._simulate on the "
+                  "trips_cases missions over the real Haworth route window; mission windows SYNTHETIC, labelled)",
+                  ["lode/planner_sim.py", "lode/planner_trips.py", "crates/stewie-oracle/fixtures/trips_cases.payload.json"],
+                  {"runs": runs})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1815,6 +1870,7 @@ def main() -> None:
     route_extras()
     balance_cases()
     trips_cases()
+    sim_cases()
 
 
 if __name__ == "__main__":
