@@ -158,7 +158,8 @@ pub fn validate_email(email: &str) -> Result<String, StoreError> {
 }
 
 /// Python's `repr` of a printable string (the error messages quote the input with it).
-fn py_repr(s: &str) -> String {
+#[must_use]
+pub fn py_repr(s: &str) -> String {
     let q = if s.contains('\'') && !s.contains('"') {
         '"'
     } else {
@@ -312,6 +313,16 @@ impl<'a> Store<'a> {
     /// An untrustworthy store.
     pub fn exists(&self, email: &str) -> Result<bool, StoreError> {
         Ok(self.record(email)?.is_some())
+    }
+
+    /// Does the account have a password set?
+    ///
+    /// # Errors
+    /// An untrustworthy store.
+    pub fn has_password(&self, email: &str) -> Result<bool, StoreError> {
+        Ok(self
+            .record(email)?
+            .is_some_and(|r| r["pw_hash"].as_str().is_some_and(|h| !h.is_empty())))
     }
 
     /// Does the store hold an active record for the email?

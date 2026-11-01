@@ -3018,6 +3018,208 @@ def services_cases() -> None:
                    "after_rotation": after_rotation, "final": final})
 
 
+def http_auth_cases() -> None:
+    """The server's HTTP surface for identity (RW-55a2b): the real FastAPI app (stewie.server.server) driven by
+    the Starlette TestClient through one scripted session against /auth/{config,login,logout,register,me,password},
+    /healthz, the catch-all 404, the validation and body-size envelopes and the response middleware. Every
+    response's status, JSON body, hardening headers and parsed Set-Cookie attributes are recorded, then the
+    account store and the audit ledger. The clock is pinned, the randomness (token ids, CSRF tokens, salts,
+    correlation ids) is a seeded stream, the client is 127.0.0.1, and the rate limiters start empty. Emails,
+    passwords, keys and the scenario are SYNTHETIC test inputs (labelled)."""
+    import hashlib
+    import importlib
+    import tempfile
+    import uuid as _uuid
+
+    from fastapi.testclient import TestClient
+
+    import stewie.server.auth as A
+    import stewie.server.operators as O
+    import stewie.server.routers.auth as R
+    import stewie.server.services as S
+
+    seed = hashlib.sha256(b"stewie-http-auth-oracle").digest()
+    stream = {"n": 0}
+
+    def det_bytes(n: int) -> bytes:                         # SYNTHETIC deterministic randomness (labelled)
+        out = b""
+        while len(out) < n:
+            out += hashlib.sha256(seed + stream["n"].to_bytes(8, "big")).digest()
+            stream["n"] += 1
+        return out[:n]
+
+    clock = {"t": 1_800_000_000.0}
+    env = {"STEWIE_API_KEY": "automation-key-0123456789", "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+           "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+           "STEWIE_DIRECTORS": "alice@example.org", "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+           "STEWIE_TRUST_TAILSCALE": "1", "STEWIE_TRUSTED_PROXIES": "10.0.0.0/8",
+           "STEWIE_REGISTRATION": "1", "STEWIE_MAX_BODY_BYTES": "2048"}
+    unset = ("STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED", "STEWIE_DESKTOP", "STEWIE_OPERATOR_LOGIN",
+             "STEWIE_TRUST_PROXY", "STEWIE_CORS_ORIGINS", "STEWIE_DEV_OPEN", "STEWIE_AUDIT_MAX_BYTES")
+    saved = {k: os.environ.get(k) for k in list(env) + list(unset) + ["STEWIE_DATA_DIR"]}
+    patched = {"urandom": O.os.urandom, "token_urlsafe": O.secrets.token_urlsafe, "token_hex": S.secrets.token_hex,
+               "clock": O._clock, "uuid4": A.uuid.uuid4, "a_time": A.time.time, "s_time": S.time.time}
+    keep_headers = ("content-type", "x-correlation-id", "x-content-type-options", "referrer-policy",
+                    "permissions-policy", "cache-control", "access-control-allow-origin")
+    steps = []
+
+    def cookies_of(resp):
+        out = []
+        for line in resp.headers.get_list("set-cookie"):
+            parts = [p.strip() for p in line.split(";")]
+            name, _, value = parts[0].partition("=")
+            c = {"name": name, "value": value.strip('"')}
+            for p in parts[1:]:
+                k, eq, v = p.partition("=")
+                c[k.lower()] = v if eq else True
+            out.append(c)
+        return out
+
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ.update(env)
+            os.environ["STEWIE_DATA_DIR"] = d
+            for k in unset:
+                os.environ.pop(k, None)
+            O.os.urandom = det_bytes
+            O.secrets.token_urlsafe = lambda n: __import__("base64").urlsafe_b64encode(det_bytes(n)).decode().rstrip("=")
+            S.secrets.token_hex = lambda n: det_bytes(n).hex()
+            O._clock = lambda: clock["t"]
+            A.uuid.uuid4 = lambda: _uuid.UUID(bytes=det_bytes(16), version=4)
+            A.time.time = lambda: clock["t"]
+            S.time.time = lambda: clock["t"]
+            S.reset_audit_health()
+            S.reset_revocation_health()
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            import stewie.server.server as srv
+            importlib.reload(srv)
+            client = TestClient(srv.app, client=("127.0.0.1", 50000))
+            n = {"i": 0}
+
+            def call(method, path, *, headers=None, cookies=None, json_body=None, raw=None, cid=True):
+                n["i"] += 1
+                h = dict(headers or {})
+                if cid:
+                    h["X-Correlation-Id"] = f"cid-{n['i']:03d}"
+                if cookies:
+                    h["Cookie"] = "; ".join(f"{k}={v}" for k, v in cookies.items())
+                client.cookies.clear()
+                kw = {}
+                if json_body is not None:
+                    kw["json"] = json_body
+                if raw is not None:
+                    kw["content"] = raw
+                    h.setdefault("Content-Type", "application/json")
+                r = client.request(method, path, headers=h, **kw)
+                try:
+                    body = r.json()
+                except ValueError:
+                    body = r.text
+                if isinstance(body, dict) and "uptime_s" in body:
+                    body["uptime_s"] = "<uptime>"
+                steps.append({"request": {"method": method, "path": path, "headers": h,
+                                          "json": json_body, "raw": raw},
+                              "status": r.status_code, "body": body,
+                              "headers": {k: r.headers[k] for k in keep_headers if k in r.headers},
+                              "cookies": cookies_of(r)})
+                return r
+
+            key = {"X-API-Key": env["STEWIE_API_KEY"]}
+            call("GET", "/healthz")
+            call("GET", "/auth/config")
+            call("GET", "/auth/me")
+            call("GET", "/auth/me", headers=key)
+            call("GET", "/auth/me", headers={"X-Stewie-Anon-Key": "anon-key-xyz"})
+            call("GET", "/auth/me", headers={"X-API-Key": "wrong-key"})
+            call("GET", "/auth/me", headers={"Tailscale-User-Login": "alice@example.org"})   # untrusted peer
+            call("GET", "/auth/me", headers=key, cid=False)                                    # a minted id
+            call("POST", "/auth/register", json_body={"email": "carol@example.org", "password": "carol password 1"})
+            call("POST", "/auth/register", json_body={"email": "<b>@x.co", "password": "long enough pw"})
+            call("POST", "/auth/register", json_body={"email": "dave@example.org", "password": "short"})
+            r = call("POST", "/auth/login", json_body={"email": "Alice@Example.org"}, headers=key)
+            alice = r.json()["token"]
+            call("GET", "/auth/me", headers={"Authorization": f"Bearer {alice}"})
+            call("POST", "/auth/login", json_body={"email": "bob@example.org"},
+                 headers={"Authorization": f"Bearer {alice}"})                                   # no cross-identity
+            clock["t"] += 1.0
+            call("POST", "/auth/password", json_body={"new_password": "alice password 1"},
+                 headers={"Authorization": f"Bearer {alice}"})
+            call("POST", "/auth/password", json_body={"new_password": "x"}, headers=key)        # automation: no pw
+            call("POST", "/auth/login", json_body={"email": "alice@example.org", "password": "wrong password"})
+            clock["t"] += 1.0
+            r = call("POST", "/auth/login", json_body={"email": "alice@example.org", "password": "alice password 1"})
+            jar = {c["name"]: c["value"] for c in cookies_of(r)}
+            call("POST", "/auth/password", json_body={"new_password": "alice password 2"},
+                 cookies={"stewie_session": jar["stewie_session"]})                               # no CSRF
+            call("POST", "/auth/password", json_body={"new_password": "alice password 2"},
+                 cookies=jar, headers={"X-CSRF-Token": "not-the-cookie"})
+            call("POST", "/auth/password", json_body={"old_password": "wrong", "new_password": "alice password 2"},
+                 cookies=jar, headers={"X-CSRF-Token": jar["stewie_csrf"]})
+            call("POST", "/auth/password", json_body={"old_password": "alice password 1",
+                                                      "new_password": "alice password 2"},
+                 cookies=jar, headers={"X-CSRF-Token": jar["stewie_csrf"]})
+            call("GET", "/auth/me", cookies={"stewie_session": jar["stewie_session"]})           # GET: no CSRF
+            clock["t"] += 1.0
+            call("POST", "/auth/logout", cookies=jar)
+            call("GET", "/auth/me", cookies={"stewie_session": jar["stewie_session"]})           # revoked
+            call("POST", "/auth/logout")
+            call("POST", "/auth/login", json_body={"email": "zed@example.org"}, headers=key)
+            call("POST", "/auth/login", json_body={"email": "alice@example.org"}, headers=key)  # has a password
+            call("POST", "/auth/login", raw="{not json")
+            call("POST", "/auth/login", json_body={"email": "x" * 300})
+            call("POST", "/auth/login", json_body={"email": 5, "password": ["a"]})
+            call("POST", "/auth/register", raw="x" * 3000)
+            call("GET", "/no/such/route")
+            call("POST", "/no/such/route", json_body={})
+            call("GET", "/auth/login")                                                           # GET catch-all
+            call("PUT", "/auth/login", json_body={})
+            call("DELETE", "/no/such/route")
+            call("POST", "/auth/login", raw="")
+            call("POST", "/auth/login", raw="[1, 2]")
+            call("POST", "/auth/login", json_body={"email": "a@b.co", "password": "p" * 257, "extra": 1})
+            call("POST", "/auth/register", json_body={"email": None, "password": None})
+            call("POST", "/auth/password", json_body={"new_password": 7}, headers=key)
+            for k in range(9):                                                                   # the per-IP cap
+                call("POST", "/auth/login", json_body={"email": "bob@example.org", "password": f"wrong {k}"})
+            # an unreadable revocation store: the token is denied and /healthz reports the degradation
+            store = json.load(open(os.path.join(d, "operators.json")))
+            open(os.path.join(d, "revoked_jti.json"), "w").write("[not json")
+            call("GET", "/auth/me", headers={"Authorization": f"Bearer {alice}"})
+            call("GET", "/healthz")
+            ledger = [json.loads(x) for x in open(os.path.join(d, "events.jsonl"))]
+            for line in ledger:
+                if line["action"] == "revocation.read_failed":
+                    line["target"] = "<the read error>"                     # the error text is each language's own
+            for st in steps:
+                if isinstance(st["body"], dict) and isinstance(st["body"].get("revocation"), dict) \
+                        and st["body"]["revocation"]["last_error"] is not None:
+                    st["body"]["revocation"]["last_error"] = "<the read error>"
+        finally:
+            O.os.urandom = patched["urandom"]
+            O.secrets.token_urlsafe = patched["token_urlsafe"]
+            S.secrets.token_hex = patched["token_hex"]
+            O._clock = patched["clock"]
+            A.uuid.uuid4 = patched["uuid4"]
+            A.time.time = patched["a_time"]
+            S.time.time = patched["s_time"]
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            importlib.reload(srv)
+    write_fixture(ORACLE_FIXTURES, "http_auth_cases", "oracle/build_fixtures.py::http_auth_cases (the FastAPI app's "
+                  "identity routes, /healthz and middleware through one scripted TestClient session; pinned clock, "
+                  "seeded randomness; every input SYNTHETIC, labelled)",
+                  ["stewie/server/server.py", "stewie/server/deps.py", "stewie/server/routers/auth.py",
+                   "stewie/server/routers/health.py"],
+                  {"env": env, "seed_sha256_of": "stewie-http-auth-oracle", "clock0": 1_800_000_000.0,
+                   "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
@@ -3060,6 +3262,7 @@ def main() -> None:
     solar_cases()
     auth_cases()
     services_cases()
+    http_auth_cases()
 
 
 if __name__ == "__main__":

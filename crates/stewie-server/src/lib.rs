@@ -3,6 +3,7 @@
 //! (the audit ledger, revocation health, the rate limiter). Time and randomness enter
 //! through [`Clock`] and [`Entropy`], so the oracle replays the Python's scenario with the same clock and bytes.
 
+pub mod app;
 pub mod auth;
 pub mod operators;
 pub mod services;

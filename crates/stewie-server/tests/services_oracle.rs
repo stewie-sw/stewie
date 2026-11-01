@@ -181,6 +181,7 @@ fn the_python_services_scenario_replays_exactly() {
         clock: &clock,
         entropy: &OsEntropy,
         ledger: &ledger,
+        cid: None,
     };
     let want_step = it.next().unwrap();
     push(

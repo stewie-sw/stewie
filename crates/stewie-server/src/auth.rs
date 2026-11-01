@@ -108,7 +108,10 @@ impl AuthConfig {
             trust_tailscale,
             trusted_proxies,
             tls_terminated,
-            desktop: var("STEWIE_DESKTOP") == "1",
+            desktop: matches!(
+                var("STEWIE_DESKTOP").trim().to_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            ),
             data_dir: PathBuf::from(data_dir),
         })
     }
@@ -135,6 +138,8 @@ pub struct Auth<'a> {
     pub entropy: &'a dyn Entropy,
     /// Where an unreadable revocation store is reported (health, alert, audit line).
     pub ledger: &'a Ledger<'a>,
+    /// The request's correlation id, carried into the audit lines this layer writes.
+    pub cid: Option<&'a str>,
 }
 
 impl std::fmt::Debug for Auth<'_> {
@@ -263,7 +268,7 @@ impl Auth<'_> {
         match self.revoked_set() {
             Ok(s) => s.contains(jti),
             Err(e) => {
-                self.ledger.record_revocation_failure(&e);
+                self.ledger.record_revocation_failure(&e, self.cid);
                 true
             }
         }

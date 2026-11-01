@@ -286,12 +286,12 @@ impl<'a> Ledger<'a> {
     }
 
     /// The revocation store could not be read, so tokens are being denied: degrade, alert and audit it.
-    pub fn record_revocation_failure(&self, err: &str) {
+    pub fn record_revocation_failure(&self, err: &str, cid: Option<&str>) {
         locked(&self.revocation).fail(err);
         eprintln!(
             "SEC-02 ALERT: session revocation store UNREADABLE -- denying tokens (fail closed): {err}"
         );
-        self.log_event("system", "revocation.read_failed", err, None, &Map::new());
+        self.log_event("system", "revocation.read_failed", err, cid, &Map::new());
     }
 }
 

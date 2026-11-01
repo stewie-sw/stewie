@@ -1,0 +1,11 @@
+{
+ "fixture": "http_auth_cases",
+ "generator": "oracle/build_fixtures.py::http_auth_cases (the FastAPI app's identity routes, /healthz and middleware through one scripted TestClient session; pinned clock, seeded randomness; every input SYNTHETIC, labelled)",
+ "payload_sha256": "4800eb959bac7a7fddd08b9d9fa82c58bb09d8ae4868e835e4e40dca4d8d5558",
+ "sources": {
+  "stewie/server/deps.py": "b6534254f6276754db3847d9002d4b68e8d5f8ef5176651dfc58bebe51cc55c1",
+  "stewie/server/routers/auth.py": "3b5b6e0e0ece5c979362e704282c1cbb6cf8674648aaae8a70aa235b667abb78",
+  "stewie/server/routers/health.py": "647191163320abcb2ce645e6fac283d5f98ff2cc47bbd8cc00534acd023673a9",
+  "stewie/server/server.py": "e0cd3ea24d84e4a652ba650537b67e598ba0105c29aa913d8238ee07c5799af1"
+ }
+}

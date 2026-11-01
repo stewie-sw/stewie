@@ -1,0 +1,1598 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_MAX_BODY_BYTES": "2048",
+  "STEWIE_REGISTRATION": "1",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+  "STEWIE_TRUSTED_PROXIES": "10.0.0.0/8",
+  "STEWIE_TRUST_TAILSCALE": "1"
+ },
+ "ledger": [
+  {
+   "action": "auth.register",
+   "actor": "carol@example.org",
+   "correlation_id": "cid-009",
+   "target": "pending",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "auth.login",
+   "actor": "alice@example.org",
+   "correlation_id": "cid-012",
+   "target": "bootstrap",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "auth.password",
+   "actor": "alice@example.org",
+   "correlation_id": "cid-015",
+   "target": "set",
+   "ts": 1800000001.0
+  },
+  {
+   "action": "auth.login",
+   "actor": "alice@example.org",
+   "correlation_id": "cid-018",
+   "target": "password",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "auth.password",
+   "actor": "alice@example.org",
+   "correlation_id": "cid-022",
+   "target": "set",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "auth.logout",
+   "actor": "alice@example.org",
+   "correlation_id": "cid-024",
+   "target": "session cleared",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "auth.logout",
+   "actor": "anonymous",
+   "correlation_id": "cid-026",
+   "target": "session cleared",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "revocation.read_failed",
+   "actor": "system",
+   "correlation_id": "cid-052",
+   "target": "<the read error>",
+   "ts": 1800000003.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-auth-oracle",
+ "steps": [
+  {
+   "body": {
+    "audit": {
+     "degraded": false,
+     "failures": 0,
+     "last_error": null
+    },
+    "identity": {
+     "degraded": false,
+     "on_builtin_defaults": false
+    },
+    "revocation": {
+     "degraded": false,
+     "failures": 0,
+     "last_error": null
+    },
+    "status": "ok",
+    "uptime_s": "<uptime>",
+    "version": "0.1.0"
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-001"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/healthz",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "desktop": false,
+    "ok": true,
+    "operator_login": true,
+    "registration_open": true
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-002"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/config",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-003"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "has_password": false,
+    "identity": "api-key",
+    "ok": true,
+    "role": "director"
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-004"
+   },
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "has_password": false,
+    "identity": "gis-anon",
+    "ok": true,
+    "role": "guest"
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-005"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-005",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-006"
+   },
+   "request": {
+    "headers": {
+     "X-API-Key": "wrong-key",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-007"
+   },
+   "request": {
+    "headers": {
+     "Tailscale-User-Login": "alice@example.org",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "has_password": false,
+    "identity": "api-key",
+    "ok": true,
+    "role": "director"
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "c167b003328b9567"
+   },
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "message": "request received -- a director must approve this account before sign-in",
+    "ok": true,
+    "status": "pending"
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-009"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "email": "carol@example.org",
+     "password": "carol password 1"
+    },
+    "method": "POST",
+    "path": "/auth/register",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "'<b>@x.co' is not a valid email address (forbidden character)",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-010"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "email": "<b>@x.co",
+     "password": "long enough pw"
+    },
+    "method": "POST",
+    "path": "/auth/register",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "password must be at least 10 characters",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-011"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "email": "dave@example.org",
+     "password": "short"
+    },
+    "method": "POST",
+    "path": "/auth/register",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "alice@example.org",
+    "role": "director",
+    "token": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNGVkMzAzYzBhMDRjNDZlMjljYzI5NWFhYmE4ZjAyNTUifQ.9Ls_hGPxCNSOja38C38lFGqdfHwGprusUgYrTIBJchY",
+    "ttl_s": 43200
+   },
+   "cookies": [
+    {
+     "httponly": true,
+     "max-age": "43200",
+     "name": "stewie_session",
+     "path": "/",
+     "samesite": "strict",
+     "value": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNGVkMzAzYzBhMDRjNDZlMjljYzI5NWFhYmE4ZjAyNTUifQ.9Ls_hGPxCNSOja38C38lFGqdfHwGprusUgYrTIBJchY"
+    },
+    {
+     "max-age": "43200",
+     "name": "stewie_csrf",
+     "path": "/",
+     "samesite": "strict",
+     "value": "jJhlllp8yPf5xaw3W7ZMA-aQdVQO4vSqgDM0qbycDsQ"
+    }
+   ],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-012"
+   },
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "email": "Alice@Example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "has_password": false,
+    "identity": "alice@example.org",
+    "ok": true,
+    "role": "director"
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-013"
+   },
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNGVkMzAzYzBhMDRjNDZlMjljYzI5NWFhYmE4ZjAyNTUifQ.9Ls_hGPxCNSOja38C38lFGqdfHwGprusUgYrTIBJchY",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-014"
+   },
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNGVkMzAzYzBhMDRjNDZlMjljYzI5NWFhYmE4ZjAyNTUifQ.9Ls_hGPxCNSOja38C38lFGqdfHwGprusUgYrTIBJchY",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "email": "bob@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "message": "password set",
+    "ok": true
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-015"
+   },
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNGVkMzAzYzBhMDRjNDZlMjljYzI5NWFhYmE4ZjAyNTUifQ.9Ls_hGPxCNSOja38C38lFGqdfHwGprusUgYrTIBJchY",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": {
+     "new_password": "alice password 1"
+    },
+    "method": "POST",
+    "path": "/auth/password",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "an automation identity has no password",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-016"
+   },
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "new_password": "x"
+    },
+    "method": "POST",
+    "path": "/auth/password",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid credentials",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-017"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "email": "alice@example.org",
+     "password": "wrong password"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "must_set_password": false,
+    "ok": true,
+    "operator": "alice@example.org",
+    "role": "director",
+    "token": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAyLjAsImlhdCI6MTgwMDAwMDAwMi4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiYWRiMDU2OTE0Y2U0NDI1YTg2M2MzNmZlMTJmMzJiZTQifQ.pViNqtiEFT9NoF7tsm1rrfkEx8sib6UKX5YoxR5GK04",
+    "ttl_s": 43200
+   },
+   "cookies": [
+    {
+     "httponly": true,
+     "max-age": "43200",
+     "name": "stewie_session",
+     "path": "/",
+     "samesite": "strict",
+     "value": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAyLjAsImlhdCI6MTgwMDAwMDAwMi4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiYWRiMDU2OTE0Y2U0NDI1YTg2M2MzNmZlMTJmMzJiZTQifQ.pViNqtiEFT9NoF7tsm1rrfkEx8sib6UKX5YoxR5GK04"
+    },
+    {
+     "max-age": "43200",
+     "name": "stewie_csrf",
+     "path": "/",
+     "samesite": "strict",
+     "value": "sSuF5oCQDboeV-PRj-GaIixN3d3TJOk4AqpzAL4iWBE"
+    }
+   ],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-018"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": {
+     "email": "alice@example.org",
+     "password": "alice password 1"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "CSRF token missing or invalid",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-019"
+   },
+   "request": {
+    "headers": {
+     "Cookie": "stewie_session=eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAyLjAsImlhdCI6MTgwMDAwMDAwMi4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiYWRiMDU2OTE0Y2U0NDI1YTg2M2MzNmZlMTJmMzJiZTQifQ.pViNqtiEFT9NoF7tsm1rrfkEx8sib6UKX5YoxR5GK04",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": {
+     "new_password": "alice password 2"
+    },
+    "method": "POST",
+    "path": "/auth/password",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "CSRF token missing or invalid",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-020"
+   },
+   "request": {
+    "headers": {
+     "Cookie": "stewie_session=eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAyLjAsImlhdCI6MTgwMDAwMDAwMi4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiYWRiMDU2OTE0Y2U0NDI1YTg2M2MzNmZlMTJmMzJiZTQifQ.pViNqtiEFT9NoF7tsm1rrfkEx8sib6UKX5YoxR5GK04; stewie_csrf=sSuF5oCQDboeV-PRj-GaIixN3d3TJOk4AqpzAL4iWBE",
+     "X-CSRF-Token": "not-the-cookie",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": {
+     "new_password": "alice password 2"
+    },
+    "method": "POST",
+    "path": "/auth/password",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "current password is incorrect",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-021"
+   },
+   "request": {
+    "headers": {
+     "Cookie": "stewie_session=eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAyLjAsImlhdCI6MTgwMDAwMDAwMi4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiYWRiMDU2OTE0Y2U0NDI1YTg2M2MzNmZlMTJmMzJiZTQifQ.pViNqtiEFT9NoF7tsm1rrfkEx8sib6UKX5YoxR5GK04; stewie_csrf=sSuF5oCQDboeV-PRj-GaIixN3d3TJOk4AqpzAL4iWBE",
+     "X-CSRF-Token": "sSuF5oCQDboeV-PRj-GaIixN3d3TJOk4AqpzAL4iWBE",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": {
+     "new_password": "alice password 2",
+     "old_password": "wrong"
+    },
+    "method": "POST",
+    "path": "/auth/password",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "message": "password set",
+    "ok": true
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-022"
+   },
+   "request": {
+    "headers": {
+     "Cookie": "stewie_session=eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAyLjAsImlhdCI6MTgwMDAwMDAwMi4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiYWRiMDU2OTE0Y2U0NDI1YTg2M2MzNmZlMTJmMzJiZTQifQ.pViNqtiEFT9NoF7tsm1rrfkEx8sib6UKX5YoxR5GK04; stewie_csrf=sSuF5oCQDboeV-PRj-GaIixN3d3TJOk4AqpzAL4iWBE",
+     "X-CSRF-Token": "sSuF5oCQDboeV-PRj-GaIixN3d3TJOk4AqpzAL4iWBE",
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": {
+     "new_password": "alice password 2",
+     "old_password": "alice password 1"
+    },
+    "method": "POST",
+    "path": "/auth/password",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "has_password": true,
+    "identity": "alice@example.org",
+    "ok": true,
+    "role": "director"
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-023"
+   },
+   "request": {
+    "headers": {
+     "Cookie": "stewie_session=eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAyLjAsImlhdCI6MTgwMDAwMDAwMi4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiYWRiMDU2OTE0Y2U0NDI1YTg2M2MzNmZlMTJmMzJiZTQifQ.pViNqtiEFT9NoF7tsm1rrfkEx8sib6UKX5YoxR5GK04",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true
+   },
+   "cookies": [
+    {
+     "expires": "Fri, 15 Jan 2027 08:00:03 GMT",
+     "max-age": "0",
+     "name": "stewie_session",
+     "path": "/",
+     "samesite": "lax",
+     "value": ""
+    },
+    {
+     "expires": "Fri, 15 Jan 2027 08:00:03 GMT",
+     "max-age": "0",
+     "name": "stewie_csrf",
+     "path": "/",
+     "samesite": "lax",
+     "value": ""
+    }
+   ],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-024"
+   },
+   "request": {
+    "headers": {
+     "Cookie": "stewie_session=eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAyLjAsImlhdCI6MTgwMDAwMDAwMi4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiYWRiMDU2OTE0Y2U0NDI1YTg2M2MzNmZlMTJmMzJiZTQifQ.pViNqtiEFT9NoF7tsm1rrfkEx8sib6UKX5YoxR5GK04; stewie_csrf=sSuF5oCQDboeV-PRj-GaIixN3d3TJOk4AqpzAL4iWBE",
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/auth/logout",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-025"
+   },
+   "request": {
+    "headers": {
+     "Cookie": "stewie_session=eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAyLjAsImlhdCI6MTgwMDAwMDAwMi4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiYWRiMDU2OTE0Y2U0NDI1YTg2M2MzNmZlMTJmMzJiZTQifQ.pViNqtiEFT9NoF7tsm1rrfkEx8sib6UKX5YoxR5GK04",
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true
+   },
+   "cookies": [
+    {
+     "expires": "Fri, 15 Jan 2027 08:00:03 GMT",
+     "max-age": "0",
+     "name": "stewie_session",
+     "path": "/",
+     "samesite": "lax",
+     "value": ""
+    },
+    {
+     "expires": "Fri, 15 Jan 2027 08:00:03 GMT",
+     "max-age": "0",
+     "name": "stewie_csrf",
+     "path": "/",
+     "samesite": "lax",
+     "value": ""
+    }
+   ],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-026"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/auth/logout",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "'zed@example.org' is not a whitelisted operator",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-027"
+   },
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": {
+     "email": "zed@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "this account has a password -- sign in with it",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-028"
+   },
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": {
+     "email": "alice@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-029"
+   },
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": "{not json"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "email: String should have at most 254 characters",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-030"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-030"
+    },
+    "json": {
+     "email": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "email: Input should be a valid string; password: Input should be a valid string",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-031"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": {
+     "email": 5,
+     "password": [
+      "a"
+     ]
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "request body too large (> 2048 bytes)",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json"
+   },
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/auth/register",
+    "raw": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   "status": 413
+  },
+  {
+   "body": {
+    "error": "no route /no/such/route",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-033"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/no/such/route",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no route /no/such/route",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-034"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/no/such/route",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no route /auth/login",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-035"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "Method Not Allowed",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-036"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-036"
+    },
+    "json": {},
+    "method": "PUT",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 405
+  },
+  {
+   "body": {
+    "error": "Method Not Allowed",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-037"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-037"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/no/such/route",
+    "raw": null
+   },
+   "status": 405
+  },
+  {
+   "body": {
+    "error": "body: Field required",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-038"
+   },
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-038"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": ""
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "body: Input should be a valid dictionary or object to extract fields from",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-039"
+   },
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-039"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": "[1, 2]"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "password: String should have at most 256 characters",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-040"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-040"
+    },
+    "json": {
+     "email": "a@b.co",
+     "extra": 1,
+     "password": "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "email: Input should be a valid string; password: Input should be a valid string",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-041"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-041"
+    },
+    "json": {
+     "email": null,
+     "password": null
+    },
+    "method": "POST",
+    "path": "/auth/register",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "new_password: Input should be a valid string",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-042"
+   },
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-042"
+    },
+    "json": {
+     "new_password": 7
+    },
+    "method": "POST",
+    "path": "/auth/password",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid credentials",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-043"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-043"
+    },
+    "json": {
+     "email": "bob@example.org",
+     "password": "wrong 0"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "invalid credentials",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-044"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-044"
+    },
+    "json": {
+     "email": "bob@example.org",
+     "password": "wrong 1"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "invalid credentials",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-045"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-045"
+    },
+    "json": {
+     "email": "bob@example.org",
+     "password": "wrong 2"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "invalid credentials",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-046"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-046"
+    },
+    "json": {
+     "email": "bob@example.org",
+     "password": "wrong 3"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "invalid credentials",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-047"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-047"
+    },
+    "json": {
+     "email": "bob@example.org",
+     "password": "wrong 4"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "invalid credentials",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-048"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-048"
+    },
+    "json": {
+     "email": "bob@example.org",
+     "password": "wrong 5"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "invalid credentials",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-049"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-049"
+    },
+    "json": {
+     "email": "bob@example.org",
+     "password": "wrong 6"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "invalid credentials",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-050"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-050"
+    },
+    "json": {
+     "email": "bob@example.org",
+     "password": "wrong 7"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "too many login attempts; slow down",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-051"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-051"
+    },
+    "json": {
+     "email": "bob@example.org",
+     "password": "wrong 8"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 429
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-052"
+   },
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNGVkMzAzYzBhMDRjNDZlMjljYzI5NWFhYmE4ZjAyNTUifQ.9Ls_hGPxCNSOja38C38lFGqdfHwGprusUgYrTIBJchY",
+     "X-Correlation-Id": "cid-052"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/auth/me",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "audit": {
+     "degraded": false,
+     "failures": 0,
+     "last_error": null
+    },
+    "identity": {
+     "degraded": false,
+     "on_builtin_defaults": false
+    },
+    "revocation": {
+     "degraded": true,
+     "failures": 1,
+     "last_error": "<the read error>"
+    },
+    "status": "degraded",
+    "uptime_s": "<uptime>",
+    "version": "0.1.0"
+   },
+   "cookies": [],
+   "headers": {
+    "content-type": "application/json",
+    "permissions-policy": "geolocation=(), microphone=(), camera=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-correlation-id": "cid-053"
+   },
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-053"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/healthz",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": {
+  "operators": {
+   "alice@example.org": {
+    "approved_at": 1800000001.0,
+    "approved_by": "alice@example.org",
+    "created_at": 1800000001.0,
+    "email": "alice@example.org",
+    "fail_by_ip": {},
+    "failed": 0,
+    "last_login": 1800000002.0,
+    "locked_until": 0.0,
+    "pw_hash": "cba5757a0a56f6575a0fc4694d59f00198e33947a9162521b6fd7d64f6c452bb",
+    "pw_salt": "30b07b64e171c0827c033560f9a152a0",
+    "role": "director",
+    "status": "active"
+   },
+   "carol@example.org": {
+    "approved_at": null,
+    "approved_by": null,
+    "created_at": 1800000000.0,
+    "email": "carol@example.org",
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "pw_hash": "37ab8075c5f6edcdff3a80a896d9821c194b7a163b1de72959c636ead7ae0b12",
+    "pw_salt": "4bc39b1662a194dfb96cee3582309391",
+    "role": "operator",
+    "status": "pending"
+   }
+  },
+  "version": 1
+ }
+}

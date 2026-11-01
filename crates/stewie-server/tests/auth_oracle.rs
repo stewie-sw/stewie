@@ -100,6 +100,7 @@ fn the_python_auth_scenario_replays_exactly() {
         clock: &clock,
         entropy: &bytes,
         ledger: &ledger,
+        cid: None,
     };
     let mut s = Vec::new();
     let s = &mut s;

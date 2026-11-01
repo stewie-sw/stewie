@@ -8,17 +8,22 @@ license-file.workspace = true
 publish.workspace = true
 
 [dependencies]
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "json"] }
 base64 = "0.22"
 getrandom = "0.3"
 hmac = "0.12"
+httpdate = "1"
 pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
 regex = "1"
 serde_json = { version = "1", features = ["float_roundtrip"] }
 sha2 = "0.10"
 stewie-twin = { path = "../stewie-twin" }
 subtle = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
 
 [dev-dependencies]
+http-body-util = "0.1"
+tower = { version = "0.5", features = ["util"] }
 stewie-oracle = { path = "../stewie-oracle" }
 
 [lints]
