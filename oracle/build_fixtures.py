@@ -2392,6 +2392,129 @@ def record_cases() -> None:
                   {"cases": cases, "drum": drum})
 
 
+def illumination_cases() -> None:
+    """Illumination route cost (RW-15a): dart.illumination_cost.illumination_cost (cast shadows, grazing-Sun
+    saturation, map uncertainty, anchor line of sight) on a real 60x60 window of the Haworth route window, under the
+    apparent Sun at real Haworth epochs (the SPICE vectors of ephem_topocentric, turned to topocentric azimuth and
+    elevation here) and under fixed Sun angles that reach every branch (Sun down, grazing, high). The anchor
+    positions and the map-uncertainty field are SYNTHETIC (labelled)."""
+    from dart.illumination_cost import (GRAZING_EL_DEG, W_MAP_UNCERTAINTY, W_SATURATION, W_SHADOW, W_VISIBILITY,
+                                        illumination_cost)
+    from dart.visibility import viewshed
+
+    with open(os.path.join(ORACLE_FIXTURES, "route_cases.payload.json")) as fh:
+        rc = json.load(fh)
+    rc = rc.get("payload", rc)
+    with open(os.path.join(ORACLE_FIXTURES, "trips_cases.payload.json")) as fh:
+        tc = json.load(fh)
+    tc = tc.get("payload", tc)
+    side = int(tc["window"][2])
+    Z = np.asarray(rc["z"], dtype=np.float64).reshape(side, side)
+    r0, c0, n = 40, 40, 60
+    window = Z[r0:r0 + n, c0:c0 + n]
+    cell = 5.0
+    with open(os.path.join(ORACLE_FIXTURES, "ephem_topocentric.payload.json")) as fh:
+        eph = json.load(fh)
+    eph = eph.get("payload", eph)
+    site = eph["sites"]["haworth"]
+    lat, lon = np.radians(site["lat_deg"]), np.radians(site["lon_deg"])
+    east = np.array([-np.sin(lon), np.cos(lon), 0.0])
+    north = np.array([-np.sin(lat) * np.cos(lon), -np.sin(lat) * np.sin(lon), np.cos(lat)])
+    up = np.array([np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)])
+
+    def azel(v):
+        v = np.asarray(v, dtype=float)
+        e, nn, u = float(v @ east), float(v @ north), float(v @ up)
+        return math.degrees(math.atan2(e, nn)) % 360.0, math.degrees(math.atan2(u, math.hypot(e, nn)))
+
+    suns = []
+    for s in eph["samples"]:
+        if s["site"] != "haworth":
+            continue
+        az, el = azel(s["sun_m"])
+        if el > 0.0 and len([x for x in suns if x["utc"]]) < 3:
+            suns.append({"utc": s["utc"], "az_deg": az, "el_deg": el})
+        if el <= 0.0 and not any(x["utc"] and x["el_deg"] <= 0.0 for x in suns):
+            suns.append({"utc": s["utc"], "az_deg": az, "el_deg": el})
+    suns += [{"utc": None, "az_deg": 135.0, "el_deg": 2.0}, {"utc": None, "az_deg": 300.0, "el_deg": 1.0},
+             {"utc": None, "az_deg": 45.0, "el_deg": 30.0}, {"utc": None, "az_deg": 210.0, "el_deg": -3.0}]
+    anchors = [(60.0, 75.0), (230.0, 120.0)]                     # world metres within the window (SYNTHETIC)
+    los = viewshed((window, cell), (0.0, 0.0), anchors)
+    yy, xx = np.mgrid[0:n, 0:n]
+    mu = np.clip(np.hypot(xx - 30, yy - 30) / 42.0, 0.0, 1.0)  # SYNTHETIC coverage gradient
+    cases = []
+    for sun in suns:
+        for variant in ("plain", "anchors", "los_and_mu"):
+            kw = {}
+            if variant == "anchors":
+                kw["anchors"] = anchors
+            elif variant == "los_and_mu":
+                kw["los"] = los
+                kw["map_uncertainty"] = mu
+            r = illumination_cost(window, cell_m=cell, sun_az_deg=sun["az_deg"], sun_el_deg=sun["el_deg"], **kw)
+            sat = r["saturation"].ravel()
+            lit = r["shadow_hazard"].ravel() == 0.0
+            assert np.all(sat[~lit] == 0.0) and (not lit.any() or np.all(sat[lit] == sat[lit][0]))
+            case = {"sun": sun, "variant": variant,
+                    "shadowed": np.nonzero(~lit)[0].tolist(),            # compact: the shadowed cells
+                    "saturation_lit": float(sat[lit][0]) if lit.any() else 0.0,
+                    "blind": np.nonzero(r["visibility"].ravel() > 0.0)[0].tolist()}
+            if variant == "los_and_mu":
+                case["total"] = r["total"].ravel().tolist()
+            cases.append(case)
+    lit_counts = [n * n - len(c["shadowed"]) for c in cases]
+    assert 0 < max(lit_counts) and min(lit_counts) == 0, "vacuity: lit cells under some Sun, none with the Sun down"
+    assert any(0 < x < n * n for x in lit_counts), "vacuity: a partly shadowed window"
+    assert 0 < int(np.count_nonzero(los)) < n * n, "vacuity: some cells see an anchor, some do not"
+    write_fixture(ORACLE_FIXTURES, "illumination_cases", "oracle/build_fixtures.py::illumination_cases (dart."
+                  "illumination_cost on a real Haworth window; Sun from the SPICE vectors of ephem_topocentric and fixed "
+                  "angles; anchors and the map-uncertainty field SYNTHETIC, labelled)",
+                  ["dart/illumination_cost.py", "dart/shadow_predict.py", "dart/visibility.py", "dart/illumination.py",
+                   "crates/stewie-oracle/fixtures/route_cases.payload.json",
+                   "crates/stewie-oracle/fixtures/ephem_topocentric.payload.json"],
+                  {"window": [r0, c0, n], "cell_m": cell, "anchors": [list(a) for a in anchors],
+                   "los": los.ravel().tolist(), "map_uncertainty": mu.ravel().tolist(),
+                   "weights": {"shadow": W_SHADOW, "saturation": W_SATURATION, "map_uncertainty": W_MAP_UNCERTAINTY,
+                               "visibility": W_VISIBILITY, "grazing_el_deg": GRAZING_EL_DEG},
+                   "cases": cases})
+
+
+def solar_cases() -> None:
+    """Solar observation contract (RW-15b): dart.solar_observation.ephemeris_fallback at the lit Haworth epochs of
+    illumination_cases (the SPICE-derived Sun), azimuth wrapping, and every refusal. The sigmas, the sample ids and
+    the out-of-range angles are SYNTHETIC inputs (labelled)."""
+    import dataclasses
+
+    from dart.solar_observation import ephemeris_fallback
+
+    with open(os.path.join(ORACLE_FIXTURES, "illumination_cases.payload.json")) as fh:
+        ic = json.load(fh)
+    ic = ic.get("payload", ic)
+    lit = [c["sun"] for c in ic["cases"] if c["variant"] == "plain" and c["sun"]["utc"] and c["sun"]["el_deg"] > 0]
+    cases = []
+    for k, sun in enumerate(lit):
+        o = ephemeris_fallback(sun["az_deg"], sun["el_deg"], sample_id=f"haworth-{k}", sigma_azimuth_deg=0.5,
+                               sigma_elevation_deg=0.25)
+        cases.append({"sun": sun, "sample_id": f"haworth-{k}", "sigmas": [0.5, 0.25], "calibrated": False,
+                      "observation": dataclasses.asdict(o)})
+    o = ephemeris_fallback(370.0, 12.0, sample_id="wrap", sigma_azimuth_deg=0.0, sigma_elevation_deg=1.0,
+                           covariance_calibrated=True)
+    cases.append({"sun": {"utc": None, "az_deg": 370.0, "el_deg": 12.0}, "sample_id": "wrap", "sigmas": [0.0, 1.0],
+                  "calibrated": True, "observation": dataclasses.asdict(o)})
+    refusals = []
+    for az, el, sid, sa, se in ((10.0, 0.0, "a", 0.1, 0.1), (10.0, 95.0, "a", 0.1, 0.1), (10.0, 20.0, "", 0.1, 0.1),
+                                (10.0, 20.0, "a", -0.5, 0.1), (10.0, 20.0, "a", 0.1, -1.0)):
+        try:
+            ephemeris_fallback(az, el, sample_id=sid, sigma_azimuth_deg=sa, sigma_elevation_deg=se)
+        except ValueError as e:
+            refusals.append({"az_deg": az, "el_deg": el, "sample_id": sid, "sigmas": [sa, se], "error": str(e)})
+    assert len(lit) >= 2 and len(refusals) == 5
+    write_fixture(ORACLE_FIXTURES, "solar_cases", "oracle/build_fixtures.py::solar_cases (dart.solar_observation; "
+                  "Sun from illumination_cases' SPICE epochs; sigmas, ids and out-of-range angles SYNTHETIC, labelled)",
+                  ["dart/solar_observation.py", "crates/stewie-oracle/fixtures/illumination_cases.payload.json"],
+                  {"cases": cases, "refusals": refusals})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -2671,6 +2794,8 @@ def main() -> None:
     replay_cases()
     build_cases()
     record_cases()
+    illumination_cases()
+    solar_cases()
 
 
 if __name__ == "__main__":

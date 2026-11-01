@@ -1,0 +1,128 @@
+{
+ "cases": [
+  {
+   "calibrated": false,
+   "observation": {
+    "azimuth_deg": 6.174503962185367,
+    "coordinate_frame": "GODOT_WORLD",
+    "covariance_calibrated": false,
+    "elevation_deg": 2.870620196816511,
+    "provenance": "RUNTIME_PARAMETER",
+    "sample_id": "haworth-0",
+    "source": "EPHEMERIS_FALLBACK",
+    "variance_azimuth_deg2": 0.25,
+    "variance_elevation_deg2": 0.0625
+   },
+   "sample_id": "haworth-0",
+   "sigmas": [
+    0.5,
+    0.25
+   ],
+   "sun": {
+    "az_deg": 6.174503962185367,
+    "el_deg": 2.870620196816511,
+    "utc": "2032-11-19T06:15:21.147Z"
+   }
+  },
+  {
+   "calibrated": false,
+   "observation": {
+    "azimuth_deg": 26.568419501686655,
+    "coordinate_frame": "GODOT_WORLD",
+    "covariance_calibrated": false,
+    "elevation_deg": 3.5253955163256525,
+    "provenance": "RUNTIME_PARAMETER",
+    "sample_id": "haworth-1",
+    "source": "EPHEMERIS_FALLBACK",
+    "variance_azimuth_deg2": 0.25,
+    "variance_elevation_deg2": 0.0625
+   },
+   "sample_id": "haworth-1",
+   "sigmas": [
+    0.5,
+    0.25
+   ],
+   "sun": {
+    "az_deg": 26.568419501686655,
+    "el_deg": 3.5253955163256525,
+    "utc": "2030-06-15T19:56:45.364Z"
+   }
+  },
+  {
+   "calibrated": true,
+   "observation": {
+    "azimuth_deg": 10.0,
+    "coordinate_frame": "GODOT_WORLD",
+    "covariance_calibrated": true,
+    "elevation_deg": 12.0,
+    "provenance": "RUNTIME_PARAMETER",
+    "sample_id": "wrap",
+    "source": "EPHEMERIS_FALLBACK",
+    "variance_azimuth_deg2": 0.0,
+    "variance_elevation_deg2": 1.0
+   },
+   "sample_id": "wrap",
+   "sigmas": [
+    0.0,
+    1.0
+   ],
+   "sun": {
+    "az_deg": 370.0,
+    "el_deg": 12.0,
+    "utc": null
+   }
+  }
+ ],
+ "refusals": [
+  {
+   "az_deg": 10.0,
+   "el_deg": 0.0,
+   "error": "solar elevation must be in (0, 90) degrees",
+   "sample_id": "a",
+   "sigmas": [
+    0.1,
+    0.1
+   ]
+  },
+  {
+   "az_deg": 10.0,
+   "el_deg": 95.0,
+   "error": "solar elevation must be in (0, 90) degrees",
+   "sample_id": "a",
+   "sigmas": [
+    0.1,
+    0.1
+   ]
+  },
+  {
+   "az_deg": 10.0,
+   "el_deg": 20.0,
+   "error": "solar sample_id is required",
+   "sample_id": "",
+   "sigmas": [
+    0.1,
+    0.1
+   ]
+  },
+  {
+   "az_deg": 10.0,
+   "el_deg": 20.0,
+   "error": "sigma_azimuth_deg must be >= 0 (got -0.5)",
+   "sample_id": "a",
+   "sigmas": [
+    -0.5,
+    0.1
+   ]
+  },
+  {
+   "az_deg": 10.0,
+   "el_deg": 20.0,
+   "error": "sigma_elevation_deg must be >= 0 (got -1.0)",
+   "sample_id": "a",
+   "sigmas": [
+    0.1,
+    -1.0
+   ]
+  }
+ ]
+}

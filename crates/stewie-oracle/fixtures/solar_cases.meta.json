@@ -1,0 +1,9 @@
+{
+ "fixture": "solar_cases",
+ "generator": "oracle/build_fixtures.py::solar_cases (dart.solar_observation; Sun from illumination_cases' SPICE epochs; sigmas, ids and out-of-range angles SYNTHETIC, labelled)",
+ "payload_sha256": "78b7af5ee78e10424e2fb9146c8f0cf0530a45ffa61e47c1f7f701ac9bd644e2",
+ "sources": {
+  "crates/stewie-oracle/fixtures/illumination_cases.payload.json": "cfeb596907a20a5110ade9bc7ec9662089c2fdc3bf57cf3a3e8aacc44412a4d0",
+  "dart/solar_observation.py": "6f72cac2cf1f68381b84f7c81812d6e858f4702fcc3ced538e40a1406293dff9"
+ }
+}
