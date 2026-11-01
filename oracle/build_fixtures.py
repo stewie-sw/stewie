@@ -1666,6 +1666,301 @@ def sequencing_cases() -> None:
                   {"cases": cases, "parses": parses})
 
 
+def fleet_cases() -> None:
+    """Fleet allocation and deconfliction (RW-33d2a): lode.planner_multivehicle's site-exclusive allocation and
+    every resolver plan_multi runs, on fleets planned over the real Haworth route window (trips_cases missions,
+    each rover sequenced by optimize_sequence and simulated by _simulate exactly as plan_multi does). The
+    declared shared resources, observations and the multi-site layouts are SYNTHETIC placements on the real
+    terrain (labelled). Also SYNTHETIC per-vehicle timelines (labelled) for the branches a real fleet here does not
+    reach: a capacity-2 resource, chained cross-vehicle precedence and the observation refusals."""
+    import copy
+
+    import lode.planner_multivehicle as MV
+    from lode.planner_model import mission_from_dict
+    from lode.planner_optimize import optimize_sequence
+    from lode.planner_sim import _simulate
+    from lode.planner_trips import _build_trips, _make_routes, trip_precedence
+
+    with open(os.path.join(ORACLE_FIXTURES, "trips_cases.payload.json")) as fh:
+        tc = json.load(fh)
+    tc = tc.get("payload", tc)
+    base, _ = __import__("stewie.physics.worksite", fromlist=["coarse_base_from_bundle"]).coarse_base_from_bundle(
+        os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    dem, origin = (Z, 5.0), (100.0, 50.0)
+    payloads = {mc["name"]: mc["payload"] for mc in tc["missions"]}
+
+    def spans(tl):
+        return [{"kind": s["kind"], "t0": s["t0"], "t1": s["t1"], "batt0": s["batt0"], "batt1": s["batt1"],
+                 "from": [s["x0"], s["y0"]], "to": [s["x1"], s["y1"]]} for s in tl]
+
+    cases = []
+
+    def run(name, payload, vehicles, algo="nearest", obj="time"):
+        m = mission_from_dict(payload)
+        trips, _f, _s, _meta = _build_trips(m, dem, origin, 25.0)
+        rd = _make_routes(m, dem, origin, 25.0)
+        prec = trip_precedence(trips, m)
+        alloc = MV._allocate_trips(trips, vehicles)
+        per, orders = [], []
+        for v, idxs in enumerate(alloc):
+            vtrips = [trips[i] for i in idxs]
+            gorder = []
+            if vtrips:
+                li = {g: k for k, g in enumerate(idxs)}
+                lp = [(li[i], li[j]) for i, j in prec if i in li and j in li]
+                order = optimize_sequence(vtrips, m, algorithm=algo, objective=obj, precedence=(lp or None),
+                                          routes=rd)
+                vtrips = [vtrips[k] for k in order]
+                gorder = [idxs[k] for k in order]
+            tl, per_trip, core = _simulate(m, vtrips, rd)
+            per.append({"vehicle": v, "trips": vtrips, "tl": tl, "per_trip": per_trip, "core": core})
+            orders.append(gorder)
+        jd, jbd = MV._resolve_joint_resources(per, charger_capacity=m.charger_capacity,
+                                              shared_resources=m.shared_resources)
+        od, obd = MV._resolve_observation_vantages(len(per), m.observations)
+        cases.append({
+            "name": name, "payload": payload, "vehicles": vehicles, "algorithm": algo, "objective": obj,
+            "alloc": alloc, "orders": orders, "precedence": [list(p) for p in prec],
+            "tl": [spans(pv["tl"]) for pv in per],
+            "times": [[[float(pt["t_start"]), float(pt["t_end"])] for pt in pv["per_trip"]] for pv in per],
+            "core_time_s": [pv["core"]["time_s"] for pv in per],
+            "joint": {"delay": jd, "charger_delay": jbd["charger_delay"], "resource_delay": jbd["resource_delay"],
+                      "resource_waits": [[k, w] for k, w in jbd["resource_waits"].items()]},
+            "crowd": MV._resolve_spacetime_crowding(per),
+            "precedence_delay": MV._resolve_cross_vehicle_precedence(per, alloc, prec, trips),
+            "observation": {"delay": od, "vantages": [[k, v] for k, v in obd.get("vantages", {}).items()]},
+            "vehicle_conflicts": MV._vehicle_conflicts(per), "charger_conflicts": MV._charger_conflicts(per, m),
+            "temporal_conflicts": MV._temporal_conflicts(per), "haul_path_conflicts": MV._haul_path_conflicts(per),
+            "health": [MV._rover_health(pv) for pv in per]})
+
+    main = payloads["haul_two_pairs"]
+    run("two_pairs_x2", main, 2)
+    run("two_pairs_x3", main, 3)
+    run("two_pairs_x4_greedy", main, 4, algo="greedy", obj="energy")
+    shared = copy.deepcopy(main)
+    shared["shared_resources"] = [
+        {"id": "dump", "kind": "dump", "capacity": 1, "sites": [[152.5, 152.5], [277.5, 377.5]]},
+        {"id": "pit", "kind": "pit", "capacity": 1, "sites": [[2.5, 52.5], [52.5, 302.5]]}]
+    shared["observations"] = [
+        {"vehicle": 0, "x": 150.0, "y": 150.0, "t_start": 0.0, "t_end": 600.0, "kind": "solar"},
+        {"vehicle": 1, "x": 155.0, "y": 152.0, "t_start": 100.0, "t_end": 400.0, "kind": "meerkat"},
+        {"vehicle": 1, "x": 300.0, "y": 300.0, "t_start": 50.0, "t_end": 90.0, "kind": "solar"}]
+    run("shared_resources_x2", shared, 2)
+    capped = copy.deepcopy(shared)
+    capped["charger_capacity"] = 2
+    run("charger_cap2_x3", capped, 3)
+    prec = copy.deepcopy(main)
+    prec["precedence"] = [[main["orders"][0]["action"], main["orders"][1]["action"]]]
+    run("precedence_x2", prec, 2)
+    run("deficit_x2", payloads["deficit"], 2)
+    twin = copy.deepcopy(payloads["heavy_rassor"])
+    twin["orders"] = list(twin["orders"]) + [dict(o, action=o["action"] + "_east", x=o["x"] + 5.0)
+                                             for o in payloads["heavy_rassor"]["orders"]]
+    run("heavy_twin_x2", twin, 2)
+    run("heavy_rassor_x2", payloads["heavy_rassor"], 2)
+    assert any(max(c["joint"]["charger_delay"]) > 0 for c in cases), "vacuity: a charger wait"
+    assert any(c["joint"]["resource_waits"] for c in cases), "vacuity: a resource wait"
+    assert any(max(c["crowd"]) > 0 for c in cases), "vacuity: a crowding wait"
+    assert any(max(c["observation"]["delay"]) > 0 for c in cases), "vacuity: an observation wait"
+    assert any(c["haul_path_conflicts"] for c in cases) and any(c["temporal_conflicts"] for c in cases)
+
+    # SYNTHETIC timelines (labelled): branches the real fleets above do not reach
+    def seg(kind, t0, t1, a, b=None, batt=(100.0, 90.0)):
+        b = b or a
+        return dict(t0=t0, t1=t1, kind=kind, batt0=batt[0], batt1=batt[1], mass=0.0, speed=0.0,
+                    x0=a[0], y0=a[1], x1=b[0], y1=b[1])
+
+    sites = [(0.0, 0.0), (50.0, 0.0), (100.0, 0.0)]
+    synth_trips = [{"site": list(s), "kind": "dig", "dig_e": 1.0, "haul_e": 0.0} for s in sites]
+    syn_per = [
+        {"vehicle": 0, "tl": [seg("charge", 0.0, 100.0, (0, 0)), seg("dig", 100.0, 300.0, (0, 0), batt=(100.0, 10.0))],
+         "per_trip": [{"trip": synth_trips[0], "t_start": 0.0, "t_end": 300.0}],
+         "core": {"feasible": True, "charges": 1, "infeasible_reasons": []}},
+        {"vehicle": 1, "tl": [seg("charge", 50.0, 150.0, (0, 0)), seg("drive", 150.0, 200.0, (0, 0), (50, 0))],
+         "per_trip": [{"trip": synth_trips[1], "t_start": 50.0, "t_end": 250.0}],
+         "core": {"feasible": False, "charges": 1, "infeasible_reasons": ["a", "b", "c", "d"]}},
+        {"vehicle": 2, "tl": [seg("charge", 60.0, 120.0, (0, 0)), seg("dig", 120.0, 400.0, (100, 0))],
+         "per_trip": [{"trip": synth_trips[2], "t_start": 10.0, "t_end": 400.0}],
+         "core": {"feasible": True, "charges": 1, "infeasible_reasons": []}},
+    ]
+    syn_alloc = [[0], [1], [2]]
+    res2 = [{"id": "yard", "kind": "dump", "capacity": 2, "sites": [[0.0, 0.0], [50.0, 0.2], [100.0, 0.0]]}]
+    synthetic = []
+    for cap in (1, 2):
+        jd, jbd = MV._resolve_joint_resources(syn_per, charger_capacity=cap, shared_resources=res2)
+        synthetic.append({"charger_capacity": cap, "resources": res2,
+                          "joint": {"delay": jd, "charger_delay": jbd["charger_delay"],
+                                    "resource_delay": jbd["resource_delay"],
+                                    "resource_waits": [[k, w] for k, w in jbd["resource_waits"].items()]}})
+    # a charge and a resource visit arriving together: the charger is placed first (kind before id, and the id
+    # "alpha" sorts before "charger"); rover 0 already holds the charger and later the resource, so the order
+    # decides who waits
+    tie_per = [
+        {"vehicle": 0, "tl": [seg("charge", 0.0, 100.0, (0, 0))],
+         "per_trip": [{"trip": synth_trips[0], "t_start": 50.0, "t_end": 150.0}], "core": {}},
+        {"vehicle": 1, "tl": [seg("charge", 0.0, 40.0, (0, 0))],
+         "per_trip": [{"trip": synth_trips[1], "t_start": 0.0, "t_end": 80.0}], "core": {}}]
+    tie_res = [{"id": "alpha", "kind": "pit", "capacity": 1, "sites": [[0.0, 0.0], [50.0, 0.0]]}]
+    tjd, tjbd = MV._resolve_joint_resources(tie_per, charger_capacity=1, shared_resources=tie_res)
+    tie = {"tl": [spans(pv["tl"]) for pv in tie_per],
+           "times": [[[pt["t_start"], pt["t_end"]] for pt in pv["per_trip"]] for pv in tie_per],
+           "resources": tie_res, "delay": tjd, "charger_delay": tjbd["charger_delay"],
+           "resource_delay": tjbd["resource_delay"]}
+    chain = [(0, 1), (1, 2)]
+    syn = {"tl": [spans(pv["tl"]) for pv in syn_per],
+           "times": [[[pt["t_start"], pt["t_end"]] for pt in pv["per_trip"]] for pv in syn_per],
+           "sites": [list(s) for s in sites], "alloc": syn_alloc,
+           "core": [{"feasible": pv["core"]["feasible"], "charges": pv["core"]["charges"],
+                     "infeasible_reasons": pv["core"]["infeasible_reasons"]} for pv in syn_per],
+           "joint": synthetic, "chain": [list(p) for p in chain],
+           "chain_delay": MV._resolve_cross_vehicle_precedence(syn_per, syn_alloc, chain, synth_trips),
+           "crowd": MV._resolve_spacetime_crowding(syn_per),
+           "health": [MV._rover_health(pv) for pv in syn_per], "tie": tie}
+    refusals = []
+    for obs in ([{"vehicle": 3, "x": 0, "y": 0, "t_start": 0, "t_end": 1, "kind": "solar"}],
+                [{"vehicle": 0, "x": 0, "y": 0, "t_start": 5, "t_end": 5, "kind": "solar"}]):
+        try:
+            MV._resolve_observation_vantages(3, obs)
+        except ValueError as e:
+            refusals.append({"observations": obs, "error": str(e)})
+    assert len(refusals) == 2
+    segs = []
+    for a0, a1, b0, b1 in [((0, 0), (10, 0), (5, 5), (5, -5)), ((0, 0), (0, 0), (3, 4), (3, 4)),
+                           ((0, 0), (0, 0), (-5, 1), (5, 1)), ((0, 0), (10, 0), (12, 3), (12, 3)),
+                           ((0, 0), (10, 0), (0, 2), (10, 2)), ((0, 0), (10, 0), (-3, 4), (-1, 9)),
+                           ((0, 0), (10, 0), (14, 1), (20, 7))]:
+        segs.append({"a0": a0, "a1": a1, "b0": b0, "b1": b1, "d": MV._seg_seg_min_dist(a0, a1, b0, b1)})
+    write_fixture(ORACLE_FIXTURES, "fleet_cases", "oracle/build_fixtures.py::fleet_cases (lode.planner_multivehicle "
+                  "on fleets over the real Haworth route window; placements and the timeline cases SYNTHETIC, labelled)",
+                  ["lode/planner_multivehicle.py", "lode/fleet_resources.py", "lode/planner_optimize.py",
+                   "lode/planner_sim.py", "lode/planner_trips.py", "crates/stewie-oracle/fixtures/trips_cases.payload.json"],
+                  {"cases": cases, "synthetic": syn, "refusals": refusals, "segments": segs})
+
+
+def plan_cases() -> None:
+    """Plan assembly (RW-33d2a): lode.planner_assembly.plan_and_simulate for one rover and for fleets, on the
+    trips_cases missions over the real Haworth route window -- visit order, rover tags, the core totals, the
+    optimality labels and warnings, and every fleet figure. The multi-site layouts, declared resources and
+    observations, the closing drive window that strands a rover, and the 12 W idle draw are SYNTHETIC
+    (labelled) settings on the real terrain."""
+    import copy
+    import warnings as W
+
+    import lode.mission_planner as MP
+    from lode.planner_assembly import plan_and_simulate
+
+    with open(os.path.join(ORACLE_FIXTURES, "trips_cases.payload.json")) as fh:
+        tc = json.load(fh)
+    tc = tc.get("payload", tc)
+    base, _ = __import__("stewie.physics.worksite", fromlist=["coarse_base_from_bundle"]).coarse_base_from_bundle(
+        os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    dem, origin = (Z, 5.0), (100.0, 50.0)
+    payloads = {mc["name"]: mc["payload"] for mc in tc["missions"]}
+    from lode.planner_model import mission_from_dict
+
+    fleet_keys = ("makespan_parallel_s", "charger_wait_s", "crowd_wait_s", "precedence_wait_s",
+                  "temporal_conflicts", "haul_path_conflicts", "fleet_needs_replan", "fleet_replanned",
+                  "unreallocatable_trips")
+    cases = []
+
+    def run(name, payload, vehicles=1, algo="nearest", obj="time", idle=0.0):
+        m = mission_from_dict(payload)
+        saved = MP.IDLE_POWER_W
+        MP.IDLE_POWER_W = idle
+        try:
+            with W.catch_warnings(record=True) as caught:
+                W.simplefilter("always")
+                trips, _flows, per_trip, _tl, t = plan_and_simulate(
+                    m, dem=dem, dem_origin=origin, max_traverse_slope_deg=25.0,
+                    algorithm=algo, objective=obj, vehicles=vehicles)
+        finally:
+            MP.IDLE_POWER_W = saved
+        case = {"name": name, "payload": payload, "vehicles": vehicles, "algorithm": algo, "objective": obj,
+                "idle_power_w": idle,
+                "sites": [list(tr["site"]) for tr in trips], "vehicle": [int(tr.get("vehicle", 0)) for tr in trips],
+                "times": [[float(p["t_start"]), float(p["t_end"])] for p in per_trip],
+                "warnings": [str(w.message) for w in caught if issubclass(w.category, UserWarning)],
+                "totals": {k: t[k] for k in ("time_s", "mass_kg", "energy_J", "charges", "distance_m", "avg_power_w",
+                                             "survival_energy_J", "feasible", "infeasible_reasons",
+                                             "resolved_algorithm", "optimality", "objective_exact", "solved_metric",
+                                             "n_precedence", "makespan_s", "vehicle_conflicts", "charger_conflicts",
+                                             "blocked_legs")}}
+        if vehicles > 1:
+            case["fleet"] = {k: t[k] for k in fleet_keys}
+            case["fleet"]["resource_wait_s"] = t.get("resource_wait_s", 0.0)
+            case["fleet"]["observation_wait_s"] = t.get("observation_wait_s", 0.0)
+            case["fleet"]["resource_waits"] = [[k, w] for k, w in t.get("resource_waits", {}).items()]
+            case["fleet"]["detail"] = [
+                {k: d[k] for k in ("vehicle", "n_trips", "time_s", "energy_J", "distance_m", "charges",
+                                   "charger_wait_s", "crowd_wait_s", "precedence_wait_s", "track", "health")}
+                for d in t["vehicles_detail"]]
+        cases.append(case)
+        return case
+
+    main = payloads["haul_two_pairs"]
+    for algo in ("nearest", "auto", "two_opt"):
+        run(f"two_pairs_{algo}", main, algo=algo)
+    run("two_pairs_energy_idle", main, obj="energy", idle=12.0)
+    many = copy.deepcopy(main)
+    reachable = [(o["x"], o["y"]) for nm in ("deficit", "cuts_only", "heavy_rassor") for o in payloads[nm]["orders"]]
+    many["orders"] = list(main["orders"]) + [
+        {"action": f"g{k}", "kind": "goto", "x": x, "y": y} for k, (x, y) in enumerate(reachable[:4], 1)]
+    run("many_brute_degrades", many, algo="brute")
+    for nm in ("deficit", "unreachable_fill", "cuts_only", "heavy_rassor"):
+        run(nm, payloads[nm])
+    run("two_pairs_x2", main, vehicles=2)
+    run("two_pairs_x3_idle", main, vehicles=3, idle=12.0)
+    shared = copy.deepcopy(main)
+    shared["shared_resources"] = [
+        {"id": "dump", "kind": "dump", "capacity": 1, "sites": [[152.5, 152.5], [277.5, 377.5]]},
+        {"id": "pit", "kind": "pit", "capacity": 1, "sites": [[2.5, 52.5], [52.5, 302.5]]}]
+    shared["observations"] = [
+        {"vehicle": 0, "x": 150.0, "y": 150.0, "t_start": 0.0, "t_end": 600.0, "kind": "solar"},
+        {"vehicle": 1, "x": 155.0, "y": 152.0, "t_start": 100.0, "t_end": 400.0, "kind": "meerkat"}]
+    run("shared_x2", shared, vehicles=2)
+    prec = copy.deepcopy(main)
+    prec["precedence"] = [[main["orders"][0]["action"], main["orders"][1]["action"]]]
+    run("precedence_x2", prec, vehicles=2)
+    run("precedence_single", prec)
+    unordered = copy.deepcopy(main)
+    # reallocation runs only when no precedence spans the fleet; consecutive gotos chain automatically
+    unordered["precedence"] = []
+    unordered["orders"] = [o for o in main["orders"] if o["kind"] != "goto"]
+    free = run("unordered_x2", unordered, vehicles=2)
+    times = sorted(d["time_s"] for d in free["fleet"]["detail"])
+    closing = copy.deepcopy(unordered)
+    closing["mission_windows"] = {"recharge": [[0.0, (times[0] + times[-1]) / 2.0]]}
+    stranded = run("window_strands_x2", closing, vehicles=2)
+    assert stranded["fleet"]["fleet_replanned"], "vacuity: the closing window strands a rover and reallocates"
+    early = copy.deepcopy(unordered)
+    early["mission_windows"] = {"recharge": [[0.0, times[0] * 1.05]]}
+    dropped = run("window_drops_x2", early, vehicles=2)
+    assert dropped["fleet"]["unreallocatable_trips"] > 0 and dropped["totals"]["feasible"], \
+        "vacuity: work no lone rover finishes is dropped while the Python still calls the fleet feasible"
+    assert any(c["warnings"] for c in cases), "vacuity: a degraded solver warns"
+    assert any(not c["totals"]["feasible"] for c in cases if c["vehicles"] == 1), "vacuity: a blocked route"
+    refusals = []
+    cyc = copy.deepcopy(main)
+    a0, a1 = main["orders"][0]["action"], main["orders"][1]["action"]
+    cyc["precedence"] = [[a0, a1], [a1, a0]]
+    for vehicles in (1, 2):
+        try:
+            plan_and_simulate(mission_from_dict(cyc), dem=dem, dem_origin=origin, vehicles=vehicles)
+        except (RuntimeError, ValueError) as e:
+            refusals.append({"payload": cyc, "vehicles": vehicles, "error": str(e)})
+    assert len(refusals) == 2
+    write_fixture(ORACLE_FIXTURES, "plan_cases", "oracle/build_fixtures.py::plan_cases (lode.planner_assembly."
+                  "plan_and_simulate over the real Haworth route window; layouts, resources, observations, the "
+                  "closing window and the idle draw SYNTHETIC, labelled)",
+                  ["lode/planner_assembly.py", "lode/planner_multivehicle.py", "lode/planner_optimize.py",
+                   "lode/planner_sim.py", "lode/planner_trips.py", "crates/stewie-oracle/fixtures/trips_cases.payload.json"],
+                  {"cases": cases, "refusals": refusals})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1938,6 +2233,8 @@ def main() -> None:
     trips_cases()
     sim_cases()
     sequencing_cases()
+    fleet_cases()
+    plan_cases()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,13 @@
+{
+ "fixture": "plan_cases",
+ "generator": "oracle/build_fixtures.py::plan_cases (lode.planner_assembly.plan_and_simulate over the real Haworth route window; layouts, resources, observations, the closing window and the idle draw SYNTHETIC, labelled)",
+ "payload_sha256": "bf54e00e2271a8d41810d2f7794e350488f29856317d1f943abf0dffd98a6177",
+ "sources": {
+  "crates/stewie-oracle/fixtures/trips_cases.payload.json": "7f87344455f20944b51e99a7d2e33b14e830bdf087f49b587cefa5dafb32eb17",
+  "lode/planner_assembly.py": "7dd0a07dd38d7f86f7cbcbfbffa2ae4d527d0642cd1841c3b7b0c0cb5a7de298",
+  "lode/planner_multivehicle.py": "c7e4c82bec899b4e32673acbb812b0502063c8e7b563b96e3f9a5d2e3790fa93",
+  "lode/planner_optimize.py": "d348ac11a1e3bf86adbaca4d6ec891bf81f9d1cabfc9f79ae97a3649fcd7ff60",
+  "lode/planner_sim.py": "58b09f9586180deb6dbb76c38b0c8b2d8742bacf66f89f70d475ae3ecc545563",
+  "lode/planner_trips.py": "b99ba6933410a53abcbd16fc6b04745b51db2a3cf644e74ad1585c1650d22f8c"
+ }
+}
