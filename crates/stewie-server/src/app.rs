@@ -89,16 +89,23 @@ pub struct Settings {
     /// `STEWIE_VALIDATION_DIR`: the validation figures `/figures` lists (default the checkout's `validation/`; the
     /// Python always reads the checkout's, so the variable is this server's packaging hook, D-R133).
     pub validation_dir: std::path::PathBuf,
+    /// `STEWIE_BACKUP_DIR` as set (`/config/full` reports it).
+    pub backup_dir: Option<String>,
     /// `STEWIE_SITE_VECTORS` and `STEWIE_GIS_DATA_DIR`: where the visible-pin site vectors are found.
     pub site_vectors: Option<String>,
     pub gis_data_dir: Option<String>,
 }
 
+/// The constants the Python's N15 overlay can override (`oracle/export_registries.py`).
+const OVERLAY_CONSTANTS: &str =
+    include_str!("../../stewie-contracts/fixtures/overlay_constants.json");
+
 impl Settings {
     /// # Errors
     /// A malformed number, `STEWIE_DATABASE_URL` set (the world-transaction projection is not ported), or
     /// `STEWIE_CORS_ORIGINS` set (cross-origin access is not served by this server yet;
-    /// refusing beats silently ignoring a configured allowlist).
+    /// refusing beats silently ignoring a configured allowlist), or the N15 overlay configured (`STEWIE_CONFIG` or a
+    /// `STEWIE_<constant>` the Python would apply; the Rust compiles those constants in).
     pub fn from_env(get: &dyn Fn(&str) -> Option<String>) -> Result<Self, String> {
         let var = |k: &str| get(k).unwrap_or_default();
         let num = |k: &str, d: &str| -> Result<f64, String> {
@@ -117,6 +124,28 @@ impl Settings {
         if !var("STEWIE_CORS_ORIGINS").trim().is_empty() {
             return Err("STEWIE_CORS_ORIGINS is set, but the Rust server serves same-origin only (D-R108); unset it"
                 .to_owned());
+        }
+        // the PRD N15 overlay rewrites the Python's module constants at import; the Rust compiles them in (D-R135)
+        if get("STEWIE_CONFIG").is_some_and(|v| !v.is_empty()) {
+            return Err("STEWIE_CONFIG is set, but the Rust server compiles its constants in and does not read the \
+                        N15 overlay file (D-R135); unset it"
+                .to_owned());
+        }
+        let overlay: Value = serde_json::from_str(OVERLAY_CONSTANTS)
+            .map_err(|e| format!("the overlay names: {e}"))?;
+        let set: Vec<&str> = overlay["names"]
+            .as_array()
+            .ok_or("the overlay names: no list")?
+            .iter()
+            .filter_map(Value::as_str)
+            .filter(|n| get(&format!("STEWIE_{n}")).is_some())
+            .collect();
+        if !set.is_empty() {
+            return Err(format!(
+                "STEWIE_{} is set, but the Rust server compiles the N15 overlay's constants in and would ignore it \
+                 (D-R135); unset it",
+                set.join(", STEWIE_")
+            ));
         }
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         Ok(Self {
@@ -153,6 +182,7 @@ impl Settings {
                     },
                     std::path::PathBuf::from,
                 ),
+            backup_dir: get("STEWIE_BACKUP_DIR"),
             site_vectors: get("STEWIE_SITE_VECTORS").filter(|v| !v.is_empty()),
             gis_data_dir: get("STEWIE_GIS_DATA_DIR").filter(|v| !v.is_empty()),
         })
@@ -191,6 +221,9 @@ pub struct AppState {
     world_points: RateLimiter,
     viz_quota: RateLimiter,
     started: Instant,
+    /// The process's `STEWIE_*` variables, which `/config` reports as the overlay's overrides
+    /// ([`AppState::with_environment`]; empty until given).
+    pub environment: Vec<(String, String)>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -202,6 +235,17 @@ impl std::fmt::Debug for AppState {
 }
 
 impl AppState {
+    /// Record the environment `/config` reports: its `STEWIE_*` variables (`STEWIE_CONFIG` aside, as the Python's).
+    #[must_use]
+    pub fn with_environment(mut self, vars: impl IntoIterator<Item = (String, String)>) -> Self {
+        self.environment = vars
+            .into_iter()
+            .filter(|(k, _)| k.starts_with("STEWIE_") && k != "STEWIE_CONFIG")
+            .collect();
+        self.environment.sort();
+        self
+    }
+
     /// Read and check the configuration, then seed the founding director from `STEWIE_BOOTSTRAP_DIRECTOR` /
     /// `STEWIE_BOOTSTRAP_PASSWORD` when none exists.
     ///
@@ -256,6 +300,7 @@ impl AppState {
             clock,
             entropy,
             started: Instant::now(),
+            environment: Vec::new(),
         };
         let (email, password) = (
             get("STEWIE_BOOTSTRAP_DIRECTOR").unwrap_or_default(),

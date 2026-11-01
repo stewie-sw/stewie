@@ -4867,6 +4867,64 @@ def http_content_cases() -> None:
                    "stewie/specs/sites.py"], payload)
 
 
+def http_config_cases() -> None:
+    """The configuration reads (RW-55b7e): /config and /config/full through one scripted session (_http_session).
+    They echo the process's STEWIE_* environment and absolute paths, so every STEWIE_* variable of the builder's own
+    shell is removed for the session, and the recorded bodies carry ``{data_dir}`` and ``{repo}`` for the session's
+    data directory and this checkout. The STEWIE_ORACLE_* overrides and the snapshot files are SYNTHETIC (labelled).
+    SPICE is pinned to the pipeline's kernels so the host does not decide ``spice_available``."""
+    import base64
+
+    from stewie.specs import solar as _S
+
+    shell = {k: os.environ.pop(k) for k in list(os.environ) if k.startswith("STEWIE_") or k == "DUSTGYM_DATA_DIR"}
+    saved_kernels, _S._KERNEL_DIR = _S._KERNEL_DIR, os.path.join(REPO, ".cache", "spice")
+    seed_files = {"snapshots/a.npz": b"SYNTHETIC a", "snapshots/b.npz": b"SYNTHETIC b",
+                  "snapshots/notes.txt": b"SYNTHETIC, not a snapshot"}
+    dirs = {}
+
+    def script(call, key, d, clock):
+        dirs["d"] = d
+        for rel, b in seed_files.items():
+            os.makedirs(os.path.dirname(os.path.join(d, rel)), exist_ok=True)
+            with open(os.path.join(d, rel), "wb") as fh:
+                fh.write(b)
+        # the planner parameters the Rust replay is always given (the Python does not read them)
+        os.environ["STEWIE_PLANNER_CONFIG"] = os.path.join(REPO, "deploy", "planner.json")
+        try:
+            call("GET", "/config")                                               # no key
+            call("GET", "/config", headers=key)
+            call("GET", "/config/full", headers=key)
+            call("GET", "/config/full", headers={"X-Stewie-Anon-Key": "anon-key-xyz"})
+            call("GET", "/config/full")                                          # no key
+        finally:
+            os.environ.pop("STEWIE_PLANNER_CONFIG", None)
+
+    try:
+        assert _S.spice_available(), "the pinned NAIF kernels (pipeline/fetch.py) are needed"
+        payload = _http_session("stewie-http-config-oracle", {
+            "STEWIE_ORACLE_INT": "1_000", "STEWIE_ORACLE_SIGNED": "+5", "STEWIE_ORACLE_FLOAT": "1e3",
+            "STEWIE_ORACLE_BOOL": " True ", "STEWIE_ORACLE_TEXT": "  plain text ",
+            "STEWIE_ORACLE_NOTE": "see automation-key-0123456789 here", "STEWIE_ORACLE_PASSWORD_HINT": "x"}, script)
+    finally:
+        _S._KERNEL_DIR = saved_kernels
+        os.environ.update(shell)
+
+    def norm(v):
+        if isinstance(v, dict):
+            return {k: norm(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [norm(x) for x in v]
+        return v.replace(dirs["d"], "{data_dir}").replace(REPO, "{repo}") if isinstance(v, str) else v
+    for step in payload["steps"]:
+        step["body"] = norm(step["body"])
+    payload["seed_files"] = {k: base64.b64encode(v).decode() for k, v in seed_files.items()}
+    write_fixture(ORACLE_FIXTURES, "http_config_cases", "oracle/build_fixtures.py::http_config_cases (the FastAPI "
+                  "app's /config and /config/full; SYNTHETIC overrides and snapshot files, labelled)",
+                  ["stewie/server/routers/config.py", "stewie/specs/config.py", "stewie/specs/sites.py",
+                   "stewie/server/auth.py"], payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -4979,6 +5037,7 @@ def main() -> None:
     http_dem_cases()
     http_spec_cases()
     http_content_cases()
+    http_config_cases()
 
 
 if __name__ == "__main__":

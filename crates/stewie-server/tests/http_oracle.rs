@@ -257,7 +257,9 @@ async fn replay(
         seed: Sha256::digest(seed).into(),
         n: Mutex::new(0),
     }));
-    let state = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
+    let state = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes)
+        .unwrap()
+        .with_environment(env.clone());
     let app = router(Arc::new(state));
     let steps = fx["steps"].as_array().unwrap();
     for (i, step) in steps.iter().enumerate() {
@@ -516,6 +518,33 @@ fn startup_refuses_a_configured_database_projection() {
     })
     .unwrap_err();
     assert!(e.contains("D-R113"), "{e}");
+}
+
+#[test]
+fn startup_refuses_the_constant_overlay_it_would_ignore() {
+    // SYNTHETIC environments (D-R135: the Rust compiles the N15 overlay's constants in)
+    let settings = |env: &[(&str, &str)]| {
+        stewie_server::app::Settings::from_env(&|k| {
+            env.iter()
+                .find(|(n, _)| *n == k)
+                .map(|(_, v)| (*v).to_owned())
+        })
+    };
+    let e = settings(&[
+        ("STEWIE_RHO_SURFACE", "1250"),
+        ("STEWIE_ROVER_MASS_DRY_KG", "25"),
+    ])
+    .unwrap_err();
+    assert!(
+        e.contains("D-R135")
+            && e.contains("STEWIE_RHO_SURFACE")
+            && e.contains("STEWIE_ROVER_MASS_DRY_KG"),
+        "{e}"
+    );
+    let e = settings(&[("STEWIE_CONFIG", "/etc/stewie.toml")]).unwrap_err();
+    assert!(e.contains("STEWIE_CONFIG") && e.contains("D-R135"), "{e}");
+    // an empty STEWIE_CONFIG is unset, as the Python's; a setting that is not a constant is no overlay
+    assert!(settings(&[("STEWIE_CONFIG", ""), ("STEWIE_REPORTS_TTL_S", "604800")]).is_ok());
 }
 
 #[tokio::test]
@@ -955,4 +984,39 @@ async fn a_site_whose_bundle_is_not_on_disk_is_not_imported() {
     assert_eq!(rows.len(), 14, "vacuity: the whole registry");
     assert!(rows.iter().all(|s| s["imported"] == false), "{rows:?}");
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn the_python_configuration_session_replays_with_the_spice_departure() {
+    fn norm(v: &mut Value, dir: &str, repo: &str) {
+        match v {
+            Value::String(s) => *s = s.replace(dir, "{data_dir}").replace(repo, "{repo}"),
+            Value::Array(a) => a.iter_mut().for_each(|x| norm(x, dir, repo)),
+            Value::Object(m) => m.values_mut().for_each(|x| norm(x, dir, repo)),
+            _ => {}
+        }
+    }
+    // the recorded bodies name the session's data directory and this checkout as `{data_dir}` and `{repo}`
+    let dir = std::env::temp_dir()
+        .join(format!("stewie-http_config_cases-{}", std::process::id()))
+        .display()
+        .to_string();
+    let repo = stewie_oracle::repo_root().display().to_string();
+    replay(
+        "http_config_cases",
+        b"stewie-http-config-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |step, body| {
+            norm(body, &dir, &repo);
+            // D-R135: the Rust loads no SPICE kernels (its sun is the DE440 pack, D-R131); the Python had them pinned
+            if step["request"]["path"] == "/config/full" && step["status"] == 200 {
+                assert_eq!(body["data"]["spice_available"], false);
+                assert_eq!(step["body"]["data"]["spice_available"], true);
+                body["data"]["spice_available"] = json!(true);
+            }
+        },
+    )
+    .await;
 }

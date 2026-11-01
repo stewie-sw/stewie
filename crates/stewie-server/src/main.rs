@@ -48,7 +48,8 @@ async fn main() {
     };
     let (host, port) = args().unwrap_or_else(|e| fail(e));
     let state = AppState::from_env(&|k| std::env::var(k).ok(), &CLOCK, &ENTROPY)
-        .unwrap_or_else(|e| fail(e));
+        .unwrap_or_else(|e| fail(e))
+        .with_environment(std::env::vars());
     let loopback = matches!(
         host.trim().to_lowercase().as_str(),
         "127.0.0.1" | "::1" | "localhost"

@@ -1,0 +1,11 @@
+{
+ "fixture": "http_config_cases",
+ "generator": "oracle/build_fixtures.py::http_config_cases (the FastAPI app's /config and /config/full; SYNTHETIC overrides and snapshot files, labelled)",
+ "payload_sha256": "7dfdd7f8ad54b7a40fe537e8c937e3d7227bdcd560b4ae6876872dcf35fb32cf",
+ "sources": {
+  "stewie/server/auth.py": "664b0eeb5a171f82c4c236f34f7585a1188a79acd6b3e11cb4724fa59711db8a",
+  "stewie/server/routers/config.py": "933f8fccdde3add60aca8c49a50248dab11d90237eee337a0ef8ca38d9088451",
+  "stewie/specs/config.py": "825bf8a5251b9c5127dadc5684a5d2b25a2ae185f7e3908f51063e99b4c1d723",
+  "stewie/specs/sites.py": "088e393044daa2b39c05b68f873d873959d2080743a47eea61f136cb37c360a8"
+ }
+}

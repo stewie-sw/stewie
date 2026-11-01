@@ -1,0 +1,222 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_ORACLE_BOOL": " True ",
+  "STEWIE_ORACLE_FLOAT": "1e3",
+  "STEWIE_ORACLE_INT": "1_000",
+  "STEWIE_ORACLE_NOTE": "see automation-key-0123456789 here",
+  "STEWIE_ORACLE_PASSWORD_HINT": "x",
+  "STEWIE_ORACLE_SIGNED": "+5",
+  "STEWIE_ORACLE_TEXT": "  plain text ",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [],
+ "seed_files": {
+  "snapshots/a.npz": "U1lOVEhFVElDIGE=",
+  "snapshots/b.npz": "U1lOVEhFVElDIGI=",
+  "snapshots/notes.txt": "U1lOVEhFVElDLCBub3QgYSBzbmFwc2hvdA=="
+ },
+ "seed_sha256_of": "stewie-http-config-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/config",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "applied": {},
+    "config_file": null,
+    "data_dir": "{data_dir}",
+    "identity": {
+     "on_builtin_defaults": false
+    },
+    "ok": true,
+    "overrides": {
+     "ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+     "API_KEY": "[REDACTED]",
+     "DATA_DIR": "{data_dir}",
+     "DIRECTORS": "alice@example.org",
+     "GIS_ANON_KEY": "[REDACTED]",
+     "ORACLE_BOOL": true,
+     "ORACLE_FLOAT": 1000.0,
+     "ORACLE_INT": 1000,
+     "ORACLE_NOTE": "[REDACTED]",
+     "ORACLE_PASSWORD_HINT": "[REDACTED]",
+     "ORACLE_SIGNED": 5,
+     "ORACLE_TEXT": "plain text",
+     "PLANNER_CONFIG": "{repo}/deploy/planner.json",
+     "SESSION_SECRET": "[REDACTED]",
+     "SITE_VECTORS": "{repo}/stewie/server/fixtures/artemis_sites_sample.geojson"
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/config",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "auth": {
+     "api_key_set": true,
+     "operator_login": true,
+     "trust_tailscale": false
+    },
+    "data": {
+     "sites_imported": 11,
+     "sites_total": 14,
+     "spice_available": true,
+     "twin_snapshots": 2
+    },
+    "ok": true,
+    "overlay": {
+     "applied": {},
+     "config_file": null,
+     "data_dir": "{data_dir}",
+     "overrides": {
+      "ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+      "API_KEY": "[REDACTED]",
+      "DATA_DIR": "{data_dir}",
+      "DIRECTORS": "alice@example.org",
+      "GIS_ANON_KEY": "[REDACTED]",
+      "ORACLE_BOOL": true,
+      "ORACLE_FLOAT": 1000.0,
+      "ORACLE_INT": 1000,
+      "ORACLE_NOTE": "[REDACTED]",
+      "ORACLE_PASSWORD_HINT": "[REDACTED]",
+      "ORACLE_SIGNED": 5,
+      "ORACLE_TEXT": "plain text",
+      "PLANNER_CONFIG": "{repo}/deploy/planner.json",
+      "SESSION_SECRET": "[REDACTED]",
+      "SITE_VECTORS": "{repo}/stewie/server/fixtures/artemis_sites_sample.geojson"
+     }
+    },
+    "server": {
+     "backup_dir": "(data_dir)/replica",
+     "data_dir": "{data_dir}",
+     "version": "0.1.0"
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/config/full",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "auth": {
+     "api_key_set": true,
+     "operator_login": true,
+     "trust_tailscale": false
+    },
+    "data": {
+     "sites_imported": 11,
+     "sites_total": 14,
+     "spice_available": true,
+     "twin_snapshots": 2
+    },
+    "ok": true,
+    "overlay": {
+     "applied": {},
+     "config_file": null,
+     "data_dir": "{data_dir}",
+     "overrides": {
+      "ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+      "API_KEY": "[REDACTED]",
+      "DATA_DIR": "{data_dir}",
+      "DIRECTORS": "alice@example.org",
+      "GIS_ANON_KEY": "[REDACTED]",
+      "ORACLE_BOOL": true,
+      "ORACLE_FLOAT": 1000.0,
+      "ORACLE_INT": 1000,
+      "ORACLE_NOTE": "[REDACTED]",
+      "ORACLE_PASSWORD_HINT": "[REDACTED]",
+      "ORACLE_SIGNED": 5,
+      "ORACLE_TEXT": "plain text",
+      "PLANNER_CONFIG": "{repo}/deploy/planner.json",
+      "SESSION_SECRET": "[REDACTED]",
+      "SITE_VECTORS": "{repo}/stewie/server/fixtures/artemis_sites_sample.geojson"
+     }
+    },
+    "server": {
+     "backup_dir": "(data_dir)/replica",
+     "data_dir": "{data_dir}",
+     "version": "0.1.0"
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-004",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/config/full",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/config/full",
+    "raw": null
+   },
+   "status": 401
+  }
+ ],
+ "store": null
+}

@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
 """
 from __future__ import annotations
 
@@ -43,6 +43,13 @@ def sites() -> dict:
 def site_order() -> dict:
     """The registry's own order (``site_rows`` lists the sites in it); sites.json is keyed and sorted."""
     return {"order": list(SITES)}
+
+
+def overlay_constants() -> dict:
+    """The names the PRD N15 overlay can override (``config.apply``): every numeric module constant of constants.py
+    and ipex_specs.py. The Rust compiles these values in, so its server refuses to start when one is set."""
+    from stewie.specs import ipex_specs as I
+    return {"names": sorted({n for m in (K, I) for n, v in vars(m).items() if isinstance(v, (bool, int, float))})}
 
 
 def soil_baseline() -> dict:
@@ -213,6 +220,7 @@ def main() -> None:
     print(_write("bodies.json", bodies()))
     print(_write("sites.json", sites()))
     print(_write("site_order.json", site_order()))
+    print(_write("overlay_constants.json", overlay_constants()))
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))
