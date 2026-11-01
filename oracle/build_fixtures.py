@@ -4170,6 +4170,7 @@ def http_world_cases() -> None:
                 call("GET", "/world/transaction", headers=key)
                 call("GET", "/world/transaction")
                 call("GET", "/world/terrain_view?site=haworth", headers=key)
+                call("GET", "/world?site=haworth", headers=key)              # before any commit
                 clock["t"] += 1.0
                 call("POST", "/twin/resync", headers=key,
                      json_body={"heights_m": [[1100.25, 1100.5], [1101.0, 1101.25]], "origin_rc": [1382, 823],
@@ -4183,6 +4184,12 @@ def http_world_cases() -> None:
                 call("GET", "/world/terrain_view.png?site=haworth&max_px=64", headers=key)
                 call("GET", "/world/terrain_view.png?site=haworth&max_px=5", headers=key)
                 call("GET", "/world/terrain_view.png?site=atlantis", headers=key)
+                # the descriptor and the public manifest (RW-55b5b-2)
+                call("GET", "/world/layer-manifest?site=haworth")
+                call("GET", "/world/layer-manifest?site=shackleton_rim")
+                call("GET", "/world/layer-manifest?site=atlantis")
+                call("GET", "/world?site=haworth", headers=key)
+                call("GET", "/world")
                 tdir = os.path.join(d, "twin")
                 journals = {f: _hl.sha256(open(os.path.join(tdir, f), "rb").read()).hexdigest()
                             for f in sorted(os.listdir(tdir)) if f.endswith(".journal")}

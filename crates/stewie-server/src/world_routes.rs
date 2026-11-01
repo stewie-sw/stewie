@@ -1,8 +1,8 @@
 //! The world read surface (RW-55b5a; Python `routers.world`): the public map-data catalog reads (the LY-01 layer
 //! catalog with each layer's confidence and tier, the consumption projection, the terramechanics-derived layers,
 //! the visible site markers, a site's traffic hardening), the world transaction views, and the composed terrain
-//! view's per-cell provenance (counts and a coloured raster). `/world` and `/world/layer-manifest` follow with the
-//! layered costmap (RW-55b5b).
+//! view's per-cell provenance (counts and a coloured raster); and (RW-55b5b-2) the authoritative `/world`
+//! descriptor and the public per-site `/world/layer-manifest`, whose cost layers are the AS-11 layered costmap's.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -554,6 +554,172 @@ async fn terrain_view_png(
     .await
 }
 
+/// The spine contracts' version stamp.
+const SPINE_VERSION: &str = "1.0";
+
+/// The base world layers: id, type, and (display, planning, release, execute) eligibility.
+const BASE_WORLD_LAYERS: [(&str, &str, [bool; 4]); 8] = [
+    ("dem", "elevation", [true, true, true, false]),
+    ("imagery", "imagery", [true, false, false, false]),
+    ("material", "material", [true, true, false, false]),
+    (
+        "traversability",
+        "traversability",
+        [true, true, true, false],
+    ),
+    ("observed_mask", "mask", [true, true, false, false]),
+    ("uncertainty", "uncertainty", [true, true, true, false]),
+    ("hazard", "hazard", [true, true, true, true]),
+    ("comms", "comms", [true, false, false, true]),
+];
+
+/// A site's measured freshness and provenance (DT-05): its grid, its DEM bundle, the observed twin's coverage
+/// and version, and the as-built memory's version. `None` without a DEM.
+struct Enrichment {
+    rows: usize,
+    cols: usize,
+    cell_m: f64,
+    dem_source: String,
+    observed: bool,
+    observed_fraction: f64,
+    twin_version: u64,
+    as_built_version: u64,
+    mutated: bool,
+}
+
+#[allow(clippy::cast_precision_loss)] // a cell count
+fn enrichment(st: &AppState, site: &str) -> Option<Enrichment> {
+    let (dem, _) = st.terrain.moon_dem(site)?;
+    let (mut observed, mut observed_fraction, mut twin_version) = (false, 0.0, 0);
+    if let Ok(tw) = st.terrain.twin(site, crate::state::DEFAULT_TWIN_SOURCE) {
+        let t = tw.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if t.shape() == (dem.rows, dem.cols) {
+            let mask = t.observed_mask();
+            observed = true;
+            observed_fraction =
+                mask.iter().filter(|m| **m).count() as f64 / mask.len().max(1) as f64;
+            twin_version = t.version();
+        }
+    }
+    let as_built_version = stewie_twin::terrain_memory::load_site(&st.cfg.data_dir, site)
+        .ok()
+        .flatten()
+        .map_or(0, |m| m.version());
+    Some(Enrichment {
+        rows: dem.rows,
+        cols: dem.cols,
+        cell_m: dem.cell_m,
+        dem_source: st
+            .terrain
+            .bundle_name(site)
+            .unwrap_or_else(|| site.to_owned()),
+        observed,
+        observed_fraction,
+        twin_version,
+        as_built_version,
+        mutated: as_built_version > 0,
+    })
+}
+
+/// The `WorldState` contract of a site.
+fn world_state(e: &Enrichment) -> Value {
+    json!({"schema_version": SPINE_VERSION, "body": "moon", "frame": "MOON_ME", "rows": e.rows, "cols": e.cols,
+           "cell_m": e.cell_m, "datum_radius_m": 1_737_400, "observed_fraction": e.observed_fraction,
+           "dem_source": e.dem_source, "mutated": e.mutated})
+}
+
+/// The typed layer manifest (FR-10): the base world layers, then the AS-11 cost layers the planner reads.
+fn layer_manifest(e: &Enrichment, transaction_id: &str) -> Value {
+    let prov = if e.observed_fraction > 0.0 {
+        "observed"
+    } else {
+        "prior"
+    };
+    let layer = |id: &str,
+                 ty: &str,
+                 source: &str,
+                 provenance: &str,
+                 uncertainty: &str,
+                 elig: [bool; 4]| {
+        json!({"schema_version": SPINE_VERSION, "layer_id": id, "layer_type": ty, "crs": "MOON_ME", "body": "moon",
+               "bounds_rows": e.rows, "bounds_cols": e.cols, "resolution_m": e.cell_m, "source": source,
+               "provenance": provenance, "timestamp_s": 0.0, "freshness_s": 0.0, "uncertainty_model": uncertainty,
+               "validity": true, "transaction_id": transaction_id, "display": elig[0], "planning": elig[1],
+               "release": elig[2], "execute": elig[3]})
+    };
+    let mut layers: Vec<Value> = BASE_WORLD_LAYERS
+        .iter()
+        .map(|(id, ty, elig)| {
+            let source = if *id == "dem" {
+                e.dem_source.as_str()
+            } else {
+                id
+            };
+            let provenance = if matches!(*id, "dem" | "observed_mask" | "uncertainty") {
+                prov
+            } else {
+                "prior"
+            };
+            let uncertainty = if *id == "uncertainty" {
+                "observed-band"
+            } else {
+                "none"
+            };
+            layer(id, ty, source, provenance, uncertainty, *elig)
+        })
+        .collect();
+    for name in stewie_traverse::layers::LAYER_NAMES {
+        layers.push(layer(
+            name,
+            "cost",
+            &format!("costmap:{name}"),
+            "prior",
+            "none",
+            [true, true, false, false],
+        ));
+    }
+    json!({"schema_version": SPINE_VERSION, "layers": layers})
+}
+
+async fn layer_manifest_route(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+) -> Response {
+    let site = site_of(&q);
+    blocking(st, move |st| {
+        let e = enrichment(st, &site).ok_or_else(|| no_dem(&site))?;
+        let prov = if e.observed_fraction > 0.0 { "observed" } else { "prior" };
+        let manifest = layer_manifest(&e, &format!("world:{site}"));
+        Ok(axum::Json(json!({"ok": true, "site": site,
+            "freshness": {"observed": e.observed, "observed_fraction": e.observed_fraction, "provenance_class": prov,
+                          "dem_source": e.dem_source, "twin_version": e.twin_version,
+                          "as_built_version": e.as_built_version, "mutated": e.mutated},
+            "layer_manifest": manifest}))
+        .into_response())
+    })
+    .await
+}
+
+async fn world_route(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        require_auth(st, &h)?;
+        let site = site_of(&q);
+        let e = enrichment(st, &site).ok_or_else(|| no_dem(&site))?;
+        let n = st.world.transaction_count();
+        Ok(axum::Json(json!({"ok": true, "world": world_state(&e),
+            "layer_manifest": layer_manifest(&e, &format!("world:{site}:{n}")),
+            "enrichment": {"complete": true, "observed": e.observed, "twin_version": e.twin_version,
+                           "as_built_version": e.as_built_version, "mutated": e.mutated, "world_committed": n > 0}}))
+        .into_response())
+    })
+    .await
+}
+
 /// The provenance raster's colours: pristine gray (modelled), as-built blue (remembered build), observed green
 /// (measured).
 const COLORS: [[u8; 3]; 3] = [[90, 90, 90], [40, 110, 220], [40, 190, 90]];
@@ -561,6 +727,8 @@ const COLORS: [[u8; 3]; 3] = [[90, 90, 90], [40, 110, 220], [40, 190, 90]];
 /// The world read routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
+        .route("/world", get(world_route))
+        .route("/world/layer-manifest", get(layer_manifest_route))
         .route("/world/layer-catalog", get(layer_catalog))
         .route("/world/layer-consumption", get(layer_consumption))
         .route("/world/terramechanics-layers", get(terramechanics_layers))

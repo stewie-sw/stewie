@@ -1515,6 +1515,7 @@ dependencies = [
  "stewie-oracle",
  "stewie-physics",
  "stewie-plan",
+ "stewie-traverse",
  "stewie-twin",
  "subtle",
  "tokio",

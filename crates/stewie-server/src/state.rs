@@ -246,6 +246,12 @@ impl Terrain {
             .clone()
     }
 
+    /// The registry's bundle name of a site (its DEM provenance id), when it has one.
+    #[must_use]
+    pub fn bundle_name(&self, site: &str) -> Option<String> {
+        self.sites.get(site)?["bundle"].as_str().map(str::to_owned)
+    }
+
     /// The site's DEM and flattest anchor, loaded once; `None` (the flat slope-check) when there is none.
     pub fn moon_dem(&self, site: &str) -> Loaded {
         if let Some(hit) = self
