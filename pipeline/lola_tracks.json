@@ -1,0 +1,38 @@
+{
+  "description": "LOLA RDR laser-altimeter shots (simple topography: longitude, latitude, radius minus 1,737.4 km) in one box per terrain tier, for the alignment check of every package source (RW-60c, navigator N32, D-R105). Queried from the PDS Geosciences Node ODE Granular Data System; a query returns the same bytes every time, so each extract is pinned by its query and sha256. Fetch with: python pipeline/lola_tracks.py",
+  "endpoint": "https://oderest.rsl.wustl.edu/livegds/",
+  "cache_subdir": "lola",
+  "license": {
+    "statement": "PDS Geosciences Node: \"Data sets archived in the PDS are in the public domain.\"",
+    "url": "https://pds-geosciences.wustl.edu/faq.html"
+  },
+  "boxes": {
+    "haworth_south": {
+      "minlat": -87.5,
+      "maxlat": -87.3,
+      "westernlon": 355,
+      "easternlon": 359,
+      "for": "south polar tiers (ldem_85s_40m, ldem_75s_240m)",
+      "sha256": "4323370e000838ddf823a05404ac8d249bef2f3400880834ad7756ddf2b94520",
+      "rows": 140136
+    },
+    "peary_north": {
+      "minlat": 88.5,
+      "maxlat": 88.7,
+      "westernlon": 20,
+      "easternlon": 40,
+      "for": "north polar tier (ldem_75n_240m)",
+      "sha256": "aba8f0b15cac59f9ed415b77531283343f55a9c04b7ab6f8d8af67846179b258",
+      "rows": 228464
+    },
+    "hadley_equatorial": {
+      "minlat": 25.5,
+      "maxlat": 26.5,
+      "westernlon": 2,
+      "easternlon": 5,
+      "for": "global grid (ldem_16)",
+      "sha256": "ac01ef3ffab562c3534a1f41cc3dce1e722b017edb0b3c80c3ea0dc55671cdf4",
+      "rows": 228545
+    }
+  }
+}

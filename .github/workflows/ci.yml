@@ -97,6 +97,8 @@ jobs:
         run: rustup show active-toolchain
       - name: external inputs (NAIF kernels, PDS LOLA LDEM) pinned by sha256 in pipeline manifests; stdlib-only fetch
         run: python3 pipeline/fetch.py
+      - name: LOLA RDR shot extracts for the alignment check (RW-60c), pinned by query and sha256; stdlib-only
+        run: (cd pipeline && python3 lola_tracks.py)
       - name: install the lola_base data package (N11) the package and guard tests open; stdlib-only
         run: python3 pipeline/build_package.py
       - name: the polar map's display tiles from the real 240 m tier (RW-71c), and their web grid fixture unchanged

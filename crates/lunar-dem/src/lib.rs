@@ -5,6 +5,8 @@
 //! `width * height` little-endian f32 values. Sampling never extrapolates: outside the tile there is no
 //! answer, and a [`TerrainStack`] says which source answered.
 
+pub mod align;
+
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
