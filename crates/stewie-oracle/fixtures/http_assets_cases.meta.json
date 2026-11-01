@@ -1,0 +1,10 @@
+{
+ "fixture": "http_assets_cases",
+ "generator": "oracle/build_fixtures.py::http_assets_cases (the FastAPI app's static-file routes: 404s, confinement, report auth; SYNTHETIC reports, labelled)",
+ "payload_sha256": "bd10648edc71d3c31c44baa4df93971ab57432ab04afddef8d7672343c2e625e",
+ "sources": {
+  "stewie/server/fonts/OFL.txt": "ab609b0e110d622435ff337cdf233288556e011bbf9bd0550be98846c0630819",
+  "stewie/server/icons/icon-32.png": "7e438dcb2694d7eb74f1d377474dcd10eb4df8fd57f2593e28881bc3c4d3eeae",
+  "stewie/server/routers/assets.py": "1e0abdda260151ae8fe237798a7eaa66ef871ddc965250047584ed2e66e24ef2"
+ }
+}

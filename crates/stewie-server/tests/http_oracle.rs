@@ -1117,3 +1117,81 @@ async fn the_python_library_session_replays_with_mtimes_normalised() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn the_python_assets_session_replays_exactly() {
+    replay(
+        "http_assets_cases",
+        b"stewie-http-assets-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn every_bundled_file_is_served_as_it_is_on_disk() {
+    fn walk(
+        base: &std::path::Path,
+        d: &std::path::Path,
+        out: &mut Vec<(String, std::path::PathBuf)>,
+    ) {
+        for e in std::fs::read_dir(d).unwrap() {
+            let p = e.unwrap().path();
+            if p.is_dir() {
+                walk(base, &p, out);
+            } else {
+                let rel = p.strip_prefix(base).unwrap().to_str().unwrap().to_owned();
+                out.push((format!("/assets/{rel}"), p));
+            }
+        }
+    }
+    // the fonts, icons, cockpit assets and body registry, byte for byte with the Python's media types
+    let (app, dir) = bare_app("bundled", false);
+    let server = stewie_oracle::repo_root().join("stewie/server");
+    let mut files: Vec<(String, std::path::PathBuf)> =
+        vec![("/bodies.json".into(), server.join("bodies.json"))];
+    for (route, sub) in [("/fonts", "fonts"), ("/icons", "icons")] {
+        for e in std::fs::read_dir(server.join(sub)).unwrap() {
+            let p = e.unwrap().path();
+            files.push((
+                format!("{route}/{}", p.file_name().unwrap().to_str().unwrap()),
+                p,
+            ));
+        }
+    }
+    let assets = server.join("web/assets");
+    walk(&assets, &assets, &mut files);
+    assert!(
+        files.len() > 100,
+        "vacuity: the bundle is present ({})",
+        files.len()
+    );
+    for (uri, path) in files {
+        let mut req = Request::builder().uri(&uri).body(Body::empty()).unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+        let r = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(r.status().as_u16(), 200, "{uri}");
+        let want = match path.extension().and_then(|e| e.to_str()) {
+            _ if uri.starts_with("/icons/") => "image/png",
+            Some("ttf") if uri.starts_with("/fonts/") => "font/ttf",
+            _ if uri.starts_with("/fonts/") => "text/plain; charset=utf-8",
+            Some("json") => "application/json",
+            Some("png") => "image/png",
+            Some("js") => "text/javascript; charset=utf-8",
+            Some("css") => "text/css; charset=utf-8",
+            Some("html") => "text/html; charset=utf-8",
+            Some("md") => "text/markdown; charset=utf-8",
+            Some("pdf") => "application/pdf",
+            Some("wasm") => "application/wasm",
+            _ => "application/octet-stream",
+        };
+        assert_eq!(r.headers()["content-type"], want, "{uri}");
+        let got = r.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!(&got[..], &std::fs::read(&path).unwrap()[..], "{uri}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}

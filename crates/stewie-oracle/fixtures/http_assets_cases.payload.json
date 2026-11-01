@@ -1,0 +1,345 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [],
+ "seed_files": {
+  "reports/plan_a.md": "IyBTWU5USEVUSUMgcGxhbiBhCg==",
+  "reports/plan_a.pdf": "JVBERiBTWU5USEVUSUM=",
+  "reports/run.bin": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+ },
+ "seed_sha256_of": "stewie-http-assets-oracle",
+ "steps": [
+  {
+   "body": "Copyright 2018 The Orbitron Project Authors (https://github.com/theleagueof/orbitron), with Reserved Font Name: \"Orbitron\"\n\nThis Font Software is licensed under the SIL Open Font License, Version 1.1.\nThis license is copied below, and is also available with a FAQ at:\nhttp://scripts.sil.org/OFL\n\n\n-----------------------------------------------------------\nSIL OPEN FONT LICENSE Version 1.1 - 26 February 2007\n-----------------------------------------------------------\n\nPREAMBLE\nThe goals of the Open Font License (OFL) are to stimulate worldwide\ndevelopment of collaborative font projects, to support the font creation\nefforts of academic and linguistic communities, and to provide a free and\nopen framework in which fonts may be shared and improved in partnership\nwith others.\n\nThe OFL allows the licensed fonts to be used, studied, modified and\nredistributed freely as long as they are not sold by themselves. The\nfonts, including any derivative works, can be bundled, embedded, \nredistributed and/or sold with any software provided that any reserved\nnames are not used by derivative works. The fonts and derivatives,\nhowever, cannot be released under any other type of license. The\nrequirement for fonts to remain under this license does not apply\nto any document created using the fonts or their derivatives.\n\nDEFINITIONS\n\"Font Software\" refers to the set of files released by the Copyright\nHolder(s) under this license and clearly marked as such. This may\ninclude source files, build scripts and documentation.\n\n\"Reserved Font Name\" refers to any names specified as such after the\ncopyright statement(s).\n\n\"Original Version\" refers to the collection of Font Software components as\ndistributed by the Copyright Holder(s).\n\n\"Modified Version\" refers to any derivative made by adding to, deleting,\nor substituting -- in part or in whole -- any of the components of the\nOriginal Version, by changing formats or by porting the Font Software to a\nnew environment.\n\n\"Author\" refers to any designer, engineer, programmer, technical\nwriter or other person who contributed to the Font Software.\n\nPERMISSION & CONDITIONS\nPermission is hereby granted, free of charge, to any person obtaining\na copy of the Font Software, to use, study, copy, merge, embed, modify,\nredistribute, and sell modified and unmodified copies of the Font\nSoftware, subject to the following conditions:\n\n1) Neither the Font Software nor any of its individual components,\nin Original or Modified Versions, may be sold by itself.\n\n2) Original or Modified Versions of the Font Software may be bundled,\nredistributed and/or sold with any software, provided that each copy\ncontains the above copyright notice and this license. These can be\nincluded either as stand-alone text files, human-readable headers or\nin the appropriate machine-readable metadata fields within text or\nbinary files as long as those fields can be easily viewed by the user.\n\n3) No Modified Version of the Font Software may use the Reserved Font\nName(s) unless explicit written permission is granted by the corresponding\nCopyright Holder. This restriction only applies to the primary font name as\npresented to the users.\n\n4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font\nSoftware shall not be used to promote, endorse or advertise any\nModified Version, except to acknowledge the contribution(s) of the\nCopyright Holder(s) and the Author(s) or with their explicit written\npermission.\n\n5) The Font Software, modified or unmodified, in part or in whole,\nmust be distributed entirely under this license, and must not be\ndistributed under any other license. The requirement for fonts to\nremain under this license does not apply to any document created\nusing the Font Software.\n\nTERMINATION\nThis license becomes null and void if any of the above conditions are\nnot met.\n\nDISCLAIMER\nTHE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\nOF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE\nCOPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,\nINCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL\nDAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\nFROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM\nOTHER DEALINGS IN THE FONT SOFTWARE.\n",
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "text/plain; charset=utf-8",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/fonts/OFL.txt",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no font nope.ttf",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/fonts/nope.ttf",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no route /fonts/../bodies.json",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/fonts/..%2Fbodies.json",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "png": {
+     "height": 32,
+     "rgba_b64": "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",
+     "rgba_sha256": "6e25501d88e58ff523af74f3d3acdfd588c6eb177d236c4b1fd1e5cff99ecde6",
+     "width": 32
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/icons/icon-32.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no icon nope.png",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/icons/nope.png",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no asset 'nope.js'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/assets/nope.js",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no asset ''",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/assets/",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no asset '../../bodies.json'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/assets/..%2F..%2Fbodies.json",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no asset 'a/../../../server.py'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/assets/a/..%2F..%2F..%2Fserver.py",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no asset '../cockpit.js'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/assets/..%2Fcockpit.js",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no cesium asset '../bodies.json'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/cesium/..%2Fbodies.json",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/reports/plan_a.md",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": "# SYNTHETIC plan a\n",
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "text/markdown; charset=utf-8",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/reports/plan_a.md",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": "%PDF SYNTHETIC",
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/pdf",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/reports/plan_a.pdf",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "bytes_sha256": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+    "len": 32,
+    "x_dem": {}
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/octet-stream",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/reports/run.bin",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "not found: nope.md",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/reports/nope.md",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no route /reports/../operators.json",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/reports/..%2Foperators.json",
+    "raw": null
+   },
+   "status": 404
+  }
+ ],
+ "store": null
+}

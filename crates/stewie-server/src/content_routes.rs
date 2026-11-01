@@ -326,6 +326,147 @@ async fn get_figure(
     .await
 }
 
+/// The server package's media type for an extension (Python `routers.assets._CTYPE`), else octet-stream; a `text/*`
+/// type carries the `charset=utf-8` Starlette appends.
+fn media_type(file: &str) -> &'static str {
+    match std::path::Path::new(file)
+        .extension()
+        .and_then(|e| e.to_str())
+    {
+        Some("json") => "application/json",
+        Some("pdf") => "application/pdf",
+        Some("md") => "text/markdown; charset=utf-8",
+        Some("png") => "image/png",
+        Some("html") => "text/html; charset=utf-8",
+        Some("js") => "text/javascript; charset=utf-8",
+        Some("css") => "text/css; charset=utf-8",
+        Some("wasm") => "application/wasm",
+        _ => "application/octet-stream",
+    }
+}
+
+/// A file's bytes as a response of the given type, or the Python's 404 with `missing`.
+fn file_response(path: &std::path::Path, ctype: &'static str, missing: String) -> Response {
+    match path.is_file().then(|| std::fs::read(path)) {
+        Some(Ok(b)) => {
+            let mut r = b.into_response();
+            r.headers_mut()
+                .insert(header::CONTENT_TYPE, HeaderValue::from_static(ctype));
+            r
+        }
+        _ => err(StatusCode::NOT_FOUND, missing).into_response(),
+    }
+}
+
+/// `base` joined with a client path the way the Python's `os.path.normpath` confines it: `None` once a `..` climbs
+/// out of `base`.
+fn confined(base: &std::path::Path, rel: &str) -> Option<PathBuf> {
+    let mut parts: Vec<&str> = Vec::new();
+    for c in rel.split('/') {
+        match c {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            c => parts.push(c),
+        }
+    }
+    Some(parts.iter().fold(base.to_path_buf(), |p, c| p.join(c)))
+}
+
+fn server_dir() -> PathBuf {
+    repo().join("stewie/server")
+}
+
+/// A vendored brand font by base name (public).
+async fn font(Path(name): Path<String>) -> Response {
+    if name.contains('/') {
+        return crate::app::no_route_for(&axum::http::Method::GET, &format!("/fonts/{name}"));
+    }
+    #[allow(clippy::case_sensitive_file_extension_comparisons)] // the Python's `endswith(".ttf")`
+    let ctype = if name.ends_with(".ttf") {
+        "font/ttf"
+    } else {
+        "text/plain; charset=utf-8"
+    };
+    file_response(
+        &server_dir().join("fonts").join(&name),
+        ctype,
+        format!("no font {name}"),
+    )
+}
+
+/// An app icon by base name (public).
+async fn icon(Path(name): Path<String>) -> Response {
+    if name.contains('/') {
+        return crate::app::no_route_for(&axum::http::Method::GET, &format!("/icons/{name}"));
+    }
+    file_response(
+        &server_dir().join("icons").join(&name),
+        "image/png",
+        format!("no icon {name}"),
+    )
+}
+
+/// The bundled body registry (public).
+async fn bodies() -> Response {
+    file_response(
+        &server_dir().join("bodies.json"),
+        "application/json",
+        "not found: bodies.json".to_owned(),
+    )
+}
+
+/// A file under a bundled directory, confined to it (public); `what` names it in the 404.
+fn bundled(dir: &str, path: &str, what: &str) -> Response {
+    let base = server_dir().join(dir);
+    let missing = format!("no {what} {}", py_repr(path));
+    match confined(&base, path) {
+        Some(full) => file_response(&full, media_type(path), missing),
+        None => err(StatusCode::NOT_FOUND, missing).into_response(),
+    }
+}
+
+/// The cockpit's static assets (`web/assets/`), the dev-server equivalent of nginx's.
+async fn asset(path: Option<Path<String>>) -> Response {
+    bundled(
+        "web/assets",
+        &path.map(|Path(p)| p).unwrap_or_default(),
+        "asset",
+    )
+}
+
+/// The vendored `CesiumJS` bundle when present (`server/cesium/`).
+async fn cesium(path: Option<Path<String>>) -> Response {
+    bundled(
+        "cesium",
+        &path.map(|Path(p)| p).unwrap_or_default(),
+        "cesium asset",
+    )
+}
+
+/// A generated mission-control report by its opaque id (any authenticated caller).
+async fn report(
+    State(st): State<Arc<AppState>>,
+    Path(name): Path<String>,
+    req: Request,
+) -> Response {
+    if name.contains('/') {
+        return crate::app::no_route_for(&axum::http::Method::GET, &format!("/reports/{name}"));
+    }
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        require_auth(st, &h)?;
+        let p = st.cfg.data_dir.join("reports").join(&name);
+        Ok(file_response(
+            &p,
+            media_type(&name),
+            format!("not found: {name}"),
+        ))
+    })
+    .await
+}
+
 /// The content routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -342,4 +483,12 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/profile/{name}", get(get_profile))
         .route("/figures", get(get_figures))
         .route("/figure/{*key}", get(get_figure))
+        .route("/fonts/{name}", get(font))
+        .route("/icons/{name}", get(icon))
+        .route("/bodies.json", get(bodies))
+        .route("/assets/", get(asset))
+        .route("/assets/{*path}", get(asset))
+        .route("/cesium/", get(cesium))
+        .route("/cesium/{*path}", get(cesium))
+        .route("/reports/{name}", get(report))
 }

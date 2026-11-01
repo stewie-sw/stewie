@@ -5213,6 +5213,47 @@ def http_library_cases() -> None:
                    "stewie/twin/terrain_memory.py"], payload)
 
 
+def http_assets_cases() -> None:
+    """The static-file routes (RW-55b11): the 404 texts, the path confinement and the report auth and media types,
+    through one scripted session (_http_session). The served bytes of the bundled files are checked against the
+    files themselves by the Rust test, not snapshotted here (the Cesium bundle is not tracked, so it is absent on
+    CI). The report files are SYNTHETIC (labelled)."""
+    import base64
+
+    seed_files = {"reports/plan_a.md": b"# SYNTHETIC plan a\n", "reports/plan_a.pdf": b"%PDF SYNTHETIC",
+                  "reports/run.bin": bytes(range(32))}
+
+    def script(call, key, d, clock):
+        for rel, data in seed_files.items():
+            os.makedirs(os.path.dirname(os.path.join(d, rel)), exist_ok=True)
+            with open(os.path.join(d, rel), "wb") as fh:
+                fh.write(data)
+        call("GET", "/fonts/OFL.txt")
+        call("GET", "/fonts/nope.ttf")
+        call("GET", "/fonts/..%2Fbodies.json")                              # Starlette: no route
+        call("GET", "/icons/icon-32.png")
+        call("GET", "/icons/nope.png")
+        call("GET", "/assets/nope.js")
+        call("GET", "/assets/")                                              # the bundle root itself
+        call("GET", "/assets/..%2F..%2Fbodies.json")                         # climbs out: confined
+        call("GET", "/assets/a/..%2F..%2F..%2Fserver.py")
+        call("GET", "/assets/..%2Fcockpit.js")                                # outside, though a file of that name is inside
+        call("GET", "/cesium/..%2Fbodies.json")
+        call("GET", "/reports/plan_a.md")                                    # no key
+        call("GET", "/reports/plan_a.md", headers=key)
+        call("GET", "/reports/plan_a.pdf", headers=key)
+        call("GET", "/reports/run.bin", headers=key)
+        call("GET", "/reports/nope.md", headers=key)
+        call("GET", "/reports/..%2Foperators.json", headers=key)            # Starlette: no route
+
+    payload = _http_session("stewie-http-assets-oracle", {}, script)
+    payload["seed_files"] = {k: base64.b64encode(v).decode() for k, v in seed_files.items()}
+    write_fixture(ORACLE_FIXTURES, "http_assets_cases", "oracle/build_fixtures.py::http_assets_cases (the FastAPI "
+                  "app's static-file routes: 404s, confinement, report auth; SYNTHETIC reports, labelled)",
+                  ["stewie/server/routers/assets.py", "stewie/server/fonts/OFL.txt", "stewie/server/icons/icon-32.png"],
+                  payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5329,6 +5370,7 @@ def main() -> None:
     http_structures_cases()
     http_missions_cases()
     http_library_cases()
+    http_assets_cases()
 
 
 if __name__ == "__main__":
