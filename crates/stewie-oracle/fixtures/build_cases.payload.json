@@ -1,0 +1,1011 @@
+{
+ "plans": [
+  {
+   "min_gap_m": 2.0,
+   "name": "balanced_pair",
+   "placed": [
+    {
+     "name": "landing_pad",
+     "params": {},
+     "x": 0.0,
+     "y": 0.0
+    },
+    {
+     "name": "habitat_foundation",
+     "params": {},
+     "x": 60.0,
+     "y": 0.0
+    }
+   ],
+   "report": {
+    "advisories": [
+     "2 cut sources feed 2 fill(s) -- route base-wide (one borrow pit can feed several fills) to cut total haul rather than one pit per structure."
+    ],
+    "build_order": [
+     0,
+     2,
+     1,
+     3
+    ],
+    "clearances": [
+     {
+      "gap_m": 51.257888806847056,
+      "i": 0,
+      "j": 1,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": -9.094947017729282e-13,
+    "pairings": [
+     {
+      "haul_dist_m": 7.353393621658208,
+      "mass_kg": 3456.0,
+      "sink_order_idx": 1,
+      "sink_x": 7.353393621658208,
+      "sink_y": 0.0,
+      "source_order_idx": 0,
+      "source_x": 0.0,
+      "source_y": 0.0
+     },
+     {
+      "haul_dist_m": 7.5382181012510046,
+      "mass_kg": 2880.0,
+      "sink_order_idx": 3,
+      "sink_x": 67.538218101251,
+      "sink_y": 0.0,
+      "source_order_idx": 2,
+      "source_x": 60.0,
+      "source_y": 0.0
+     }
+    ],
+    "total_cut_mass_kg": 6336.0,
+    "total_fill_mass_kg": 6336.000000000001,
+    "total_haul_work_kg_m": 47123.39648805366
+   }
+  },
+  {
+   "min_gap_m": 2.0,
+   "name": "surplus",
+   "placed": [
+    {
+     "name": "borrow_pit",
+     "params": {},
+     "x": 0.0,
+     "y": 0.0
+    },
+    {
+     "name": "haul_road",
+     "params": {},
+     "x": 40.0,
+     "y": 10.0
+    },
+    {
+     "name": "blast_berm",
+     "params": {},
+     "x": 90.0,
+     "y": 0.0
+    }
+   ],
+   "report": {
+    "advisories": [
+     "base has a 24,192 kg material surplus -- route the surplus cut to a spoil pile or an export sink (it is not consumed by any fill).",
+     "3 cut sources feed 1 fill(s) -- route base-wide (one borrow pit can feed several fills) to cut total haul rather than one pit per structure."
+    ],
+    "build_order": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "clearances": [
+     {
+      "gap_m": 33.47572503252175,
+      "i": 0,
+      "j": 1,
+      "overlap": false
+     },
+     {
+      "gap_m": 81.09325776946662,
+      "i": 0,
+      "j": 2,
+      "overlap": false
+     },
+     {
+      "gap_m": 41.09839668431268,
+      "i": 1,
+      "j": 2,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": 24192.0,
+    "pairings": [
+     {
+      "haul_dist_m": 7.063048203434803,
+      "mass_kg": 29250.0,
+      "sink_order_idx": 3,
+      "sink_x": 90.0,
+      "sink_y": 0.0,
+      "source_order_idx": 2,
+      "source_x": 82.9369517965652,
+      "source_y": 0.0
+     }
+    ],
+    "total_cut_mass_kg": 53442.0,
+    "total_fill_mass_kg": 29250.0,
+    "total_haul_work_kg_m": 206594.159950468
+   }
+  },
+  {
+   "min_gap_m": 2.0,
+   "name": "mixed",
+   "placed": [
+    {
+     "name": "crater_fill",
+     "params": {
+      "radius_m": 12.0
+     },
+     "x": 0.0,
+     "y": 0.0
+    },
+    {
+     "name": "blast_berm",
+     "params": {},
+     "x": 50.0,
+     "y": 30.0
+    },
+    {
+     "name": "solar_pad",
+     "params": {},
+     "x": -40.0,
+     "y": 5.0
+    }
+   ],
+   "report": {
+    "advisories": [
+     "base has a 4,915 kg material surplus -- route the surplus cut to a spoil pile or an export sink (it is not consumed by any fill).",
+     "3 cut sources feed 2 fill(s) -- route base-wide (one borrow pit can feed several fills) to cut total haul rather than one pit per structure."
+    ],
+    "build_order": [
+     0,
+     2,
+     4,
+     1,
+     3
+    ],
+    "clearances": [
+     {
+      "gap_m": 36.2349688619593,
+      "i": 0,
+      "j": 1,
+      "overlap": false
+     },
+     {
+      "gap_m": 19.244826715863848,
+      "i": 0,
+      "j": 2,
+      "overlap": false
+     },
+     {
+      "gap_m": 83.37258706371813,
+      "i": 1,
+      "j": 2,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": 4915.199999999895,
+    "pairings": [
+     {
+      "haul_dist_m": 24.104541614624004,
+      "mass_kg": 235242.45790080368,
+      "sink_order_idx": 1,
+      "sink_x": 0.0,
+      "sink_y": 0.0,
+      "source_order_idx": 0,
+      "source_x": -24.104541614624004,
+      "source_y": 0.0
+     },
+     {
+      "haul_dist_m": 40.311288741492746,
+      "mass_kg": 5.820766091346741e-11,
+      "sink_order_idx": 1,
+      "sink_x": 0.0,
+      "sink_y": 0.0,
+      "source_order_idx": 4,
+      "source_x": -40.0,
+      "source_y": 5.0
+     },
+     {
+      "haul_dist_m": 7.063048203434803,
+      "mass_kg": 29250.0,
+      "sink_order_idx": 3,
+      "sink_x": 50.0,
+      "sink_y": 30.0,
+      "source_order_idx": 2,
+      "source_x": 42.9369517965652,
+      "source_y": 30.0
+     }
+    ],
+    "total_cut_mass_kg": 269407.65790080366,
+    "total_fill_mass_kg": 264492.45790080377,
+    "total_haul_work_kg_m": 5877005.775946829
+   }
+  },
+  {
+   "min_gap_m": 2.0,
+   "name": "overlapping",
+   "placed": [
+    {
+     "name": "landing_pad",
+     "params": {},
+     "x": 0.0,
+     "y": 0.0
+    },
+    {
+     "name": "solar_pad",
+     "params": {},
+     "x": 4.0,
+     "y": 1.0
+    },
+    {
+     "name": "trench",
+     "params": {},
+     "x": 30.0,
+     "y": -2.0
+    }
+   ],
+   "report": {
+    "advisories": [
+     "base has a 14,131 kg material surplus -- route the surplus cut to a spoil pile or an export sink (it is not consumed by any fill).",
+     "3 cut sources feed 1 fill(s) -- route base-wide (one borrow pit can feed several fills) to cut total haul rather than one pit per structure.",
+     "structures #0 (landing_pad) and #1 (solar_pad) overlap (gap -4.7 m) -- adjust placement so footprints clear by >= 2.0 m."
+    ],
+    "build_order": [
+     0,
+     2,
+     3,
+     1
+    ],
+    "clearances": [
+     {
+      "gap_m": -4.692845719825791,
+      "i": 0,
+      "j": 1,
+      "overlap": true
+     },
+     {
+      "gap_m": 23.809748032072733,
+      "i": 0,
+      "j": 2,
+      "overlap": false
+     },
+     {
+      "gap_m": 19.70457794061107,
+      "i": 1,
+      "j": 2,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": 14131.2,
+    "pairings": [
+     {
+      "haul_dist_m": 3.499321188713313,
+      "mass_kg": 3456.0000000000005,
+      "sink_order_idx": 1,
+      "sink_x": 7.353393621658208,
+      "sink_y": 0.0,
+      "source_order_idx": 2,
+      "source_x": 4.0,
+      "source_y": 1.0
+     }
+    ],
+    "total_cut_mass_kg": 17587.2,
+    "total_fill_mass_kg": 3456.0000000000005,
+    "total_haul_work_kg_m": 12093.654028193212
+   }
+  },
+  {
+   "min_gap_m": 2.0,
+   "name": "close_but_clear",
+   "placed": [
+    {
+     "name": "solar_pad",
+     "params": {},
+     "x": 0.0,
+     "y": 0.0
+    },
+    {
+     "name": "borrow_pit",
+     "params": {},
+     "x": 9.5,
+     "y": 0.0
+    }
+   ],
+   "report": {
+    "advisories": [
+     "base has a 25,651 kg material surplus -- route the surplus cut to a spoil pile or an export sink (it is not consumed by any fill)."
+    ],
+    "build_order": [
+     0,
+     1
+    ],
+    "clearances": [
+     {
+      "gap_m": 1.6013458303314119,
+      "i": 0,
+      "j": 1,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": 25651.2,
+    "pairings": [],
+    "total_cut_mass_kg": 25651.2,
+    "total_fill_mass_kg": 0,
+    "total_haul_work_kg_m": 0.0
+   }
+  },
+  {
+   "min_gap_m": 2.0,
+   "name": "shared_source",
+   "placed": [
+    {
+     "name": "crater_fill",
+     "params": {},
+     "x": 0.0,
+     "y": 0.0
+    },
+    {
+     "name": "blast_berm",
+     "params": {
+      "length_m": 6.0
+     },
+     "x": 12.0,
+     "y": 0.0
+    }
+   ],
+   "report": {
+    "advisories": [
+     "2 cut sources feed 2 fill(s) -- route base-wide (one borrow pit can feed several fills) to cut total haul rather than one pit per structure.",
+     "structures #0 (crater_fill) and #1 (blast_berm) overlap (gap -2.5 m) -- adjust placement so footprints clear by >= 2.0 m."
+    ],
+    "build_order": [
+     0,
+     2,
+     1,
+     3
+    ],
+    "clearances": [
+     {
+      "gap_m": -2.5274663615467112,
+      "i": 0,
+      "j": 1,
+      "overlap": true
+     }
+    ],
+    "net_mass_kg": -1.4551915228366852e-11,
+    "pairings": [
+     {
+      "haul_dist_m": 6.246530452835007,
+      "mass_kg": 11700.0,
+      "sink_order_idx": 1,
+      "sink_x": 0.0,
+      "sink_y": 0.0,
+      "source_order_idx": 2,
+      "source_x": 6.246530452835007,
+      "source_y": 0.0
+     },
+     {
+      "haul_dist_m": 16.736361076416003,
+      "mass_kg": 92852.20351146831,
+      "sink_order_idx": 1,
+      "sink_x": 0.0,
+      "sink_y": 0.0,
+      "source_order_idx": 0,
+      "source_x": -16.736361076416003,
+      "source_y": 0.0
+     },
+     {
+      "haul_dist_m": 28.736361076416003,
+      "mass_kg": 11699.999999999985,
+      "sink_order_idx": 3,
+      "sink_x": 12.0,
+      "sink_y": 0.0,
+      "source_order_idx": 0,
+      "source_x": -16.736361076416003,
+      "source_y": 0.0
+     }
+    ],
+    "total_cut_mass_kg": 116252.2035114683,
+    "total_fill_mass_kg": 116252.20351146831,
+    "total_haul_work_kg_m": 1963307.835601032
+   }
+  },
+  {
+   "min_gap_m": 2.0,
+   "name": "base",
+   "placed": [
+    {
+     "name": "landing_pad",
+     "params": {},
+     "x": 0.0,
+     "y": 0.0
+    },
+    {
+     "name": "habitat_foundation",
+     "params": {},
+     "x": 40.0,
+     "y": 25.0
+    },
+    {
+     "name": "blast_berm",
+     "params": {
+      "length_m": 20.0
+     },
+     "x": -30.0,
+     "y": 10.0
+    },
+    {
+     "name": "borrow_pit",
+     "params": {
+      "depth_m": 0.5
+     },
+     "x": 15.0,
+     "y": -35.0
+    },
+    {
+     "name": "crater_fill",
+     "params": {
+      "radius_m": 5.0
+     },
+     "x": 70.0,
+     "y": -20.0
+    },
+    {
+     "name": "solar_pad",
+     "params": {},
+     "x": -60.0,
+     "y": -40.0
+    }
+   ],
+   "report": {
+    "advisories": [
+     "base has a 39,475 kg material surplus -- route the surplus cut to a spoil pile or an export sink (it is not consumed by any fill).",
+     "6 cut sources feed 4 fill(s) -- route base-wide (one borrow pit can feed several fills) to cut total haul rather than one pit per structure."
+    ],
+    "build_order": [
+     0,
+     2,
+     4,
+     6,
+     7,
+     9,
+     1,
+     3,
+     5,
+     8
+    ],
+    "clearances": [
+     {
+      "gap_m": 38.42779446713008,
+      "i": 0,
+      "j": 1,
+      "overlap": false
+     },
+     {
+      "gap_m": 20.944541971043627,
+      "i": 0,
+      "j": 2,
+      "overlap": false
+     },
+     {
+      "gap_m": 30.39129335097161,
+      "i": 0,
+      "j": 3,
+      "overlap": false
+     },
+     {
+      "gap_m": 61.60160365022426,
+      "i": 0,
+      "j": 4,
+      "overlap": false
+     },
+     {
+      "gap_m": 63.29507416383633,
+      "i": 0,
+      "j": 5,
+      "overlap": false
+     },
+     {
+      "gap_m": 60.77362884671146,
+      "i": 1,
+      "j": 2,
+      "overlap": false
+     },
+     {
+      "gap_m": 57.17518598262192,
+      "i": 1,
+      "j": 3,
+      "overlap": false
+     },
+     {
+      "gap_m": 42.746532050348776,
+      "i": 1,
+      "j": 4,
+      "overlap": false
+     },
+     {
+      "gap_m": 110.31541123429204,
+      "i": 1,
+      "j": 5,
+      "overlap": false
+     },
+     {
+      "gap_m": 53.87867285192398,
+      "i": 2,
+      "j": 3,
+      "overlap": false
+     },
+     {
+      "gap_m": 91.13020457000721,
+      "i": 2,
+      "j": 4,
+      "overlap": false
+     },
+     {
+      "gap_m": 47.42020232649219,
+      "i": 2,
+      "j": 5,
+      "overlap": false
+     },
+     {
+      "gap_m": 46.72657318815084,
+      "i": 3,
+      "j": 4,
+      "overlap": false
+     },
+     {
+      "gap_m": 67.26782772219595,
+      "i": 3,
+      "j": 5,
+      "overlap": false
+     },
+     {
+      "gap_m": 120.11888714575748,
+      "i": 4,
+      "j": 5,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": 39475.2,
+    "pairings": [
+     {
+      "haul_dist_m": 11.210225672760004,
+      "mass_kg": 40840.70449666731,
+      "sink_order_idx": 8,
+      "sink_x": 70.0,
+      "sink_y": -20.0,
+      "source_order_idx": 7,
+      "source_x": 58.789774327239996,
+      "source_y": -20.0
+     },
+     {
+      "haul_dist_m": 7.614253678777395,
+      "mass_kg": 39000.0,
+      "sink_order_idx": 5,
+      "sink_x": -30.0,
+      "sink_y": 10.0,
+      "source_order_idx": 4,
+      "source_x": -37.614253678777395,
+      "source_y": 10.0
+     },
+     {
+      "haul_dist_m": 7.353393621658208,
+      "mass_kg": 3456.0,
+      "sink_order_idx": 1,
+      "sink_x": 7.353393621658208,
+      "sink_y": 0.0,
+      "source_order_idx": 0,
+      "source_x": 0.0,
+      "source_y": 0.0
+     },
+     {
+      "haul_dist_m": 7.5382181012509974,
+      "mass_kg": 2880.0,
+      "sink_order_idx": 3,
+      "sink_x": 47.538218101251,
+      "sink_y": 25.0,
+      "source_order_idx": 2,
+      "source_x": 40.0,
+      "source_y": 25.0
+     }
+    ],
+    "total_cut_mass_kg": 125651.90449666731,
+    "total_fill_mass_kg": 86176.70449666731,
+    "total_haul_work_kg_m": 801912.8040025168
+   }
+  }
+ ],
+ "refusals": [
+  {
+   "error": "unknown structure 'moon_base'; known: ['blast_berm', 'borrow_pit', 'crater_fill', 'habitat_foundation', 'haul_road', 'landing_pad', 'solar_pad', 'trench']",
+   "name": "moon_base",
+   "params": {}
+  },
+  {
+   "error": "side_m must be > 0 (got 0.0) (audit L21: zero divided; negative silently inverted the cut/fill volume balance)",
+   "name": "landing_pad",
+   "params": {
+    "side_m": 0.0
+   }
+  },
+  {
+   "error": null,
+   "name": "trench",
+   "params": {
+    "depth_m": -1.5
+   },
+   "python_accepted": [
+    {
+     "action": "Excavate trench",
+     "depth_m": -1.5,
+     "footprint_m2": 12.0,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "utility/footing trench",
+     "x": 0.0,
+     "y": 0.0
+    }
+   ]
+  },
+  {
+   "error": "radius_m must be > 0 (got 0) (audit L21: zero divided; negative silently inverted the cut/fill volume balance)",
+   "name": "crater_fill",
+   "params": {
+    "radius_m": 0
+   }
+  }
+ ],
+ "rho_bank": 1920.0,
+ "rho_loose": 1300.0,
+ "templates": [
+  {
+   "name": "blast_berm",
+   "orders": [
+    {
+     "action": "Borrow pit (berm)",
+     "depth_m": 0.3,
+     "footprint_m2": 50.78125,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "source",
+     "x": 2.936951796565194,
+     "y": -4.0
+    },
+    {
+     "action": "Blast berm",
+     "depth_m": 0.5,
+     "footprint_m2": 45.0,
+     "kind": "fill",
+     "note": "ridge to spec",
+     "x": 10.0,
+     "y": -4.0
+    }
+   ],
+   "params": {},
+   "x": 10.0,
+   "y": -4.0
+  },
+  {
+   "name": "borrow_pit",
+   "orders": [
+    {
+     "action": "Borrow pit",
+     "depth_m": 0.3,
+     "footprint_m2": 36.0,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "material source",
+     "x": 10.0,
+     "y": -4.0
+    }
+   ],
+   "params": {},
+   "x": 10.0,
+   "y": -4.0
+  },
+  {
+   "name": "crater_fill",
+   "orders": [
+    {
+     "action": "Borrow pit (crater)",
+     "depth_m": 0.3,
+     "footprint_m2": 181.51424220741026,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "source",
+     "x": -6.736361076416003,
+     "y": -4.0
+    },
+    {
+     "action": "Crater fill",
+     "depth_m": 0.4,
+     "footprint_m2": 201.06192982974676,
+     "kind": "fill",
+     "note": "to grade",
+     "x": 10.0,
+     "y": -4.0
+    }
+   ],
+   "params": {},
+   "x": 10.0,
+   "y": -4.0
+  },
+  {
+   "name": "habitat_foundation",
+   "orders": [
+    {
+     "action": "Cut habitat footing",
+     "depth_m": 0.06,
+     "footprint_m2": 25.0,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "",
+     "x": 10.0,
+     "y": -4.0
+    },
+    {
+     "action": "Compacted foundation fill",
+     "depth_m": 0.06,
+     "footprint_m2": 36.92307692307693,
+     "kind": "fill",
+     "note": "from footing cut (bulked)",
+     "x": 17.538218101251,
+     "y": -4.0
+    }
+   ],
+   "params": {},
+   "x": 10.0,
+   "y": -4.0
+  },
+  {
+   "name": "haul_road",
+   "orders": [
+    {
+     "action": "Grade haul road",
+     "depth_m": 0.03,
+     "footprint_m2": 60.0,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "30x2 m corridor",
+     "x": 10.0,
+     "y": -4.0
+    }
+   ],
+   "params": {},
+   "x": 10.0,
+   "y": -4.0
+  },
+  {
+   "name": "landing_pad",
+   "orders": [
+    {
+     "action": "Level landing pad",
+     "depth_m": 0.05,
+     "footprint_m2": 36.0,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "6x6 m",
+     "x": 10.0,
+     "y": -4.0
+    },
+    {
+     "action": "Perimeter blast berm",
+     "depth_m": 0.12,
+     "footprint_m2": 22.153846153846157,
+     "kind": "fill",
+     "note": "from pad cut (bulked)",
+     "x": 17.353393621658206,
+     "y": -4.0
+    }
+   ],
+   "params": {},
+   "x": 10.0,
+   "y": -4.0
+  },
+  {
+   "name": "solar_pad",
+   "orders": [
+    {
+     "action": "Level solar pad",
+     "depth_m": 0.04,
+     "footprint_m2": 64.0,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "flat, low-obstruction",
+     "x": 10.0,
+     "y": -4.0
+    }
+   ],
+   "params": {},
+   "x": 10.0,
+   "y": -4.0
+  },
+  {
+   "name": "trench",
+   "orders": [
+    {
+     "action": "Excavate trench",
+     "depth_m": 0.4,
+     "footprint_m2": 12.0,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "utility/footing trench",
+     "x": 10.0,
+     "y": -4.0
+    }
+   ],
+   "params": {},
+   "x": 10.0,
+   "y": -4.0
+  },
+  {
+   "name": "landing_pad",
+   "orders": [
+    {
+     "action": "Level landing pad",
+     "depth_m": 0.08,
+     "footprint_m2": 42.25,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "6x6 m",
+     "x": -3.0,
+     "y": 7.5
+    },
+    {
+     "action": "Perimeter blast berm",
+     "depth_m": 0.12,
+     "footprint_m2": 41.6,
+     "kind": "fill",
+     "note": "from pad cut (bulked)",
+     "x": 5.47490309931942,
+     "y": 7.5
+    }
+   ],
+   "params": {
+    "cut_depth_m": 0.08,
+    "side_m": 6.5
+   },
+   "x": -3.0,
+   "y": 7.5
+  },
+  {
+   "name": "haul_road",
+   "orders": [
+    {
+     "action": "Grade haul road",
+     "depth_m": 0.03,
+     "footprint_m2": 106.25,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "42x2 m corridor",
+     "x": -3.0,
+     "y": 7.5
+    }
+   ],
+   "params": {
+    "length_m": 42.5,
+    "width_m": 2.5
+   },
+   "x": -3.0,
+   "y": 7.5
+  },
+  {
+   "name": "crater_fill",
+   "orders": [
+    {
+     "action": "Borrow pit (crater)",
+     "depth_m": 0.3,
+     "footprint_m2": 15.953400194010667,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "source",
+     "x": -9.99708538838545,
+     "y": 7.5
+    },
+    {
+     "action": "Crater fill",
+     "depth_m": 0.25,
+     "footprint_m2": 28.274333882308138,
+     "kind": "fill",
+     "note": "to grade",
+     "x": -3.0,
+     "y": 7.5
+    }
+   ],
+   "params": {
+    "depth_m": 0.25,
+    "radius_m": 3.0
+   },
+   "x": -3.0,
+   "y": 7.5
+  },
+  {
+   "name": "blast_berm",
+   "orders": [
+    {
+     "action": "Borrow pit (berm)",
+     "depth_m": 0.3,
+     "footprint_m2": 91.40625,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "source",
+     "x": -11.280330793993237,
+     "y": 7.5
+    },
+    {
+     "action": "Blast berm",
+     "depth_m": 0.9,
+     "footprint_m2": 45.0,
+     "kind": "fill",
+     "note": "ridge to spec",
+     "x": -3.0,
+     "y": 7.5
+    }
+   ],
+   "params": {
+    "height_m": 0.9
+   },
+   "x": -3.0,
+   "y": 7.5
+  },
+  {
+   "name": "habitat_foundation",
+   "orders": [
+    {
+     "action": "Cut habitat footing",
+     "depth_m": 0.06,
+     "footprint_m2": 49.0,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "",
+     "x": -3.0,
+     "y": 7.5
+    },
+    {
+     "action": "Compacted foundation fill",
+     "depth_m": 0.1,
+     "footprint_m2": 43.42153846153846,
+     "kind": "fill",
+     "note": "from footing cut (bulked)",
+     "x": 5.7947510703214915,
+     "y": 7.5
+    }
+   ],
+   "params": {
+    "fill_height_m": 0.1,
+    "side_m": 7.0
+   },
+   "x": -3.0,
+   "y": 7.5
+  },
+  {
+   "name": "trench",
+   "orders": [
+    {
+     "action": "Excavate trench",
+     "depth_m": 1.2,
+     "footprint_m2": 12.0,
+     "insitu_density_kg_m3": 1920.0,
+     "kind": "cut",
+     "note": "utility/footing trench",
+     "x": -3.0,
+     "y": 7.5
+    }
+   ],
+   "params": {
+    "depth_m": 1.2
+   },
+   "x": -3.0,
+   "y": 7.5
+  }
+ ]
+}

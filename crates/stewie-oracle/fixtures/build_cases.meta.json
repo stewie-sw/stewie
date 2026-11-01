@@ -1,0 +1,10 @@
+{
+ "fixture": "build_cases",
+ "generator": "oracle/build_fixtures.py::build_cases (leap.structures + leap.siteplan; layouts and sizes SYNTHETIC, labelled)",
+ "payload_sha256": "69731ea2a0bad9cdc1c42c3b5395dd80304cb8aeebd5284b52f06d140c19faeb",
+ "sources": {
+  "leap/siteplan.py": "10bd883f5f04750fcc0ac63b911d7c4e6adb237479f8e63f3579b6c5097ffaa6",
+  "leap/structures.py": "f769d8338aa85f3ce25a44dacf4a30d3529a2f2be8720ab2ee5b3afffb85d8ba",
+  "stewie/specs/constants.py": "3eacdd47e1491b20a3dfc5523f50e1a530630d16e79c1fd78bf36daa85ef1f65"
+ }
+}

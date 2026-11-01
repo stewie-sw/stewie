@@ -1,0 +1,19 @@
+[package]
+name = "stewie-build"
+description = "LEAP construction: composite structures as mass-balanced cut and fill orders, the validate-and-advise site plan, and the conserved as-built record."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+stewie-twin = { path = "../stewie-twin" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+stewie-physics = { path = "../stewie-physics" }
+
+[lints]
+workspace = true

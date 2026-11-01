@@ -2237,6 +2237,63 @@ def replay_cases() -> None:
                   {"cases": cases})
 
 
+def build_cases() -> None:
+    """LEAP construction (RW-34a): leap.structures.decompose for every template (defaults, custom sizes including a
+    half-metre side that pins Python's round-half-even note formatting, and the refusals) and leap.siteplan.
+    analyze_siteplan over base layouts. Every placement and size is a SYNTHETIC authored layout (labelled); the
+    densities are the soil baseline's."""
+    from leap import siteplan as SP
+    from leap import structures as ST
+
+    templates = []
+    for name in sorted(ST.STRUCTURES):
+        templates.append({"name": name, "x": 10.0, "y": -4.0, "params": {}, "orders": ST.decompose(name, 10.0, -4.0)})
+    custom = [("landing_pad", {"side_m": 6.5, "cut_depth_m": 0.08}), ("haul_road", {"length_m": 42.5, "width_m": 2.5}),
+              ("crater_fill", {"radius_m": 3.0, "depth_m": 0.25}), ("blast_berm", {"height_m": 0.9}),
+              ("habitat_foundation", {"side_m": 7.0, "fill_height_m": 0.1}), ("trench", {"depth_m": 1.2})]
+    for name, params in custom:
+        templates.append({"name": name, "x": -3.0, "y": 7.5, "params": params,
+                          "orders": ST.decompose(name, -3.0, 7.5, **params)})
+    refusals = []
+    for name, params in [("moon_base", {}), ("landing_pad", {"side_m": 0.0}), ("trench", {"depth_m": -1.5}),
+                         ("crater_fill", {"radius_m": 0})]:
+        try:
+            accepted = ST.decompose(name, 0.0, 0.0, **params)
+            # the cut-only templates skip the positivity check (D-R101: the Rust refuses these too)
+            refusals.append({"name": name, "params": params, "error": None, "python_accepted": accepted})
+        except ValueError as e:
+            refusals.append({"name": name, "params": params, "error": str(e)})
+    assert any(r["error"] is None for r in refusals), "vacuity: a non-positive size the Python accepts"
+    layouts = {
+        "balanced_pair": [("landing_pad", 0.0, 0.0, {}), ("habitat_foundation", 60.0, 0.0, {})],
+        "surplus": [("borrow_pit", 0.0, 0.0, {}), ("haul_road", 40.0, 10.0, {}), ("blast_berm", 90.0, 0.0, {})],
+        "mixed": [("crater_fill", 0.0, 0.0, {"radius_m": 12.0}), ("blast_berm", 50.0, 30.0, {}),
+                    ("solar_pad", -40.0, 5.0, {})],
+        "overlapping": [("landing_pad", 0.0, 0.0, {}), ("solar_pad", 4.0, 1.0, {}), ("trench", 30.0, -2.0, {})],
+        "close_but_clear": [("solar_pad", 0.0, 0.0, {}), ("borrow_pit", 9.5, 0.0, {})],
+        # the berm's borrow pit sits beside the crater, so the larger crater fill drains it first
+        "shared_source": [("crater_fill", 0.0, 0.0, {}), ("blast_berm", 12.0, 0.0, {"length_m": 6.0})],
+        "base": [("landing_pad", 0.0, 0.0, {}), ("habitat_foundation", 40.0, 25.0, {}),
+                 ("blast_berm", -30.0, 10.0, {"length_m": 20.0}), ("borrow_pit", 15.0, -35.0, {"depth_m": 0.5}),
+                 ("crater_fill", 70.0, -20.0, {"radius_m": 5.0}), ("solar_pad", -60.0, -40.0, {})],
+    }
+    plans = []
+    for name, layout in layouts.items():
+        placed = [SP.PlacedStructure(n, x, y, p) for n, x, y, p in layout]
+        plans.append({"name": name, "placed": [{"name": n, "x": x, "y": y, "params": p} for n, x, y, p in layout],
+                      "min_gap_m": 2.0, "report": SP.analyze_siteplan(placed).to_dict()})
+    assert any("overlap" in a for p in plans for a in p["report"]["advisories"]), "vacuity: an overlap"
+    assert any("surplus" in a for p in plans for a in p["report"]["advisories"])
+    # every template balances its own fills, so no template layout can be in deficit
+    close = [p for p in plans if p["name"] == "close_but_clear"][0]["report"]["clearances"][0]
+    assert 0.0 <= close["gap_m"] < 2.0 and not close["overlap"], "vacuity: a sub-minimum gap the Python does not advise"
+    write_fixture(ORACLE_FIXTURES, "build_cases", "oracle/build_fixtures.py::build_cases (leap.structures + "
+                  "leap.siteplan; layouts and sizes SYNTHETIC, labelled)",
+                  ["leap/structures.py", "leap/siteplan.py", "stewie/specs/constants.py"],
+                  {"rho_bank": ST.RHO_BANK, "rho_loose": ST.RHO_LOOSE, "templates": templates,
+                   "refusals": refusals, "plans": plans})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -2514,6 +2571,7 @@ def main() -> None:
     plan_ir_cases()
     acceptance_cases()
     replay_cases()
+    build_cases()
 
 
 if __name__ == "__main__":

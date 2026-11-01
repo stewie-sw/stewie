@@ -1124,6 +1124,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "stewie-build"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "stewie-oracle",
+ "stewie-physics",
+ "stewie-twin",
+]
+
+[[package]]
 name = "stewie-contracts"
 version = "0.1.0"
 dependencies = [
