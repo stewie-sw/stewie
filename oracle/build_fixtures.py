@@ -2162,6 +2162,81 @@ def acceptance_cases() -> None:
                   {"cases": cases})
 
 
+def replay_cases() -> None:
+    """Ordered replay acceptance (RW-33e2): lode.planner_acceptance.execute_plan_acceptance walks each plan's trips in
+    order through the capacity-bounded drum, on missions over the real Haworth route window planned by
+    plan_and_simulate. Like acceptance_cases, each case records the stock Python result and the bank-density column
+    (D-R98); the as-built surface is recorded as its change from the untouched column (every changed cell's index and
+    height change), with the untouched surface taken from a replay of no trips. Layouts are SYNTHETIC placements on
+    the real terrain (labelled)."""
+    import copy
+
+    import lode.planner_acceptance as PA
+    from lode.planner_assembly import plan_and_simulate
+    from lode.planner_model import mission_from_dict
+
+    with open(os.path.join(ORACLE_FIXTURES, "trips_cases.payload.json")) as fh:
+        tc = json.load(fh)
+    tc = tc.get("payload", tc)
+    base, _ = __import__("stewie.physics.worksite", fromlist=["coarse_base_from_bundle"]).coarse_base_from_bundle(
+        os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    dem, origin = (Z, 5.0), (100.0, 50.0)
+    payloads = {mc["name"]: mc["payload"] for mc in tc["missions"]}
+    stock_cs = PA.ColumnState
+
+    def bank_density_column(**kw):
+        kw.setdefault("density", kw["mass_areal"] / 10.0)
+        return stock_cs(**kw)
+
+    def replay(m, trips):
+        r = PA.execute_plan_acceptance(m, trips, dem=dem, dem_origin=origin)
+        surface = r.pop("as_built")
+        untouched = PA.execute_plan_acceptance(m, [], dem=dem, dem_origin=origin)["as_built"]
+        delta = (surface - untouched).ravel()
+        changed = np.nonzero(np.abs(delta) > 1e-12)[0]
+        r["changed"] = [[int(i), float(delta[i])] for i in changed]
+        return r
+
+    cases = []
+
+    def run(name, payload, vehicles=1):
+        m = mission_from_dict(payload)
+        trips = plan_and_simulate(m, dem=dem, dem_origin=origin, vehicles=vehicles)[0]
+        stock = replay(m, trips)
+        PA.ColumnState = bank_density_column
+        try:
+            fixed = replay(m, trips)
+        finally:
+            PA.ColumnState = stock_cs
+        for k in ("feasible", "mass_conserved", "shuttle_cycles", "placed_kg", "max_simultaneous_drum_kg"):
+            assert abs(fixed[k] - stock[k]) <= 1e-9 * max(1.0, abs(stock[k])), f"{name}: D-R98 changed {k}"
+        cases.append({"name": name, "payload": payload, "vehicles": vehicles, "stock": stock, "result": fixed})
+
+    main = payloads["haul_two_pairs"]
+    run("two_pairs", main)
+    run("two_pairs_x2", main, vehicles=2)
+    for nm in ("deficit", "cuts_only", "heavy_rassor", "unreachable_fill"):
+        run(nm, payloads[nm])
+    small = copy.deepcopy(main)
+    small["orders"] = [dict(o, footprint_m2=1.0, depth_m=0.05) if o["kind"] != "goto" else o for o in main["orders"]]
+    run("small_orders", small)
+    overlap = copy.deepcopy(payloads["deficit"])
+    overlap["orders"] = list(overlap["orders"]) + [
+        {"action": "regrade", "kind": "cut", "x": 204.5, "y": 252.5, "footprint_m2": 16.0, "depth_m": 0.05},
+        {"action": "berm", "kind": "fill", "x": 54.5, "y": 104.5, "footprint_m2": 9.0, "depth_m": 0.1}]
+    run("overlapping_footprints", overlap)
+    assert any(c["result"]["feasible"] for c in cases) and any(not c["result"]["feasible"] for c in cases)
+    assert any(c["result"]["changed"] != c["stock"]["changed"] for c in cases), "vacuity: D-R98 moves the surface"
+    write_fixture(ORACLE_FIXTURES, "replay_cases", "oracle/build_fixtures.py::replay_cases (lode.planner_acceptance."
+                  "execute_plan_acceptance over the real Haworth route window, stock and at bank density; layouts "
+                  "SYNTHETIC, labelled)",
+                  ["lode/planner_acceptance.py", "lode/planner_assembly.py", "stewie/physics/column_state.py",
+                   "crates/stewie-oracle/fixtures/trips_cases.payload.json"],
+                  {"cases": cases})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -2438,6 +2513,7 @@ def main() -> None:
     plan_cases()
     plan_ir_cases()
     acceptance_cases()
+    replay_cases()
 
 
 if __name__ == "__main__":

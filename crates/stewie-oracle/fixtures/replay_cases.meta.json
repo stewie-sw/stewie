@@ -1,0 +1,11 @@
+{
+ "fixture": "replay_cases",
+ "generator": "oracle/build_fixtures.py::replay_cases (lode.planner_acceptance.execute_plan_acceptance over the real Haworth route window, stock and at bank density; layouts SYNTHETIC, labelled)",
+ "payload_sha256": "3dbead2bcbb6c4d7d7ab9539efe51bf8348e37fcc1113fd9e19d452a401f9a74",
+ "sources": {
+  "crates/stewie-oracle/fixtures/trips_cases.payload.json": "7f87344455f20944b51e99a7d2e33b14e830bdf087f49b587cefa5dafb32eb17",
+  "lode/planner_acceptance.py": "808a7e6c7e0b324390bce48b4d665668577be20a3a3d734ec53efa928549091a",
+  "lode/planner_assembly.py": "7dd0a07dd38d7f86f7cbcbfbffa2ae4d527d0642cd1841c3b7b0c0cb5a7de298",
+  "stewie/physics/column_state.py": "eb3c84f6b087be119b75543af7db1809612476208052c7d1a62b574398cfdf35"
+ }
+}

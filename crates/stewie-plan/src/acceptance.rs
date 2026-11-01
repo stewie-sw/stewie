@@ -16,6 +16,7 @@ use stewie_traverse::route::Dem;
 use stewie_twin::numpy::{round, sum as np_sum};
 
 use crate::mission::{BuildOrder, Mission, OrderKind};
+use crate::trips::Trip;
 
 /// The acceptance settings (Python `validate_plan` keywords).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -513,4 +514,184 @@ fn siting(m: &Mission, dem: Dem<'_>, max_slope_deg: f64) -> (Vec<Value>, Vec<Val
         }
     }
     (steep, off)
+}
+
+/// Ordered replay acceptance (Python `execute_plan_acceptance`, RW-33e2): walk the plan's trips in order through a
+/// drum that holds at most the vehicle's capacity. A haul trip alternates cutting a drum load and filling from it
+/// until its assigned flow is moved; a spoil cut with nothing to drain it overflows the drum; an import fill drains
+/// it. This catches what the pooled check flattens: a fill scheduled before its supplying cut, and footprints that
+/// overlap across trips. Returns the report and the ordered as-built surface (row-major over the report's grid).
+///
+/// # Errors
+/// A column the physics refuses.
+#[allow(
+    clippy::too_many_lines,
+    clippy::cast_precision_loss,
+    clippy::many_single_char_names
+)] // the Python's walk
+pub fn execute_plan_acceptance(
+    m: &Mission,
+    trips: &[Trip],
+    dem: Dem<'_>,
+    inp: &AcceptanceInputs<'_>,
+    p: &AcceptanceParams,
+) -> Result<(Value, Vec<f64>), String> {
+    let swell = inp.regolith.rho_deep / inp.regolith.rho_spoil;
+    let (rho_bank, rho_loose) = (inp.body_density * swell, inp.body_density);
+    let g = Grid::around(&m.orders, p.cell_m, p.max_cells);
+    let mut cs = column_over(&g, dem, p.regolith_depth_m, rho_bank, inp.regolith)?;
+    let m0 = cs.total_mass();
+    let phys = |e: stewie_physics::PhysicsError| e.to_string();
+    let count = |mask: &[bool]| mask.iter().filter(|b| **b).count();
+    let cap = inp.drum_kg;
+    let step = if cap > 0.0 { cap } else { f64::INFINITY };
+    // what each cut order can still give, across the flows it supplies
+    let mut supply: Vec<f64> = m
+        .orders
+        .iter()
+        .map(|o| o.footprint_m2 * o.depth_m * rho_bank)
+        .collect();
+    let (mut feasible, mut drum_max, mut running_min) = (true, 0.0_f64, 0.0_f64);
+    let (mut shuttle, mut placed_kg) = (0_u64, 0.0);
+    let orders_of = |t: &Trip, k: OrderKind| -> Vec<usize> {
+        t.actions
+            .iter()
+            .filter_map(|a| m.orders.iter().position(|o| &o.action == a))
+            .filter(|&i| m.orders[i].kind == k)
+            .collect()
+    };
+    let per_cell = |kg: f64, n: usize, len: usize| vec![kg / (n as f64 * g.cell_m * g.cell_m); len];
+    // drain the drum into a fill until it is empty or nothing more fits
+    let drain = |cs: &mut ColumnState,
+                 mask: &[bool],
+                 target: &[f64],
+                 depth: f64,
+                 placed_kg: &mut f64,
+                 running_min: &mut f64|
+     -> Result<(), String> {
+        let mut placed = 1.0;
+        while cs.drum_inventory() > 1e-6 && placed > 1e-6 {
+            let before = cs.drum_inventory();
+            cs.fill_toward(mask, target, Some(depth), rho_loose)
+                .map_err(phys)?;
+            placed = before - cs.drum_inventory();
+            *placed_kg += placed;
+            *running_min = running_min.min(cs.drum_inventory());
+        }
+        *running_min = running_min.min(cs.drum_inventory());
+        Ok(())
+    };
+    let target_over = |cs: &ColumnState, mask: &[bool], depth: f64| -> Vec<f64> {
+        let mut t = cs.derive_height();
+        for (h, _) in t.iter_mut().zip(mask).filter(|(_, b)| **b) {
+            *h += depth;
+        }
+        t
+    };
+    for t in trips {
+        let (cuts, fills) = (orders_of(t, OrderKind::Cut), orders_of(t, OrderKind::Fill));
+        if !cuts.is_empty() && !fills.is_empty() && t.mass_kg > 1e-6 {
+            let (co, fo) = (cuts[0], fills[0]);
+            let (cmask, fmask) = (g.mask(&m.orders[co]), g.mask(&m.orders[fo]));
+            if count(&cmask) == 0 || count(&fmask) == 0 {
+                feasible = false;
+                continue;
+            }
+            let n = count(&cmask);
+            let depth = m.orders[fo].depth_m;
+            let ftarget = target_over(&cs, &fmask, depth);
+            let mut remaining = t.mass_kg.min(supply[co]);
+            while remaining > 1e-6 {
+                let take = remaining.min(step - cs.drum_inventory());
+                if take > 1e-6 {
+                    let moved = cs
+                        .cut_to_inventory(&cmask, &per_cell(take, n, cmask.len()))
+                        .map_err(phys)?;
+                    drum_max = drum_max.max(cs.drum_inventory());
+                    shuttle += 1;
+                    if moved <= 1e-6 {
+                        feasible = false;
+                        break;
+                    }
+                    remaining -= moved;
+                    supply[co] -= moved;
+                }
+                drain(
+                    &mut cs,
+                    &fmask,
+                    &ftarget,
+                    depth,
+                    &mut placed_kg,
+                    &mut running_min,
+                )?;
+                if cs.drum_inventory() > 1e-6 && take <= 1e-6 {
+                    feasible = false;
+                    break;
+                }
+            }
+        } else {
+            for &o in &cuts {
+                let mask = g.mask(&m.orders[o]);
+                let n = count(&mask);
+                if n == 0 {
+                    feasible = false;
+                    continue;
+                }
+                let mut want = supply[o];
+                while want > 1e-6 {
+                    let free = step - cs.drum_inventory();
+                    if free <= 1e-6 {
+                        feasible = false;
+                        break;
+                    }
+                    let take = want.min(free);
+                    let moved = cs
+                        .cut_to_inventory(&mask, &per_cell(take, n, mask.len()))
+                        .map_err(phys)?;
+                    drum_max = drum_max.max(cs.drum_inventory());
+                    shuttle += 1;
+                    if moved <= 1e-6 {
+                        feasible = false;
+                        break;
+                    }
+                    want -= moved;
+                }
+                supply[o] = want;
+            }
+            for &o in &fills {
+                let mask = g.mask(&m.orders[o]);
+                if count(&mask) == 0 {
+                    feasible = false;
+                    continue;
+                }
+                let depth = m.orders[o].depth_m;
+                let target = target_over(&cs, &mask, depth);
+                drain(
+                    &mut cs,
+                    &mask,
+                    &target,
+                    depth,
+                    &mut placed_kg,
+                    &mut running_min,
+                )?;
+            }
+        }
+    }
+    let drift = (cs.total_mass() - m0).abs();
+    let mass_conserved = drift <= 1e-6 * m0.max(1.0);
+    Ok((
+        json!({
+            "executes_ordered_ir": true,
+            "feasible": feasible && mass_conserved,
+            "mass_conserved": mass_conserved,
+            "mass_drift_kg": drift,
+            "drum_capacity_kg": cap,
+            "max_simultaneous_drum_kg": drum_max,
+            "running_drum_min_kg": running_min,
+            "shuttle_cycles": shuttle,
+            "placed_kg": placed_kg,
+            "grid": {"rows": g.rows, "cols": g.cols, "cell_m": g.cell_m},
+        }),
+        cs.derive_height(),
+    ))
 }
