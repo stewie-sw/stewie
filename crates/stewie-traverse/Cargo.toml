@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 lunar-dem = { path = "../lunar-dem" }
+stewie-physics = { path = "../stewie-physics" }
 lunar-ephem = { path = "../lunar-ephem" }
 lunar-frames = { path = "../lunar-frames" }
 lunar-horizon = { path = "../lunar-horizon" }

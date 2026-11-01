@@ -1,0 +1,11 @@
+{
+ "fixture": "costmap_layers_cases",
+ "generator": "oracle/build_fixtures.py::costmap_layers_cases (lode.costmap_layers.compose over the real Haworth route window; masks, rocks and settings SYNTHETIC, labelled)",
+ "payload_sha256": "9b1859fa0d15cbe134a3669f04454b3b19589ae9ac504cfbbc24337cdafe1060",
+ "sources": {
+  "crates/stewie-oracle/fixtures/route_cases.payload.json": "dd7a5f7b493440ec88903bfd2d6547a0b5084ff6326f03884b413334beb35eb0",
+  "dart/illumination.py": "36d5dfb6f74dc425d451db5f085cb12bdd804d0014b1cc85d2ac30104e0a94c2",
+  "lode/costmap_layers.py": "804913287c818848c5a433a7faed4507d887f331c167b38f0992a0db6f66dbde",
+  "stewie/specs/ipex_specs.py": "4465ff80e5427a067b52bde12c69c8b726a73f8eb1b7dbe60522f9bbdce1e7d6"
+ }
+}

@@ -1533,6 +1533,7 @@ dependencies = [
  "serde_json",
  "stewie-contracts",
  "stewie-oracle",
+ "stewie-physics",
 ]
 
 [[package]]

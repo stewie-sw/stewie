@@ -2997,6 +2997,84 @@ def acceptance_flat_cases() -> None:
                   {"cases": cases})
 
 
+def costmap_layers_cases() -> None:
+    """The AS-11 layered costmap (RW-55b5b; lode.costmap_layers): the 12 named layers (slope, roughness, sinkage,
+    slip, tip risk, negative obstacle, illumination, PSR, shadow confidence, energy, keep-out, reservation) and the
+    data-driven rock hazard, composed over the real Haworth route window: summed cost, passable mask, and the
+    first blocking layer per cell. Four contexts: the defaults at the DEM's 5 m cell; a low sun with a payload and
+    a tighter slope cap; keep-out and reservation masks; a rock field; a bog (soft soil). Every layer's block grid is
+    recorded for the first context, the composite grids and per-layer totals for all. The DEM is real; the masks, the rock
+    clasts and the context settings are SYNTHETIC (labelled)."""
+    import lode.costmap_layers as CL
+
+    with open(os.path.join(ORACLE_FIXTURES, "route_cases.payload.json")) as fh:
+        rc = json.load(fh)
+    rc = rc.get("payload", rc)
+    n = int(rc["width"])
+    Z = np.asarray(rc["z"], dtype=np.float64).reshape(int(rc["height"]), n)
+    keep = np.zeros(Z.shape, bool)
+    keep[10:21, 10:31] = True                                # SYNTHETIC operator keep-out (labelled)
+    resv = np.zeros(Z.shape, bool)
+    resv[60:66, 40:70] = True                                # SYNTHETIC fleet reservation (labelled)
+    clasts = [{"center_m": [52.0, 0.0, 77.5], "radius_m": 1.2, "buried_frac": 0.2},     # SYNTHETIC rocks (labelled)
+              {"center_m": [303.0, 0.0, 251.0], "radius_m": 0.04, "buried_frac": 0.5},
+              {"center_m": [255.0, 0.0, 400.0], "radius_m": 8.0, "buried_frac": 0.9}]
+    contexts = {
+        "defaults": dict(cell_m=5.0),
+        "low_sun_loaded": dict(cell_m=5.0, sun_az_deg=90.0, sun_el_deg=3.0, payload_kg=30.0, max_slope_deg=15.0),
+        # high sun, a generous slope cap and drop limit, so the masks and rocks are the first to block
+        "masked": dict(cell_m=5.0, sun_el_deg=60.0, max_slope_deg=45.0, max_drop_m=50.0, keepout_mask=keep,
+                       reserved_mask=resv),
+        "rocks": dict(cell_m=5.0, sun_el_deg=60.0, max_slope_deg=45.0, max_drop_m=50.0, rock_clasts=clasts),
+        # soft soil and a 2 cm burial cap: the static wheel sinks past it everywhere
+        "bog": dict(cell_m=5.0, sinkage_k_phi=50.0, max_sinkage_m=0.02),
+    }
+    reason_names = list(CL.LAYER_NAMES) + ["rock_hazard"]
+    cases = []
+    for name, kw in contexts.items():
+        ctx = CL.CostmapContext(Z, **kw)
+        cm = CL.compose(ctx)
+        case = {"name": name,
+                "settings": {k: (v.astype(int).tolist() if isinstance(v, np.ndarray) else v) for k, v in kw.items()},
+                "cost": cm.cost.ravel().tolist(), "passable": cm.passable.ravel().astype(int).tolist(),
+                # the first blocking layer per cell, as an index into reason_names (-1 = passable)
+                "reason": [reason_names.index(str(x)) if str(x) else -1 for x in cm.reason.ravel()],
+                "per_layer_cost": cm.per_layer_cost, "per_layer_block": cm.per_layer_block}
+        if name == "defaults":
+            slope = CL.slope_deg_map(ctx.Z, ctx.cell_m)
+            lit = CL.illum.horizon_clip(ctx.Z, ctx.cell_m, sun_az_deg=ctx.sun_az_deg, sun_el_deg=ctx.sun_el_deg)
+            layers = {}
+            for fn_ in CL.LAYERS:
+                if fn_ in CL._SLOPE_LAYERS:
+                    c_, b_, nm = fn_(ctx, slope)
+                elif fn_ in CL._LIT_LAYERS:
+                    c_, b_, nm = fn_(ctx, lit)
+                else:
+                    c_, b_, nm = fn_(ctx)
+                # the composite cost and each layer's total pin the costs; the masks pin every block
+                layers[nm] = {"block": np.asarray(b_, bool).ravel().astype(int).tolist()}
+            case["layers"] = layers
+            case["lit"] = np.asarray(lit, bool).ravel().astype(int).tolist()
+        cases.append(case)
+    # the bilinear local-horizon march at real sun positions where the window is partly lit (where a nearest-cell
+    # march and the M-07 bilinear one disagree)
+    horizon = []
+    for az, el in ((10.0, 6.0), (355.0, 6.0), (15.0, 6.5)):
+        lit = CL.illum.horizon_clip(Z, 5.0, sun_az_deg=az, sun_el_deg=el)
+        horizon.append({"sun_az_deg": az, "sun_el_deg": el, "lit": np.asarray(lit, bool).ravel().astype(int).tolist()})
+    assert any(0.1 < np.mean(h_["lit"]) < 0.9 for h_ in horizon), "vacuity: a partly-lit sun position"
+    blocked = {reason_names[r] for c in cases for r in c["reason"] if r >= 0}
+    assert {"slope", "psr", "keepout", "reservation", "rock_hazard", "sinkage"} <= blocked, f"vacuity: {sorted(blocked)}"
+    write_fixture(ORACLE_FIXTURES, "costmap_layers_cases", "oracle/build_fixtures.py::costmap_layers_cases "
+                  "(lode.costmap_layers.compose over the real Haworth route window; masks, rocks and settings "
+                  "SYNTHETIC, labelled)",
+                  ["lode/costmap_layers.py", "dart/illumination.py", "stewie/specs/ipex_specs.py",
+                   "crates/stewie-oracle/fixtures/route_cases.payload.json"],
+                  {"layer_names": list(CL.LAYER_NAMES), "reason_names": reason_names, "width": n,
+                   "height": int(rc["height"]),
+                   "cases": cases, "horizon": horizon})
+
+
 def auth_cases() -> None:
     """Server auth core (RW-55a1): stewie.server.auth (session tokens, revocation, roles, proxy trust) and
     stewie.server.operators (the account store) driven through one scripted scenario in a temporary data dir. The
@@ -4357,6 +4435,7 @@ def main() -> None:
     solar_cases()
     flattest_cases()
     acceptance_flat_cases()
+    costmap_layers_cases()
     state_cases()
     world_state_cases()
     auth_cases()
