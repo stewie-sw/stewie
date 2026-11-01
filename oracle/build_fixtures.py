@@ -1842,9 +1842,10 @@ def fleet_cases() -> None:
 def plan_cases() -> None:
     """Plan assembly (RW-33d2a): lode.planner_assembly.plan_and_simulate for one rover and for fleets, on the
     trips_cases missions over the real Haworth route window -- visit order, rover tags, the core totals, the
-    optimality labels and warnings, and every fleet figure. The multi-site layouts, declared resources and
-    observations, the closing drive window that strands a rover, and the 12 W idle draw are SYNTHETIC
-    (labelled) settings on the real terrain."""
+    optimality labels and warnings, every fleet figure, and the report totals and energy ledger (RW-33d2c) with the
+    Python's report constants. The multi-site layouts, declared resources and observations, the closing recharge
+    windows that strand a rover, the 12 W idle draw, the dig-energy factor, the lander and the keep-out are
+    SYNTHETIC (labelled) settings on the real terrain."""
     import copy
     import warnings as W
 
@@ -1865,6 +1866,10 @@ def plan_cases() -> None:
     fleet_keys = ("makespan_parallel_s", "charger_wait_s", "crowd_wait_s", "precedence_wait_s",
                   "temporal_conflicts", "haul_path_conflicts", "fleet_needs_replan", "fleet_replanned",
                   "unreallocatable_trips")
+    report_keys = ("cut_kg", "fill_kg", "sinter_kg", "surplus_kg", "waypoint_sequence", "deficit_kg", "import_kg",
+                   "offload_energy_J", "drum_cycles", "cut_passes", "dig_energy_bounds_MJ", "plan_uncertainty",
+                   "lift_energy_J", "routed_haul", "traverse_cap_deg", "haul_detour_frac", "n_keepouts",
+                   "keepout_conflicts", "return_to_lander", "relocalization")
     cases = []
 
     def run(name, payload, vehicles=1, algo="nearest", obj="time", idle=0.0):
@@ -1889,6 +1894,8 @@ def plan_cases() -> None:
                                              "resolved_algorithm", "optimality", "objective_exact", "solved_metric",
                                              "n_precedence", "makespan_s", "vehicle_conflicts", "charger_conflicts",
                                              "blocked_legs")}}
+        case["report"] = {k: t[k] for k in report_keys}
+        case["ledger"] = t["energy_ledger"]
         if vehicles > 1:
             case["fleet"] = {k: t[k] for k in fleet_keys}
             case["fleet"]["resource_wait_s"] = t.get("resource_wait_s", 0.0)
@@ -1926,6 +1933,18 @@ def plan_cases() -> None:
     prec["precedence"] = [[main["orders"][0]["action"], main["orders"][1]["action"]]]
     run("precedence_x2", prec, vehicles=2)
     run("precedence_single", prec)
+    factored = copy.deepcopy(main)
+    factored["dig_energy_factor"] = 1.3
+    factored["lander"] = [60.0, 210.0]
+    factored["return_buffer_frac"] = 0.35
+    run("factor_lander", factored)
+    walled = copy.deepcopy(main)
+    walled["keepouts"] = [{"x": 7.5, "y": 202.5, "r": 3.0}]
+    run("keepout_over_waypoint", walled)
+    # one short look-around beside the charger: no cuts, no drum cycles, a traverse shorter than one fix interval,
+    # and a lander whose furthest plan point is the charger itself
+    run("short_look", {"body": "moon", "charger": [152.5, 197.5], "lander": [149.0, 194.0],
+                       "orders": [{"action": "look", "kind": "goto", "x": 150.0, "y": 195.0}]})
     unordered = copy.deepcopy(main)
     # reallocation runs only when no precedence spans the fleet; consecutive gotos chain automatically
     unordered["precedence"] = []
@@ -1943,6 +1962,20 @@ def plan_cases() -> None:
         "vacuity: work no lone rover finishes is dropped while the Python still calls the fleet feasible"
     assert any(c["warnings"] for c in cases), "vacuity: a degraded solver warns"
     assert any(not c["totals"]["feasible"] for c in cases if c["vehicles"] == 1), "vacuity: a blocked route"
+    assert any(c["report"]["keepout_conflicts"] for c in cases), "vacuity: an order inside a keep-out"
+    import lode.lander_return as LR
+    import lode.planner_assembly as PA
+    import lode.planner_constants as PC
+    import lode.relocalization as REL
+    from stewie.physics import rassor_mass_model as RM
+    from stewie.specs import ipex_specs as S
+    lo, hi = S.dig_energy_bounds_j_per_kg()
+    report_params = {"drum_rate_ratio": lo / hi, "ipex_dig_j_per_kg": hi, "max_cut_per_pass_m": S.max_cut_per_pass_m(),
+                     "fill_mpe_frac": RM.FDC_MPE_HALF_FULL, "localization_margin_m": PC.LOCALIZATION_MARGIN_M,
+                     "relocalize_drift_tol_m": PA.RELOCALIZE_DRIFT_TOL_M, "drift_frac": REL.DEFAULT_DRIFT_FRAC,
+                     "fix_maneuver_s": REL.DEFAULT_FIX_MANEUVER_S, "arm_lift_height_m": RM.ARM_LIFT_HEIGHT_M,
+                     "arm_lift_efficiency": RM.ARM_LIFT_EFFICIENCY, "ipex_rover_mass_kg": PC.ROVER_MASS_KG,
+                     "default_return_buffer_frac": LR.DEFAULT_RETURN_BUFFER_FRAC}
     refusals = []
     cyc = copy.deepcopy(main)
     a0, a1 = main["orders"][0]["action"], main["orders"][1]["action"]
@@ -1958,7 +1991,7 @@ def plan_cases() -> None:
                   "closing window and the idle draw SYNTHETIC, labelled)",
                   ["lode/planner_assembly.py", "lode/planner_multivehicle.py", "lode/planner_optimize.py",
                    "lode/planner_sim.py", "lode/planner_trips.py", "crates/stewie-oracle/fixtures/trips_cases.payload.json"],
-                  {"cases": cases, "refusals": refusals})
+                  {"cases": cases, "refusals": refusals, "report_params": report_params})
 
 
 def plan_ir_cases() -> None:

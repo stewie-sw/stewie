@@ -8,5 +8,6 @@ pub mod fleet;
 pub mod ir;
 pub mod mission;
 pub mod optimize;
+pub mod report;
 pub mod sim;
 pub mod trips;

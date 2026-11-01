@@ -9,7 +9,8 @@ use stewie_physics::soil::SoilParams;
 use stewie_plan::assemble::{PlanConfig, plan_and_simulate};
 use stewie_plan::balance::Profile;
 use stewie_plan::mission::{Registries, mission_from_value};
-use stewie_plan::trips::{BuildInputs, PlannerParams, SlipModel};
+use stewie_plan::report::{ReportParams, energy_ledger, report_totals};
+use stewie_plan::trips::{BuildInputs, PlannerParams, SlipModel, context};
 use stewie_traverse::route::Dem;
 
 fn f(v: &Value) -> f64 {
@@ -117,6 +118,26 @@ fn plans_match_the_python_planner() {
         soil(&missions.iter().find(|m| m["name"] == key).unwrap()["soil"])
     };
     let mut d_r94_differs = false;
+    let mut report_regimes = [false; 3]; // IPEx exact, operator factor, other vehicle
+    let rp = &fx["report_params"];
+    let ipex_mass = f(&rp["ipex_rover_mass_kg"]);
+    let report_params = ReportParams {
+        drum_rate_ratio: f(&rp["drum_rate_ratio"]),
+        max_cut_per_pass_m: f(&rp["max_cut_per_pass_m"]),
+        fill_mpe_frac: f(&rp["fill_mpe_frac"]),
+        localization_margin_m: f(&rp["localization_margin_m"]),
+        // the Python writes this sigma inline in its uncertainty block
+        dem_cell_sigma_m: f(
+            &fx["cases"][0]["report"]["plan_uncertainty"]["sources"]["dem"]["cell_sigma_m"],
+        ),
+        relocalize_drift_tol_m: f(&rp["relocalize_drift_tol_m"]),
+        drift_frac: f(&rp["drift_frac"]),
+        fix_maneuver_s: f(&rp["fix_maneuver_s"]),
+        arm_lift_height_m: f(&rp["arm_lift_height_m"]),
+        arm_lift_efficiency: f(&rp["arm_lift_efficiency"]),
+        gravity_ms2: params.gravity_ms2,
+        default_return_buffer_frac: f(&rp["default_return_buffer_frac"]),
+    };
     for c in fx["cases"].as_array().unwrap() {
         let name = c["name"].as_str().unwrap();
         let m = mission_from_value(&c["payload"], &reg).unwrap();
@@ -138,6 +159,17 @@ fn plans_match_the_python_planner() {
             reallocate_stranded: true,
         };
         let plan = plan_and_simulate(&m, &fleet, &inp, &cfg).unwrap();
+        let ctx = context(&m, &fleet, &params).unwrap();
+        check_report(
+            c,
+            &m,
+            &plan,
+            &ctx,
+            (rho, &profile),
+            (&report_params, ipex_mass),
+        );
+        report_regimes[usize::from(m.dig_energy_factor.is_some())] = true;
+        report_regimes[2] |= m.vehicle != "ipex";
         let sites: Vec<(f64, f64)> = c["sites"]
             .as_array()
             .unwrap()
@@ -351,6 +383,10 @@ fn plans_match_the_python_planner() {
         d_r94_differs,
         "vacuity: some fleet the Python calls feasible strands a rover"
     );
+    assert_eq!(
+        report_regimes, [true; 3],
+        "vacuity: exact, factored and non-IPEx reports all occur"
+    );
     for r in fx["refusals"].as_array().unwrap() {
         let m = mission_from_value(&r["payload"], &reg).unwrap();
         let sp = soil_of("haul_two_pairs");
@@ -378,4 +414,93 @@ fn plans_match_the_python_planner() {
             cfg.vehicles
         );
     }
+}
+
+/// Structural equality with numbers compared to 1e-9 relative, skipping the `skip` keys at the top level.
+#[track_caller]
+fn same(got: &Value, want: &Value, skip: &[&str], what: &str) {
+    match (got, want) {
+        (Value::Number(a), Value::Number(b)) => {
+            close(a.as_f64().unwrap(), b.as_f64().unwrap(), what);
+        }
+        (Value::Object(a), Value::Object(b)) => {
+            let keys = |o: &serde_json::Map<String, Value>| {
+                o.keys()
+                    .filter(|k| !skip.contains(&k.as_str()))
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(keys(a), keys(b), "{what} keys");
+            for k in keys(a) {
+                same(&a[&k], &b[&k], &[], &format!("{what}.{k}"));
+            }
+        }
+        (Value::Array(a), Value::Array(b)) => {
+            assert_eq!(a.len(), b.len(), "{what} length");
+            for (k, (x, y)) in a.iter().zip(b).enumerate() {
+                same(x, y, &[], &format!("{what}[{k}]"));
+            }
+        }
+        _ => assert_eq!(got, want, "{what}"),
+    }
+}
+
+/// The report totals and ledger against the Python's: exact for an IPEx plan with no operator factor; D-R97 for
+/// the dig band (the plan's own dig energy) and the relocalization fix (the vehicle's own mass, where the Python
+/// lifts the IPEx mass `ipex_mass`).
+#[track_caller]
+fn check_report(
+    c: &Value,
+    m: &stewie_plan::mission::Mission,
+    plan: &stewie_plan::assemble::Plan,
+    ctx: &stewie_plan::trips::Context,
+    (rho, profile): (f64, &Profile),
+    (rp, ipex_mass): (&ReportParams, f64),
+) {
+    let name = c["name"].as_str().unwrap();
+    let got = report_totals(m, plan, ctx, rho, profile, rp);
+    let want = &c["report"];
+    let ledger = energy_ledger(plan, ctx);
+    same(&ledger, &c["ledger"], &[], &format!("{name} ledger"));
+    let mut skip = vec![];
+    if let Some(factor) = m.dig_energy_factor {
+        skip.extend(["dig_energy_bounds_MJ", "plan_uncertainty"]);
+        let hi = f(&got["dig_energy_bounds_MJ"][1]);
+        // the band's top is the plan's own dig energy
+        assert!(
+            (hi - f(&ledger["terms_J"]["dig"]) / 1e6).abs() <= 0.05,
+            "{name} band holds the plan's dig"
+        );
+        for k in 0..2 {
+            let scaled = f(&want["dig_energy_bounds_MJ"][k]) * factor;
+            assert!(
+                (f(&got["dig_energy_bounds_MJ"][k]) - scaled).abs() <= 0.1 * factor,
+                "{name} band {k} (D-R97)"
+            );
+        }
+        same(
+            &got["plan_uncertainty"]["sources"],
+            &want["plan_uncertainty"]["sources"],
+            &["dig_rate"],
+            &format!("{name} uncertainty"),
+        );
+    }
+    if m.vehicle != "ipex" {
+        skip.push("relocalization");
+        let (g, w) = (&got["relocalization"], &want["relocalization"]);
+        same(
+            g,
+            w,
+            &["per_fix_energy_J", "total_energy_J"],
+            &format!("{name} relocalization"),
+        );
+        let ratio = ctx.rover_mass_kg / ipex_mass;
+        assert!(ratio > 1.0, "{name} vacuity: a heavier vehicle");
+        let scaled = f(&w["per_fix_energy_J"]) * ratio;
+        assert!(
+            (f(&g["per_fix_energy_J"]) - scaled).abs() <= 0.01,
+            "{name} fix energy (D-R97)"
+        );
+    }
+    same(&got, want, &skip, &format!("{name} report"));
 }
