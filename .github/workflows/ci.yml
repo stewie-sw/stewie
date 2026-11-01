@@ -99,6 +99,8 @@ jobs:
         run: python3 pipeline/fetch.py
       - name: install the lola_base data package (N11) the package and guard tests open; stdlib-only
         run: python3 pipeline/build_package.py
+      - name: the polar map's display tiles from the real 240 m tier (RW-71c), and their web grid fixture unchanged
+        run: cargo run -q --release -p xtask -- display-tiles && git diff --exit-code -- web/src/fixtures/display_grid.json
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace

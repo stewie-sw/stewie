@@ -7,6 +7,8 @@
 //! or when any part of the requested time range is outside the ephemeris span. It never returns a partial
 //! answer.
 
+pub mod display;
+
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};

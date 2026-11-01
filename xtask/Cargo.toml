@@ -13,3 +13,5 @@ workspace = true
 [dependencies]
 stewie-wasm = { path = "../crates/stewie-wasm" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
+stewie-package = { version = "0.1.0", path = "../crates/stewie-package" }
+lunar-frames = { version = "0.1.0", path = "../crates/lunar-frames" }

@@ -2,16 +2,29 @@ import Feature from "ol/Feature";
 import OlMap from "ol/Map";
 import View from "ol/View";
 import Point from "ol/geom/Point";
+import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
+import XYZ from "ol/source/XYZ";
+import TileGrid from "ol/tilegrid/TileGrid";
 import { useEffect, useRef, useState } from "react";
 import type { SiteCatalog } from "../contracts/site";
-import { type Crumb, type Identified, addBreadcrumb, identify, sitePins } from "./mapLogic";
+import {
+  type Crumb,
+  DISPLAY_ROOT,
+  type DisplayIndex,
+  type Identified,
+  addBreadcrumb,
+  displayGrid,
+  identify,
+  sitePins,
+} from "./mapLogic";
 import { CRS, registerLunarProjections } from "./projection";
 
 registerLunarProjections();
 
-/** South-polar 2D map: catalog pins, click to identify (every CRS) and leave a breadcrumb. */
+/** South-polar 2D map: the device package's terrain shade under the catalog pins, click to identify (every CRS) and
+ * leave a breadcrumb. */
 export function MapView({ catalog }: { catalog: SiteCatalog }) {
   const target = useRef<HTMLDivElement>(null);
   const [picked, setPicked] = useState<Identified | null>(null);
@@ -26,6 +39,20 @@ export function MapView({ catalog }: { catalog: SiteCatalog }) {
       layers: [new VectorLayer({ source: pins })],
       view: new View({ projection: CRS.polarSouth, center: [0, 0], resolution: 500 }),
     });
+    // the terrain shade, when the device package carries display tiles in this map's CRS
+    fetch(`${DISPLAY_ROOT}/tiles.json`)
+      .then((r) => (r.ok ? (r.json() as Promise<DisplayIndex>) : null))
+      .then((index) => {
+        const g = index && displayGrid(index, CRS.polarSouth);
+        if (!g) return;
+        const source = new XYZ({
+          url: g.url,
+          projection: CRS.polarSouth,
+          tileGrid: new TileGrid({ extent: g.extent, origin: g.origin, resolutions: g.resolutions, tileSize: g.tileSize }),
+        });
+        map.getLayers().insertAt(0, new TileLayer({ source }));
+      })
+      .catch(() => undefined); // no package tiles: the pins still show
     map.on("singleclick", (e) => {
       const id = identify(e.coordinate as [number, number], CRS.polarSouth);
       setPicked(id);

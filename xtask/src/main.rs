@@ -177,14 +177,82 @@ fn walk(dir: &Path, out: &mut Vec<Finding>) {
     }
 }
 
+/// RW-71c: the polar map's display tiles, rendered from the real 240 m south polar tier into the device package
+/// (run after `pipeline/build_package.py`).
+fn display_tiles(root: &Path) -> ExitCode {
+    let reg: serde_json::Value = match serde_json::from_str(include_str!(
+        "../../crates/stewie-contracts/fixtures/bodies.json"
+    )) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("bodies.json: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let Some(sphere) = reg["moon"]["ellipsoid_radius_m"]
+        .as_f64()
+        .and_then(|r| lunar_frames::Sphere::new(r).ok())
+    else {
+        eprintln!("bodies.json: no moon radius");
+        return ExitCode::FAILURE;
+    };
+    let terrain = root.join(".cache/terrain");
+    let out = root.join(".cache/package/south_polar_sites/display");
+    match stewie_package::display::write_polar_tiles(
+        (
+            &terrain.join("ldem_75s_240m.img"),
+            &terrain.join("ldem_75s_240m.lbl"),
+        ),
+        sphere,
+        "IAU_2015:30135",
+        &out,
+    ) {
+        Ok(n) => println!("{n} tiles in {}", out.display()),
+        Err(e) => {
+            eprintln!("display tiles: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+    // the web map's grid fixture: the index without hashes, and where each catalog site falls
+    let fixture = fs::read_to_string(out.join("tiles.json"))
+        .map_err(|e| e.to_string())
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).map_err(|e| e.to_string()))
+        .and_then(|index| {
+            let sites: serde_json::Value = serde_json::from_str(include_str!(
+                "../../crates/stewie-contracts/fixtures/sites.json"
+            ))
+            .map_err(|e| e.to_string())?;
+            stewie_package::display::grid_fixture(
+                &index,
+                &lunar_frames::PolarStereographic::south(sphere),
+                &sites,
+            )
+        })
+        .and_then(|v| serde_json::to_string_pretty(&v).map_err(|e| e.to_string()));
+    let path = root.join("web/src/fixtures/display_grid.json");
+    match fixture.and_then(|t| fs::write(&path, t + "\n").map_err(|e| e.to_string())) {
+        Ok(()) => {
+            println!("{}", path.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("display grid fixture: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     match std::env::args().nth(1).as_deref() {
         Some("no-stubs") => {}
         Some("wasm-golden") => return wasm_golden(&root),
         Some("web-fixtures") => return web_fixtures(&root),
+        Some("display-tiles") => return display_tiles(&root),
         _ => {
-            eprintln!("usage: cargo run -p xtask -- <no-stubs | wasm-golden | web-fixtures>");
+            eprintln!(
+                "usage: cargo run -p xtask -- <no-stubs | wasm-golden | web-fixtures | display-tiles>"
+            );
             return ExitCode::FAILURE;
         }
     }

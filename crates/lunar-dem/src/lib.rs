@@ -612,6 +612,27 @@ pub struct PolarGrid {
 }
 
 impl PolarGrid {
+    /// The pixel heights [m] relative to the body sphere, row-major from the north-west corner (for rendering).
+    #[must_use]
+    pub fn heights(&self) -> Vec<f64> {
+        self.dn.iter().map(|&d| f64::from(d) * self.scale).collect()
+    }
+
+    /// `(lines, samples)`: rows south, columns east.
+    #[must_use]
+    pub fn shape(&self) -> (usize, usize) {
+        (self.lines, self.samples)
+    }
+
+    /// The projected (easting, northing) [m] of pixel (0, 0)'s centre; pixels step `resolution_m` east and south.
+    #[must_use]
+    pub fn first_pixel_en(&self) -> (f64, f64) {
+        (
+            -self.sample_offset * self.cell_m,
+            self.line_offset * self.cell_m,
+        )
+    }
+
     /// Open a polar LDEM image and its label on `sphere`.
     ///
     /// # Errors
