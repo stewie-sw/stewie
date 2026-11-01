@@ -17,6 +17,7 @@ pub mod mission_routes;
 pub mod model_routes;
 pub mod objects;
 pub mod operators;
+pub mod plan_routes;
 pub mod planning;
 pub mod point;
 pub mod raster;

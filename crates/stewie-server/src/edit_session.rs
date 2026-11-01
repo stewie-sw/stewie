@@ -577,6 +577,87 @@ fn reply(r: Result<Response, ApiError>) -> Response {
     r.unwrap_or_else(IntoResponse::into_response)
 }
 
+/// A session's keep-outs projected into the planner's order frame (Python `EditSession.to_planner_keepouts`): the
+/// y-flipped translation by `anchor` the cockpit applies, rounded to 0.1 m as the Python's `round(v, 1)`.
+fn to_planner_keepouts(features: &[(String, Ordered)], (ax, ay): (f64, f64)) -> Vec<Value> {
+    let r1 = |v: f64| stewie_twin::numpy::round(v, 1);
+    let num = |f: &Ordered, k: &str| match f.get(k) {
+        Some(Ordered::Number(n)) => n.as_f64().unwrap_or(0.0),
+        _ => 0.0,
+    };
+    features
+        .iter()
+        .map(|(_, f)| {
+            if matches!(f.get("kind"), Some(Ordered::String(k)) if k == "circle") {
+                json!({"x": r1(num(f, "cx") - ax), "y": r1(ay - num(f, "cy")), "r": r1(num(f, "r"))})
+            } else {
+                let ring = match f.get("ring") {
+                    Some(Ordered::Array(r)) => r.clone(),
+                    _ => Vec::new(),
+                };
+                let pts: Vec<Value> = ring
+                    .iter()
+                    .map(|p| match p {
+                        Ordered::Array(xy) if xy.len() == 2 => {
+                            let c = |o: &Ordered| match o {
+                                Ordered::Number(n) => n.as_f64().unwrap_or(0.0),
+                                _ => 0.0,
+                            };
+                            json!([r1(c(&xy[0]) - ax), r1(ay - c(&xy[1]))])
+                        }
+                        _ => json!([]),
+                    })
+                    .collect();
+                json!({"points": pts})
+            }
+        })
+        .collect()
+}
+
+/// The keep-outs a plan request's edit session adds (Python `routers.plan._merge_session_keepouts`): none without
+/// a session id or for a session with nothing drawn; a 400 for an unknown session or, with features, a missing
+/// `anchor_xy`.
+///
+/// # Errors
+/// The 400s above, or the store failing.
+pub async fn planner_keepouts(
+    st: &AppState,
+    sid: &str,
+    anchor: Option<&Value>,
+) -> Result<Vec<Value>, ApiError> {
+    if sid.is_empty() {
+        return Ok(Vec::new());
+    }
+    let s = read(st, sid).await.map_err(|e| {
+        if e.0 == StatusCode::NOT_FOUND {
+            err(
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "edit_session {} is unknown or expired -- its keep-outs cannot be applied; clear the session id to \
+                     plan without them",
+                    py_repr(sid)
+                ),
+            )
+        } else {
+            e
+        }
+    })?;
+    if s.features.is_empty() {
+        return Ok(Vec::new());
+    }
+    let anchor = anchor
+        .and_then(Value::as_array)
+        .filter(|a| a.len() == 2)
+        .and_then(|a| Some((a[0].as_f64()?, a[1].as_f64()?)));
+    let Some(anchor) = anchor else {
+        return Err(err(
+            StatusCode::BAD_REQUEST,
+            "edit_session requires anchor_xy [x, y] to project its keep-outs into the order frame",
+        ));
+    };
+    Ok(to_planner_keepouts(&s.features, anchor))
+}
+
 /// Mint a session (keyless): a 503 rather than evict a session holding authored work (SR-09).
 async fn create_session(State(st): State<Arc<AppState>>, req: Request) -> Response {
     let h = Head::of(&req);
@@ -942,4 +1023,31 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/edit/session/{sid}/marker", post(create_marker))
         .route("/edit/session/{sid}/marker/{fid}", delete(delete_marker))
         .route("/edit/session/{sid}/undo", post(undo))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Ordered, to_planner_keepouts};
+    use serde_json::json;
+
+    #[test]
+    fn keepouts_project_into_the_order_frame_as_the_python_rounds_them() {
+        // SYNTHETIC geometry on rounding ties and near-ties; the expected values are the Python's own
+        // (`EditSession.to_planner_keepouts((1000.0, 2000.0))`)
+        let f = |v: serde_json::Value| -> (String, Ordered) {
+            ("k".into(), serde_json::from_value(v).unwrap())
+        };
+        let features = [
+            f(json!({"fid": "ko1", "kind": "circle", "cx": 1000.25, "cy": 2000.75, "r": 6.05})),
+            f(
+                json!({"fid": "ko2", "kind": "polygon", "ring": [[990.05, 1990.15], [1010.35, 1990.45],
+                                                               [1000.25, 2010.65], [1000.125, 1999.875]]}),
+            ),
+        ];
+        assert_eq!(
+            json!(to_planner_keepouts(&features, (1000.0, 2000.0))),
+            json!([{"x": 0.2, "y": -0.8, "r": 6.0},
+                   {"points": [[-10.0, 9.8], [10.4, 9.5], [0.2, -10.7], [0.1, 0.1]]}])
+        );
+    }
 }

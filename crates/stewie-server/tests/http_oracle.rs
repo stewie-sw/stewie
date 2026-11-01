@@ -1511,3 +1511,57 @@ async fn the_python_models_session_replays_exactly() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn the_python_plan_math_session_replays_exactly() {
+    replay(
+        "http_planmath_cases",
+        b"stewie-http-planmath-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
+    // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts
+    let dir = std::env::temp_dir().join(format!("stewie-heavy-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+        ("STEWIE_HEAVY_QUOTA_MAX", "1".to_owned()),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"heavy").into(),
+        n: Mutex::new(0),
+    }));
+    let app = router(Arc::new(
+        AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap(),
+    ));
+    let bad = json!({"vehicles": 0});
+    let (s1, b1) = post(&app, "/plan/math", bad.clone()).await;
+    assert_eq!(
+        (s1, b1["error"].clone()),
+        (
+            400,
+            json!("vehicles: Input should be greater than or equal to 1")
+        )
+    );
+    let (s2, b2) = post(&app, "/plan/math", bad).await;
+    assert_eq!(
+        (s2, b2["error"].clone()),
+        (
+            429,
+            json!("per-identity compute quota exceeded for heavy planning; slow down")
+        )
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}

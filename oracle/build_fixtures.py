@@ -5371,6 +5371,53 @@ def http_models_cases() -> None:
                   payload)
 
 
+def http_planmath_cases() -> None:
+    """The plan worksheet and command tape (RW-55b14a): /plan/math and /plan/commands on the bundled sample
+    missions over the real Haworth DEM, through one scripted session (_http_session), with the request checks
+    (validation, the keep-out cap, an edit session's keep-outs folded in). The edit-session geometry is SYNTHETIC
+    (labelled)."""
+    import copy
+
+    samples = {}
+    for n in ("01_flatten_pad", "02_haul_around_hazard", "03_blocked_infeasible"):
+        with open(os.path.join(REPO, "stewie", "server", "sample_missions", n + ".json")) as fh:
+            samples[n] = json.load(fh)
+
+    def script(call, key, d, clock):
+        for n, m in samples.items():
+            call("POST", "/plan/math", headers=key, json_body=m)
+            call("POST", "/plan/commands", headers=key, json_body=m)
+        m = samples["01_flatten_pad"]
+        dense = copy.deepcopy(m)
+        dense["orders"][0]["insitu_density_kg_m3"] = 1720.0                     # an order's own extra field
+        dense["orders"][0]["note"] = "SYNTHETIC: a measured bank density"
+        call("POST", "/plan/math", headers=key, json_body=dense)
+        call("POST", "/plan/math", headers=key, json_body={"name": "empty", "vehicles": 0})
+        call("POST", "/plan/math", json_body=m)                                  # no key
+        call("POST", "/plan/math", headers=key, json_body=dict(m, vehicles=0))
+        call("POST", "/plan/math", headers=key, json_body=dict(m, orders="x"))
+        call("POST", "/plan/math", headers=key, json_body=dict(m, orders=[{"x": "a"}]))
+        call("POST", "/plan/math", headers=key, json_body=dict(m, keepouts=[{"x": 0, "y": 0, "r": 1}] * 201))
+        call("POST", "/plan/commands", headers=key, json_body=dict(m, edit_session="nope"))
+        r = call("POST", "/edit/session")
+        sid = r.json()["session"]
+        call("POST", f"/edit/session/{sid}/keepout", json_body={"kind": "circle", "cx": 1000.25, "cy": 2000.75, "r": 6})
+        call("POST", f"/edit/session/{sid}/keepout", json_body={"kind": "polygon",
+                                                                "ring": [[990.05, 1990.15], [1010.35, 1990.45], [1000.25, 2010.65]]})
+        call("POST", "/plan/commands", headers=key, json_body=dict(m, edit_session=sid))      # no anchor: a 400
+        call("POST", "/plan/math", headers=key, json_body=dict(m, edit_session=sid, anchor_xy=[1000.0, 2000.0]))
+        call("POST", "/plan/commands", headers=key, json_body=dict(m, edit_session=sid, anchor_xy=[1000.0, 2000.0]))
+
+    payload = _http_session("stewie-http-planmath-oracle", {}, script)
+    write_fixture(ORACLE_FIXTURES, "http_planmath_cases", "oracle/build_fixtures.py::http_planmath_cases (the FastAPI "
+                  "app's /plan/math and /plan/commands on the bundled sample missions over the real Haworth DEM)",
+                  ["stewie/server/routers/plan.py", "lode/planner_views.py", "stewie/bridge/rc_contract.py",
+                   "stewie/server/sample_missions/01_flatten_pad.json",
+                   "stewie/server/sample_missions/02_haul_around_hazard.json",
+                   "stewie/server/sample_missions/03_blocked_infeasible.json",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5490,6 +5537,7 @@ def main() -> None:
     http_assets_cases()
     http_editsession_cases()
     http_models_cases()
+    http_planmath_cases()
 
 
 if __name__ == "__main__":

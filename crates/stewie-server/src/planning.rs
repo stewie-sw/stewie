@@ -12,8 +12,11 @@ use stewie_contracts::soil_baseline::SoilBaseline;
 use stewie_physics::column::Regolith;
 use stewie_physics::soil::{SoilParams, bundled};
 use stewie_plan::acceptance::AcceptanceInputs;
+use stewie_plan::balance::Profile;
 use stewie_plan::mission::{Mission, Registries, mission_from_value};
-use stewie_plan::trips::{PlannerParams, context};
+use stewie_plan::report::ReportParams;
+use stewie_plan::trips::{BuildInputs, PlannerParams, SlipModel, context};
+use stewie_traverse::route::Dem;
 
 /// The configured planner parameters (gravity is the mission body's, from the registry).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -24,6 +27,15 @@ pub struct PlannerConfig {
     pub drive_speed_ms: f64,
     pub rolling_resistance: f64,
     pub drivetrain_efficiency: f64,
+    /// Continuous survival draw over a mission [W] (0 leaves it unmodelled).
+    pub idle_power_w: f64,
+    /// The wheel model the per-leg slip is solved with.
+    pub slip: SlipModel,
+    /// The report's sourced constants (gravity is filled per mission from the body registry).
+    pub report: ReportParams,
+    /// The math worksheet's `DIG_J_PER_KG` and `DRIVE_J_PER_M` (the Python's IPEx module constants).
+    pub ipex_dig_j_per_kg: f64,
+    pub ipex_drive_j_per_m: f64,
 }
 
 impl PlannerConfig {
@@ -45,6 +57,12 @@ impl PlannerConfig {
                 .filter(|v| v.is_finite())
                 .ok_or_else(|| at(format!("{k}.value must be a finite number")))
         };
+        let wheels = get("slip_n_wheels")?;
+        if wheels.fract() != 0.0 || !(1.0..=64.0).contains(&wheels) {
+            return Err(at(
+                "slip_n_wheels.value must be a whole number of wheels".to_owned()
+            ));
+        }
         Ok(Self {
             reserve_frac: get("reserve_frac")?,
             charge_w: get("charge_w")?,
@@ -52,6 +70,30 @@ impl PlannerConfig {
             drive_speed_ms: get("drive_speed_ms")?,
             rolling_resistance: get("rolling_resistance")?,
             drivetrain_efficiency: get("drivetrain_efficiency")?,
+            idle_power_w: get("idle_power_w")?,
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // a checked whole count
+            slip: SlipModel {
+                n_wheels: wheels as u32,
+                contact_len_m: get("slip_contact_len_m")?,
+                contact_width_m: get("slip_contact_width_m")?,
+                z_entrap_m: get("slip_z_entrap_m")?,
+            },
+            report: ReportParams {
+                drum_rate_ratio: get("drum_rate_ratio")?,
+                max_cut_per_pass_m: get("max_cut_per_pass_m")?,
+                fill_mpe_frac: get("fill_mpe_frac")?,
+                localization_margin_m: get("localization_margin_m")?,
+                dem_cell_sigma_m: get("dem_cell_sigma_m")?,
+                relocalize_drift_tol_m: get("relocalize_drift_tol_m")?,
+                drift_frac: get("drift_frac")?,
+                fix_maneuver_s: get("fix_maneuver_s")?,
+                arm_lift_height_m: get("arm_lift_height_m")?,
+                arm_lift_efficiency: get("arm_lift_efficiency")?,
+                gravity_ms2: 0.0,
+                default_return_buffer_frac: get("default_return_buffer_frac")?,
+            },
+            ipex_dig_j_per_kg: get("ipex_dig_j_per_kg")?,
+            ipex_drive_j_per_m: get("ipex_drive_j_per_m")?,
         })
     }
 }
@@ -65,9 +107,35 @@ pub struct Inputs {
     gravity_ms2: f64,
     drum_kg: f64,
     dig_j_per_kg: f64,
+    pub params: PlannerParams,
+    pub profile: Profile,
+    pub slip: SlipModel,
+    /// The report constants with the mission body's gravity.
+    pub report: ReportParams,
+    pub idle_power_w: f64,
 }
 
 impl Inputs {
+    /// The planner's build inputs on `dem` under the operator's slope budget.
+    #[must_use]
+    pub fn build<'a>(&'a self, dem: Dem<'a>, max_traverse_slope_deg: f64) -> BuildInputs<'a> {
+        BuildInputs {
+            dem,
+            max_traverse_slope_deg,
+            body_density: self.body_density,
+            profile: &self.profile,
+            soil: &self.soil,
+            slip: &self.slip,
+            params: &self.params,
+        }
+    }
+
+    /// The mission body's loose density [kg/m^3].
+    #[must_use]
+    pub fn body_density(&self) -> f64 {
+        self.body_density
+    }
+
     #[must_use]
     pub fn acceptance(&self) -> AcceptanceInputs<'_> {
         AcceptanceInputs {
@@ -159,13 +227,27 @@ impl Planning {
         };
         let soil = SoilParams::for_body(&self.bodies, &self.soil_base, soil_key, false)
             .map_err(|e| fail(e.to_string()))?;
+        let regolith = Regolith::new(body_density, &self.soil_base);
+        let profile = Profile {
+            rho_surface: body_density,
+            rho_deep: regolith.rho_deep,
+            z_t_m: regolith.z_t_m,
+        };
         Ok(Inputs {
             body_density,
-            regolith: Regolith::new(body_density, &self.soil_base),
+            regolith,
             soil,
             gravity_ms2,
             drum_kg: ctx.drum_kg,
             dig_j_per_kg: ctx.dig_j_per_kg,
+            params,
+            profile,
+            slip: cfg.slip,
+            report: ReportParams {
+                gravity_ms2,
+                ..cfg.report
+            },
+            idle_power_w: cfg.idle_power_w,
         })
     }
 }

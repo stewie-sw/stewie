@@ -84,6 +84,12 @@ pub struct Settings {
     /// The public 3D viewer's per-IP quota: `STEWIE_VIZ_QUOTA_MAX` (240) per `STEWIE_VIZ_QUOTA_WINDOW_S` (60 s).
     pub viz_quota_max: i64,
     pub viz_window_s: f64,
+    /// The heavy planning routes' per-identity quota: `STEWIE_HEAVY_QUOTA_MAX` (30) per
+    /// `STEWIE_HEAVY_QUOTA_WINDOW_S` (60 s).
+    pub heavy_quota_max: i64,
+    pub heavy_window_s: f64,
+    /// `STEWIE_MAX_KEEPOUTS` (200): the plan routes refuse a mission with more keep-outs (413, ARCH-01/04).
+    pub max_keepouts: usize,
     /// `STEWIE_TILES_DIR`: the Cesium 3D Tiles tilesets (default the checkout's `out/colmap`).
     pub tiles_dir: std::path::PathBuf,
     /// `STEWIE_VALIDATION_DIR`: the validation figures `/figures` lists (default the checkout's `validation/`; the
@@ -164,6 +170,9 @@ impl Settings {
             world_window_s: num("STEWIE_WORLD_QUOTA_WINDOW_S", "60")?,
             viz_quota_max: num("STEWIE_VIZ_QUOTA_MAX", "240")? as i64,
             viz_window_s: num("STEWIE_VIZ_QUOTA_WINDOW_S", "60")?,
+            heavy_quota_max: num("STEWIE_HEAVY_QUOTA_MAX", "30")? as i64,
+            heavy_window_s: num("STEWIE_HEAVY_QUOTA_WINDOW_S", "60")?,
+            max_keepouts: num("STEWIE_MAX_KEEPOUTS", "200")? as usize,
             tiles_dir: get("STEWIE_TILES_DIR")
                 .filter(|v| !v.is_empty())
                 .map_or_else(
@@ -221,6 +230,7 @@ pub struct AppState {
     world_points: RateLimiter,
     viz_quota: RateLimiter,
     draft_quota: RateLimiter,
+    heavy_quota: RateLimiter,
     /// The mission-feature edit sessions (`data_dir/edit_session.db`, opened on first use).
     pub edit_sessions: crate::edit_session::Store,
     started: Instant,
@@ -297,6 +307,7 @@ impl AppState {
             world_points: RateLimiter::new(settings.world_point_budget, settings.world_window_s),
             viz_quota: RateLimiter::new(settings.viz_quota_max, settings.viz_window_s),
             draft_quota: RateLimiter::new(120, 60.0),
+            heavy_quota: RateLimiter::new(settings.heavy_quota_max, settings.heavy_window_s),
             edit_sessions: crate::edit_session::Store::new(&cfg.data_dir),
             cfg,
             settings,
@@ -368,6 +379,19 @@ impl AppState {
     /// Monotonic seconds, for the rate windows.
     fn mono(&self) -> f64 {
         self.started.elapsed().as_secs_f64()
+    }
+
+    /// Auth and the per-identity compute quota of the heavy planning routes (Python `deps.heavy_quota`, S-08).
+    pub(crate) fn heavy(&self, h: &Head) -> Result<String, ApiError> {
+        let identity = require_auth(self, h)?;
+        if self.heavy_quota.allow(&identity, self.mono(), 1) {
+            Ok(identity)
+        } else {
+            Err(err(
+                StatusCode::TOO_MANY_REQUESTS,
+                "per-identity compute quota exceeded for heavy planning; slow down",
+            ))
+        }
     }
 
     /// The per-identity autosave quota drafts and soil saves share (Python `routers.missions._draft_quota`, 120 per
@@ -1020,6 +1044,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::library_routes::routes())
         .merge(crate::edit_session::routes())
         .merge(crate::model_routes::routes())
+        .merge(crate::plan_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

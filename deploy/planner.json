@@ -24,5 +24,77 @@
  "drivetrain_efficiency": {
   "value": 0.5,
   "source": "stewie/specs/ipex_specs.py DRIVETRAIN_EFFICIENCY [CALIB]"
+ },
+ "idle_power_w": {
+  "value": 0.0,
+  "source": "stewie/specs/ipex_specs.py IDLE_POWER_W (mission_planner survival_energy_J = IDLE_POWER_W * duration; 0 = unmodelled)"
+ },
+ "slip_n_wheels": {
+  "value": 4,
+  "source": "stewie/physics/slip.py slip_sinkage_equilibrium n_wheels default 4 (= ipex_specs.N_WHEELS)"
+ },
+ "slip_contact_len_m": {
+  "value": 0.1,
+  "source": "lode/planner_endurance.py slip_alpha_to_slip contact_len_m=0.10"
+ },
+ "slip_contact_width_m": {
+  "value": 0.18,
+  "source": "lode/planner_endurance.py slip_alpha_to_slip contact_width_m=0.18"
+ },
+ "slip_z_entrap_m": {
+  "value": 0.36,
+  "source": "stewie/physics/slip.py slip_sinkage_equilibrium z_entrap default 2.0 * 0.18 (two wheel widths)"
+ },
+ "drum_rate_ratio": {
+  "value": 0.72,
+  "source": "stewie/specs/ipex_specs.py dig_energy_bounds_j_per_kg() low over high (T2.4)"
+ },
+ "max_cut_per_pass_m": {
+  "value": 0.0239,
+  "source": "stewie/specs/ipex_specs.py max_cut_per_pass_m() (T2.3)"
+ },
+ "fill_mpe_frac": {
+  "value": 0.02558,
+  "source": "stewie/physics/rassor_mass_model.py FDC_MPE_HALF_FULL"
+ },
+ "localization_margin_m": {
+  "value": 0.15,
+  "source": "lode/planner_constants.py LOCALIZATION_MARGIN_M"
+ },
+ "dem_cell_sigma_m": {
+  "value": 0.05,
+  "source": "lode/planner_assembly.py uncertainty block dem cell_sigma_m"
+ },
+ "relocalize_drift_tol_m": {
+  "value": 0.5,
+  "source": "lode/planner_assembly.py RELOCALIZE_DRIFT_TOL_M"
+ },
+ "drift_frac": {
+  "value": 0.05,
+  "source": "lode/relocalization.py DEFAULT_DRIFT_FRAC"
+ },
+ "fix_maneuver_s": {
+  "value": 8.0,
+  "source": "lode/relocalization.py DEFAULT_FIX_MANEUVER_S"
+ },
+ "arm_lift_height_m": {
+  "value": 0.5,
+  "source": "stewie/physics/rassor_mass_model.py ARM_LIFT_HEIGHT_M"
+ },
+ "arm_lift_efficiency": {
+  "value": 0.5,
+  "source": "stewie/physics/rassor_mass_model.py ARM_LIFT_EFFICIENCY"
+ },
+ "default_return_buffer_frac": {
+  "value": 0.2,
+  "source": "lode/lander_return.py DEFAULT_RETURN_BUFFER_FRAC"
+ },
+ "ipex_dig_j_per_kg": {
+  "value": 4151.3902922436555,
+  "source": "lode/planner_constants.py DIG_J_PER_KG = ipex_specs.dig_energy_per_kg() (the plan_math worksheet's constant)"
+ },
+ "ipex_drive_j_per_m": {
+  "value": 14.58,
+  "source": "lode/planner_constants.py DRIVE_J_PER_M = ipex_specs.drive_energy_per_m() (the plan_math worksheet's constant)"
  }
 }
