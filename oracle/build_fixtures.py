@@ -4549,9 +4549,14 @@ def _http_session(seed_text: str, env_extra: dict, script) -> dict:
                 r = client.request(method, path, headers=h, **kw)
                 ctype = r.headers.get("content-type", "")
                 if ctype.startswith("image/png"):
-                    im = _Image.open(_io.BytesIO(r.content)).convert("RGB")
+                    # RGBA, alpha included (the analysis layers are translucent), with the raw pixels so a replay
+                    # can tell a one-step truncation flicker (an ULP across a byte boundary) from a real difference
+                    im = _Image.open(_io.BytesIO(r.content)).convert("RGBA")
+                    px = im.tobytes()
                     body = {"png": {"width": im.width, "height": im.height,
-                                    "rgb_sha256": hashlib.sha256(im.tobytes()).hexdigest()}}
+                                    "rgba_sha256": hashlib.sha256(px).hexdigest()}}
+                    if im.width * im.height <= 200_000:                  # the computed rasters, not the big previews
+                        body["png"]["rgba_b64"] = base64.b64encode(px).decode()
                 elif ctype.startswith("application/octet-stream"):
                     body = {"bytes_sha256": hashlib.sha256(r.content).hexdigest(), "len": len(r.content),
                             "x_dem": {k.lower(): v for k, v in r.headers.items() if k.lower().startswith("x-dem-")}}
@@ -4626,6 +4631,20 @@ def http_dem_cases() -> None:
         call("GET", "/dem/height.png?site=shackleton_rim", headers=key)
         call("GET", "/dem/other.png", headers=key)
         call("GET", "/dem/height.png?site=atlantis", headers=key)
+        # the work-area layer rasters (RW-55b6c-1)
+        for kind in ("dem", "hillshade", "slope", "hazard", "illumination", "psr", "incidence", "aspect",
+                     "curvature", "roughness"):
+            call("GET", f"/dem/workarea.png?kind={kind}&window_m=400&sun_az=200.4&sun_el=8.6", headers=key)
+        call("GET", "/dem/workarea.png?site=shackleton_rim&kind=illumination&window_m=200&sun_az=91&sun_el=3",
+             headers=key)
+        call("GET", "/dem/workarea.png?kind=slope&window_m=5000&lat=-86.37652685731457&lon=-26.3182865963215",
+             headers=key)
+        call("GET", "/dem/workarea.png?kind=dem&window_m=1&lat=0&lon=0&sun_az=-30.5&sun_el=200", headers=key)
+        call("GET", "/dem/workarea.png?kind=hillshade&window_m=20&sun_az=359.5&sun_el=-100", headers=key)
+        call("GET", "/dem/workarea.png?kind=nope", headers=key)
+        call("GET", "/dem/workarea.png?window_m=abc", headers=key)
+        call("GET", "/dem/workarea.png?site=shoemaker", headers=key)
+        call("GET", "/dem/workarea.png")                                     # no key
         # the public 3D viewer's routes (RW-55b6b), under a viz quota cut to 14 (SYNTHETIC, labelled)
         import stewie.server.routers.dem as _D
         from stewie.server.ratelimit import RateLimiter as _RL

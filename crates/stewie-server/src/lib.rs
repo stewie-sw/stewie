@@ -12,6 +12,7 @@ pub mod dem_routes;
 pub mod operators;
 pub mod planning;
 pub mod point;
+pub mod raster;
 pub mod services;
 pub mod state;
 pub mod twin;

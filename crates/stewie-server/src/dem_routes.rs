@@ -960,6 +960,123 @@ async fn dem_graticule(
     .await
 }
 
+const WORKAREA_Q: Model = Model {
+    fields: &[
+        Field(
+            "window_m",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(640.0),
+            },
+        ),
+        Field(
+            "sun_az",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(315.0),
+            },
+        ),
+        Field(
+            "sun_el",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(45.0),
+            },
+        ),
+        Field("lat", Kind::Opt(&REQ_FLOAT)),
+        Field("lon", Kind::Opt(&REQ_FLOAT)),
+    ],
+    forbid_extra: false,
+};
+
+/// Python `round(x) % 360` and the clamped elevation: the quantised sun the work-area drape renders under.
+#[allow(clippy::cast_possible_truncation)] // whole degrees
+fn quantised_sun(az: f64, el: f64) -> (f64, f64) {
+    let az = (az.round_ties_even() as i64).rem_euclid(360);
+    let el = (el.round_ties_even() as i64).clamp(-90, 90);
+    #[allow(clippy::cast_precision_loss)] // whole degrees
+    (az as f64, el as f64)
+}
+
+/// The work-area layer raster (GIS-WA1/WA2): the order-frame window `[0, window_m]^2` sampled from the site DEM at
+/// native resolution, drawn by the chosen layer, north up. An optional lat/lon re-anchors the window.
+async fn dem_workarea_png(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        require_auth(st, &h)?;
+        let raw = query(&q, WORKAREA_Q)?;
+        let site = site_of(&q);
+        let kind = q
+            .iter()
+            .rev()
+            .find(|(k, _)| k == "kind")
+            .map_or_else(|| "dem".to_owned(), |(_, v)| v.clone());
+        let win = num(&raw, "window_m", 640.0).clamp(10.0, 2000.0);
+        let (az, el) = quantised_sun(num(&raw, "sun_az", 315.0), num(&raw, "sun_el", 45.0));
+        bundle_404(st, &site)?;
+        let (dem, origin) = site_dem(st, &site)?;
+        let (lat, lon) = (
+            raw.get("lat").and_then(|v| validate::as_float(v).ok()),
+            raw.get("lon").and_then(|v| validate::as_float(v).ok()),
+        );
+        // a picked lat/lon re-anchors the window (absolute pixel-metres); outside the tile keeps the anchor
+        let (ox, oy) = match (lat, lon) {
+            (Some(la), Some(lo)) => st
+                .terrain
+                .latlon_to_order(&dem, (0.0, 0.0), lo, la)
+                .unwrap_or(origin),
+            _ => origin,
+        };
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // a clamped sample count
+        let npx = ((win / dem.cell_m).round_ties_even() as usize + 1).max(2);
+        let xs = linspace(0.0, win, npx);
+        let cols: Vec<usize> = xs
+            .iter()
+            .map(|x| index((ox + x) / dem.cell_m, dem.cols - 1))
+            .collect();
+        let rows: Vec<usize> = xs
+            .iter()
+            .map(|y| index((oy + y) / dem.cell_m, dem.rows - 1))
+            .collect();
+        let patch: Vec<f64> = rows
+            .iter()
+            .flat_map(|&r| cols.iter().map(move |&c| (r, c)))
+            .map(|(r, c)| dem.z[r * dem.cols + c])
+            .collect();
+        let gnb = if matches!(kind.as_str(), "illumination" | "incidence") {
+            st.terrain
+                .grid_north_bearing_deg(&dem, ox + win / 2.0, oy + win / 2.0)
+                .ok()
+        } else {
+            None
+        };
+        let rgba = crate::raster::layer_rgba(&patch, npx, npx, dem.cell_m, &kind, az, el, gnb)
+            .ok_or_else(|| {
+                err(
+                    StatusCode::BAD_REQUEST,
+                    format!("unknown layer kind {}", py_repr(&kind)),
+                )
+            })?;
+        let png = crate::raster::png_rgba(&crate::raster::flipud(&rgba, npx), npx, npx)
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let mut r = png.into_response();
+        r.headers_mut()
+            .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/png"));
+        Ok(r)
+    })
+    .await
+}
+
 /// The DEM read routes (the literal paths are matched before the preview's `{name}`).
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -974,5 +1091,6 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/dem/heightfield_full", get(dem_heightfield_full_bin))
         .route("/dem/heightfield_full/meta", get(dem_heightfield_full_meta))
         .route("/dem/graticule", get(dem_graticule))
+        .route("/dem/workarea.png", get(dem_workarea_png))
         .route("/dem/{name}", get(dem_preview))
 }

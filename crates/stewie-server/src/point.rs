@@ -133,7 +133,7 @@ impl Spine {
 
 /// `np.interp(x, xp, fp)` for an increasing `xp`: the end values outside it, NaN for a NaN `x`.
 #[allow(clippy::float_cmp)] // numpy's exact knot and equal-value tests
-fn np_interp(x: f64, xp: &[f64], fp: &[f64]) -> f64 {
+pub(crate) fn np_interp(x: f64, xp: &[f64], fp: &[f64]) -> f64 {
     let n = xp.len();
     if x.is_nan() {
         return f64::NAN;

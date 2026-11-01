@@ -94,7 +94,7 @@ fn normalise(body: &mut Value) {
 }
 
 /// A PNG as the oracle records it: its size and the sha256 of its decoded RGB pixels.
-fn png_summary(bytes: &[u8]) -> Value {
+fn png_summary(bytes: &[u8], want: &Value) -> Value {
     let mut d = png::Decoder::new(std::io::Cursor::new(bytes));
     d.set_transformations(png::Transformations::EXPAND);
     let mut dec = d.read_info().unwrap();
@@ -102,21 +102,64 @@ fn png_summary(bytes: &[u8]) -> Value {
     let info = dec.next_frame(&mut buf).unwrap();
     assert_eq!(info.bit_depth, png::BitDepth::Eight, "an 8-bit image");
     let px = &buf[..info.buffer_size()];
-    // as PIL's convert("RGB"): alpha dropped, grey replicated
-    let rgb: Vec<u8> = match info.color_type {
-        png::ColorType::Rgb => px.to_vec(),
-        png::ColorType::Rgba => px.chunks(4).flat_map(|c| [c[0], c[1], c[2]]).collect(),
-        png::ColorType::Grayscale => px.iter().flat_map(|g| [*g; 3]).collect(),
-        png::ColorType::GrayscaleAlpha => px.chunks(2).flat_map(|c| [c[0]; 3]).collect(),
+    // as PIL's convert("RGBA") / convert("RGB"): grey replicated, a missing alpha opaque / alpha dropped
+    let rgba: Vec<u8> = match info.color_type {
+        png::ColorType::Rgb => px.chunks(3).flat_map(|c| [c[0], c[1], c[2], 255]).collect(),
+        png::ColorType::Rgba => px.to_vec(),
+        png::ColorType::Grayscale => px.iter().flat_map(|g| [*g, *g, *g, 255]).collect(),
+        png::ColorType::GrayscaleAlpha => px
+            .chunks(2)
+            .flat_map(|c| [c[0], c[0], c[0], c[1]])
+            .collect(),
         png::ColorType::Indexed => panic!("palette not expanded"),
     };
-    let rgb = rgb.as_slice();
-    let digest = Sha256::digest(rgb).iter().fold(String::new(), |mut h, b| {
-        use std::fmt::Write as _;
-        let _ = write!(h, "{b:02x}");
-        h
-    });
-    json!({"png": {"width": info.width, "height": info.height, "rgb_sha256": digest}})
+    let hex = |b: &[u8]| {
+        Sha256::digest(b).iter().fold(String::new(), |mut h, x| {
+            use std::fmt::Write as _;
+            let _ = write!(h, "{x:02x}");
+            h
+        })
+    };
+    let want = &want["png"];
+    if want.get("rgba_sha256").is_none() {
+        let rgb: Vec<u8> = rgba.chunks(4).flat_map(|c| [c[0], c[1], c[2]]).collect();
+        return json!({"png": {"width": info.width, "height": info.height, "rgb_sha256": hex(&rgb)}});
+    }
+    let mut out =
+        json!({"png": {"width": info.width, "height": info.height, "rgba_sha256": hex(&rgba)}});
+    if let Some(b64) = want.get("rgba_b64").and_then(Value::as_str) {
+        use base64::Engine as _;
+        let recorded = base64::engine::general_purpose::STANDARD
+            .decode(b64)
+            .unwrap();
+        // a float cast to a byte can land one step apart across hosts (an ULP over an integer boundary): one step
+        // on at most 0.1% of the channels is that; anything more is a real difference
+        let flicker = recorded.len() == rgba.len() && {
+            let diffs: Vec<u8> = recorded
+                .iter()
+                .zip(&rgba)
+                .map(|(a, b)| a.abs_diff(*b))
+                .collect();
+            diffs.iter().all(|d| *d <= 1)
+                && diffs.iter().filter(|d| **d > 0).count() * 1000 <= diffs.len()
+        };
+        out["png"]["rgba_b64"] = json!(b64);
+        if flicker {
+            let n = recorded.iter().zip(&rgba).filter(|(a, b)| a != b).count();
+            if n > 0 {
+                eprintln!(
+                    "png {}x{}: accepted a one-step byte flicker on {n} of {} channels",
+                    info.width,
+                    info.height,
+                    rgba.len()
+                );
+            }
+            out["png"]["rgba_sha256"] = want["rgba_sha256"].clone();
+        } else {
+            out["png"]["rgba_b64"] = json!(base64::engine::general_purpose::STANDARD.encode(&rgba));
+        }
+    }
+    out
 }
 
 /// The body as the oracle recorded it: structure, strings, integers and booleans exactly, floats to 1e-12
@@ -253,7 +296,7 @@ async fn replay(
             .collect();
         let raw = resp.into_body().collect().await.unwrap().to_bytes();
         let mut body: Value = if resp_type.as_deref() == Some("image/png") {
-            png_summary(&raw)
+            png_summary(&raw, &step["body"])
         } else if resp_type.as_deref() == Some("application/octet-stream") {
             // as the oracle records a binary body: its digest, length and X-Dem-* headers
             let x_dem: Map<String, Value> = headers_all
