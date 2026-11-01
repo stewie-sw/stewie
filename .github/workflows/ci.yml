@@ -84,6 +84,10 @@ jobs:
   rust:
     name: Rust workspace (fmt + clippy -D warnings + test + zero-stub gate)
     runs-on: ubuntu-latest
+    env:
+      # CI-OPT: the numeric oracle tests ran 477 s unoptimised; at opt-level 2 they take ~4.6x less (measured
+      # 218 s -> 47 s at 4 threads). Rust never contracts or reorders float ops by opt level, so results are unchanged.
+      CARGO_PROFILE_TEST_OPT_LEVEL: "2"
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - name: toolchain (pinned by rust-toolchain.toml; rustup is preinstalled on the runner)
@@ -94,6 +98,12 @@ jobs:
           cache-on-failure: true   # a red run still warms the next one
       - name: external inputs (NAIF kernels, PDS LOLA LDEM) pinned by sha256 in pipeline manifests; stdlib-only fetch
         run: python3 pipeline/fetch.py
+      # CI-OPT: the extracts are pinned by their canonical sha256, so a cached copy that matches is kept, not refetched
+      - name: cache the canonical LOLA RDR shot extracts (keyed by their pinned manifest)
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: .cache/lola
+          key: lola-${{ hashFiles('pipeline/lola_tracks.json') }}
       - name: LOLA RDR shot extracts for the alignment check (RW-60c), pinned by query and sha256; stdlib-only
         run: (cd pipeline && python3 lola_tracks.py)
       - name: install the lola_base data package (N11) the package and guard tests open; stdlib-only
