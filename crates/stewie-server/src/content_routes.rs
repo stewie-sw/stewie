@@ -59,11 +59,10 @@ async fn list_sample_missions() -> Response {
 async fn get_sample_mission(Path(name): Path<String>) -> Response {
     // Starlette routes the decoded path, where an encoded `/` leaves the one-segment route unmatched
     if name.contains('/') {
-        return err(
-            StatusCode::NOT_FOUND,
-            format!("no route /sample_mission/{name}"),
-        )
-        .into_response();
+        return crate::app::no_route_for(
+            &axum::http::Method::GET,
+            &format!("/sample_mission/{name}"),
+        );
     }
     let Some((_, p)) = sample_missions().into_iter().find(|(n, _)| *n == name) else {
         return err(StatusCode::NOT_FOUND, format!("no sample mission {name}")).into_response();
@@ -236,7 +235,7 @@ async fn get_profile(
     req: Request,
 ) -> Response {
     if name.contains('/') {
-        return err(StatusCode::NOT_FOUND, format!("no route /profile/{name}")).into_response();
+        return crate::app::no_route_for(&axum::http::Method::GET, &format!("/profile/{name}"));
     }
     let h = Head::of(&req);
     blocking(st, move |st| {

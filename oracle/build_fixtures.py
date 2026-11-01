@@ -4925,6 +4925,76 @@ def http_config_cases() -> None:
                    "stewie/server/auth.py"], payload)
 
 
+def http_structures_cases() -> None:
+    """The custom structure templates (RW-55b8): save, list, expand and delete over the object store, through one
+    scripted session (_http_session): the automation key (a director), bob@example.org signed in by it (an operator)
+    and the anonymous key (a guest). The templates are SYNTHETIC (labelled). Every file the session leaves under
+    structures/ (the live library and its .trash) is pinned by sha256."""
+    import hashlib
+
+    written = {}
+
+    def script(call, key, d, clock):
+        guest = {"X-Stewie-Anon-Key": "anon-key-xyz"}
+        ring = {"kind_list": [{"kind": "cut", "dx": 1.5, "dy": -2, "footprint_m2": 4, "depth_m": 0.1,
+                               "extra": {"b": 1, "a": [1, 2.5, "\u03a9"]}},
+                              {"kind": "goto", "dx": 0, "dy": 3.25, "footprint_m2": 0, "depth_m": 0},
+                              {"kind": "fill", "dx": -4, "dy": 0.5, "footprint_m2": 2.5, "depth_m": 0.05}],
+                "note": {"z": 1, "a": "first"}}
+        call("GET", "/structures/custom")                                        # no key
+        call("GET", "/structures/custom", headers=key)                           # empty library
+        call("POST", "/structures/custom/Pad%20Ring%20A", raw=json.dumps(ring))  # no key
+        call("POST", "/structures/custom/Pad%20Ring%20A", headers=guest, raw=json.dumps(ring))   # below operator
+        call("POST", "/structures/custom/Pad%20Ring%20A", headers=key, raw=json.dumps(ring))
+        for bad in ({}, {"kind_list": []}, {"kind_list": [ring["kind_list"][1]] * 65}, {"kind_list": "x"},
+                    {"kind_list": [{"kind": "cut"}]}, {"kind_list": ["abc"]},
+                    {"kind_list": [dict(ring["kind_list"][1], kind="dig")]},
+                    {"kind_list": [dict(ring["kind_list"][1], kind={"y": 1, "x": [2]})]},
+                    {"kind_list": [dict(ring["kind_list"][1], kind=5)]}):
+            call("POST", "/structures/custom/bad", headers=key, raw=json.dumps(bad))
+        call("POST", "/structures/custom/bad", headers=key, json_body=[1, 2])
+        call("POST", "/structures/custom/bad", headers=key, raw="{not json")
+        r = call("POST", "/auth/login", headers=key, json_body={"email": "bob@example.org"})
+        bob = {"Authorization": f"Bearer {r.json()['token']}"}
+        clock["t"] += 1.5
+        call("POST", "/structures/custom/pad%20ring%20a", headers=bob, raw=json.dumps(ring))   # another's: 403
+        berm = {"kind_list": [{"kind": "fill", "dx": 2, "dy": 2, "footprint_m2": 1, "depth_m": 0.2}], "note": 7}
+        call("POST", "/structures/custom/Bob's%20Berm", headers=bob, raw=json.dumps(berm))
+        clock["t"] += 2.25
+        call("POST", "/structures/custom/bob-s-berm", headers=bob, raw=json.dumps(dict(berm, note="v2")))   # own
+        clock["t"] += 1.0
+        call("POST", "/structures/custom/bob-s-berm", headers=key, raw=json.dumps(dict(berm, note=None)))  # director
+        call("GET", "/structures/custom", headers=guest)
+        call("GET", "/structures/custom/pad-ring-a/expand?x=10&y=-20.5", headers=key)
+        call("GET", "/structures/custom/Pad%20Ring%20A/expand?x=1e3&y=0", headers=guest)
+        call("GET", "/structures/custom/pad-ring-a/expand?x=1", headers=key)
+        call("GET", "/structures/custom/pad-ring-a/expand?x=abc&y=1", headers=key)
+        call("GET", "/structures/custom/nope/expand?x=1&y=1", headers=key)
+        call("GET", "/structures/custom/pad-ring-a/expand?x=1&y=1")                # no key
+        call("GET", "/structures/custom/a%2Fb/expand?x=1&y=1", headers=key)        # Starlette: no route
+        call("DELETE", "/structures/custom/a%2Fb", headers=key)
+        call("DELETE", "/structures/custom/pad-ring-a", headers=bob)               # live: a director's
+        call("DELETE", "/structures/custom/bob-s-berm", headers=bob)               # even its owner's
+        call("DELETE", "/structures/custom/nothing-here", headers=bob)             # a missing one: a no-op
+        clock["t"] += 0.75
+        call("DELETE", "/structures/custom/Bob's%20Berm", headers=key)
+        call("DELETE", "/structures/custom/pad-ring-a")                            # no key
+        call("GET", "/structures/custom", headers=key)
+        base = os.path.join(d, "structures")
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [x for x in dirs if x != ".locks"]
+            for f in sorted(files):
+                p = os.path.join(root, f)
+                with open(p, "rb") as fh:
+                    written[os.path.relpath(p, d)] = hashlib.sha256(fh.read()).hexdigest()
+
+    payload = _http_session("stewie-http-structures-oracle", {}, script)
+    payload["data_files"] = dict(sorted(written.items()))
+    write_fixture(ORACLE_FIXTURES, "http_structures_cases", "oracle/build_fixtures.py::http_structures_cases (the "
+                  "FastAPI app's custom-structure routes over the object store; SYNTHETIC templates, labelled)",
+                  ["stewie/server/routers/structures.py", "stewie/server/objects.py"], payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5038,6 +5108,7 @@ def main() -> None:
     http_spec_cases()
     http_content_cases()
     http_config_cases()
+    http_structures_cases()
 
 
 if __name__ == "__main__":

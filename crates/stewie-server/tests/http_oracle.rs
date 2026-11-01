@@ -1020,3 +1020,16 @@ async fn the_python_configuration_session_replays_with_the_spice_departure() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn the_python_structures_session_replays_exactly() {
+    replay(
+        "http_structures_cases",
+        b"stewie-http-structures-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}

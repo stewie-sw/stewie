@@ -29,6 +29,55 @@ pub fn dumps_compact(v: &Value) -> Result<String, TwinError> {
     Ok(out)
 }
 
+/// Python's `json.dumps(v, indent=indent, sort_keys=True)`: one item per line, `", "` becomes `","`, empty
+/// containers stay `[]` and `{}`.
+///
+/// # Errors
+/// A non-finite float.
+pub fn dumps_indent(v: &Value, indent: usize) -> Result<String, TwinError> {
+    fn write(out: &mut String, v: &Value, indent: usize, depth: usize) -> Result<(), TwinError> {
+        let pad = |out: &mut String, d: usize| {
+            out.push('\n');
+            out.push_str(&" ".repeat(indent * d));
+        };
+        match v {
+            Value::Array(a) if !a.is_empty() => {
+                out.push('[');
+                for (i, x) in a.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    pad(out, depth + 1);
+                    write(out, x, indent, depth + 1)?;
+                }
+                pad(out, depth);
+                out.push(']');
+            }
+            Value::Object(m) if !m.is_empty() => {
+                let mut keys: Vec<&String> = m.keys().collect();
+                keys.sort();
+                out.push('{');
+                for (i, k) in keys.into_iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    pad(out, depth + 1);
+                    write_str(out, k);
+                    out.push_str(": ");
+                    write(out, &m[k], indent, depth + 1)?;
+                }
+                pad(out, depth);
+                out.push('}');
+            }
+            scalar_or_empty => write_value(out, scalar_or_empty, (", ", ": "))?,
+        }
+        Ok(())
+    }
+    let mut out = String::new();
+    write(&mut out, v, indent, 0)?;
+    Ok(out)
+}
+
 fn write_value(out: &mut String, v: &Value, seps: (&str, &str)) -> Result<(), TwinError> {
     match v {
         Value::Null => out.push_str("null"),

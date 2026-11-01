@@ -1,0 +1,885 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "data_files": {
+  "structures/.trash/bob-s-berm.1800000005500.json": "a0164bedaf8a0dfc9725deb36a668713f6e769f3d1e389798522aba2ae181830",
+  "structures/pad-ring-a.json": "79dbe79b33d3c04b8e3dfd1c17b482ae10a59a6738b7ff46fcafbd74fdaaf518"
+ },
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "structure.save",
+   "actor": "api-key",
+   "correlation_id": "cid-005",
+   "target": "pad-ring-a",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "auth.login",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-017",
+   "target": "bootstrap",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "structure.save",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-019",
+   "target": "bob-s-berm",
+   "ts": 1800000001.5
+  },
+  {
+   "action": "structure.save",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-020",
+   "target": "bob-s-berm",
+   "ts": 1800000003.75
+  },
+  {
+   "action": "structure.save",
+   "actor": "api-key",
+   "correlation_id": "cid-021",
+   "target": "bob-s-berm",
+   "ts": 1800000004.75
+  },
+  {
+   "action": "structure.delete",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-033",
+   "target": "nothing-here ns=live",
+   "ts": 1800000004.75
+  },
+  {
+   "action": "structure.delete",
+   "actor": "api-key",
+   "correlation_id": "cid-034",
+   "target": "Bob's Berm ns=live",
+   "ts": 1800000005.5
+  }
+ ],
+ "seed_sha256_of": "stewie-http-structures-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true,
+    "structures": []
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/Pad%20Ring%20A",
+    "raw": "{\"kind_list\": [{\"kind\": \"cut\", \"dx\": 1.5, \"dy\": -2, \"footprint_m2\": 4, \"depth_m\": 0.1, \"extra\": {\"b\": 1, \"a\": [1, 2.5, \"\\u03a9\"]}}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"fill\", \"dx\": -4, \"dy\": 0.5, \"footprint_m2\": 2.5, \"depth_m\": 0.05}], \"note\": {\"z\": 1, \"a\": \"first\"}}"
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "operator+ role required (signed in as guest 'gis-anon')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-004",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/Pad%20Ring%20A",
+    "raw": "{\"kind_list\": [{\"kind\": \"cut\", \"dx\": 1.5, \"dy\": -2, \"footprint_m2\": 4, \"depth_m\": 0.1, \"extra\": {\"b\": 1, \"a\": [1, 2.5, \"\\u03a9\"]}}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"fill\", \"dx\": -4, \"dy\": 0.5, \"footprint_m2\": 2.5, \"depth_m\": 0.05}], \"note\": {\"z\": 1, \"a\": \"first\"}}"
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "created_by": "api-key",
+    "name": "pad-ring-a",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/Pad%20Ring%20A",
+    "raw": "{\"kind_list\": [{\"kind\": \"cut\", \"dx\": 1.5, \"dy\": -2, \"footprint_m2\": 4, \"depth_m\": 0.1, \"extra\": {\"b\": 1, \"a\": [1, 2.5, \"\\u03a9\"]}}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"fill\", \"dx\": -4, \"dy\": 0.5, \"footprint_m2\": 2.5, \"depth_m\": 0.05}], \"note\": {\"z\": 1, \"a\": \"first\"}}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "kind_list must be a non-empty list (max 64 entries)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "kind_list must be a non-empty list (max 64 entries)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{\"kind_list\": []}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "kind_list must be a non-empty list (max 64 entries)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{\"kind_list\": [{\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}]}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "kind_list must be a non-empty list (max 64 entries)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{\"kind_list\": \"x\"}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "entry 0 missing ['depth_m', 'dx', 'dy', 'footprint_m2']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{\"kind_list\": [{\"kind\": \"cut\"}]}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "entry 0 missing ['depth_m', 'dx', 'dy', 'footprint_m2', 'kind']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{\"kind_list\": [\"abc\"]}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "entry 0 kind 'dig' not in cut/fill/goto",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{\"kind_list\": [{\"kind\": \"dig\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}]}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "entry 0 kind {'y': 1, 'x': [2]} not in cut/fill/goto",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{\"kind_list\": [{\"kind\": {\"y\": 1, \"x\": [2]}, \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}]}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "entry 0 kind 5 not in cut/fill/goto",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{\"kind_list\": [{\"kind\": 5, \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}]}"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "body: Input should be a valid dictionary",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": [
+     1,
+     2
+    ],
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bad",
+    "raw": "{not json"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "bob@example.org",
+    "role": "operator",
+    "token": "eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjViY2YwMzI4NGYxYTRiMGJhYmM3ODJhMDE5YzhjODFiIn0.a4YmdioiymelNwhVwl-YOC1biYD2HICXCGZr0ql5NtA",
+    "ttl_s": 43200
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "email": "bob@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "structure 'pad ring a' belongs to another operator; only its owner or a director may overwrite it",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjViY2YwMzI4NGYxYTRiMGJhYmM3ODJhMDE5YzhjODFiIn0.a4YmdioiymelNwhVwl-YOC1biYD2HICXCGZr0ql5NtA",
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/pad%20ring%20a",
+    "raw": "{\"kind_list\": [{\"kind\": \"cut\", \"dx\": 1.5, \"dy\": -2, \"footprint_m2\": 4, \"depth_m\": 0.1, \"extra\": {\"b\": 1, \"a\": [1, 2.5, \"\\u03a9\"]}}, {\"kind\": \"goto\", \"dx\": 0, \"dy\": 3.25, \"footprint_m2\": 0, \"depth_m\": 0}, {\"kind\": \"fill\", \"dx\": -4, \"dy\": 0.5, \"footprint_m2\": 2.5, \"depth_m\": 0.05}], \"note\": {\"z\": 1, \"a\": \"first\"}}"
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "created_by": "bob@example.org",
+    "name": "bob-s-berm",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000001.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjViY2YwMzI4NGYxYTRiMGJhYmM3ODJhMDE5YzhjODFiIn0.a4YmdioiymelNwhVwl-YOC1biYD2HICXCGZr0ql5NtA",
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/Bob's%20Berm",
+    "raw": "{\"kind_list\": [{\"kind\": \"fill\", \"dx\": 2, \"dy\": 2, \"footprint_m2\": 1, \"depth_m\": 0.2}], \"note\": 7}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created_by": "bob@example.org",
+    "name": "bob-s-berm",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000003.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjViY2YwMzI4NGYxYTRiMGJhYmM3ODJhMDE5YzhjODFiIn0.a4YmdioiymelNwhVwl-YOC1biYD2HICXCGZr0ql5NtA",
+     "Content-Type": "application/json",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bob-s-berm",
+    "raw": "{\"kind_list\": [{\"kind\": \"fill\", \"dx\": 2, \"dy\": 2, \"footprint_m2\": 1, \"depth_m\": 0.2}], \"note\": \"v2\"}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created_by": "bob@example.org",
+    "name": "bob-s-berm",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/structures/custom/bob-s-berm",
+    "raw": "{\"kind_list\": [{\"kind\": \"fill\", \"dx\": 2, \"dy\": 2, \"footprint_m2\": 1, \"depth_m\": 0.2}], \"note\": null}"
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "structures": [
+     {
+      "created_at": 1800000001.5,
+      "n_entries": 1,
+      "name": "bob-s-berm",
+      "owner": "bob@example.org",
+      "title": "bob-s-berm"
+     },
+     {
+      "created_at": 1800000000.0,
+      "n_entries": 3,
+      "name": "pad-ring-a",
+      "owner": "api-key",
+      "title": "Pad Ring A"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-022",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "orders": [
+     {
+      "action": "pad-ring-a-1",
+      "depth_m": 0.1,
+      "footprint_m2": 4.0,
+      "kind": "cut",
+      "x": 11.5,
+      "y": -22.5
+     },
+     {
+      "action": "pad-ring-a-2",
+      "kind": "goto",
+      "x": 10.0,
+      "y": -17.25
+     },
+     {
+      "action": "pad-ring-a-3",
+      "depth_m": 0.05,
+      "footprint_m2": 2.5,
+      "kind": "fill",
+      "x": 6.0,
+      "y": -20.0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom/pad-ring-a/expand?x=10&y=-20.5",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "orders": [
+     {
+      "action": "pad-ring-a-1",
+      "depth_m": 0.1,
+      "footprint_m2": 4.0,
+      "kind": "cut",
+      "x": 1001.5,
+      "y": -2.0
+     },
+     {
+      "action": "pad-ring-a-2",
+      "kind": "goto",
+      "x": 1000.0,
+      "y": 3.25
+     },
+     {
+      "action": "pad-ring-a-3",
+      "depth_m": 0.05,
+      "footprint_m2": 2.5,
+      "kind": "fill",
+      "x": 996.0,
+      "y": 0.5
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-024",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom/Pad%20Ring%20A/expand?x=1e3&y=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "y: Field required",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom/pad-ring-a/expand?x=1",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "x: Input should be a valid number, unable to parse string as a number",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom/pad-ring-a/expand?x=abc&y=1",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "no structure 'nope'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom/nope/expand?x=1&y=1",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom/pad-ring-a/expand?x=1&y=1",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "no route /structures/custom/a/b/expand",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom/a%2Fb/expand?x=1&y=1",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "Method Not Allowed",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-030"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/structures/custom/a%2Fb",
+    "raw": null
+   },
+   "status": 405
+  },
+  {
+   "body": {
+    "error": "deleting a shared (live) structure template requires a director",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjViY2YwMzI4NGYxYTRiMGJhYmM3ODJhMDE5YzhjODFiIn0.a4YmdioiymelNwhVwl-YOC1biYD2HICXCGZr0ql5NtA",
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/structures/custom/pad-ring-a",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "deleting a shared (live) structure template requires a director",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjViY2YwMzI4NGYxYTRiMGJhYmM3ODJhMDE5YzhjODFiIn0.a4YmdioiymelNwhVwl-YOC1biYD2HICXCGZr0ql5NtA",
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/structures/custom/bob-s-berm",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "ok": false,
+    "recoverable": true
+   },
+   "cache_control": null,
+   "clock": 1800000004.75,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjViY2YwMzI4NGYxYTRiMGJhYmM3ODJhMDE5YzhjODFiIn0.a4YmdioiymelNwhVwl-YOC1biYD2HICXCGZr0ql5NtA",
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/structures/custom/nothing-here",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "recoverable": true
+   },
+   "cache_control": null,
+   "clock": 1800000005.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/structures/custom/Bob's%20Berm",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000005.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/structures/custom/pad-ring-a",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true,
+    "structures": [
+     {
+      "created_at": 1800000000.0,
+      "n_entries": 3,
+      "name": "pad-ring-a",
+      "owner": "api-key",
+      "title": "Pad Ring A"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000005.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-036"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/structures/custom",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": null
+}

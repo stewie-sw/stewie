@@ -1,0 +1,9 @@
+{
+ "fixture": "http_structures_cases",
+ "generator": "oracle/build_fixtures.py::http_structures_cases (the FastAPI app's custom-structure routes over the object store; SYNTHETIC templates, labelled)",
+ "payload_sha256": "608b14d9e3027ec14e9297068723bac75b30c68fad479c95f6771024359de219",
+ "sources": {
+  "stewie/server/objects.py": "2c57b92be6d3e15b0d28bd20f2108b712339592c651f494085418af14ad3313d",
+  "stewie/server/routers/structures.py": "fbf5c6382315e82462c5d8dddf019e6b9a5699cf12ba5b0a0d12e8826f476bd7"
+ }
+}

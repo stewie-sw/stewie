@@ -827,12 +827,14 @@ async fn auth_password(State(st): State<Arc<AppState>>, req: Request) -> Respons
 
 /// Starlette's catch-alls: an unmatched GET or POST is a 404 naming the path; any other method is a 405.
 async fn no_route(req: Request) -> Response {
-    if matches!(*req.method(), Method::GET | Method::HEAD | Method::POST) {
-        err(
-            StatusCode::NOT_FOUND,
-            format!("no route {}", req.uri().path()),
-        )
-        .into_response()
+    no_route_for(req.method(), req.uri().path())
+}
+
+/// The catch-all answer for `path`. Starlette routes the decoded path, so a handler whose one-segment parameter
+/// decodes to hold a `/` answers this for the decoded path, as the Python leaves such a route unmatched.
+pub(crate) fn no_route_for(method: &Method, path: &str) -> Response {
+    if matches!(*method, Method::GET | Method::HEAD | Method::POST) {
+        err(StatusCode::NOT_FOUND, format!("no route {path}")).into_response()
     } else {
         err(StatusCode::METHOD_NOT_ALLOWED, "Method Not Allowed").into_response()
     }
@@ -1002,6 +1004,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::spec_routes::routes())
         .merge(crate::content_routes::routes())
         .merge(crate::config_routes::routes())
+        .merge(crate::structure_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

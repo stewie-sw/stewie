@@ -162,7 +162,7 @@ const EPHEMERIS_Q: Model = Model {
 };
 
 /// The query's named values validated as Pydantic does (the last of a repeated key wins), read raw.
-fn query(q: &[(String, String)], model: Model) -> Result<Map<String, Value>, ApiError> {
+pub(crate) fn query(q: &[(String, String)], model: Model) -> Result<Map<String, Value>, ApiError> {
     let raw: Map<String, Value> = model
         .fields
         .iter()
