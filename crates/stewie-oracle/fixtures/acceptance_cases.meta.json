@@ -1,0 +1,12 @@
+{
+ "fixture": "acceptance_cases",
+ "generator": "oracle/build_fixtures.py::acceptance_cases (lode.planner_acceptance.validate_plan over the real Haworth route window, stock and at bank density; layouts, shapes, the edge order and the design loads SYNTHETIC, labelled)",
+ "payload_sha256": "8646246364dcad0f2cd28337a9341ae91975990df42fd83735d082c5b494dbad",
+ "sources": {
+  "crates/stewie-oracle/fixtures/trips_cases.payload.json": "7f87344455f20944b51e99a7d2e33b14e830bdf087f49b587cefa5dafb32eb17",
+  "forge/bearing.py": "81c4faaf2d14fb3ae7474f6494563cf9b9f2497e0ad449740da5ec0e91e412a4",
+  "lode/gis_export.py": "5997f4120b248258347064281b8e0146bd66ba3557e5232c420faa8e634ac81e",
+  "lode/planner_acceptance.py": "808a7e6c7e0b324390bce48b4d665668577be20a3a3d734ec53efa928549091a",
+  "stewie/physics/column_state.py": "eb3c84f6b087be119b75543af7db1809612476208052c7d1a62b574398cfdf35"
+ }
+}

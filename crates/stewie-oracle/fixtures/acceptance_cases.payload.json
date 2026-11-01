@@ -1,0 +1,3003 @@
+{
+ "cases": [
+  {
+   "name": "two_pairs",
+   "params": {
+    "accept_flatness_tol_m": 0.02,
+    "bearing_fs": 3.0,
+    "bearing_load_pa": null,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 15.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "haul_two_pairs",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.3,
+      "footprint_m2": 40,
+      "kind": "cut",
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "depth_m": 0.08,
+      "footprint_m2": 30,
+      "insitu_density_kg_m3": 1650.0,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "depth_m": 0.15,
+      "footprint_m2": 10,
+      "kind": "fill",
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "kind": "goto",
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "kind": "goto",
+      "x": 2.5,
+      "y": 252.5
+     }
+    ],
+    "precedence": [
+     [
+      "cut a",
+      "fill d"
+     ]
+    ]
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.5080730105014073,
+    "as_built_flatness_rmse_m": 0.7547442712548694,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 152002.3,
+      "allowable_pa": 103762.2,
+      "factor_of_safety": 3.0,
+      "width_m": 6.0
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 81348.4,
+      "allowable_pa": 55923.7,
+      "factor_of_safety": 3.0,
+      "width_m": 3.162
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.15,
+      "target_rise_m": 0.15,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 14583.636648280273,
+    "executed_cut_kg": 26129.75579734456,
+    "executed_dig_J": 108474814.55579358,
+    "executed_fill_kg": 11546.119149064283,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.6801359436211786,
+     "cols": 427,
+     "rows": 501
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 27648.0,
+    "planned_fill_kg": 11310.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 55.31,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 51.2,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 54.22,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 8.86,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 922,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 17.7,
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "frac_over": 1.0,
+      "slope_deg": 17.9,
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "frac_over": 1.0,
+      "slope_deg": 19.9,
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "frac_over": 0.75,
+      "slope_deg": 16.2,
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "frac_over": 1.0,
+      "slope_deg": 19.6,
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "frac_over": 1.0,
+      "slope_deg": 19.1,
+      "x": 2.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.5080730105013789,
+    "as_built_flatness_rmse_m": 0.7547442712548694,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 152002.3,
+      "allowable_pa": 103762.2,
+      "factor_of_safety": 3.0,
+      "width_m": 6.0
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 81348.4,
+      "allowable_pa": 55923.7,
+      "factor_of_safety": 3.0,
+      "width_m": 3.162
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.15,
+      "target_rise_m": 0.15,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 14583.636648280273,
+    "executed_cut_kg": 26129.75579734456,
+    "executed_dig_J": 108474814.55579358,
+    "executed_fill_kg": 11546.119149064283,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.6801359436211786,
+     "cols": 427,
+     "rows": 501
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 27648.0,
+    "planned_fill_kg": 11310.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 57.55,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 51.86,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 54.22,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 8.86,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 922,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 17.7,
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "frac_over": 1.0,
+      "slope_deg": 17.9,
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "frac_over": 1.0,
+      "slope_deg": 19.9,
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "frac_over": 0.75,
+      "slope_deg": 16.2,
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "frac_over": 1.0,
+      "slope_deg": 19.6,
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "frac_over": 1.0,
+      "slope_deg": 19.1,
+      "x": 2.5,
+      "y": 252.5
+     }
+    ]
+   }
+  },
+  {
+   "name": "deficit",
+   "params": {
+    "accept_flatness_tol_m": 0.02,
+    "bearing_fs": 3.0,
+    "bearing_load_pa": null,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 15.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "deficit",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.1,
+      "footprint_m2": 10,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "fill b",
+      "depth_m": 0.3,
+      "footprint_m2": 50,
+      "kind": "fill",
+      "x": 202.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.39390114212316923,
+    "as_built_flatness_rmse_m": 0.7878022842462248,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill b",
+      "allowable_firmed_pa": 178669.9,
+      "allowable_pa": 121818.4,
+      "factor_of_safety": 3.0,
+      "width_m": 7.071
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill b",
+      "as_built_rise_m": 0.0271,
+      "target_rise_m": 0.3,
+      "within_tol": false
+     }
+    ],
+    "berm_profile_pass": false,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 0.0,
+    "executed_cut_kg": 1728.0,
+    "executed_dig_J": 7173602.424997036,
+    "executed_fill_kg": 1728.0,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.5,
+     "cols": 333,
+     "rows": 333
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 1920.0,
+    "planned_fill_kg": 19500.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 8.05,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "fill b",
+      "max_slope_deg": 57.29,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 64,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 16.9,
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "fill b",
+      "frac_over": 1.0,
+      "slope_deg": 17.0,
+      "x": 202.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.39390114212311234,
+    "as_built_flatness_rmse_m": 0.7878022842462247,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill b",
+      "allowable_firmed_pa": 178669.9,
+      "allowable_pa": 121818.4,
+      "factor_of_safety": 3.0,
+      "width_m": 7.071
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill b",
+      "as_built_rise_m": 0.0271,
+      "target_rise_m": 0.3,
+      "within_tol": false
+     }
+    ],
+    "berm_profile_pass": false,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 0.0,
+    "executed_cut_kg": 1728.0,
+    "executed_dig_J": 7173602.424997036,
+    "executed_fill_kg": 1728.0,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.5,
+     "cols": 333,
+     "rows": 333
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 1920.0,
+    "planned_fill_kg": 19500.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 11.8,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "fill b",
+      "max_slope_deg": 57.29,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 64,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 16.9,
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "fill b",
+      "frac_over": 1.0,
+      "slope_deg": 17.0,
+      "x": 202.5,
+      "y": 252.5
+     }
+    ]
+   }
+  },
+  {
+   "name": "cuts_only",
+   "params": {
+    "accept_flatness_tol_m": 0.02,
+    "bearing_fs": 3.0,
+    "bearing_load_pa": null,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 15.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "cuts_only",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.2,
+      "footprint_m2": 30,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "cut b",
+      "depth_m": 0.6,
+      "footprint_m2": 12,
+      "kind": "cut",
+      "x": 152.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.2175485938298781,
+    "as_built_flatness_rmse_m": 0.4350971876597562,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [],
+    "bearing_pass": true,
+    "berm_profile": [],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 25728.0,
+    "executed_cut_kg": 25728.0,
+    "executed_dig_J": 106806969.43884477,
+    "executed_fill_kg": 0.0,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.5,
+     "cols": 228,
+     "rows": 328
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 25344.0,
+    "planned_fill_kg": 0.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 60.31,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 40.32,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 845,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 16.9,
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "cut b",
+      "frac_over": 1.0,
+      "slope_deg": 16.5,
+      "x": 152.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.21754859382993494,
+    "as_built_flatness_rmse_m": 0.4350971876597562,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [],
+    "bearing_pass": true,
+    "berm_profile": [],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 25728.0,
+    "executed_cut_kg": 25728.0,
+    "executed_dig_J": 106806969.43884477,
+    "executed_fill_kg": 0.0,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.5,
+     "cols": 228,
+     "rows": 328
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 25344.0,
+    "planned_fill_kg": 0.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 61.73,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 51.41,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 845,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 16.9,
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "cut b",
+      "frac_over": 1.0,
+      "slope_deg": 16.5,
+      "x": 152.5,
+      "y": 252.5
+     }
+    ]
+   }
+  },
+  {
+   "name": "heavy_rassor",
+   "params": {
+    "accept_flatness_tol_m": 0.02,
+    "bearing_fs": 3.0,
+    "bearing_load_pa": null,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 15.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "dig_energy_factor": 1.3,
+    "name": "heavy_rassor",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.4,
+      "footprint_m2": 60,
+      "kind": "cut",
+      "x": 202.5,
+      "y": 77.5
+     },
+     {
+      "action": "fill b",
+      "depth_m": 0.3,
+      "footprint_m2": 50,
+      "kind": "fill",
+      "x": 77.5,
+      "y": 252.5
+     }
+    ],
+    "vehicle": "rassor2"
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.8304921644632449,
+    "as_built_flatness_rmse_m": 0.8844275989753775,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill b",
+      "allowable_firmed_pa": 178669.9,
+      "allowable_pa": 121818.4,
+      "factor_of_safety": 3.0,
+      "width_m": 7.071
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill b",
+      "as_built_rise_m": 0.3,
+      "target_rise_m": 0.3,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 80.0,
+    "drum_remaining_kg": 25605.000000003103,
+    "executed_cut_kg": 46080.0,
+    "executed_dig_J": 248684884.06656393,
+    "executed_fill_kg": 20474.999999996897,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.5,
+     "cols": 289,
+     "rows": 389
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 46080.0,
+    "planned_fill_kg": 19500.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 59.67,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill b",
+      "max_slope_deg": 57.56,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 576,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 0.5,
+      "slope_deg": 16.4,
+      "x": 202.5,
+      "y": 77.5
+     },
+     {
+      "action": "fill b",
+      "frac_over": 1.0,
+      "slope_deg": 16.4,
+      "x": 77.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.830492164463245,
+    "as_built_flatness_rmse_m": 0.8844275989753776,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill b",
+      "allowable_firmed_pa": 178669.9,
+      "allowable_pa": 121818.4,
+      "factor_of_safety": 3.0,
+      "width_m": 7.071
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill b",
+      "as_built_rise_m": 0.3,
+      "target_rise_m": 0.3,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 80.0,
+    "drum_remaining_kg": 25605.000000003103,
+    "executed_cut_kg": 46080.0,
+    "executed_dig_J": 248684884.06656393,
+    "executed_fill_kg": 20474.999999996897,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.5,
+     "cols": 289,
+     "rows": 389
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 46080.0,
+    "planned_fill_kg": 19500.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 60.44,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill b",
+      "max_slope_deg": 57.56,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 576,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 0.5,
+      "slope_deg": 16.4,
+      "x": 202.5,
+      "y": 77.5
+     },
+     {
+      "action": "fill b",
+      "frac_over": 1.0,
+      "slope_deg": 16.4,
+      "x": 77.5,
+      "y": 252.5
+     }
+    ]
+   }
+  },
+  {
+   "name": "unreachable_fill",
+   "params": {
+    "accept_flatness_tol_m": 0.02,
+    "bearing_fs": 3.0,
+    "bearing_load_pa": null,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 15.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "unreachable_fill",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.2,
+      "footprint_m2": 30,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "fill b",
+      "depth_m": 0.2,
+      "footprint_m2": 20,
+      "kind": "fill",
+      "x": 142.5,
+      "y": -47.5
+     },
+     {
+      "action": "fill c",
+      "depth_m": 0.2,
+      "footprint_m2": 10,
+      "kind": "fill",
+      "x": 102.5,
+      "y": 302.5
+     }
+    ]
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.007042183715987301,
+    "as_built_flatness_rmse_m": 0.021126551147848217,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill b",
+      "allowable_firmed_pa": 113961.4,
+      "allowable_pa": 78005.4,
+      "factor_of_safety": 3.0,
+      "width_m": 4.472
+     },
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 81348.4,
+      "allowable_pa": 55923.7,
+      "factor_of_safety": 3.0,
+      "width_m": 3.162
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill b",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 4215.004125152671,
+    "executed_cut_kg": 11352.636361132643,
+    "executed_dig_J": 47129224.38097839,
+    "executed_fill_kg": 7137.632235979972,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.7265888647652712,
+     "cols": 144,
+     "rows": 500
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 11520.0,
+    "planned_fill_kg": 7800.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 50.36,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill b",
+      "max_slope_deg": 57.5,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 11.01,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 384,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 16.9,
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "fill b",
+      "frac_over": 1.0,
+      "slope_deg": 22.2,
+      "x": 142.5,
+      "y": -47.5
+     },
+     {
+      "action": "fill c",
+      "frac_over": 1.0,
+      "slope_deg": 15.7,
+      "x": 102.5,
+      "y": 302.5
+     }
+    ]
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.007042183715949405,
+    "as_built_flatness_rmse_m": 0.021126551147848217,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill b",
+      "allowable_firmed_pa": 113961.4,
+      "allowable_pa": 78005.4,
+      "factor_of_safety": 3.0,
+      "width_m": 4.472
+     },
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 81348.4,
+      "allowable_pa": 55923.7,
+      "factor_of_safety": 3.0,
+      "width_m": 3.162
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill b",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 4215.004125152671,
+    "executed_cut_kg": 11352.636361132643,
+    "executed_dig_J": 47129224.38097839,
+    "executed_fill_kg": 7137.632235979972,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.7265888647652712,
+     "cols": 144,
+     "rows": 500
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 11520.0,
+    "planned_fill_kg": 7800.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 51.99,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill b",
+      "max_slope_deg": 57.5,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 11.01,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 384,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 16.9,
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "fill b",
+      "frac_over": 1.0,
+      "slope_deg": 22.2,
+      "x": 142.5,
+      "y": -47.5
+     },
+     {
+      "action": "fill c",
+      "frac_over": 1.0,
+      "slope_deg": 15.7,
+      "x": 102.5,
+      "y": 302.5
+     }
+    ]
+   }
+  },
+  {
+   "name": "shaped",
+   "params": {
+    "accept_flatness_tol_m": 0.05,
+    "bearing_fs": 3.0,
+    "bearing_load_pa": 20000.0,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 15.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "haul_two_pairs",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.3,
+      "footprint_m2": 40,
+      "kind": "cut",
+      "shape": {
+       "h": 2.5,
+       "kind": "rectangle",
+       "theta_deg": 30.0,
+       "w": 4.0
+      },
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "depth_m": 0.08,
+      "footprint_m2": 30,
+      "insitu_density_kg_m3": 1650.0,
+      "kind": "cut",
+      "shape": {
+       "kind": "corridor",
+       "length": 20.0,
+       "theta_deg": 45.0,
+       "width": 2.0
+      },
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "shape": {
+       "kind": "circle",
+       "r": 3.0
+      },
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "depth_m": 0.15,
+      "footprint_m2": 10,
+      "kind": "fill",
+      "shape": {
+       "kind": "polygon",
+       "vertices": [
+        [
+         -3,
+         -2
+        ],
+        [
+         4,
+         -2
+        ],
+        [
+         5,
+         3
+        ],
+        [
+         -2,
+         4
+        ]
+       ]
+      },
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "kind": "goto",
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "kind": "goto",
+      "x": 2.5,
+      "y": 252.5
+     }
+    ],
+    "precedence": [
+     [
+      "cut a",
+      "fill d"
+     ]
+    ]
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.6386708470245358,
+    "as_built_flatness_rmse_m": 1.3051248938618576,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.05,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 151283.0,
+      "allowable_pa": 103275.2,
+      "design_load_pa": 20000.0,
+      "factor_of_safety": 3.0,
+      "firming_recommended": false,
+      "holds": true,
+      "width_m": 5.971
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 152002.3,
+      "allowable_pa": 103762.2,
+      "design_load_pa": 20000.0,
+      "factor_of_safety": 3.0,
+      "firming_recommended": false,
+      "holds": true,
+      "width_m": 6.0
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.0823,
+      "target_rise_m": 0.15,
+      "within_tol": false
+     }
+    ],
+    "berm_profile_pass": false,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 0.0,
+    "executed_cut_kg": 11419.104412236418,
+    "executed_dig_J": 47405159.20307496,
+    "executed_fill_kg": 11419.104412236418,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.6800563862992404,
+     "cols": 427,
+     "rows": 500
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 11904.0,
+    "planned_fill_kg": 14956.326809400114,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 17.32,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 51.53,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 53.38,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 52.24,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 397,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 17.7,
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "frac_over": 1.0,
+      "slope_deg": 17.9,
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "frac_over": 1.0,
+      "slope_deg": 19.9,
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "frac_over": 0.75,
+      "slope_deg": 16.2,
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "frac_over": 1.0,
+      "slope_deg": 19.6,
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "frac_over": 1.0,
+      "slope_deg": 19.1,
+      "x": 2.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.6386708470245358,
+    "as_built_flatness_rmse_m": 1.3051248938618574,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.05,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 151283.0,
+      "allowable_pa": 103275.2,
+      "design_load_pa": 20000.0,
+      "factor_of_safety": 3.0,
+      "firming_recommended": false,
+      "holds": true,
+      "width_m": 5.971
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 152002.3,
+      "allowable_pa": 103762.2,
+      "design_load_pa": 20000.0,
+      "factor_of_safety": 3.0,
+      "firming_recommended": false,
+      "holds": true,
+      "width_m": 6.0
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.0823,
+      "target_rise_m": 0.15,
+      "within_tol": false
+     }
+    ],
+    "berm_profile_pass": false,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 0.0,
+    "executed_cut_kg": 11419.104412236418,
+    "executed_dig_J": 47405159.20307496,
+    "executed_fill_kg": 11419.104412236418,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.6800563862992404,
+     "cols": 427,
+     "rows": 500
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 11904.0,
+    "planned_fill_kg": 14956.326809400114,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 24.74,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 52.18,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 53.38,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 52.24,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 397,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 17.7,
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "frac_over": 1.0,
+      "slope_deg": 17.9,
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "frac_over": 1.0,
+      "slope_deg": 19.9,
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "frac_over": 0.75,
+      "slope_deg": 16.2,
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "frac_over": 1.0,
+      "slope_deg": 19.6,
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "frac_over": 1.0,
+      "slope_deg": 19.1,
+      "x": 2.5,
+      "y": 252.5
+     }
+    ]
+   }
+  },
+  {
+   "name": "shaped_heavy_load",
+   "params": {
+    "accept_flatness_tol_m": 0.02,
+    "bearing_fs": 2.0,
+    "bearing_load_pa": 200000.0,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 25.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "haul_two_pairs",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.3,
+      "footprint_m2": 40,
+      "kind": "cut",
+      "shape": {
+       "h": 2.5,
+       "kind": "rectangle",
+       "theta_deg": 30.0,
+       "w": 4.0
+      },
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "depth_m": 0.08,
+      "footprint_m2": 30,
+      "insitu_density_kg_m3": 1650.0,
+      "kind": "cut",
+      "shape": {
+       "kind": "corridor",
+       "length": 20.0,
+       "theta_deg": 45.0,
+       "width": 2.0
+      },
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "shape": {
+       "kind": "circle",
+       "r": 3.0
+      },
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "depth_m": 0.15,
+      "footprint_m2": 10,
+      "kind": "fill",
+      "shape": {
+       "kind": "polygon",
+       "vertices": [
+        [
+         -3,
+         -2
+        ],
+        [
+         4,
+         -2
+        ],
+        [
+         5,
+         3
+        ],
+        [
+         -2,
+         4
+        ]
+       ]
+      },
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "kind": "goto",
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "kind": "goto",
+      "x": 2.5,
+      "y": 252.5
+     }
+    ],
+    "precedence": [
+     [
+      "cut a",
+      "fill d"
+     ]
+    ]
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.6386708470245358,
+    "as_built_flatness_rmse_m": 1.3051248938618576,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 226924.5,
+      "allowable_pa": 154912.8,
+      "design_load_pa": 200000.0,
+      "factor_of_safety": 2.0,
+      "firming_recommended": true,
+      "holds": false,
+      "width_m": 5.971
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 228003.5,
+      "allowable_pa": 155643.4,
+      "design_load_pa": 200000.0,
+      "factor_of_safety": 2.0,
+      "firming_recommended": true,
+      "holds": false,
+      "width_m": 6.0
+     }
+    ],
+    "bearing_pass": false,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.0823,
+      "target_rise_m": 0.15,
+      "within_tol": false
+     }
+    ],
+    "berm_profile_pass": false,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 0.0,
+    "executed_cut_kg": 11419.104412236418,
+    "executed_dig_J": 47405159.20307496,
+    "executed_fill_kg": 11419.104412236418,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.6800563862992404,
+     "cols": 427,
+     "rows": 500
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 25.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 11904.0,
+    "planned_fill_kg": 14956.326809400114,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 17.32,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 51.53,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 53.38,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 52.24,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 397,
+    "slope_violations": []
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.6386708470245358,
+    "as_built_flatness_rmse_m": 1.3051248938618574,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 226924.5,
+      "allowable_pa": 154912.8,
+      "design_load_pa": 200000.0,
+      "factor_of_safety": 2.0,
+      "firming_recommended": true,
+      "holds": false,
+      "width_m": 5.971
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 228003.5,
+      "allowable_pa": 155643.4,
+      "design_load_pa": 200000.0,
+      "factor_of_safety": 2.0,
+      "firming_recommended": true,
+      "holds": false,
+      "width_m": 6.0
+     }
+    ],
+    "bearing_pass": false,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.0823,
+      "target_rise_m": 0.15,
+      "within_tol": false
+     }
+    ],
+    "berm_profile_pass": false,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 0.0,
+    "executed_cut_kg": 11419.104412236418,
+    "executed_dig_J": 47405159.20307496,
+    "executed_fill_kg": 11419.104412236418,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.6800563862992404,
+     "cols": 427,
+     "rows": 500
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 25.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 11904.0,
+    "planned_fill_kg": 14956.326809400114,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 24.74,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 52.18,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 53.38,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 52.24,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 397,
+    "slope_violations": []
+   }
+  },
+  {
+   "name": "small_orders",
+   "params": {
+    "accept_flatness_tol_m": 0.02,
+    "bearing_fs": 3.0,
+    "bearing_load_pa": null,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 30.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "haul_two_pairs",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.05,
+      "footprint_m2": 1.0,
+      "kind": "cut",
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "depth_m": 0.05,
+      "footprint_m2": 1.0,
+      "insitu_density_kg_m3": 1650.0,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "depth_m": 0.05,
+      "footprint_m2": 1.0,
+      "kind": "fill",
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "depth_m": 0.05,
+      "footprint_m2": 1.0,
+      "kind": "fill",
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "kind": "goto",
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "kind": "goto",
+      "x": 2.5,
+      "y": 252.5
+     }
+    ],
+    "precedence": [
+     [
+      "cut a",
+      "fill d"
+     ]
+    ]
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.0,
+    "as_built_flatness_rmse_m": 0.0,
+    "as_built_on_real_dem": true,
+    "as_built_pass": true,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 27511.8,
+      "allowable_pa": 19471.8,
+      "factor_of_safety": 3.0,
+      "width_m": 1.0
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 27511.8,
+      "allowable_pa": 19471.8,
+      "factor_of_safety": 3.0,
+      "width_m": 1.0
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.05,
+      "target_rise_m": 0.05,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.05,
+      "target_rise_m": 0.05,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 96.41368000010362,
+    "executed_cut_kg": 210.35712,
+    "executed_dig_J": 873274.5058723338,
+    "executed_fill_kg": 113.94343999989637,
+    "feasible": true,
+    "grid": {
+     "cell_m": 0.662,
+     "cols": 425,
+     "rows": 500
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 2.384185791015625e-07,
+    "max_slope_deg": 30.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 192.0,
+    "planned_fill_kg": 130.0,
+    "repose": [
+     {
+      "action": "cut b",
+      "max_slope_deg": 3.06,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 2.16,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 2.16,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": true,
+    "shuttle_cycles_est": 8,
+    "slope_violations": []
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.0,
+    "as_built_flatness_rmse_m": 0.0,
+    "as_built_on_real_dem": true,
+    "as_built_pass": true,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 27511.8,
+      "allowable_pa": 19471.8,
+      "factor_of_safety": 3.0,
+      "width_m": 1.0
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 27511.8,
+      "allowable_pa": 19471.8,
+      "factor_of_safety": 3.0,
+      "width_m": 1.0
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.05,
+      "target_rise_m": 0.05,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.05,
+      "target_rise_m": 0.05,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 96.41368000010362,
+    "executed_cut_kg": 210.35712,
+    "executed_dig_J": 873274.5058723338,
+    "executed_fill_kg": 113.94343999989637,
+    "feasible": true,
+    "grid": {
+     "cell_m": 0.662,
+     "cols": 425,
+     "rows": 500
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 2.384185791015625e-07,
+    "max_slope_deg": 30.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 192.0,
+    "planned_fill_kg": 130.0,
+    "repose": [
+     {
+      "action": "cut b",
+      "max_slope_deg": 4.51,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 2.16,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 2.16,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": true,
+    "shuttle_cycles_est": 8,
+    "slope_violations": []
+   }
+  },
+  {
+   "name": "off_dem",
+   "params": {
+    "accept_flatness_tol_m": 0.02,
+    "bearing_fs": 3.0,
+    "bearing_load_pa": null,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 15.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "haul_two_pairs",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 0.3,
+      "footprint_m2": 40,
+      "kind": "cut",
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "depth_m": 0.08,
+      "footprint_m2": 30,
+      "insitu_density_kg_m3": 1650.0,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "depth_m": 0.2,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "depth_m": 0.15,
+      "footprint_m2": 10,
+      "kind": "fill",
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "kind": "goto",
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "kind": "goto",
+      "x": 2.5,
+      "y": 252.5
+     },
+     {
+      "action": "edge cut",
+      "depth_m": 0.1,
+      "footprint_m2": 40.0,
+      "kind": "cut",
+      "x": -103.0,
+      "y": 0.0
+     },
+     {
+      "action": "far fill",
+      "depth_m": 0.1,
+      "footprint_m2": 40.0,
+      "kind": "fill",
+      "x": 403.0,
+      "y": 60.0
+     }
+    ],
+    "precedence": [
+     [
+      "cut a",
+      "fill d"
+     ]
+    ]
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.1891362315090914,
+    "as_built_flatness_rmse_m": 0.9250606840016944,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 152002.3,
+      "allowable_pa": 103762.2,
+      "factor_of_safety": 3.0,
+      "width_m": 6.0
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 81348.4,
+      "allowable_pa": 55923.7,
+      "factor_of_safety": 3.0,
+      "width_m": 3.162
+     },
+     {
+      "action": "far fill",
+      "allowable_firmed_pa": 160083.2,
+      "allowable_pa": 109233.6,
+      "factor_of_safety": 3.0,
+      "width_m": 6.325
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.15,
+      "target_rise_m": 0.15,
+      "within_tol": true
+     },
+     {
+      "action": "far fill",
+      "as_built_rise_m": 0.1,
+      "target_rise_m": 0.1,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 18851.46235200515,
+    "executed_cut_kg": 34405.311919082415,
+    "executed_dig_J": 142829877.90249366,
+    "executed_fill_kg": 15553.849567077265,
+    "feasible": false,
+    "grid": {
+     "cell_m": 1.0452982212813473,
+     "cols": 500,
+     "rows": 376
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [
+     {
+      "action": "edge cut",
+      "x": -103.0,
+      "y": 0.0
+     },
+     {
+      "action": "far fill",
+      "x": 403.0,
+      "y": 60.0
+     }
+    ],
+    "planned_cut_kg": 35328.0,
+    "planned_fill_kg": 16510.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 43.23,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 38.97,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 39.02,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 41.55,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "edge cut",
+      "max_slope_deg": 3.87,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "far fill",
+      "max_slope_deg": 3.87,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 1178,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 17.7,
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "frac_over": 1.0,
+      "slope_deg": 17.9,
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "frac_over": 1.0,
+      "slope_deg": 19.9,
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "frac_over": 0.75,
+      "slope_deg": 16.2,
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "frac_over": 1.0,
+      "slope_deg": 19.6,
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "frac_over": 1.0,
+      "slope_deg": 19.1,
+      "x": 2.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.1891362315090724,
+    "as_built_flatness_rmse_m": 0.9250606840016942,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [
+     {
+      "action": "fill c",
+      "allowable_firmed_pa": 152002.3,
+      "allowable_pa": 103762.2,
+      "factor_of_safety": 3.0,
+      "width_m": 6.0
+     },
+     {
+      "action": "fill d",
+      "allowable_firmed_pa": 81348.4,
+      "allowable_pa": 55923.7,
+      "factor_of_safety": 3.0,
+      "width_m": 3.162
+     },
+     {
+      "action": "far fill",
+      "allowable_firmed_pa": 160083.2,
+      "allowable_pa": 109233.6,
+      "factor_of_safety": 3.0,
+      "width_m": 6.325
+     }
+    ],
+    "bearing_pass": true,
+    "berm_profile": [
+     {
+      "action": "fill c",
+      "as_built_rise_m": 0.2,
+      "target_rise_m": 0.2,
+      "within_tol": true
+     },
+     {
+      "action": "fill d",
+      "as_built_rise_m": 0.15,
+      "target_rise_m": 0.15,
+      "within_tol": true
+     },
+     {
+      "action": "far fill",
+      "as_built_rise_m": 0.1,
+      "target_rise_m": 0.1,
+      "within_tol": true
+     }
+    ],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 18851.46235200515,
+    "executed_cut_kg": 34405.311919082415,
+    "executed_dig_J": 142829877.90249366,
+    "executed_fill_kg": 15553.849567077265,
+    "feasible": false,
+    "grid": {
+     "cell_m": 1.0452982212813473,
+     "cols": 500,
+     "rows": 376
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 15.0,
+    "off_dem_orders": [
+     {
+      "action": "edge cut",
+      "x": -103.0,
+      "y": 0.0
+     },
+     {
+      "action": "far fill",
+      "x": 403.0,
+      "y": 60.0
+     }
+    ],
+    "planned_cut_kg": 35328.0,
+    "planned_fill_kg": 16510.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 45.66,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 39.64,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill c",
+      "max_slope_deg": 39.02,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "fill d",
+      "max_slope_deg": 41.55,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "edge cut",
+      "max_slope_deg": 5.71,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     },
+     {
+      "action": "far fill",
+      "max_slope_deg": 3.87,
+      "repose_limit_deg": 35.0,
+      "stable": true
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 1178,
+    "slope_violations": [
+     {
+      "action": "cut a",
+      "frac_over": 1.0,
+      "slope_deg": 17.7,
+      "x": 2.5,
+      "y": 52.5
+     },
+     {
+      "action": "cut b",
+      "frac_over": 1.0,
+      "slope_deg": 17.9,
+      "x": 52.5,
+      "y": 302.5
+     },
+     {
+      "action": "fill c",
+      "frac_over": 1.0,
+      "slope_deg": 19.9,
+      "x": 152.5,
+      "y": 152.5
+     },
+     {
+      "action": "fill d",
+      "frac_over": 0.75,
+      "slope_deg": 16.2,
+      "x": 277.5,
+      "y": 377.5
+     },
+     {
+      "action": "w1",
+      "frac_over": 1.0,
+      "slope_deg": 19.6,
+      "x": 7.5,
+      "y": 202.5
+     },
+     {
+      "action": "w2",
+      "frac_over": 1.0,
+      "slope_deg": 19.1,
+      "x": 2.5,
+      "y": 252.5
+     }
+    ]
+   }
+  },
+  {
+   "name": "below_the_mantle",
+   "params": {
+    "accept_flatness_tol_m": 0.02,
+    "bearing_fs": 3.0,
+    "bearing_load_pa": null,
+    "cell_m": 0.5,
+    "max_cells": 500,
+    "max_slope_deg": 90.0,
+    "regolith_depth_m": 10.0
+   },
+   "payload": {
+    "body": "moon",
+    "charger": [
+     152.5,
+     197.5
+    ],
+    "name": "cuts_only",
+    "orders": [
+     {
+      "action": "cut a",
+      "depth_m": 12.0,
+      "footprint_m2": 30,
+      "kind": "cut",
+      "x": 52.5,
+      "y": 102.5
+     },
+     {
+      "action": "cut b",
+      "depth_m": 0.6,
+      "footprint_m2": 12,
+      "kind": "cut",
+      "x": 152.5,
+      "y": 252.5
+     }
+    ]
+   },
+   "result": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.2175485938298781,
+    "as_built_flatness_rmse_m": 0.4350971876597562,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [],
+    "bearing_pass": true,
+    "berm_profile": [],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 594912.0,
+    "executed_cut_kg": 594912.0,
+    "executed_dig_J": 2469711901.5392575,
+    "executed_fill_kg": 0.0,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.5,
+     "cols": 228,
+     "rows": 328
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 90.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 705024.0,
+    "planned_fill_kg": 0.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 86.26,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 40.32,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 23501,
+    "slope_violations": []
+   },
+   "stock": {
+    "acceptance_scope": {
+     "covers": [
+      "mass_conservation",
+      "datum_floor_feasibility",
+      "drum_supply",
+      "slope_siting",
+      "off_dem_siting",
+      "as_built_flatness",
+      "berm_profile",
+      "repose_stability",
+      "bearing_capacity"
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "as_built_flatness_mean_m": 0.21754859382993494,
+    "as_built_flatness_rmse_m": 0.4350971876597562,
+    "as_built_on_real_dem": true,
+    "as_built_pass": false,
+    "as_built_tol_m": 0.02,
+    "bearing": [],
+    "bearing_pass": true,
+    "berm_profile": [],
+    "berm_profile_pass": true,
+    "drum_capacity_kg": 30.0,
+    "drum_remaining_kg": 594912.0,
+    "executed_cut_kg": 594912.0,
+    "executed_dig_J": 2469711901.5392575,
+    "executed_fill_kg": 0.0,
+    "feasible": false,
+    "grid": {
+     "cell_m": 0.5,
+     "cols": 228,
+     "rows": 328
+    },
+    "mass_conserved": true,
+    "mass_drift_kg": 0.0,
+    "max_slope_deg": 90.0,
+    "off_dem_orders": [],
+    "planned_cut_kg": 705024.0,
+    "planned_fill_kg": 0.0,
+    "repose": [
+     {
+      "action": "cut a",
+      "max_slope_deg": 87.4,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     },
+     {
+      "action": "cut b",
+      "max_slope_deg": 51.41,
+      "repose_limit_deg": 35.0,
+      "stable": false
+     }
+    ],
+    "repose_limit_deg": 35.0,
+    "repose_pass": false,
+    "shuttle_cycles_est": 23501,
+    "slope_violations": []
+   }
+  }
+ ]
+}

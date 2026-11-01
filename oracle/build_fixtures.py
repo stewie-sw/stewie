@@ -2060,6 +2060,108 @@ def plan_ir_cases() -> None:
                   {"cases": cases})
 
 
+def acceptance_cases() -> None:
+    """Pooled plan acceptance (RW-33e1): lode.planner_acceptance.validate_plan on missions over the real Haworth route
+    window -- material realizability on the conserved column, slope and off-DEM siting, as-built flatness, berm rise,
+    repose and bearing capacity -- for every footprint shape. Each case records the stock Python result AND the result
+    with the acceptance column built at bank density (D-R98): the stock column takes ColumnState's default surface
+    density, so its 10 m mantle stands 14.8 m tall and a cut drops the surface 1.48x its depth. The two differ only in
+    the repose (flank-slope) figures. Multi-site layouts, shapes, the edge order and the design load are SYNTHETIC
+    (labelled) settings on the real terrain."""
+    import copy
+    import inspect
+
+    import lode.planner_acceptance as PA
+    from lode.planner_model import mission_from_dict
+
+    with open(os.path.join(ORACLE_FIXTURES, "trips_cases.payload.json")) as fh:
+        tc = json.load(fh)
+    tc = tc.get("payload", tc)
+    base, _ = __import__("stewie.physics.worksite", fromlist=["coarse_base_from_bundle"]).coarse_base_from_bundle(
+        os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    dem, origin = (Z, 5.0), (100.0, 50.0)
+    payloads = {mc["name"]: mc["payload"] for mc in tc["missions"]}
+    stock_cs = PA.ColumnState
+
+    def bank_density_column(**kw):
+        # the mantle at the density its mass was loaded at (mass_areal = rho_bank * 10 m)
+        kw.setdefault("density", kw["mass_areal"] / 10.0)
+        return stock_cs(**kw)
+
+    def clean(r):
+        return {k: v for k, v in r.items() if k != "terrain_grids"}
+
+    cases = []
+
+    def run(name, payload, **kw):
+        m = mission_from_dict(payload)
+        stock = clean(PA.validate_plan(m, dem=dem, dem_origin=origin, **kw))
+        PA.ColumnState = bank_density_column
+        try:
+            fixed = clean(PA.validate_plan(m, dem=dem, dem_origin=origin, **kw))
+        finally:
+            PA.ColumnState = stock_cs
+        def near(a, b):
+            if isinstance(a, float) and isinstance(b, float):
+                return abs(a - b) <= 1e-9 * max(1.0, abs(b))
+            if isinstance(a, dict) and isinstance(b, dict):
+                return a.keys() == b.keys() and all(near(a[k], b[k]) for k in a)
+            if isinstance(a, list) and isinstance(b, list):
+                return len(a) == len(b) and all(near(x, y) for x, y in zip(a, b))
+            return a == b
+
+        for k in fixed:
+            if k not in ("repose", "repose_pass"):
+                assert near(fixed[k], stock[k]), f"{name}: D-R98 changed {k}"
+        sig = inspect.signature(PA.validate_plan).parameters
+        params = {k: v.default for k, v in sig.items()
+                  if v.default is not inspect.Parameter.empty and k not in ("dem", "dem_origin", "return_grids")}
+        params.update(kw)
+        cases.append({"name": name, "payload": payload, "params": params, "stock": stock, "result": fixed})
+
+    main = payloads["haul_two_pairs"]
+    run("two_pairs", main)
+    for nm in ("deficit", "cuts_only", "heavy_rassor", "unreachable_fill"):
+        run(nm, payloads[nm])
+    shaped = copy.deepcopy(main)
+    shaped["orders"][0] = dict(shaped["orders"][0], shape={"kind": "rectangle", "w": 4.0, "h": 2.5, "theta_deg": 30.0})
+    shaped["orders"][1] = dict(shaped["orders"][1], shape={"kind": "corridor", "length": 20.0, "width": 2.0,
+                                                           "theta_deg": 45.0})
+    shaped["orders"][2] = dict(shaped["orders"][2], shape={"kind": "circle", "r": 3.0})
+    shaped["orders"][3] = dict(shaped["orders"][3], shape={"kind": "polygon",
+                                                           "vertices": [[-3, -2], [4, -2], [5, 3], [-2, 4]]})
+    run("shaped", shaped, bearing_load_pa=20000.0, accept_flatness_tol_m=0.05)
+    run("shaped_heavy_load", shaped, bearing_load_pa=200000.0, bearing_fs=2.0, max_slope_deg=25.0)
+    small = copy.deepcopy(main)
+    small["orders"] = [dict(o, footprint_m2=1.0, depth_m=0.05) if o["kind"] != "goto" else o for o in main["orders"]]
+    run("small_orders", small, max_slope_deg=30.0)
+    edge = copy.deepcopy(main)
+    far = n * 5.0 - origin[0] + 3.0                          # just past the window's far side
+    edge["orders"] = list(main["orders"]) + [{"action": "edge cut", "kind": "cut", "x": -103.0, "y": 0.0,
+                                              "footprint_m2": 40.0, "depth_m": 0.1},
+                                             {"action": "far fill", "kind": "fill", "x": far, "y": 60.0,
+                                              "footprint_m2": 40.0, "depth_m": 0.1}]
+    run("off_dem", edge)
+    deep = copy.deepcopy(payloads["cuts_only"])
+    deep["orders"][0] = dict(deep["orders"][0], depth_m=12.0)
+    run("below_the_mantle", deep, max_slope_deg=90.0)     # siting passes, so only the datum floor can fail it
+    assert any(len(c["result"]["off_dem_orders"]) == 2 for c in cases), "vacuity: orders off both DEM edges"
+    floor = [c for c in cases if c["name"] == "below_the_mantle"][0]["result"]
+    assert not floor["feasible"] and not floor["slope_violations"], "vacuity: the datum floor alone fails a plan"
+    assert any(c["result"]["slope_violations"] for c in cases), "vacuity: a slope violation"
+    assert any(not c["result"]["feasible"] for c in cases) and any(c["result"]["feasible"] for c in cases)
+    assert any(b.get("firming_recommended") for c in cases for b in c["result"]["bearing"]), "vacuity: firming"
+    assert any(c["result"]["repose"] != c["stock"]["repose"] for c in cases), "vacuity: D-R98 changes repose"
+    write_fixture(ORACLE_FIXTURES, "acceptance_cases", "oracle/build_fixtures.py::acceptance_cases (lode.planner_"
+                  "acceptance.validate_plan over the real Haworth route window, stock and at bank density; layouts, "
+                  "shapes, the edge order and the design loads SYNTHETIC, labelled)",
+                  ["lode/planner_acceptance.py", "stewie/physics/column_state.py", "lode/gis_export.py",
+                   "forge/bearing.py", "crates/stewie-oracle/fixtures/trips_cases.payload.json"],
+                  {"cases": cases})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -2335,6 +2437,7 @@ def main() -> None:
     fleet_cases()
     plan_cases()
     plan_ir_cases()
+    acceptance_cases()
 
 
 if __name__ == "__main__":
