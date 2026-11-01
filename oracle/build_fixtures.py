@@ -5263,6 +5263,89 @@ def http_assets_cases() -> None:
                   payload)
 
 
+def http_editsession_cases() -> None:
+    """The mission-feature edit sessions (RW-55b12): create, read, keep-out create/modify/delete, markers and undo
+    through one scripted session (_http_session), keyless as the Python's routes are. Eleven keep-outs make the
+    feature order (insertion order, so ko10 after ko9) observable, and a delete undone puts its keep-out back last.
+    The store's rows are recorded as their column text (``db_rows``), not the SQLite file, whose page layout
+    depends on the library version. The geometry is SYNTHETIC (labelled)."""
+    import sqlite3
+
+    from stewie.server import db as DB
+    from stewie.server import edit_session as ES
+
+    rows = {}
+
+    def script(call, key, d, clock):
+        ES._CACHE.clear()
+        call("GET", "/edit/session/nope")
+        r = call("POST", "/edit/session")
+        sid = r.json()["session"]
+        base = f"/edit/session/{sid}"
+        for i in range(11):
+            clock["t"] += 0.25
+            call("POST", base + "/keepout", json_body={"kind": "circle", "cx": 10.0 * i, "cy": -2.5, "r": 1 + i})
+        call("POST", base + "/keepout", raw=json.dumps({"kind": "Polygon", "ring": [[0, 0], ["4.5", 0], [4, True]]}))
+        call("PATCH", base + "/keepout/ko2", json_body={"kind": "circle", "cx": 99.5, "cy": 1, "r": 2})
+        clock["t"] += 1.0
+        call("DELETE", base + "/keepout/ko3")
+        call("POST", base + "/undo")                                    # ko3 returns, now last
+        call("POST", base + "/undo")                                    # the ko2 modify reverts in place
+        call("POST", base + "/marker", json_body={"x": 1.5, "y": -3, "otype": " Beacon ", "label": "  "})
+        call("POST", base + "/marker", json_body={"x": 2, "y": 2, "otype": "cache", "label": "Spoil A" + "x" * 90})
+        call("DELETE", base + "/marker/mk1")
+        call("POST", base + "/undo")                                    # the marker comes back
+        for _ in range(18):                                             # past the 50-record audit tail
+            r = call("POST", base + "/marker", json_body={"x": 0, "y": 0, "otype": "sample"})
+            call("DELETE", base + "/marker/" + r.json()["marker"]["fid"])
+        call("GET", base)
+        call("GET", base + "/audit")
+        # validation runs before the session lookup (a 400, even on an unknown id)
+        call("POST", "/edit/session/nope/keepout", json_body={"kind": "circle", "cx": "x"})
+        call("POST", "/edit/session/nope/keepout", json_body={"kind": "circle", "extra": 1})
+        call("POST", "/edit/session/nope/keepout", raw="{not json")
+        call("POST", "/edit/session/nope/keepout", json_body={"kind": "circle", "cx": 1, "cy": 1, "r": 1})
+        for bad in ({"kind": "circle", "cx": 1, "cy": 1, "r": 0}, {"kind": "circle", "cx": 1, "r": 1},
+                    {"kind": "circle", "cx": 1, "cy": 1, "r": -2.5}, {"kind": "square"}, {"kind": "polygon"},
+                    {"kind": "polygon", "ring": [[0, 0], [1, 1]]}, {"kind": "polygon", "ring": [[0, 0], [1], [2, 2]]},
+                    {"kind": "polygon", "ring": [[0, 0], [1, "a"], [2, 2]]},
+                    {"kind": "polygon", "ring": [[0, 0], [1, None], [2, 2]]},
+                    {"kind": "polygon", "ring": [[0, 0], [1, {"b": 1, "a": 2}], [2, 2]]},
+                    {"kind": "polygon", "ring": [[0, 0], [1, "inf"], [2, 2]]},
+                    {"kind": "polygon", "ring": [[0, 0], [1, "1__0"], [2, 2]]}):
+            call("POST", base + "/keepout", raw=json.dumps(bad))
+        call("PATCH", base + "/keepout/ko99", json_body={"kind": "circle", "cx": 1, "cy": 1, "r": 1})
+        call("PATCH", base + "/keepout/ko99", json_body={"kind": "square"})    # the geometry first: a 400
+        call("DELETE", base + "/keepout/ko99")
+        call("DELETE", base + "/marker/mk9")
+        call("POST", base + "/marker", json_body={"x": 1, "y": 1, "otype": "rover"})
+        call("POST", base + "/marker", json_body={"x": 1, "y": 1})
+        call("GET", "/edit/session/a%2Fb")                                     # Starlette: no route
+        r = call("POST", "/edit/session")                                      # a second, untouched session
+        sid2 = r.json()["session"]
+        call("POST", f"/edit/session/{sid2}/undo")                             # nothing to undo
+        call("GET", "/edit/session")                                           # GET on a POST route
+        DB.dispose()
+        with sqlite3.connect(os.path.join(d, "edit_session.db")) as c:
+            rows["edit_session"] = [list(x) for x in c.execute(
+                "SELECT opaque_id, plan_id, version, created_at, fid_seq, marker_seq, features, markers "
+                "FROM edit_session ORDER BY opaque_id")]
+            rows["edit_audit"] = [list(x) for x in c.execute(
+                'SELECT id, session_id, version, op, fid, kind, "before", "after", ts, target, reverted_op '
+                "FROM edit_audit ORDER BY session_id, version")]
+
+    try:
+        payload = _http_session("stewie-http-editsession-oracle", {}, script)
+    finally:
+        ES._CACHE.clear()
+        DB.dispose()
+    payload["db_rows"] = rows
+    write_fixture(ORACLE_FIXTURES, "http_editsession_cases", "oracle/build_fixtures.py::http_editsession_cases (the "
+                  "FastAPI app's edit-session routes over server.db's SQLite store; SYNTHETIC geometry, labelled)",
+                  ["stewie/server/routers/editsession.py", "stewie/server/edit_session.py", "stewie/server/db.py"],
+                  payload)
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5380,6 +5463,7 @@ def main() -> None:
     http_missions_cases()
     http_library_cases()
     http_assets_cases()
+    http_editsession_cases()
 
 
 if __name__ == "__main__":

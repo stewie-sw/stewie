@@ -221,6 +221,8 @@ pub struct AppState {
     world_points: RateLimiter,
     viz_quota: RateLimiter,
     draft_quota: RateLimiter,
+    /// The mission-feature edit sessions (`data_dir/edit_session.db`, opened on first use).
+    pub edit_sessions: crate::edit_session::Store,
     started: Instant,
     /// The process's `STEWIE_*` variables, which `/config` reports as the overlay's overrides
     /// ([`AppState::with_environment`]; empty until given).
@@ -295,6 +297,7 @@ impl AppState {
             world_points: RateLimiter::new(settings.world_point_budget, settings.world_window_s),
             viz_quota: RateLimiter::new(settings.viz_quota_max, settings.viz_window_s),
             draft_quota: RateLimiter::new(120, 60.0),
+            edit_sessions: crate::edit_session::Store::new(&cfg.data_dir),
             cfg,
             settings,
             store,
@@ -1015,6 +1018,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::structure_routes::routes())
         .merge(crate::mission_routes::routes())
         .merge(crate::library_routes::routes())
+        .merge(crate::edit_session::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

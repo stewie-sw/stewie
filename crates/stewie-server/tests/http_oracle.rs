@@ -13,6 +13,7 @@ use axum::http::Request;
 use http_body_util::BodyExt as _;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
+use sqlx::Connection as _;
 use stewie_server::app::{AppState, router};
 use stewie_server::{Clock, Entropy};
 use tower::ServiceExt as _;
@@ -390,6 +391,51 @@ async fn replay(
             assert_eq!(&json!(got), want, "the journal {name}");
         }
         assert!(!journals.is_empty(), "vacuity: journals were recorded");
+    }
+    // the edit-session store's rows, column for column (the JSON columns as their stored text)
+    if let Some(want) = fx.get("db_rows") {
+        use sqlx::Row as _;
+        let mut db = sqlx::SqliteConnection::connect(&format!(
+            "sqlite://{}",
+            dir.join("edit_session.db").display()
+        ))
+        .await
+        .unwrap();
+        let sessions: Vec<Value> = sqlx::query(
+            "SELECT opaque_id, plan_id, version, created_at, fid_seq, marker_seq, features, markers \
+             FROM edit_session ORDER BY opaque_id",
+        )
+        .fetch_all(&mut db)
+        .await
+        .unwrap()
+        .iter()
+        .map(|r| {
+            json!([r.get::<String, _>(0), r.get::<Option<String>, _>(1), r.get::<i64, _>(2), r.get::<f64, _>(3),
+                   r.get::<i64, _>(4), r.get::<i64, _>(5), r.get::<String, _>(6), r.get::<String, _>(7)])
+        })
+        .collect();
+        let audit: Vec<Value> = sqlx::query(
+            "SELECT id, session_id, version, op, fid, kind, \"before\", \"after\", ts, target, reverted_op \
+             FROM edit_audit ORDER BY session_id, version",
+        )
+        .fetch_all(&mut db)
+        .await
+        .unwrap()
+        .iter()
+        .map(|r| {
+            json!([r.get::<i64, _>(0), r.get::<String, _>(1), r.get::<i64, _>(2), r.get::<String, _>(3),
+                   r.get::<Option<String>, _>(4), r.get::<Option<String>, _>(5), r.get::<Option<String>, _>(6),
+                   r.get::<Option<String>, _>(7), r.get::<f64, _>(8), r.get::<Option<i64>, _>(9),
+                   r.get::<Option<String>, _>(10)])
+        })
+        .collect();
+        assert!(!audit.is_empty(), "vacuity: audit rows were written");
+        assert_eq!(
+            json!(sessions),
+            want["edit_session"],
+            "the edit_session rows"
+        );
+        assert_eq!(json!(audit), want["edit_audit"], "the edit_audit rows");
     }
     // the data-directory files the session wrote, byte for byte, where the fixture recorded them
     if let Some(files) = fx.get("data_files").and_then(Value::as_object) {
@@ -1193,5 +1239,262 @@ async fn every_bundled_file_is_served_as_it_is_on_disk() {
         let got = r.into_body().collect().await.unwrap().to_bytes();
         assert_eq!(&got[..], &std::fs::read(&path).unwrap()[..], "{uri}");
     }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn the_python_edit_session_replays_with_its_store_rows() {
+    replay(
+        "http_editsession_cases",
+        b"stewie-http-editsession-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+/// SYNTHETIC: an app over an existing data dir, with its own settable clock.
+fn app_on(dir: &std::path::Path, tag: &str) -> (axum::Router, &'static PinnedClock) {
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(tag.as_bytes()).into(),
+        n: Mutex::new(0),
+    }));
+    let state = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
+    (router(Arc::new(state)), clock)
+}
+
+async fn call(app: &axum::Router, method: &str, path: &str, body: Option<Value>) -> (u16, Value) {
+    let mut b = Request::builder().method(method).uri(path);
+    if body.is_some() {
+        b = b.header("content-type", "application/json");
+    }
+    let mut req = b
+        .body(body.map_or_else(Body::empty, |v| Body::from(v.to_string())))
+        .unwrap();
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+    let r = app.clone().oneshot(req).await.unwrap();
+    let status = r.status().as_u16();
+    let v = serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    (status, v)
+}
+
+#[tokio::test]
+async fn sessions_the_python_stored_read_back_through_the_rust_routes() {
+    // the oracle's own rows, inserted with the Python's DDL, then read through the routes
+    let fx = stewie_oracle::load("http_editsession_cases")
+        .unwrap()
+        .payload;
+    let dir = std::env::temp_dir().join(format!("stewie-es-py-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let (app, _) = app_on(&dir, "es-py");
+    assert_eq!(call(&app, "GET", "/edit/session/none", None).await.0, 404); // opens the store, makes the schema
+    let mut db = sqlx::SqliteConnection::connect(&format!(
+        "sqlite://{}",
+        dir.join("edit_session.db").display()
+    ))
+    .await
+    .unwrap();
+    for r in fx["db_rows"]["edit_session"].as_array().unwrap() {
+        let mut q = sqlx::query("INSERT INTO edit_session VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        q = q
+            .bind(r[0].as_str())
+            .bind(r[1].as_str())
+            .bind(r[2].as_i64())
+            .bind(r[3].as_f64());
+        q = q
+            .bind(r[4].as_i64())
+            .bind(r[5].as_i64())
+            .bind(r[6].as_str())
+            .bind(r[7].as_str());
+        q.execute(&mut db).await.unwrap();
+    }
+    for r in fx["db_rows"]["edit_audit"].as_array().unwrap() {
+        let mut q = sqlx::query("INSERT INTO edit_audit VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        q = q
+            .bind(r[0].as_i64())
+            .bind(r[1].as_str())
+            .bind(r[2].as_i64())
+            .bind(r[3].as_str());
+        q = q
+            .bind(r[4].as_str())
+            .bind(r[5].as_str())
+            .bind(r[6].as_str())
+            .bind(r[7].as_str());
+        q = q
+            .bind(r[8].as_f64())
+            .bind(r[9].as_i64())
+            .bind(r[10].as_str());
+        q.execute(&mut db).await.unwrap();
+    }
+    // the oracle's last full read of the authored session is its final state
+    let step = fx["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| {
+            s["request"]["method"] == "GET"
+                && s["status"] == 200
+                && s["body"]["features"]
+                    .as_array()
+                    .is_some_and(|f| f.len() > 10)
+        })
+        .unwrap();
+    let path = step["request"]["path"].as_str().unwrap();
+    let (status, body) = call(&app, "GET", path, None).await;
+    assert_eq!(status, 200);
+    assert_eq!(body, step["body"], "{path}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn an_edit_session_survives_a_restart() {
+    let dir = std::env::temp_dir().join(format!("stewie-es-restart-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let (app, _) = app_on(&dir, "es-restart");
+    let sid = call(&app, "POST", "/edit/session", None).await.1["session"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let ko = json!({"kind": "circle", "cx": 1, "cy": 2, "r": 3}); // SYNTHETIC
+    assert_eq!(
+        call(
+            &app,
+            "POST",
+            &format!("/edit/session/{sid}/keepout"),
+            Some(ko)
+        )
+        .await
+        .0,
+        200
+    );
+    let before = call(&app, "GET", &format!("/edit/session/{sid}"), None)
+        .await
+        .1;
+    drop(app);
+    let (again, _) = app_on(&dir, "es-restart-2");
+    let (status, after) = call(&again, "GET", &format!("/edit/session/{sid}"), None).await;
+    assert_eq!((status, &after), (200, &before));
+    let (status, undone) = call(&again, "POST", &format!("/edit/session/{sid}/undo"), None).await;
+    assert_eq!((status, undone["features"].clone()), (200, json!([])));
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn a_full_store_evicts_only_an_empty_session_and_refuses_when_none_is() {
+    // SYNTHETIC: 512 sessions (the Python's MAX_SESSIONS), created one second apart so "oldest" is defined
+    let dir = std::env::temp_dir().join(format!("stewie-es-cap-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let (app, clock) = app_on(&dir, "es-cap");
+    let mut sids = Vec::new();
+    for _ in 0..512 {
+        *clock.0.lock().unwrap() += 1.0;
+        sids.push(
+            call(&app, "POST", "/edit/session", None).await.1["session"]
+                .as_str()
+                .unwrap()
+                .to_owned(),
+        );
+    }
+    let ko = json!({"kind": "circle", "cx": 0, "cy": 0, "r": 1});
+    for sid in &sids[..2] {
+        assert_eq!(
+            call(
+                &app,
+                "POST",
+                &format!("/edit/session/{sid}/keepout"),
+                Some(ko.clone())
+            )
+            .await
+            .0,
+            200
+        );
+    }
+    *clock.0.lock().unwrap() += 1.0;
+    assert_eq!(call(&app, "POST", "/edit/session", None).await.0, 200);
+    // the two oldest hold work and stay; the oldest empty one (the third) made room
+    assert_eq!(
+        call(&app, "GET", &format!("/edit/session/{}", sids[0]), None)
+            .await
+            .0,
+        200
+    );
+    assert_eq!(
+        call(&app, "GET", &format!("/edit/session/{}", sids[2]), None)
+            .await
+            .0,
+        404
+    );
+    // with every session holding work, a new one is refused rather than evict anyone
+    let mut db = sqlx::SqliteConnection::connect(&format!(
+        "sqlite://{}",
+        dir.join("edit_session.db").display()
+    ))
+    .await
+    .unwrap();
+    sqlx::query("UPDATE edit_session SET features = '{\"ko1\": {}}'")
+        .execute(&mut db)
+        .await
+        .unwrap();
+    let (status, body) = call(&app, "POST", "/edit/session", None).await;
+    assert_eq!(status, 503, "{body}");
+    assert_eq!(
+        body["error"],
+        "edit-session store is full (512/512) and every session holds authored features; refusing to delete an \
+         operator's geometry to make room"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn concurrent_edits_to_one_session_all_land_in_order() {
+    // SYNTHETIC: twenty simultaneous creates; each edit is one immediate transaction, so none is lost or refused
+    let dir = std::env::temp_dir().join(format!("stewie-es-conc-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let (app, _) = app_on(&dir, "es-conc");
+    let sid = call(&app, "POST", "/edit/session", None).await.1["session"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let tasks: Vec<_> = (0..20)
+        .map(|i| {
+            let (app, path) = (app.clone(), format!("/edit/session/{sid}/keepout"));
+            tokio::spawn(async move {
+                call(
+                    &app,
+                    "POST",
+                    &path,
+                    Some(json!({"kind": "circle", "cx": i, "cy": 0, "r": 1})),
+                )
+                .await
+            })
+        })
+        .collect();
+    for t in tasks {
+        let (status, body) = t.await.unwrap();
+        assert_eq!(status, 200, "{body}");
+    }
+    let (_, state) = call(&app, "GET", &format!("/edit/session/{sid}"), None).await;
+    assert_eq!(state["version"], 20);
+    let fids: Vec<&str> = state["features"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["fid"].as_str().unwrap())
+        .collect();
+    assert_eq!(fids, (1..=20).map(|i| format!("ko{i}")).collect::<Vec<_>>());
     std::fs::remove_dir_all(&dir).unwrap();
 }

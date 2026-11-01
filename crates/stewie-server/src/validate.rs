@@ -577,6 +577,69 @@ impl Ordered {
         }
     }
 
+    /// Python's `json.dumps(value)` (separators `", "` and `": "`, ASCII-escaped, keys in their order), the text
+    /// `SQLAlchemy`'s JSON column stores.
+    ///
+    /// # Errors
+    /// A non-finite float.
+    pub fn py_dumps(&self) -> Result<String, String> {
+        fn write(out: &mut String, v: &Ordered) -> Result<(), String> {
+            match v {
+                Ordered::Null => out.push_str("null"),
+                Ordered::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+                Ordered::Number(n) => match (n.as_i64(), n.as_u64(), n.as_f64()) {
+                    (Some(i), ..) => out.push_str(&i.to_string()),
+                    (_, Some(u), _) => out.push_str(&u.to_string()),
+                    (.., Some(x)) => out
+                        .push_str(&stewie_twin::pyjson::float_repr(x).map_err(|e| e.to_string())?),
+                    _ => return Err(format!("number {n}")),
+                },
+                Ordered::String(s) => stewie_twin::pyjson::write_str(out, s),
+                Ordered::Array(a) => {
+                    out.push('[');
+                    for (i, x) in a.iter().enumerate() {
+                        if i > 0 {
+                            out.push_str(", ");
+                        }
+                        write(out, x)?;
+                    }
+                    out.push(']');
+                }
+                Ordered::Object(m) => {
+                    out.push('{');
+                    for (i, (k, x)) in m.iter().enumerate() {
+                        if i > 0 {
+                            out.push_str(", ");
+                        }
+                        stewie_twin::pyjson::write_str(out, k);
+                        out.push_str(": ");
+                        write(out, x)?;
+                    }
+                    out.push('}');
+                }
+            }
+            Ok(())
+        }
+        let mut out = String::new();
+        write(&mut out, self)?;
+        Ok(out)
+    }
+
+    /// The value as a `serde_json::Value` (its object keys then sorted).
+    #[must_use]
+    pub fn to_value(&self) -> Value {
+        match self {
+            Self::Null => Value::Null,
+            Self::Bool(b) => Value::Bool(*b),
+            Self::Number(n) => Value::Number(n.clone()),
+            Self::String(s) => Value::String(s.clone()),
+            Self::Array(a) => Value::Array(a.iter().map(Self::to_value).collect()),
+            Self::Object(m) => {
+                Value::Object(m.iter().map(|(k, v)| (k.clone(), v.to_value())).collect())
+            }
+        }
+    }
+
     /// Python's `json.dumps(value, indent=2)` of the value `json.loads` would have made, keys in the client's order.
     ///
     /// # Errors

@@ -11,6 +11,7 @@ pub mod construction;
 pub mod content_routes;
 pub mod contour;
 pub mod dem_routes;
+pub mod edit_session;
 pub mod library_routes;
 pub mod mission_routes;
 pub mod objects;

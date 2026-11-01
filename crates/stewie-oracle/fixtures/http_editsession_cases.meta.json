@@ -1,0 +1,10 @@
+{
+ "fixture": "http_editsession_cases",
+ "generator": "oracle/build_fixtures.py::http_editsession_cases (the FastAPI app's edit-session routes over server.db's SQLite store; SYNTHETIC geometry, labelled)",
+ "payload_sha256": "803ec63e168b000324f6256b1844b060f57ebdf691d0bc7c3b85f4e8a7a972e1",
+ "sources": {
+  "stewie/server/db.py": "39a5c8029fb2e9402164d4a1eca72c9dcc3b38f42ef12fc4eb2407b69e75aa81",
+  "stewie/server/edit_session.py": "64dc5a7ccc73236321db6f429898ee62f729a466a6152c1dd627bbcab892f6cc",
+  "stewie/server/routers/editsession.py": "1cbdd08066951aef416d973c8f7ca4618d594e7e4ecc62b9c669707a88cb641e"
+ }
+}
