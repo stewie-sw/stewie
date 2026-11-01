@@ -99,6 +99,7 @@ async fn replay(
     name: &str,
     seed: &[u8],
     before: impl Fn(usize, &Value, &PinnedClock, &std::path::Path),
+    departure: impl Fn(&Value, &mut Value),
 ) {
     let fx = stewie_oracle::load(name).unwrap().payload;
     let dir = std::env::temp_dir().join(format!("stewie-{name}-{}", std::process::id()));
@@ -157,6 +158,7 @@ async fn replay(
         let mut body: Value = serde_json::from_slice(&raw)
             .unwrap_or_else(|_| json!(String::from_utf8_lossy(&raw).into_owned()));
         normalise(&mut body);
+        departure(r, &mut body);
         let what = format!("step {} {} {}", i + 1, r["method"], r["path"]);
         assert_eq!(
             u64::from(status),
@@ -169,9 +171,9 @@ async fn replay(
             assert_eq!(Value::Array(cookies), step["cookies"], "{what}: cookies");
         }
     }
-    let store: Value =
-        serde_json::from_str(&std::fs::read_to_string(dir.join("operators.json")).unwrap())
-            .unwrap();
+    // a session that enrolled nobody leaves no store (the fixture records null)
+    let store: Value = std::fs::read_to_string(dir.join("operators.json"))
+        .map_or(Value::Null, |t| serde_json::from_str(&t).unwrap());
     assert_eq!(store, fx["store"], "the account store");
     let mut ledger: Vec<Value> = std::fs::read_to_string(dir.join("events.jsonl"))
         .unwrap()
@@ -206,6 +208,7 @@ async fn the_python_identity_session_replays_exactly() {
                 std::fs::write(dir.join("revoked_jti.json"), "[not json").unwrap();
             }
         },
+        |_, _| {},
     )
     .await;
 }
@@ -218,8 +221,57 @@ async fn the_python_administration_session_replays_exactly() {
         |_, step, clock, _| {
             *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
         },
+        |_, _| {},
     )
     .await;
+}
+
+#[tokio::test]
+async fn the_python_construction_session_replays_with_the_recorded_departure() {
+    // D-R101: the Rust site plan adds one advisory per footprint pair closer than the minimum gap but not
+    // overlapping; strip exactly those (each checked to be one) before the exact comparison
+    let extras = std::sync::atomic::AtomicUsize::new(0);
+    replay(
+        "http_build_cases",
+        b"stewie-http-build-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |request, body| {
+            let (Some(clear), Some(adv)) =
+                (body.get("clearances").cloned(), body.get_mut("advisories"))
+            else {
+                return;
+            };
+            // as the server reads it: a number or a numeric string (Pydantic's lax float)
+            let g = &request["json"]["min_gap_m"];
+            let min_gap = g
+                .as_f64()
+                .or_else(|| g.as_str().and_then(|t| t.trim().parse().ok()))
+                .unwrap_or(2.0);
+            let n = clear
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|c| c["overlap"] == false && c["gap_m"].as_f64().unwrap() < min_gap)
+                .count();
+            let adv = adv.as_array_mut().unwrap();
+            for a in adv.drain(adv.len() - n..) {
+                assert!(
+                    a.as_str()
+                        .unwrap()
+                        .contains(" apart -- footprints should clear by"),
+                    "{a}"
+                );
+            }
+            extras.fetch_add(n, std::sync::atomic::Ordering::Relaxed);
+        },
+    )
+    .await;
+    assert!(
+        extras.into_inner() > 0,
+        "vacuity: a sub-minimum clearance was advised"
+    );
 }
 
 #[test]

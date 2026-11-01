@@ -4,6 +4,9 @@
 
 use serde_json::{Map, Value, json};
 
+/// A numeric bound as the Python wrote it: the value and how Pydantic prints it.
+pub type Bound = Option<(f64, &'static str)>;
+
 /// One field's type, constraints and default.
 #[derive(Debug, Clone, Copy)]
 pub enum Kind {
@@ -15,14 +18,23 @@ pub enum Kind {
         nullable: bool,
         default: Option<&'static str>,
     },
-    /// A number with `x > gt` and `x <= le` (bounds written as the Python wrote them).
+    /// A number within its bounds; required when there is no default.
     Float {
-        gt: (f64, &'static str),
-        le: (f64, &'static str),
-        default: f64,
+        gt: Bound,
+        ge: Bound,
+        le: Bound,
+        default: Option<f64>,
     },
     /// An integer with `ge <= x <= le`.
     Int { ge: i64, le: i64, default: i64 },
+    /// Any JSON object; `{}` when absent.
+    Dict,
+    /// A list of `min..=max` items, each validated against a nested model.
+    List {
+        min: usize,
+        max: usize,
+        item: &'static Model,
+    },
 }
 
 /// A field of a body model.
@@ -85,46 +97,160 @@ fn as_int(v: &Value) -> Result<i64, &'static str> {
     }
 }
 
-/// Validate one field's present value.
-fn check(kind: Kind, v: &Value) -> Result<Value, String> {
+/// Validate one field's present value, pushing `(path, message)` errors.
+fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<Value> {
+    let mut fail = |m: String| {
+        errors.push(format!("{path}: {m}"));
+        None
+    };
     match kind {
         Kind::Str {
             min, max, nullable, ..
         } => match v {
-            Value::Null if nullable => Ok(Value::Null),
+            Value::Null if nullable => Some(Value::Null),
             Value::String(s) => {
                 let n = s.chars().count();
                 if n < min {
-                    Err(format!("String should have at least {min} {}", plural(min)))
+                    fail(format!("String should have at least {min} {}", plural(min)))
                 } else if n > max {
-                    Err(format!("String should have at most {max} {}", plural(max)))
+                    fail(format!("String should have at most {max} {}", plural(max)))
                 } else {
-                    Ok(json!(s))
+                    Some(json!(s))
                 }
             }
-            _ => Err("Input should be a valid string".to_owned()),
+            _ => fail("Input should be a valid string".to_owned()),
         },
-        Kind::Float { gt, le, .. } => {
-            let x = as_float(v).map_err(str::to_owned)?;
-            if x.is_nan() || x > le.0 {
-                Err(format!("Input should be less than or equal to {}", le.1))
-            } else if x <= gt.0 {
-                Err(format!("Input should be greater than {}", gt.1))
+        Kind::Float { gt, ge, le, .. } => {
+            let x = match as_float(v) {
+                Ok(x) => x,
+                Err(e) => return fail(e.to_owned()),
+            };
+            if let Some((b, shown)) = le
+                && (x.is_nan() || x > b)
+            {
+                fail(format!("Input should be less than or equal to {shown}"))
+            } else if let Some((b, shown)) = gt
+                && x <= b
+            {
+                fail(format!("Input should be greater than {shown}"))
+            } else if let Some((b, shown)) = ge
+                && x < b
+            {
+                fail(format!("Input should be greater than or equal to {shown}"))
             } else {
-                Ok(json!(x))
+                Some(json!(x))
             }
         }
-        Kind::Int { ge, le, .. } => {
-            let x = as_int(v).map_err(str::to_owned)?;
-            if x < ge {
-                Err(format!("Input should be greater than or equal to {ge}"))
-            } else if x > le {
-                Err(format!("Input should be less than or equal to {le}"))
+        Kind::Int { ge, le, .. } => match as_int(v) {
+            Err(e) => fail(e.to_owned()),
+            Ok(x) if x < ge => fail(format!("Input should be greater than or equal to {ge}")),
+            Ok(x) if x > le => fail(format!("Input should be less than or equal to {le}")),
+            Ok(x) => Some(json!(x)),
+        },
+        Kind::Dict => match v {
+            Value::Object(_) => Some(v.clone()),
+            _ => fail("Input should be a valid dictionary".to_owned()),
+        },
+        Kind::List { min, max, item } => {
+            let Value::Array(items) = v else {
+                return fail("Input should be a valid list".to_owned());
+            };
+            let before = errors.len();
+            let mut out = Vec::with_capacity(items.len());
+            for (i, x) in items.iter().enumerate() {
+                let at = format!("{path}.{i}");
+                if let Value::Object(o) = x {
+                    out.push(Value::Object(fields(o, *item, &at, errors)));
+                } else {
+                    errors.push(format!(
+                        "{at}: Input should be a valid dictionary or object to extract fields from"
+                    ));
+                }
+            }
+            let items_word = |n: usize| if n == 1 { "item" } else { "items" };
+            if errors.len() > before {
+                None
+            } else if items.len() < min {
+                errors.push(format!(
+                    "{path}: List should have at least {min} {} after validation, not {}",
+                    items_word(min),
+                    items.len()
+                ));
+                None
+            } else if items.len() > max {
+                errors.push(format!(
+                    "{path}: List should have at most {max} {} after validation, not {}",
+                    items_word(max),
+                    items.len()
+                ));
+                None
             } else {
-                Ok(json!(x))
+                Some(Value::Array(out))
             }
         }
     }
+}
+
+/// Validate an object's fields against `model`, prefixing error paths with `prefix` (empty at the top level).
+fn fields(
+    obj: &Map<String, Value>,
+    model: Model,
+    prefix: &str,
+    errors: &mut Vec<String>,
+) -> Map<String, Value> {
+    let path = |name: &str| {
+        if prefix.is_empty() {
+            name.to_owned()
+        } else {
+            format!("{prefix}.{name}")
+        }
+    };
+    let mut out = Map::new();
+    for Field(name, kind) in model.fields {
+        let at = path(name);
+        let value = match (obj.get(*name), *kind) {
+            (Some(v), k) => check(k, v, &at, errors),
+            // an optional string defaults to null; any other string without a default is required
+            (
+                None,
+                Kind::Str {
+                    default: Some(d), ..
+                },
+            ) => Some(json!(d)),
+            (
+                None,
+                Kind::Str {
+                    default: None,
+                    nullable: true,
+                    ..
+                },
+            ) => Some(Value::Null),
+            (
+                None,
+                Kind::Float {
+                    default: Some(d), ..
+                },
+            ) => Some(json!(d)),
+            (None, Kind::Int { default, .. }) => Some(json!(default)),
+            (None, Kind::Dict) => Some(json!({})),
+            (None, _) => {
+                errors.push(format!("{at}: Field required"));
+                None
+            }
+        };
+        if let Some(v) = value {
+            out.insert((*name).to_owned(), v);
+        }
+    }
+    if model.forbid_extra {
+        for k in obj
+            .keys()
+            .filter(|k| !model.fields.iter().any(|f| f.0 == k.as_str()))
+        {
+            errors.push(format!("{}: Extra inputs are not permitted", path(k)));
+        }
+    }
+    out
 }
 
 /// Parse a JSON body; empty means absent.
@@ -153,48 +279,8 @@ pub fn model(body: Option<&Value>, model: Model) -> Result<Map<String, Value>, S
             "body: Input should be a valid dictionary or object to extract fields from".to_owned(),
         );
     };
-    let mut out = Map::new();
     let mut errors = Vec::new();
-    for Field(name, kind) in model.fields {
-        match obj.get(*name) {
-            Some(v) => match check(*kind, v) {
-                Ok(x) => {
-                    out.insert((*name).to_owned(), x);
-                }
-                Err(e) => errors.push(format!("{name}: {e}")),
-            },
-            None => match *kind {
-                // an optional string defaults to null; any other string without a default is required
-                Kind::Str {
-                    default: None,
-                    nullable: true,
-                    ..
-                } => {
-                    out.insert((*name).to_owned(), Value::Null);
-                }
-                Kind::Str { default: None, .. } => errors.push(format!("{name}: Field required")),
-                Kind::Str {
-                    default: Some(d), ..
-                } => {
-                    out.insert((*name).to_owned(), json!(d));
-                }
-                Kind::Float { default, .. } => {
-                    out.insert((*name).to_owned(), json!(default));
-                }
-                Kind::Int { default, .. } => {
-                    out.insert((*name).to_owned(), json!(default));
-                }
-            },
-        }
-    }
-    if model.forbid_extra {
-        for k in obj
-            .keys()
-            .filter(|k| !model.fields.iter().any(|f| f.0 == k.as_str()))
-        {
-            errors.push(format!("{k}: Extra inputs are not permitted"));
-        }
-    }
+    let out = fields(obj, model, "", &mut errors);
     if errors.is_empty() {
         Ok(out)
     } else {

@@ -1,0 +1,3899 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "auth.login",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-001",
+   "target": "bootstrap",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "siteplan.analyze",
+   "actor": "gis-anon",
+   "correlation_id": "cid-006",
+   "target": "2 structures",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "siteplan.analyze",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-007",
+   "target": "3 structures",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "siteplan.analyze",
+   "actor": "api-key",
+   "correlation_id": "cid-008",
+   "target": "6 structures",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "siteplan.analyze",
+   "actor": "api-key",
+   "correlation_id": "cid-009",
+   "target": "2 structures",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "siteplan.analyze",
+   "actor": "api-key",
+   "correlation_id": "cid-010",
+   "target": "2 structures",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-build-oracle",
+ "steps": [
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "bob@example.org",
+    "role": "operator",
+    "token": "eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImExMzI2NTU2YTFiYTRhNzA4YjVjZmUyM2YzMDM0Y2FjIn0.J3WmIyPooNkLKiF0k9iPjPlmgwsYk8AvGSIoXWZsgNc",
+    "ttl_s": 43200
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "email": "bob@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "acceptance": {
+     "checks": [
+      {
+       "id": "mass_conservation",
+       "what": "all-cuts-then-all-fills balance on the conserved grid"
+      },
+      {
+       "id": "datum_floor_feasibility",
+       "what": "a cut deeper than the regolith mantle is infeasible"
+      },
+      {
+       "id": "drum_supply",
+       "what": "every fill can be supplied from the drum it was cut into"
+      },
+      {
+       "id": "slope_siting",
+       "max_slope_deg": 15.0,
+       "what": "no order sited on slope above max_slope_deg"
+      },
+      {
+       "id": "off_dem_siting",
+       "what": "no order placed off the loaded DEM tile"
+      },
+      {
+       "id": "as_built_flatness",
+       "tol_m": 0.02,
+       "what": "executed-surface flatness RMSE within tol"
+      },
+      {
+       "id": "berm_profile",
+       "tol_m": 0.02,
+       "what": "as-built crest rise reaches the ordered depth within tol"
+      },
+      {
+       "id": "repose_stability",
+       "what": "as-built flank slope <= the soil angle of repose (phi)"
+      },
+      {
+       "factor_of_safety": 3.0,
+       "id": "bearing_capacity",
+       "what": "Terzaghi/Vesic allowable bearing of each built pad/berm"
+      }
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "balanced_count": 4,
+    "count": 8,
+    "live_acceptance_source": "plan.validation (validate_plan) + plan.ordered_acceptance (IR replay)",
+    "note": "Catalog is the real structure-template library (leap/structures.py), each decomposed to mass-balanced cut/fill primitives. Acceptance criteria are the real validate_plan checks (lode/planner_acceptance.py) with their default tolerances. The AS-BUILT pass/fail on the real terrain is a property of a planned mission and is read from the last /plan result (validation + ordered_acceptance), not stored server-side.",
+    "ok": true,
+    "probe_origin_m": [
+     0.0,
+     0.0
+    ],
+    "templates": [
+     {
+      "balanced": true,
+      "defaults": {
+       "borrow_depth_m": 0.3,
+       "height_m": 0.5,
+       "length_m": 15.0,
+       "width_m": 3.0
+      },
+      "doc": "A loose fill ridge supplied by a nearby borrow pit; the bank cut is sized so MASS balances.",
+      "id": "blast_berm",
+      "n_cut": 1,
+      "n_fill": 1,
+      "n_orders": 2,
+      "orders": [
+       {
+        "action": "Borrow pit (berm)",
+        "depth_m": 0.3,
+        "footprint_m2": 50.781,
+        "kind": "cut",
+        "note": "source"
+       },
+       {
+        "action": "Blast berm",
+        "depth_m": 0.5,
+        "footprint_m2": 45.0,
+        "kind": "fill",
+        "note": "ridge to spec"
+       }
+      ]
+     },
+     {
+      "balanced": false,
+      "defaults": {
+       "depth_m": 0.3,
+       "side_m": 6.0
+      },
+      "doc": "",
+      "id": "borrow_pit",
+      "n_cut": 1,
+      "n_fill": 0,
+      "n_orders": 1,
+      "orders": [
+       {
+        "action": "Borrow pit",
+        "depth_m": 0.3,
+        "footprint_m2": 36.0,
+        "kind": "cut",
+        "note": "material source"
+       }
+      ]
+     },
+     {
+      "balanced": true,
+      "defaults": {
+       "borrow_depth_m": 0.3,
+       "depth_m": 0.4,
+       "radius_m": 8.0
+      },
+      "doc": "Fill a crater dip to grade from a nearby borrow pit; the bank cut is sized so MASS balances.",
+      "id": "crater_fill",
+      "n_cut": 1,
+      "n_fill": 1,
+      "n_orders": 2,
+      "orders": [
+       {
+        "action": "Borrow pit (crater)",
+        "depth_m": 0.3,
+        "footprint_m2": 181.514,
+        "kind": "cut",
+        "note": "source"
+       },
+       {
+        "action": "Crater fill",
+        "depth_m": 0.4,
+        "footprint_m2": 201.062,
+        "kind": "fill",
+        "note": "to grade"
+       }
+      ]
+     },
+     {
+      "balanced": true,
+      "defaults": {
+       "cut_depth_m": 0.06,
+       "fill_height_m": 0.06,
+       "side_m": 5.0
+      },
+      "doc": "Cut a level footing (bank) and place a compacted raised pad from the spoil (loose fill, bulked).",
+      "id": "habitat_foundation",
+      "n_cut": 1,
+      "n_fill": 1,
+      "n_orders": 2,
+      "orders": [
+       {
+        "action": "Cut habitat footing",
+        "depth_m": 0.06,
+        "footprint_m2": 25.0,
+        "kind": "cut",
+        "note": ""
+       },
+       {
+        "action": "Compacted foundation fill",
+        "depth_m": 0.06,
+        "footprint_m2": 36.923,
+        "kind": "fill",
+        "note": "from footing cut (bulked)"
+       }
+      ]
+     },
+     {
+      "balanced": false,
+      "defaults": {
+       "cut_depth_m": 0.03,
+       "length_m": 30.0,
+       "width_m": 2.0
+      },
+      "doc": "",
+      "id": "haul_road",
+      "n_cut": 1,
+      "n_fill": 0,
+      "n_orders": 1,
+      "orders": [
+       {
+        "action": "Grade haul road",
+        "depth_m": 0.03,
+        "footprint_m2": 60.0,
+        "kind": "cut",
+        "note": "30x2 m corridor"
+       }
+      ]
+     },
+     {
+      "balanced": true,
+      "defaults": {
+       "berm_height_m": 0.12,
+       "cut_depth_m": 0.05,
+       "side_m": 6.0
+      },
+      "doc": "Level a square pad (bank cut) and build a perimeter blast berm from that material (loose fill, bulked).",
+      "id": "landing_pad",
+      "n_cut": 1,
+      "n_fill": 1,
+      "n_orders": 2,
+      "orders": [
+       {
+        "action": "Level landing pad",
+        "depth_m": 0.05,
+        "footprint_m2": 36.0,
+        "kind": "cut",
+        "note": "6x6 m"
+       },
+       {
+        "action": "Perimeter blast berm",
+        "depth_m": 0.12,
+        "footprint_m2": 22.154,
+        "kind": "fill",
+        "note": "from pad cut (bulked)"
+       }
+      ]
+     },
+     {
+      "balanced": false,
+      "defaults": {
+       "cut_depth_m": 0.04,
+       "side_m": 8.0
+      },
+      "doc": "",
+      "id": "solar_pad",
+      "n_cut": 1,
+      "n_fill": 0,
+      "n_orders": 1,
+      "orders": [
+       {
+        "action": "Level solar pad",
+        "depth_m": 0.04,
+        "footprint_m2": 64.0,
+        "kind": "cut",
+        "note": "flat, low-obstruction"
+       }
+      ]
+     },
+     {
+      "balanced": false,
+      "defaults": {
+       "depth_m": 0.4,
+       "length_m": 12.0,
+       "width_m": 1.0
+      },
+      "doc": "",
+      "id": "trench",
+      "n_cut": 1,
+      "n_fill": 0,
+      "n_orders": 1,
+      "orders": [
+       {
+        "action": "Excavate trench",
+        "depth_m": 0.4,
+        "footprint_m2": 12.0,
+        "kind": "cut",
+        "note": "utility/footing trench"
+       }
+      ]
+     }
+    ]
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/construction",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "acceptance": {
+     "checks": [
+      {
+       "id": "mass_conservation",
+       "what": "all-cuts-then-all-fills balance on the conserved grid"
+      },
+      {
+       "id": "datum_floor_feasibility",
+       "what": "a cut deeper than the regolith mantle is infeasible"
+      },
+      {
+       "id": "drum_supply",
+       "what": "every fill can be supplied from the drum it was cut into"
+      },
+      {
+       "id": "slope_siting",
+       "max_slope_deg": 15.0,
+       "what": "no order sited on slope above max_slope_deg"
+      },
+      {
+       "id": "off_dem_siting",
+       "what": "no order placed off the loaded DEM tile"
+      },
+      {
+       "id": "as_built_flatness",
+       "tol_m": 0.02,
+       "what": "executed-surface flatness RMSE within tol"
+      },
+      {
+       "id": "berm_profile",
+       "tol_m": 0.02,
+       "what": "as-built crest rise reaches the ordered depth within tol"
+      },
+      {
+       "id": "repose_stability",
+       "what": "as-built flank slope <= the soil angle of repose (phi)"
+      },
+      {
+       "factor_of_safety": 3.0,
+       "id": "bearing_capacity",
+       "what": "Terzaghi/Vesic allowable bearing of each built pad/berm"
+      }
+     ],
+     "defers_to_totals": [
+      "route_feasibility",
+      "battery_reserve",
+      "sequence_precedence",
+      "drum_capacity_shuttle_cycles",
+      "time_budget",
+      "energy_budget"
+     ]
+    },
+    "balanced_count": 4,
+    "count": 8,
+    "live_acceptance_source": "plan.validation (validate_plan) + plan.ordered_acceptance (IR replay)",
+    "note": "Catalog is the real structure-template library (leap/structures.py), each decomposed to mass-balanced cut/fill primitives. Acceptance criteria are the real validate_plan checks (lode/planner_acceptance.py) with their default tolerances. The AS-BUILT pass/fail on the real terrain is a property of a planned mission and is read from the last /plan result (validation + ordered_acceptance), not stored server-side.",
+    "ok": true,
+    "probe_origin_m": [
+     0.0,
+     0.0
+    ],
+    "templates": [
+     {
+      "balanced": true,
+      "defaults": {
+       "borrow_depth_m": 0.3,
+       "height_m": 0.5,
+       "length_m": 15.0,
+       "width_m": 3.0
+      },
+      "doc": "A loose fill ridge supplied by a nearby borrow pit; the bank cut is sized so MASS balances.",
+      "id": "blast_berm",
+      "n_cut": 1,
+      "n_fill": 1,
+      "n_orders": 2,
+      "orders": [
+       {
+        "action": "Borrow pit (berm)",
+        "depth_m": 0.3,
+        "footprint_m2": 50.781,
+        "kind": "cut",
+        "note": "source"
+       },
+       {
+        "action": "Blast berm",
+        "depth_m": 0.5,
+        "footprint_m2": 45.0,
+        "kind": "fill",
+        "note": "ridge to spec"
+       }
+      ]
+     },
+     {
+      "balanced": false,
+      "defaults": {
+       "depth_m": 0.3,
+       "side_m": 6.0
+      },
+      "doc": "",
+      "id": "borrow_pit",
+      "n_cut": 1,
+      "n_fill": 0,
+      "n_orders": 1,
+      "orders": [
+       {
+        "action": "Borrow pit",
+        "depth_m": 0.3,
+        "footprint_m2": 36.0,
+        "kind": "cut",
+        "note": "material source"
+       }
+      ]
+     },
+     {
+      "balanced": true,
+      "defaults": {
+       "borrow_depth_m": 0.3,
+       "depth_m": 0.4,
+       "radius_m": 8.0
+      },
+      "doc": "Fill a crater dip to grade from a nearby borrow pit; the bank cut is sized so MASS balances.",
+      "id": "crater_fill",
+      "n_cut": 1,
+      "n_fill": 1,
+      "n_orders": 2,
+      "orders": [
+       {
+        "action": "Borrow pit (crater)",
+        "depth_m": 0.3,
+        "footprint_m2": 181.514,
+        "kind": "cut",
+        "note": "source"
+       },
+       {
+        "action": "Crater fill",
+        "depth_m": 0.4,
+        "footprint_m2": 201.062,
+        "kind": "fill",
+        "note": "to grade"
+       }
+      ]
+     },
+     {
+      "balanced": true,
+      "defaults": {
+       "cut_depth_m": 0.06,
+       "fill_height_m": 0.06,
+       "side_m": 5.0
+      },
+      "doc": "Cut a level footing (bank) and place a compacted raised pad from the spoil (loose fill, bulked).",
+      "id": "habitat_foundation",
+      "n_cut": 1,
+      "n_fill": 1,
+      "n_orders": 2,
+      "orders": [
+       {
+        "action": "Cut habitat footing",
+        "depth_m": 0.06,
+        "footprint_m2": 25.0,
+        "kind": "cut",
+        "note": ""
+       },
+       {
+        "action": "Compacted foundation fill",
+        "depth_m": 0.06,
+        "footprint_m2": 36.923,
+        "kind": "fill",
+        "note": "from footing cut (bulked)"
+       }
+      ]
+     },
+     {
+      "balanced": false,
+      "defaults": {
+       "cut_depth_m": 0.03,
+       "length_m": 30.0,
+       "width_m": 2.0
+      },
+      "doc": "",
+      "id": "haul_road",
+      "n_cut": 1,
+      "n_fill": 0,
+      "n_orders": 1,
+      "orders": [
+       {
+        "action": "Grade haul road",
+        "depth_m": 0.03,
+        "footprint_m2": 60.0,
+        "kind": "cut",
+        "note": "30x2 m corridor"
+       }
+      ]
+     },
+     {
+      "balanced": true,
+      "defaults": {
+       "berm_height_m": 0.12,
+       "cut_depth_m": 0.05,
+       "side_m": 6.0
+      },
+      "doc": "Level a square pad (bank cut) and build a perimeter blast berm from that material (loose fill, bulked).",
+      "id": "landing_pad",
+      "n_cut": 1,
+      "n_fill": 1,
+      "n_orders": 2,
+      "orders": [
+       {
+        "action": "Level landing pad",
+        "depth_m": 0.05,
+        "footprint_m2": 36.0,
+        "kind": "cut",
+        "note": "6x6 m"
+       },
+       {
+        "action": "Perimeter blast berm",
+        "depth_m": 0.12,
+        "footprint_m2": 22.154,
+        "kind": "fill",
+        "note": "from pad cut (bulked)"
+       }
+      ]
+     },
+     {
+      "balanced": false,
+      "defaults": {
+       "cut_depth_m": 0.04,
+       "side_m": 8.0
+      },
+      "doc": "",
+      "id": "solar_pad",
+      "n_cut": 1,
+      "n_fill": 0,
+      "n_orders": 1,
+      "orders": [
+       {
+        "action": "Level solar pad",
+        "depth_m": 0.04,
+        "footprint_m2": 64.0,
+        "kind": "cut",
+        "note": "flat, low-obstruction"
+       }
+      ]
+     },
+     {
+      "balanced": false,
+      "defaults": {
+       "depth_m": 0.4,
+       "length_m": 12.0,
+       "width_m": 1.0
+      },
+      "doc": "",
+      "id": "trench",
+      "n_cut": 1,
+      "n_fill": 0,
+      "n_orders": 1,
+      "orders": [
+       {
+        "action": "Excavate trench",
+        "depth_m": 0.4,
+        "footprint_m2": 12.0,
+        "kind": "cut",
+        "note": "utility/footing trench"
+       }
+      ]
+     }
+    ]
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImExMzI2NTU2YTFiYTRhNzA4YjVjZmUyM2YzMDM0Y2FjIn0.J3WmIyPooNkLKiF0k9iPjPlmgwsYk8AvGSIoXWZsgNc",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/construction",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "operator+ role required (signed in as guest 'gis-anon')",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-004",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/construction",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/construction",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "advisories": [
+     "2 cut sources feed 2 fill(s) -- route base-wide (one borrow pit can feed several fills) to cut total haul rather than one pit per structure."
+    ],
+    "build_order": [
+     0,
+     2,
+     1,
+     3
+    ],
+    "clearances": [
+     {
+      "gap_m": 51.257888806847056,
+      "i": 0,
+      "j": 1,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": -9.094947017729282e-13,
+    "ok": true,
+    "pairings": [
+     {
+      "haul_dist_m": 7.353393621658208,
+      "mass_kg": 3456.0,
+      "sink_order_idx": 1,
+      "sink_x": 7.353393621658208,
+      "sink_y": 0.0,
+      "source_order_idx": 0,
+      "source_x": 0.0,
+      "source_y": 0.0
+     },
+     {
+      "haul_dist_m": 7.5382181012510046,
+      "mass_kg": 2880.0,
+      "sink_order_idx": 3,
+      "sink_x": 67.538218101251,
+      "sink_y": 0.0,
+      "source_order_idx": 2,
+      "source_x": 60.0,
+      "source_y": 0.0
+     }
+    ],
+    "total_cut_mass_kg": 6336.0,
+    "total_fill_mass_kg": 6336.000000000001,
+    "total_haul_work_kg_m": 47123.39648805366
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-006",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": {
+     "placements": [
+      {
+       "name": "landing_pad",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "habitat_foundation",
+       "x": 60,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "advisories": [
+     "base has a 14,131 kg material surplus -- route the surplus cut to a spoil pile or an export sink (it is not consumed by any fill).",
+     "3 cut sources feed 1 fill(s) -- route base-wide (one borrow pit can feed several fills) to cut total haul rather than one pit per structure.",
+     "structures #0 (landing_pad) and #1 (solar_pad) overlap (gap -4.7 m) -- adjust placement so footprints clear by >= 5.0 m."
+    ],
+    "build_order": [
+     0,
+     2,
+     3,
+     1
+    ],
+    "clearances": [
+     {
+      "gap_m": -4.692845719825791,
+      "i": 0,
+      "j": 1,
+      "overlap": true
+     },
+     {
+      "gap_m": 23.809748032072733,
+      "i": 0,
+      "j": 2,
+      "overlap": false
+     },
+     {
+      "gap_m": 19.70457794061107,
+      "i": 1,
+      "j": 2,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": 14131.2,
+    "ok": true,
+    "pairings": [
+     {
+      "haul_dist_m": 3.499321188713313,
+      "mass_kg": 3456.0000000000005,
+      "sink_order_idx": 1,
+      "sink_x": 7.353393621658208,
+      "sink_y": 0.0,
+      "source_order_idx": 2,
+      "source_x": 4.0,
+      "source_y": 1.0
+     }
+    ],
+    "total_cut_mass_kg": 17587.2,
+    "total_fill_mass_kg": 3456.0000000000005,
+    "total_haul_work_kg_m": 12093.654028193212
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImExMzI2NTU2YTFiYTRhNzA4YjVjZmUyM2YzMDM0Y2FjIn0.J3WmIyPooNkLKiF0k9iPjPlmgwsYk8AvGSIoXWZsgNc",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "min_gap_m": 5,
+     "placements": [
+      {
+       "name": "landing_pad",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "solar_pad",
+       "x": 4,
+       "y": 1
+      },
+      {
+       "name": "trench",
+       "x": 30,
+       "y": -2
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "advisories": [
+     "base has a 39,475 kg material surplus -- route the surplus cut to a spoil pile or an export sink (it is not consumed by any fill).",
+     "6 cut sources feed 4 fill(s) -- route base-wide (one borrow pit can feed several fills) to cut total haul rather than one pit per structure."
+    ],
+    "build_order": [
+     0,
+     2,
+     4,
+     6,
+     7,
+     9,
+     1,
+     3,
+     5,
+     8
+    ],
+    "clearances": [
+     {
+      "gap_m": 38.42779446713008,
+      "i": 0,
+      "j": 1,
+      "overlap": false
+     },
+     {
+      "gap_m": 20.944541971043627,
+      "i": 0,
+      "j": 2,
+      "overlap": false
+     },
+     {
+      "gap_m": 30.39129335097161,
+      "i": 0,
+      "j": 3,
+      "overlap": false
+     },
+     {
+      "gap_m": 61.60160365022426,
+      "i": 0,
+      "j": 4,
+      "overlap": false
+     },
+     {
+      "gap_m": 63.29507416383633,
+      "i": 0,
+      "j": 5,
+      "overlap": false
+     },
+     {
+      "gap_m": 60.77362884671146,
+      "i": 1,
+      "j": 2,
+      "overlap": false
+     },
+     {
+      "gap_m": 57.17518598262192,
+      "i": 1,
+      "j": 3,
+      "overlap": false
+     },
+     {
+      "gap_m": 42.746532050348776,
+      "i": 1,
+      "j": 4,
+      "overlap": false
+     },
+     {
+      "gap_m": 110.31541123429204,
+      "i": 1,
+      "j": 5,
+      "overlap": false
+     },
+     {
+      "gap_m": 53.87867285192398,
+      "i": 2,
+      "j": 3,
+      "overlap": false
+     },
+     {
+      "gap_m": 91.13020457000721,
+      "i": 2,
+      "j": 4,
+      "overlap": false
+     },
+     {
+      "gap_m": 47.42020232649219,
+      "i": 2,
+      "j": 5,
+      "overlap": false
+     },
+     {
+      "gap_m": 46.72657318815084,
+      "i": 3,
+      "j": 4,
+      "overlap": false
+     },
+     {
+      "gap_m": 67.26782772219595,
+      "i": 3,
+      "j": 5,
+      "overlap": false
+     },
+     {
+      "gap_m": 120.11888714575748,
+      "i": 4,
+      "j": 5,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": 39475.2,
+    "ok": true,
+    "pairings": [
+     {
+      "haul_dist_m": 11.210225672760004,
+      "mass_kg": 40840.70449666731,
+      "sink_order_idx": 8,
+      "sink_x": 70.0,
+      "sink_y": -20.0,
+      "source_order_idx": 7,
+      "source_x": 58.789774327239996,
+      "source_y": -20.0
+     },
+     {
+      "haul_dist_m": 7.614253678777395,
+      "mass_kg": 39000.0,
+      "sink_order_idx": 5,
+      "sink_x": -30.0,
+      "sink_y": 10.0,
+      "source_order_idx": 4,
+      "source_x": -37.614253678777395,
+      "source_y": 10.0
+     },
+     {
+      "haul_dist_m": 7.353393621658208,
+      "mass_kg": 3456.0,
+      "sink_order_idx": 1,
+      "sink_x": 7.353393621658208,
+      "sink_y": 0.0,
+      "source_order_idx": 0,
+      "source_x": 0.0,
+      "source_y": 0.0
+     },
+     {
+      "haul_dist_m": 7.5382181012509974,
+      "mass_kg": 2880.0,
+      "sink_order_idx": 3,
+      "sink_x": 47.538218101251,
+      "sink_y": 25.0,
+      "source_order_idx": 2,
+      "source_x": 40.0,
+      "source_y": 25.0
+     }
+    ],
+    "total_cut_mass_kg": 125651.90449666731,
+    "total_fill_mass_kg": 86176.70449666731,
+    "total_haul_work_kg_m": 801912.8040025168
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "placements": [
+      {
+       "name": "landing_pad",
+       "x": 0.0,
+       "y": 0.0
+      },
+      {
+       "name": "habitat_foundation",
+       "x": 40.0,
+       "y": 25.0
+      },
+      {
+       "name": "blast_berm",
+       "params": {
+        "length_m": 20.0
+       },
+       "x": -30.0,
+       "y": 10.0
+      },
+      {
+       "name": "borrow_pit",
+       "params": {
+        "depth_m": 0.5
+       },
+       "x": 15.0,
+       "y": -35.0
+      },
+      {
+       "name": "crater_fill",
+       "params": {
+        "radius_m": 5.0
+       },
+       "x": 70.0,
+       "y": -20.0
+      },
+      {
+       "name": "solar_pad",
+       "x": -60.0,
+       "y": -40.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "advisories": [
+     "base has a 25,651 kg material surplus -- route the surplus cut to a spoil pile or an export sink (it is not consumed by any fill)."
+    ],
+    "build_order": [
+     0,
+     1
+    ],
+    "clearances": [
+     {
+      "gap_m": 1.6538324176028114,
+      "i": 0,
+      "j": 1,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": 25651.2,
+    "ok": true,
+    "pairings": [],
+    "total_cut_mass_kg": 25651.2,
+    "total_fill_mass_kg": 0,
+    "total_haul_work_kg_m": 0.0
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "min_gap_m": "0",
+     "placements": [
+      {
+       "name": "solar_pad",
+       "x": "0",
+       "y": true
+      },
+      {
+       "name": "borrow_pit",
+       "x": 9.5,
+       "y": 0.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "advisories": [
+     "base has a 25,651 kg material surplus -- route the surplus cut to a spoil pile or an export sink (it is not consumed by any fill)."
+    ],
+    "build_order": [
+     0,
+     1
+    ],
+    "clearances": [
+     {
+      "gap_m": 1.6013458303314119,
+      "i": 0,
+      "j": 1,
+      "overlap": false
+     }
+    ],
+    "net_mass_kg": 25651.2,
+    "ok": true,
+    "pairings": [],
+    "total_cut_mass_kg": 25651.2,
+    "total_fill_mass_kg": 0,
+    "total_haul_work_kg_m": 0.0
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "placements": [
+      {
+       "name": "solar_pad",
+       "x": 0.0,
+       "y": 0.0
+      },
+      {
+       "name": "borrow_pit",
+       "x": 9.5,
+       "y": 0.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown structure 'moon_base'; known: ['blast_berm', 'borrow_pit', 'crater_fill', 'habitat_foundation', 'haul_road', 'landing_pad', 'solar_pad', 'trench']",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "placements": [
+      {
+       "name": "moon_base",
+       "x": 0,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "side_m must be > 0 (got 0.0) (audit L21: zero divided; negative silently inverted the cut/fill volume balance)",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "placements": [
+      {
+       "name": "landing_pad",
+       "params": {
+        "side_m": 0.0
+       },
+       "x": 0,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "placements: List should have at least 1 item after validation, not 0",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {
+     "placements": []
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "placements: Input should be a valid list",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "placements": 5
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "placements.0.name: Field required; placements.0.x: Input should be a valid number, unable to parse string as a number; placements.0.y: Input should be a valid number",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": {
+     "min_gap_m": -1,
+     "placements": [
+      {
+       "params": [
+        1
+       ],
+       "x": "q",
+       "y": null
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "placements.0.name: Input should be a valid string; placements.1: Input should be a valid dictionary or object to extract fields from",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "placements": [
+      {
+       "name": 5,
+       "x": 1,
+       "y": 2
+      },
+      7
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "min_gap_m: Input should be greater than or equal to 0",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "min_gap_m": -1,
+     "placements": [
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "placements: List should have at most 500 items after validation, not 501",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": {
+     "placements": [
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "placements: Field required",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": {
+     "placements": [
+      {
+       "name": "trench",
+       "x": 0,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/siteplan/analyze",
+    "raw": null
+   },
+   "status": 401
+  }
+ ],
+ "store": null
+}

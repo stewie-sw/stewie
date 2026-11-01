@@ -34,6 +34,21 @@ pub struct AcceptanceParams {
     pub bearing_fs: f64,
 }
 
+impl Default for AcceptanceParams {
+    /// The Python `validate_plan` keyword defaults.
+    fn default() -> Self {
+        Self {
+            cell_m: 0.5,
+            max_cells: 500,
+            regolith_depth_m: 10.0,
+            max_slope_deg: 15.0,
+            accept_flatness_tol_m: 0.02,
+            bearing_load_pa: None,
+            bearing_fs: 3.0,
+        }
+    }
+}
+
 /// The physical inputs besides the mission and terrain.
 #[derive(Debug, Clone, Copy)]
 pub struct AcceptanceInputs<'a> {

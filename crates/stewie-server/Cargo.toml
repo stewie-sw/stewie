@@ -17,6 +17,9 @@ pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
 regex = "1"
 serde_json = { version = "1", features = ["float_roundtrip"] }
 sha2 = "0.10"
+stewie-build = { path = "../stewie-build" }
+stewie-physics = { path = "../stewie-physics" }
+stewie-plan = { path = "../stewie-plan" }
 stewie-twin = { path = "../stewie-twin" }
 subtle = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }

@@ -32,9 +32,10 @@ const INVITE_MINT: Model = Model {
         Field(
             "ttl_s",
             Kind::Float {
-                gt: (0.0, "0"),
-                le: (7_776_000.0, "7776000"),
-                default: 604_800.0,
+                gt: Some((0.0, "0")),
+                ge: None,
+                le: Some((7_776_000.0, "7776000")),
+                default: Some(604_800.0),
             },
         ),
         Field(
@@ -102,7 +103,7 @@ fn require_director(st: &AppState, h: &Head) -> Result<String, ApiError> {
 }
 
 /// The identity iff its role ranks at or above `min` on the ladder (an unknown role ranks below guest).
-fn require_role(st: &AppState, h: &Head, min: &str) -> Result<String, ApiError> {
+pub(crate) fn require_role(st: &AppState, h: &Head, min: &str) -> Result<String, ApiError> {
     let identity = require_auth(st, h)?;
     let role = st
         .auth(Some(&h.cid))

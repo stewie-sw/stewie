@@ -3420,6 +3420,149 @@ def http_admin_cases() -> None:
                    "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger})
 
 
+def http_build_cases() -> None:
+    """The construction surface (RW-55b2): the real FastAPI app's /construction (the build catalog and acceptance
+    criteria, operator+) and /siteplan/analyze (validate-and-advise over a placed layout, any auth) through one
+    scripted TestClient session, with the role gates and Pydantic's nested-list validation. Same harness as
+    http_admin_cases. Layouts, sizes, emails and keys are SYNTHETIC test inputs (labelled); the templates and
+    densities are the real ones."""
+    import hashlib
+    import importlib
+    import tempfile
+    import uuid as _uuid
+
+    from fastapi.testclient import TestClient
+
+    import stewie.server.auth as A
+    import stewie.server.operators as O
+    import stewie.server.routers.auth as R
+    import stewie.server.services as S
+
+    seed = hashlib.sha256(b"stewie-http-build-oracle").digest()
+    stream = {"n": 0}
+
+    def det_bytes(n: int) -> bytes:                         # SYNTHETIC deterministic randomness (labelled)
+        out = b""
+        while len(out) < n:
+            out += hashlib.sha256(seed + stream["n"].to_bytes(8, "big")).digest()
+            stream["n"] += 1
+        return out[:n]
+
+    clock = {"t": 1_800_000_000.0}
+    env = {"STEWIE_API_KEY": "automation-key-0123456789", "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+           "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+           "STEWIE_DIRECTORS": "alice@example.org", "STEWIE_GIS_ANON_KEY": "anon-key-xyz"}
+    unset = ("STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED", "STEWIE_DESKTOP", "STEWIE_OPERATOR_LOGIN",
+             "STEWIE_TRUST_PROXY", "STEWIE_CORS_ORIGINS", "STEWIE_DEV_OPEN", "STEWIE_AUDIT_MAX_BYTES",
+             "STEWIE_REGISTRATION", "STEWIE_TRUST_TAILSCALE", "STEWIE_TRUSTED_PROXIES", "STEWIE_MAX_BODY_BYTES")
+    saved = {k: os.environ.get(k) for k in list(env) + list(unset) + ["STEWIE_DATA_DIR"]}
+    patched = {"urandom": O.os.urandom, "token_urlsafe": O.secrets.token_urlsafe, "token_hex": S.secrets.token_hex,
+               "clock": O._clock, "uuid4": A.uuid.uuid4, "a_time": A.time.time, "s_time": S.time.time}
+    steps = []
+
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ.update(env)
+            os.environ["STEWIE_DATA_DIR"] = d
+            for k in unset:
+                os.environ.pop(k, None)
+            O.os.urandom = det_bytes
+            O.secrets.token_urlsafe = lambda n: __import__("base64").urlsafe_b64encode(det_bytes(n)).decode().rstrip("=")
+            S.secrets.token_hex = lambda n: det_bytes(n).hex()
+            O._clock = lambda: clock["t"]
+            A.uuid.uuid4 = lambda: _uuid.UUID(bytes=det_bytes(16), version=4)
+            A.time.time = lambda: clock["t"]
+            S.time.time = lambda: clock["t"]
+            S.reset_audit_health()
+            S.reset_revocation_health()
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            import stewie.server.server as srv
+            importlib.reload(srv)
+            client = TestClient(srv.app, client=("127.0.0.1", 50000))
+            n = {"i": 0}
+
+            def call(method, path, *, headers=None, json_body=None, raw=None):
+                n["i"] += 1
+                h = dict(headers or {})
+                h["X-Correlation-Id"] = f"cid-{n['i']:03d}"
+                client.cookies.clear()
+                kw = {}
+                if json_body is not None:
+                    kw["json"] = json_body
+                if raw is not None:
+                    kw["content"] = raw
+                    h.setdefault("Content-Type", "application/json")
+                r = client.request(method, path, headers=h, **kw)
+                try:
+                    body = r.json()
+                except ValueError:
+                    body = r.text
+                steps.append({"request": {"method": method, "path": path, "headers": h, "json": json_body,
+                                          "raw": raw}, "clock": clock["t"], "status": r.status_code, "body": body})
+                return r
+
+            key = {"X-API-Key": env["STEWIE_API_KEY"]}
+            bob = {"Authorization": "Bearer " + call("POST", "/auth/login", json_body={"email": "bob@example.org"},
+                                                    headers=key).json()["token"]}
+            guest = {"X-Stewie-Anon-Key": "anon-key-xyz"}
+            call("GET", "/construction", headers=key)
+            call("GET", "/construction", headers=bob)
+            call("GET", "/construction", headers=guest)
+            call("GET", "/construction")
+            pl = lambda n, x, y, p=None: {"name": n, "x": x, "y": y, **({"params": p} if p is not None else {})}
+            call("POST", "/siteplan/analyze", headers=guest,
+                 json_body={"placements": [pl("landing_pad", 0, 0), pl("habitat_foundation", 60, 0)]})
+            call("POST", "/siteplan/analyze", headers=bob,
+                 json_body={"placements": [pl("landing_pad", 0, 0), pl("solar_pad", 4, 1), pl("trench", 30, -2)],
+                            "min_gap_m": 5})
+            call("POST", "/siteplan/analyze", headers=key, json_body={"placements": [
+                pl("landing_pad", 0.0, 0.0), pl("habitat_foundation", 40.0, 25.0),
+                pl("blast_berm", -30.0, 10.0, {"length_m": 20.0}), pl("borrow_pit", 15.0, -35.0, {"depth_m": 0.5}),
+                pl("crater_fill", 70.0, -20.0, {"radius_m": 5.0}), pl("solar_pad", -60.0, -40.0)]})
+            call("POST", "/siteplan/analyze", headers=key,
+                 json_body={"placements": [pl("solar_pad", "0", True), pl("borrow_pit", 9.5, 0.0)], "min_gap_m": "0"})
+            call("POST", "/siteplan/analyze", headers=key,
+                 json_body={"placements": [pl("solar_pad", 0.0, 0.0), pl("borrow_pit", 9.5, 0.0)]})   # 1.65 m < 2 m
+            call("POST", "/siteplan/analyze", headers=key, json_body={"placements": [pl("moon_base", 0, 0)]})
+            call("POST", "/siteplan/analyze", headers=key,
+                 json_body={"placements": [pl("landing_pad", 0, 0, {"side_m": 0.0})]})
+            call("POST", "/siteplan/analyze", headers=key, json_body={"placements": []})
+            call("POST", "/siteplan/analyze", headers=key, json_body={"placements": 5})
+            call("POST", "/siteplan/analyze", headers=key,
+                 json_body={"placements": [{"x": "q", "y": None, "params": [1]}], "min_gap_m": -1})
+            call("POST", "/siteplan/analyze", headers=key, json_body={"placements": [{"name": 5, "x": 1, "y": 2}, 7]})
+            call("POST", "/siteplan/analyze", headers=key, json_body={"placements": [pl("trench", 0, 0)], "min_gap_m": -1})
+            call("POST", "/siteplan/analyze", headers=key, json_body={"placements": [pl("trench", 0, 0)] * 501})
+            call("POST", "/siteplan/analyze", headers=key, json_body={})
+            call("POST", "/siteplan/analyze", json_body={"placements": [pl("trench", 0, 0)]})
+            store = json.load(open(os.path.join(d, "operators.json"))) if os.path.exists(os.path.join(d, "operators.json")) else None
+            ledger = [json.loads(x) for x in open(os.path.join(d, "events.jsonl"))]
+        finally:
+            O.os.urandom = patched["urandom"]
+            O.secrets.token_urlsafe = patched["token_urlsafe"]
+            S.secrets.token_hex = patched["token_hex"]
+            O._clock = patched["clock"]
+            A.uuid.uuid4 = patched["uuid4"]
+            A.time.time = patched["a_time"]
+            S.time.time = patched["s_time"]
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            importlib.reload(srv)
+    write_fixture(ORACLE_FIXTURES, "http_build_cases", "oracle/build_fixtures.py::http_build_cases (the FastAPI app's "
+                  "/construction and /siteplan/analyze through one scripted TestClient session; layouts SYNTHETIC, "
+                  "labelled)",
+                  ["stewie/server/routers/construction.py", "stewie/server/routers/siteplan.py",
+                   "leap/structures.py", "leap/siteplan.py", "lode/planner_acceptance.py"],
+                  {"env": env, "seed_sha256_of": "stewie-http-build-oracle", "clock0": 1_800_000_000.0,
+                   "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
@@ -3464,6 +3607,7 @@ def main() -> None:
     services_cases()
     http_auth_cases()
     http_admin_cases()
+    http_build_cases()
 
 
 if __name__ == "__main__":

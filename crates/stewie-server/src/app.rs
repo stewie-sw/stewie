@@ -747,6 +747,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/auth/me", get(auth_me))
         .route("/auth/password", post(auth_password))
         .merge(crate::admin::routes())
+        .merge(crate::construction::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

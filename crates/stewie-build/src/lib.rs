@@ -40,6 +40,62 @@ pub const STRUCTURES: [&str; 8] = [
     "trench",
 ];
 
+/// A template's parameters with their defaults (in the Python signature's order) and its docstring's first line
+/// (empty where the Python has none): the catalog `/construction` serves, and the defaults `decompose` applies.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Template {
+    pub defaults: &'static [(&'static str, f64)],
+    pub doc: &'static str,
+}
+
+/// The template `name`, if there is one.
+#[must_use]
+pub fn template(name: &str) -> Option<Template> {
+    let (defaults, doc): (&'static [(&'static str, f64)], &'static str) = match name {
+        "blast_berm" => (
+            &[
+                ("length_m", 15.0),
+                ("width_m", 3.0),
+                ("height_m", 0.5),
+                ("borrow_depth_m", 0.3),
+            ],
+            "A loose fill ridge supplied by a nearby borrow pit; the bank cut is sized so MASS balances.",
+        ),
+        "borrow_pit" => (&[("side_m", 6.0), ("depth_m", 0.3)], ""),
+        "crater_fill" => (
+            &[("radius_m", 8.0), ("depth_m", 0.4), ("borrow_depth_m", 0.3)],
+            "Fill a crater dip to grade from a nearby borrow pit; the bank cut is sized so MASS balances.",
+        ),
+        "habitat_foundation" => (
+            &[
+                ("side_m", 5.0),
+                ("cut_depth_m", 0.06),
+                ("fill_height_m", 0.06),
+            ],
+            "Cut a level footing (bank) and place a compacted raised pad from the spoil (loose fill, bulked).",
+        ),
+        "haul_road" => (
+            &[("length_m", 30.0), ("width_m", 2.0), ("cut_depth_m", 0.03)],
+            "",
+        ),
+        "landing_pad" => (
+            &[
+                ("side_m", 6.0),
+                ("cut_depth_m", 0.05),
+                ("berm_height_m", 0.12),
+            ],
+            "Level a square pad (bank cut) and build a perimeter blast berm from that material (loose fill, bulked).",
+        ),
+        "solar_pad" => (&[("side_m", 8.0), ("cut_depth_m", 0.04)], ""),
+        "trench" => (
+            &[("length_m", 12.0), ("width_m", 1.0), ("depth_m", 0.4)],
+            "",
+        ),
+        _ => return None,
+    };
+    Some(Template { defaults, doc })
+}
+
 fn py_float(x: f64) -> String {
     stewie_twin::pyjson::float_repr(x).unwrap_or_else(|_| x.to_string())
 }
@@ -65,11 +121,16 @@ fn order(
 /// A template's parameters: the given ones, else the template defaults; each must be positive.
 struct Params<'a> {
     given: &'a Map<String, Value>,
-    known: &'static [&'static str],
+    defaults: &'static [(&'static str, f64)],
 }
 
 impl Params<'_> {
-    fn get(&self, name: &str, default: f64) -> Result<f64, String> {
+    fn get(&self, name: &str) -> Result<f64, String> {
+        let default = self
+            .defaults
+            .iter()
+            .find(|(k, _)| *k == name)
+            .map_or(f64::NAN, |(_, v)| *v);
         let (v, shown) = match self.given.get(name) {
             None => (default, py_float(default)),
             // echo the value as given, as the Python does (an integer stays an integer)
@@ -93,7 +154,7 @@ impl Params<'_> {
         match self
             .given
             .keys()
-            .find(|k| !self.known.contains(&k.as_str()))
+            .find(|k| !self.defaults.iter().any(|(n, _)| n == k))
         {
             Some(k) => Err(format!(
                 "{structure}() got an unexpected keyword argument '{k}'"
@@ -115,42 +176,29 @@ pub fn decompose(
     params: &Map<String, Value>,
     d: &Densities,
 ) -> Result<Vec<Value>, String> {
-    let known: &'static [&'static str] = match name {
-        "landing_pad" => &["side_m", "cut_depth_m", "berm_height_m"],
-        "habitat_foundation" => &["side_m", "cut_depth_m", "fill_height_m"],
-        "blast_berm" => &["length_m", "width_m", "height_m", "borrow_depth_m"],
-        "crater_fill" => &["radius_m", "depth_m", "borrow_depth_m"],
-        "borrow_pit" => &["side_m", "depth_m"],
-        "haul_road" => &["length_m", "width_m", "cut_depth_m"],
-        "solar_pad" => &["side_m", "cut_depth_m"],
-        "trench" => &["length_m", "width_m", "depth_m"],
-        _ => {
-            let list: Vec<String> = STRUCTURES.iter().map(|s| format!("'{s}'")).collect();
-            return Err(format!(
-                "unknown structure '{name}'; known: [{}]",
-                list.join(", ")
-            ));
-        }
+    let Some(t) = template(name) else {
+        let list: Vec<String> = STRUCTURES.iter().map(|s| format!("'{s}'")).collect();
+        return Err(format!(
+            "unknown structure '{name}'; known: [{}]",
+            list.join(", ")
+        ));
     };
     let p = Params {
         given: params,
-        known,
+        defaults: t.defaults,
     };
     p.check_names(name)?;
     let swell = d.swell();
     Ok(match name {
         "landing_pad" | "habitat_foundation" => {
             let pad = name == "landing_pad";
-            let side = p.get("side_m", if pad { 6.0 } else { 5.0 })?;
-            let cut = p.get("cut_depth_m", if pad { 0.05 } else { 0.06 })?;
-            let rise = p.get(
-                if pad {
-                    "berm_height_m"
-                } else {
-                    "fill_height_m"
-                },
-                if pad { 0.12 } else { 0.06 },
-            )?;
+            let side = p.get("side_m")?;
+            let cut = p.get("cut_depth_m")?;
+            let rise = p.get(if pad {
+                "berm_height_m"
+            } else {
+                "fill_height_m"
+            })?;
             let fill_vol = side * side * cut * swell;
             let fill_at = (x + side / 2.0 + (fill_vol / rise).sqrt() / 2.0 + 2.0, y);
             if pad {
@@ -198,8 +246,8 @@ pub fn decompose(
             }
         }
         "blast_berm" => {
-            let (len, wid) = (p.get("length_m", 15.0)?, p.get("width_m", 3.0)?);
-            let (h, bd) = (p.get("height_m", 0.5)?, p.get("borrow_depth_m", 0.3)?);
+            let (len, wid) = (p.get("length_m")?, p.get("width_m")?);
+            let (h, bd) = (p.get("height_m")?, p.get("borrow_depth_m")?);
             let borrow = len * wid * h / swell;
             vec![
                 order(
@@ -224,9 +272,9 @@ pub fn decompose(
         }
         "crater_fill" => {
             let (r, depth, bd) = (
-                p.get("radius_m", 8.0)?,
-                p.get("depth_m", 0.4)?,
-                p.get("borrow_depth_m", 0.3)?,
+                p.get("radius_m")?,
+                p.get("depth_m")?,
+                p.get("borrow_depth_m")?,
             );
             let area = std::f64::consts::PI * r * r;
             let borrow = area * depth / swell;
@@ -244,7 +292,7 @@ pub fn decompose(
             ]
         }
         "borrow_pit" => {
-            let (side, depth) = (p.get("side_m", 6.0)?, p.get("depth_m", 0.3)?);
+            let (side, depth) = (p.get("side_m")?, p.get("depth_m")?);
             vec![order(
                 d,
                 "Borrow pit",
@@ -256,11 +304,7 @@ pub fn decompose(
             )]
         }
         "haul_road" => {
-            let (len, wid, cut) = (
-                p.get("length_m", 30.0)?,
-                p.get("width_m", 2.0)?,
-                p.get("cut_depth_m", 0.03)?,
-            );
+            let (len, wid, cut) = (p.get("length_m")?, p.get("width_m")?, p.get("cut_depth_m")?);
             vec![order(
                 d,
                 "Grade haul road",
@@ -272,7 +316,7 @@ pub fn decompose(
             )]
         }
         "solar_pad" => {
-            let (side, cut) = (p.get("side_m", 8.0)?, p.get("cut_depth_m", 0.04)?);
+            let (side, cut) = (p.get("side_m")?, p.get("cut_depth_m")?);
             vec![order(
                 d,
                 "Level solar pad",
@@ -284,11 +328,7 @@ pub fn decompose(
             )]
         }
         _ => {
-            let (len, wid, depth) = (
-                p.get("length_m", 12.0)?,
-                p.get("width_m", 1.0)?,
-                p.get("depth_m", 0.4)?,
-            );
+            let (len, wid, depth) = (p.get("length_m")?, p.get("width_m")?, p.get("depth_m")?);
             vec![order(
                 d,
                 "Excavate trench",
@@ -345,6 +385,32 @@ pub struct SitePlan {
     /// Order indices, every cut before every fill.
     pub build_order: Vec<usize>,
     pub advisories: Vec<String>,
+}
+
+impl SitePlan {
+    /// The report as the Python's `SitePlanReport.to_dict()`.
+    #[must_use]
+    pub fn to_value(&self) -> Value {
+        // a total over no orders is Python's integer 0 (`sum([])`), where Rust's empty f64 sum is -0.0; a real
+        // total of positive masses is never zero
+        let total = |x: f64| if x == 0.0 { json!(0) } else { json!(x) };
+        json!({
+            "total_cut_mass_kg": total(self.total_cut_mass_kg),
+            "total_fill_mass_kg": total(self.total_fill_mass_kg),
+            "net_mass_kg": self.net_mass_kg,
+            "total_haul_work_kg_m": self.total_haul_work_kg_m,
+            "pairings": self.pairings.iter().map(|p| json!({
+                "source_order_idx": p.source, "sink_order_idx": p.sink,
+                "source_x": p.source_xy.0, "source_y": p.source_xy.1, "sink_x": p.sink_xy.0, "sink_y": p.sink_xy.1,
+                "mass_kg": p.mass_kg, "haul_dist_m": p.haul_dist_m,
+            })).collect::<Vec<_>>(),
+            "clearances": self.clearances.iter()
+                .map(|c| json!({"i": c.i, "j": c.j, "gap_m": c.gap_m, "overlap": c.overlap}))
+                .collect::<Vec<_>>(),
+            "build_order": self.build_order,
+            "advisories": self.advisories,
+        })
+    }
 }
 
 struct Ord {

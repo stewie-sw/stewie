@@ -1,0 +1,12 @@
+{
+ "fixture": "http_build_cases",
+ "generator": "oracle/build_fixtures.py::http_build_cases (the FastAPI app's /construction and /siteplan/analyze through one scripted TestClient session; layouts SYNTHETIC, labelled)",
+ "payload_sha256": "ea42c014fe19ad0da6f5eccb8ec67edbb9c72b2114d53bb025d49e6775d7731c",
+ "sources": {
+  "leap/siteplan.py": "10bd883f5f04750fcc0ac63b911d7c4e6adb237479f8e63f3579b6c5097ffaa6",
+  "leap/structures.py": "f769d8338aa85f3ce25a44dacf4a30d3529a2f2be8720ab2ee5b3afffb85d8ba",
+  "lode/planner_acceptance.py": "808a7e6c7e0b324390bce48b4d665668577be20a3a3d734ec53efa928549091a",
+  "stewie/server/routers/construction.py": "04f3f34dfdacffabfefd8df89c82d8a6a279cef4bea90092e7e035ccede44f3c",
+  "stewie/server/routers/siteplan.py": "667fe8024cb52c23bb901844826619043ffb8129b7a9a4dff652b2d004d8c816"
+ }
+}
