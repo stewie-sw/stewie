@@ -41,7 +41,8 @@ fn dist(a: (f64, f64), b: (f64, f64)) -> f64 {
 /// The executable IR of `plan`, routed over `dem` at the traverse cap.
 ///
 /// # Errors
-/// A routing refusal, or a footprint the boundary should already have refused.
+/// A DEM that is not real terrain (empty, misshapen or holed), a routing refusal, or a footprint the boundary should
+/// already have refused.
 #[allow(clippy::too_many_lines)] // one lowering pass, field by field as the Python emits it
 pub fn plan_ir(
     m: &Mission,
@@ -50,6 +51,18 @@ pub fn plan_ir(
     dem: Dem<'_>,
     max_traverse_slope_deg: f64,
 ) -> Result<Value, String> {
+    // no executable plan without real terrain (assessment #3): no flat or holed stand-in
+    if dem.width == 0
+        || dem.height == 0
+        || dem.z.len() != dem.width * dem.height
+        || !(dem.cell_m.is_finite() && dem.cell_m > 0.0)
+        || dem.z.iter().any(|h| !h.is_finite())
+    {
+        return Err(
+            "no executable plan IR without real terrain: the DEM is empty, misshapen or has a non-finite height"
+                .to_owned(),
+        );
+    }
     // the bare survival floor, from the mission vehicle's reserve
     let survival_floor = ctx.reserve_j();
     let floor_j = round(survival_floor, 1);

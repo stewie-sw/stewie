@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stewie.space/schema/release.schema.json",
+  "title": "STEWIE plan release",
+  "description": "One executable plan IR bound to the context it was planned for (RW-33f, D-R100). An executive refuses to run it when any bound field differs from its live context.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["plan_id", "ir_sha256", "frame", "keepouts_sha256", "constraints_sha256", "binding", "release_id"],
+  "properties": {
+    "plan_id": {"type": "string", "pattern": "^[0-9a-f]{16}$", "description": "The plan IR's content hash."},
+    "ir_sha256": {"$ref": "#/$defs/sha256", "description": "SHA-256 of the whole IR (sorted-key JSON)."},
+    "frame": {"type": "string", "minLength": 2, "description": "The IR frame (crs, origin, charger) as sorted-key JSON."},
+    "keepouts_sha256": {"$ref": "#/$defs/sha256"},
+    "constraints_sha256": {"$ref": "#/$defs/sha256", "description": "Vehicle, objective budgets, mission windows, shared resources, observations, precedence and charger capacity."},
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["site_id", "dem_sha256", "terrain_memory_version", "terrain_memory_head", "twin_version", "twin_hash", "physics_backend_id", "physics_config_sha256"],
+      "properties": {
+        "site_id": {"type": "string", "minLength": 1},
+        "dem_sha256": {"$ref": "#/$defs/sha256", "description": "The terrain content the routes were computed on."},
+        "terrain_memory_version": {"type": "integer", "minimum": 0},
+        "terrain_memory_head": {"type": "string", "minLength": 1, "description": "Terrain Memory chain head hash, or 'genesis'."},
+        "twin_version": {"type": "integer", "minimum": 0},
+        "twin_hash": {"type": "string", "minLength": 1, "description": "Observed-twin latest event hash, or 'genesis'."},
+        "physics_backend_id": {"type": "string", "minLength": 1},
+        "physics_config_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "release_id": {"$ref": "#/$defs/sha256", "description": "SHA-256 over every other field (sorted-key JSON)."}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

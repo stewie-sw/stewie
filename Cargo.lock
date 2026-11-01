@@ -1169,9 +1169,11 @@ dependencies = [
 name = "stewie-plan"
 version = "0.1.0"
 dependencies = [
+ "jsonschema",
  "lunar-dem",
  "serde_json",
  "sha1",
+ "sha2",
  "stewie-contracts",
  "stewie-oracle",
  "stewie-physics",
