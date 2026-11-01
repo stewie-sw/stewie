@@ -568,6 +568,398 @@ async fn dem_preview(
     .await
 }
 
+/// The full-resolution sampling plan over a square order-frame window (Python `heightfield_full.full_grid_spec`):
+/// the window clamped to the tile, the native and emitted sample counts (an LOD stride past `max_dim`), and the
+/// row and column of each sample.
+#[derive(Debug, Clone)]
+struct FullSpec {
+    x0: f64,
+    y0: f64,
+    window_m: f64,
+    n: usize,
+    native_n: usize,
+    step_m: f64,
+    stride: f64,
+    cols: Vec<usize>,
+    rows: Vec<usize>,
+    lod: bool,
+}
+
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)] // grid sizes and clamped counts
+fn full_grid_spec(dem: &SiteDem, x0: f64, y0: f64, window_m: f64, max_dim: i64) -> FullSpec {
+    let cell = dem.cell_m;
+    let max_dim = usize::try_from(max_dim.max(2)).unwrap_or(usize::MAX);
+    let (tile_x, tile_y) = ((dem.cols - 1) as f64 * cell, (dem.rows - 1) as f64 * cell);
+    let win = (2.0 * cell).max(window_m.min(tile_x).min(tile_y));
+    let x0 = x0.max(0.0).min(tile_x - win);
+    let y0 = y0.max(0.0).min(tile_y - win);
+    let native_n = ((win / cell).round_ties_even() as usize + 1).max(2);
+    let n = native_n.min(max_dim);
+    let xs = linspace(0.0, win, n);
+    FullSpec {
+        x0,
+        y0,
+        window_m: win,
+        n,
+        native_n,
+        step_m: win / (n - 1) as f64,
+        stride: (native_n - 1) as f64 / (n - 1) as f64,
+        cols: xs
+            .iter()
+            .map(|x| index((x0 + x) / cell, dem.cols - 1))
+            .collect(),
+        rows: xs
+            .iter()
+            .map(|y| index((y0 + y) / cell, dem.rows - 1))
+            .collect(),
+        lod: native_n > max_dim,
+    }
+}
+
+/// The largest square window sampling the whole tile at native resolution (Python `native_full_window_m`).
+#[allow(clippy::cast_precision_loss)] // grid sizes
+fn native_full_window_m(dem: &SiteDem) -> f64 {
+    (dem.cols.min(dem.rows) - 1) as f64 * dem.cell_m
+}
+
+const FULL_Q: Model = Model {
+    fields: &[
+        Field(
+            "window_m",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(-1.0),
+            },
+        ),
+        Field(
+            "x0",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(0.0),
+            },
+        ),
+        Field(
+            "y0",
+            Kind::Float {
+                gt: None,
+                ge: None,
+                le: None,
+                default: Some(0.0),
+            },
+        ),
+        Field(
+            "max_dim",
+            Kind::Int {
+                ge: i64::MIN,
+                le: i64::MAX,
+                default: 2048,
+            },
+        ),
+        Field(
+            "target_lines",
+            Kind::Int {
+                ge: i64::MIN,
+                le: i64::MAX,
+                default: 6,
+            },
+        ),
+    ],
+    forbid_extra: false,
+};
+
+/// An integer query value as validated (a whole number, possibly written as a float).
+#[allow(clippy::cast_possible_truncation)] // validated integers
+fn int(raw: &Map<String, Value>, k: &str, default: i64) -> i64 {
+    raw.get(k)
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.trim().parse::<f64>().ok())
+        .map_or(default, |v| v as i64)
+}
+
+/// A viz route's site DEM: 404 for an unknown or unimported site, or one whose DEM does not load.
+fn full_load(st: &AppState, site: &str) -> Result<Arc<SiteDem>, ApiError> {
+    bundle_404(st, site)?;
+    site_dem(st, site).map(|(d, _)| d)
+}
+
+/// The full-resolution grid (float32, row-major y then x) and its metadata.
+fn heightfield_full(dem: &SiteDem, spec: &FullSpec) -> (Vec<f32>, Map<String, Value>) {
+    #[allow(clippy::cast_possible_truncation)] // the bundle's heights are float32
+    let grid: Vec<f32> = spec
+        .rows
+        .iter()
+        .flat_map(|&r| spec.cols.iter().map(move |&c| (r, c)))
+        .map(|(r, c)| dem.z[r * dem.cols + c] as f32)
+        .collect();
+    let lo = grid.iter().copied().fold(f32::INFINITY, f32::min);
+    let hi = grid.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let meta = json!({
+        "x0": round(spec.x0, 3), "y0": round(spec.y0, 3), "window_m": round(spec.window_m, 3),
+        "cell_m": dem.cell_m, "n": spec.n, "native_n": spec.native_n, "step_m": round(spec.step_m, 6),
+        "stride": round(spec.stride, 6), "lod": spec.lod, "width": dem.cols, "height": dem.rows,
+        "z_min": f64::from(lo), "z_max": f64::from(hi),
+    });
+    let Value::Object(m) = meta else {
+        unreachable!("a JSON object literal")
+    };
+    (grid, m)
+}
+
+fn full_spec_of(dem: &SiteDem, raw: &Map<String, Value>, max_dim: i64) -> FullSpec {
+    let w = num(raw, "window_m", -1.0);
+    let win = if w <= 0.0 {
+        native_full_window_m(dem)
+    } else {
+        w
+    };
+    full_grid_spec(dem, num(raw, "x0", 0.0), num(raw, "y0", 0.0), win, max_dim)
+}
+
+/// The full-resolution height grid's metadata (sized before the binary fetch). Public, under the viz quota.
+async fn dem_heightfield_full_meta(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        st.viz_quota(&h)?;
+        let raw = query(&q, FULL_Q)?;
+        let site = site_of(&q);
+        let dem = full_load(st, &site)?;
+        let spec = full_spec_of(&dem, &raw, int(&raw, "max_dim", 2048));
+        let (_, mut meta) = heightfield_full(&dem, &spec);
+        meta.insert("ok".into(), json!(true));
+        meta.insert("site".into(), json!(site));
+        Ok(axum::Json(Value::Object(meta)).into_response())
+    })
+    .await
+}
+
+/// A float as Python's `repr` (the `X-Dem-*` headers).
+fn py_float(x: f64) -> String {
+    stewie_twin::pyjson::float_repr(x).unwrap_or_else(|_| format!("{x}"))
+}
+
+/// The full-resolution height grid as little-endian float32, its metadata in `X-Dem-*` headers. Public, under the
+/// viz quota.
+async fn dem_heightfield_full_bin(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        st.viz_quota(&h)?;
+        let raw = query(&q, FULL_Q)?;
+        let site = site_of(&q);
+        let dem = full_load(st, &site)?;
+        let spec = full_spec_of(&dem, &raw, int(&raw, "max_dim", 2048));
+        let (grid, meta) = heightfield_full(&dem, &spec);
+        let body: Vec<u8> = grid.iter().flat_map(|v| v.to_le_bytes()).collect();
+        let f = |k: &str| py_float(meta[k].as_f64().unwrap_or(f64::NAN));
+        let headers = [
+            ("x-dem-site", site.clone()),
+            ("x-dem-n", spec.n.to_string()),
+            ("x-dem-native-n", spec.native_n.to_string()),
+            ("x-dem-cell-m", f("cell_m")),
+            ("x-dem-window-m", f("window_m")),
+            ("x-dem-step-m", f("step_m")),
+            ("x-dem-stride", f("stride")),
+            ("x-dem-x0", f("x0")),
+            ("x-dem-y0", f("y0")),
+            ("x-dem-z-min", f("z_min")),
+            ("x-dem-z-max", f("z_max")),
+            ("x-dem-width", dem.cols.to_string()),
+            ("x-dem-height", dem.rows.to_string()),
+            ("x-dem-lod", if spec.lod { "1" } else { "0" }.to_owned()),
+        ];
+        let mut r = body.into_response();
+        let hm = r.headers_mut();
+        hm.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/octet-stream"),
+        );
+        hm.insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=3600"),
+        );
+        for (k, v) in headers {
+            if let Ok(v) = HeaderValue::from_str(&v) {
+                hm.insert(k, v);
+            }
+        }
+        Ok(r)
+    })
+    .await
+}
+
+/// graticule.js `_range`: an inclusive float range rounded to 1e-6, capped at 100000 steps.
+fn frange(a: f64, b: f64, step: f64) -> Vec<f64> {
+    if step.is_nan() || step <= 0.0 || !a.is_finite() || !b.is_finite() {
+        return if a.is_finite() {
+            vec![round(a, 6)]
+        } else {
+            Vec::new()
+        };
+    }
+    let (mut out, mut v) = (Vec::new(), a);
+    while v <= b + 1e-9 && out.len() < 100_000 {
+        out.push(round(v, 6));
+        v += step;
+    }
+    out
+}
+
+/// A degree label as graticule.js writes it: whole degrees as `30°`, else the value rounded to 3 places.
+#[allow(clippy::cast_possible_truncation)] // whole degrees
+fn fmt_deg(v: f64) -> String {
+    let r = v.round_ties_even();
+    if (v - r).abs() < 1e-6 {
+        format!("{}°", r as i64)
+    } else {
+        format!("{}°", py_float(round(v, 3)))
+    }
+}
+
+/// A round 1/2/5 x 10^k line step for a span (Python `graticule_order.auto_steps._round_step`).
+fn round_step(span: f64, n: i64) -> f64 {
+    #[allow(clippy::cast_precision_loss)] // a line count
+    let raw = span.max(1e-9) / n.max(1) as f64;
+    #[allow(clippy::cast_possible_truncation)] // a decade exponent
+    let k = if raw > 0.0 {
+        raw.log10().floor() as i32
+    } else {
+        -3
+    };
+    let decade = 10_f64.powf(f64::from(k));
+    let base = raw / decade;
+    let mult = if base < 1.5 {
+        1.0
+    } else if base < 3.5 {
+        2.0
+    } else {
+        5.0
+    };
+    mult * decade
+}
+
+/// One sampled line's runs of consecutive finite points inside the padded window, rounded to the millimetre.
+fn line_runs(pts: &[(f64, f64)], win: f64, pad: f64) -> Vec<Vec<[f64; 2]>> {
+    let (lo, hi) = (-pad, win + pad);
+    let (mut runs, mut cur) = (Vec::new(), Vec::new());
+    for &(x, y) in pts {
+        let inside =
+            x.is_finite() && y.is_finite() && (lo..=hi).contains(&x) && (lo..=hi).contains(&y);
+        if inside {
+            cur.push([round(x, 3), round(y, 3)]);
+        } else if !cur.is_empty() {
+            if cur.len() >= 2 {
+                runs.push(std::mem::take(&mut cur));
+            }
+            cur.clear();
+        }
+    }
+    if cur.len() >= 2 {
+        runs.push(cur);
+    }
+    runs
+}
+
+/// The selenographic graticule in order-local metres over the viewer's window (Python `graticule_order`),
+/// meridians then parallels, curved through the tile's polar stereographic frame. Public, under the viz quota.
+#[allow(clippy::too_many_lines)] // one route, as the Python
+async fn dem_graticule(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        st.viz_quota(&h)?;
+        let raw = query(&q, FULL_Q)?;
+        let site = site_of(&q);
+        let dem = full_load(st, &site)?;
+        #[allow(clippy::cast_possible_wrap)] // grid sizes
+        let spec = full_spec_of(&dem, &raw, (dem.cols + dem.rows) as i64);
+        let dir = bundle_404(st, &site)?;
+        let geo = georef_corners(st, &dir).map_err(|e| err(StatusCode::NOT_FOUND, e))?;
+        let corners = geo["corners"].as_array().cloned().unwrap_or_default();
+        let lons: Vec<f64> = corners.iter().map(|c| f(&c["lon"])).collect();
+        let lats: Vec<f64> = corners.iter().map(|c| f(&c["lat"])).collect();
+        let ext = |v: &[f64], max: bool| {
+            v.iter()
+                .copied()
+                .reduce(if max { f64::max } else { f64::min })
+                .unwrap_or(f64::NAN)
+        };
+        let (lon_min, lon_max, lat_min, lat_max) = (
+            ext(&lons, false),
+            ext(&lons, true),
+            ext(&lats, false),
+            ext(&lats, true),
+        );
+        let target = int(&raw, "target_lines", 6).clamp(2, 20);
+        let (lon_step, lat_step) = (
+            round_step(lon_max - lon_min, target),
+            round_step(lat_max - lat_min, target),
+        );
+        let (lon_sample, lat_sample) = (lon_step / 12.0, lat_step / 12.0);
+        let proj = st.terrain.projection();
+        let (ax0, ay0) = dem.pixel0_m;
+        let reproject = |lon: f64, lat: f64| -> (f64, f64) {
+            proj.forward(lunar_frames::LatLon {
+                lat_deg: lat,
+                lon_deg: lon,
+            })
+            .map_or((f64::NAN, f64::NAN), |(xs, ys)| {
+                (xs - ax0 - spec.x0, ay0 - ys - spec.y0)
+            })
+        };
+        let pad = spec.window_m * 0.02;
+        let mut lines = Vec::new();
+        let mut emit = |pts: Vec<(f64, f64)>, v: f64, kind: &str| {
+            for run in line_runs(&pts, spec.window_m, pad) {
+                lines.push(json!({"coords": run, "label": fmt_deg(v), "value": v, "kind": kind}));
+            }
+        };
+        for lon in frange(lon_min, lon_max, lon_step) {
+            let ls = frange(lat_min, lat_max, lat_sample);
+            if ls.len() >= 2 {
+                emit(
+                    ls.iter().map(|&lat| reproject(lon, lat)).collect(),
+                    lon,
+                    "meridian",
+                );
+            }
+        }
+        for lat in frange(lat_min, lat_max, lat_step) {
+            let ls = frange(lon_min, lon_max, lon_sample);
+            if ls.len() >= 2 {
+                emit(
+                    ls.iter().map(|&lon| reproject(lon, lat)).collect(),
+                    lat,
+                    "parallel",
+                );
+            }
+        }
+        Ok(axum::Json(
+            json!({"ok": true, "site": site, "x0": spec.x0, "y0": spec.y0,
+            "window_m": spec.window_m, "crs": geo["crs"], "lines": lines}),
+        )
+        .into_response())
+    })
+    .await
+}
+
 /// The DEM read routes (the literal paths are matched before the preview's `{name}`).
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
@@ -579,5 +971,8 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/dem/sources", get(dem_sources))
         .route("/dem/heightfield", get(dem_heightfield))
         .route("/dem/terrain_grid", get(dem_terrain_grid))
+        .route("/dem/heightfield_full", get(dem_heightfield_full_bin))
+        .route("/dem/heightfield_full/meta", get(dem_heightfield_full_meta))
+        .route("/dem/graticule", get(dem_graticule))
         .route("/dem/{name}", get(dem_preview))
 }

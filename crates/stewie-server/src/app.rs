@@ -81,6 +81,9 @@ pub struct Settings {
     pub world_quota_max: i64,
     pub world_point_budget: i64,
     pub world_window_s: f64,
+    /// The public 3D viewer's per-IP quota: `STEWIE_VIZ_QUOTA_MAX` (240) per `STEWIE_VIZ_QUOTA_WINDOW_S` (60 s).
+    pub viz_quota_max: i64,
+    pub viz_window_s: f64,
     /// `STEWIE_SITE_VECTORS` and `STEWIE_GIS_DATA_DIR`: where the visible-pin site vectors are found.
     pub site_vectors: Option<String>,
     pub gis_data_dir: Option<String>,
@@ -125,6 +128,8 @@ impl Settings {
             world_quota_max: num("STEWIE_WORLD_QUOTA_MAX", "240")? as i64,
             world_point_budget: num("STEWIE_WORLD_POINT_BUDGET", "512")? as i64,
             world_window_s: num("STEWIE_WORLD_QUOTA_WINDOW_S", "60")?,
+            viz_quota_max: num("STEWIE_VIZ_QUOTA_MAX", "240")? as i64,
+            viz_window_s: num("STEWIE_VIZ_QUOTA_WINDOW_S", "60")?,
             site_vectors: get("STEWIE_SITE_VECTORS").filter(|v| !v.is_empty()),
             gis_data_dir: get("STEWIE_GIS_DATA_DIR").filter(|v| !v.is_empty()),
         })
@@ -161,6 +166,7 @@ pub struct AppState {
     register_ip: RateLimiter,
     world_quota: RateLimiter,
     world_points: RateLimiter,
+    viz_quota: RateLimiter,
     started: Instant,
 }
 
@@ -219,6 +225,7 @@ impl AppState {
             register_ip: lim(),
             world_quota: RateLimiter::new(settings.world_quota_max, settings.world_window_s),
             world_points: RateLimiter::new(settings.world_point_budget, settings.world_window_s),
+            viz_quota: RateLimiter::new(settings.viz_quota_max, settings.viz_window_s),
             cfg,
             settings,
             store,
@@ -263,6 +270,18 @@ impl AppState {
             Err(err(
                 StatusCode::TOO_MANY_REQUESTS,
                 "world read quota exceeded; slow down",
+            ))
+        }
+    }
+
+    /// The public 3D viewer's per-IP render quota (Python `routers.dem._viz_quota`).
+    pub(crate) fn viz_quota(&self, h: &Head) -> Result<(), ApiError> {
+        if self.viz_quota.allow(&h.client_ip(self), self.mono(), 1) {
+            Ok(())
+        } else {
+            Err(err(
+                StatusCode::TOO_MANY_REQUESTS,
+                "viz terrain render quota exceeded; slow down",
             ))
         }
     }

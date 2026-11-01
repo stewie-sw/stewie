@@ -119,6 +119,38 @@ fn png_summary(bytes: &[u8]) -> Value {
     json!({"png": {"width": info.width, "height": info.height, "rgb_sha256": digest}})
 }
 
+/// The body as the oracle recorded it: structure, strings, integers and booleans exactly, floats to 1e-12
+/// relative. The server calls the platform libm (`hypot`, `sin`, ...), whose last bit differs between glibc
+/// releases (the CI runner's 2.39 against the fixture host's 2.36 moved a haul distance by one ULP); anything wider
+/// than a few ULP is a real difference. `Err` names the first place that differs.
+#[allow(clippy::float_cmp)] // equal floats short-circuit; the tolerance covers the rest
+fn close(got: &Value, want: &Value, at: &str) -> Result<(), String> {
+    match (got, want) {
+        (Value::Number(a), Value::Number(b)) if a.is_f64() || b.is_f64() => {
+            let (x, y) = (a.as_f64().unwrap(), b.as_f64().unwrap());
+            if x == y || (x - y).abs() <= 1e-12 * x.abs().max(y.abs()) {
+                Ok(())
+            } else {
+                Err(format!("{at}: {x} vs {y}"))
+            }
+        }
+        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => a
+            .iter()
+            .zip(b)
+            .enumerate()
+            .try_for_each(|(i, (x, y))| close(x, y, &format!("{at}/{i}"))),
+        (Value::Object(a), Value::Object(b)) if a.len() == b.len() => {
+            a.iter().try_for_each(|(k, x)| {
+                b.get(k)
+                    .ok_or_else(|| format!("{at}/{k}: missing"))
+                    .and_then(|y| close(x, y, &format!("{at}/{k}")))
+            })
+        }
+        _ if got == want => Ok(()),
+        _ => Err(at.to_owned()),
+    }
+}
+
 /// Replay the fixture `name` (seeded from `seed`) through a fresh app; `before(i, step, clock, dir)` reproduces
 /// what the oracle did between requests. Headers and cookies are compared where the fixture recorded them.
 #[allow(clippy::too_many_lines)] // one request loop, then the stores and journals
@@ -210,9 +242,31 @@ async fn replay(
                 .map(str::to_owned)
         };
         let (resp_cache, resp_type) = (header_of("cache-control"), header_of("content-type"));
+        let headers_all: Vec<(String, String)> = resp
+            .headers()
+            .iter()
+            .filter_map(|(k, v)| {
+                v.to_str()
+                    .ok()
+                    .map(|v| (k.as_str().to_owned(), v.to_owned()))
+            })
+            .collect();
         let raw = resp.into_body().collect().await.unwrap().to_bytes();
         let mut body: Value = if resp_type.as_deref() == Some("image/png") {
             png_summary(&raw)
+        } else if resp_type.as_deref() == Some("application/octet-stream") {
+            // as the oracle records a binary body: its digest, length and X-Dem-* headers
+            let x_dem: Map<String, Value> = headers_all
+                .iter()
+                .filter(|(k, _)| k.starts_with("x-dem-"))
+                .map(|(k, v)| (k.clone(), json!(v)))
+                .collect();
+            let digest = Sha256::digest(&raw).iter().fold(String::new(), |mut h, b| {
+                use std::fmt::Write as _;
+                let _ = write!(h, "{b:02x}");
+                h
+            });
+            json!({"bytes_sha256": digest, "len": raw.len(), "x_dem": x_dem})
         } else {
             serde_json::from_slice(&raw)
                 .unwrap_or_else(|_| json!(String::from_utf8_lossy(&raw).into_owned()))
@@ -225,7 +279,9 @@ async fn replay(
             step["status"].as_u64().unwrap(),
             "{what}: status ({body})"
         );
-        assert_eq!(body, step["body"], "{what}: body");
+        if let Err(at) = close(&body, &step["body"], "") {
+            assert_eq!(body, step["body"], "{what}: body differs at {at}");
+        }
         // the caching policy and media type, where the fixture recorded them
         if step.get("cache_control").is_some() {
             let got = resp_cache.as_deref().map_or(Value::Null, |v| json!(v));

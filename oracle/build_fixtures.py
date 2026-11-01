@@ -4553,7 +4553,8 @@ def _http_session(seed_text: str, env_extra: dict, script) -> dict:
                     body = {"png": {"width": im.width, "height": im.height,
                                     "rgb_sha256": hashlib.sha256(im.tobytes()).hexdigest()}}
                 elif ctype.startswith("application/octet-stream"):
-                    body = {"bytes_sha256": hashlib.sha256(r.content).hexdigest(), "len": len(r.content)}
+                    body = {"bytes_sha256": hashlib.sha256(r.content).hexdigest(), "len": len(r.content),
+                            "x_dem": {k.lower(): v for k, v in r.headers.items() if k.lower().startswith("x-dem-")}}
                 else:
                     try:
                         body = r.json()
@@ -4625,8 +4626,30 @@ def http_dem_cases() -> None:
         call("GET", "/dem/height.png?site=shackleton_rim", headers=key)
         call("GET", "/dem/other.png", headers=key)
         call("GET", "/dem/height.png?site=atlantis", headers=key)
+        # the public 3D viewer's routes (RW-55b6b), under a viz quota cut to 14 (SYNTHETIC, labelled)
+        import stewie.server.routers.dem as _D
+        from stewie.server.ratelimit import RateLimiter as _RL
+        saved_rl, _D._viz_ratelimiter = _D._viz_ratelimiter, _RL(14, 60.0)
+        try:
+            call("GET", "/dem/heightfield_full/meta")
+            call("GET", "/dem/heightfield_full/meta?window_m=500&x0=4000&y0=6800&max_dim=64")
+            call("GET", "/dem/heightfield_full/meta?window_m=1&x0=-50&y0=1e9")
+            call("GET", "/dem/heightfield_full/meta?window_m=700&x0=1e9&y0=-50")
+            call("GET", "/dem/heightfield_full/meta?site=atlantis")
+            call("GET", "/dem/heightfield_full/meta?max_dim=abc")
+            call("GET", "/dem/heightfield_full?window_m=300&x0=4115&y0=6915&max_dim=40")
+            call("GET", "/dem/heightfield_full?site=shackleton_rim&max_dim=100")
+            call("GET", "/dem/heightfield_full?site=shoemaker")
+            call("GET", "/dem/graticule")
+            call("GET", "/dem/graticule?window_m=2000&x0=3000&y0=6000&target_lines=40")
+            call("GET", "/dem/graticule?site=shackleton_rim&target_lines=1")
+            call("GET", "/dem/graticule?target_lines=3")                    # the lat step's base is 1.46
+            call("GET", "/dem/graticule?site=atlantis")
+            call("GET", "/dem/graticule")                                  # the 15th: the quota is spent
+        finally:
+            _D._viz_ratelimiter = saved_rl
 
-    payload = _http_session("stewie-http-dem-oracle", {}, script)
+    payload = _http_session("stewie-http-dem-oracle", {"STEWIE_VIZ_QUOTA_MAX": "14"}, script)
     write_fixture(ORACLE_FIXTURES, "http_dem_cases", "oracle/build_fixtures.py::http_dem_cases (the FastAPI app's "
                   "/dem read routes; real site bundles, a SYNTHETIC boulder scene, labelled)",
                   ["stewie/server/routers/dem.py", "stewie/terrain/site_dem.py", "dart/dem_sources.py"], payload)
