@@ -4225,6 +4225,21 @@ def http_world_cases() -> None:
                     call("POST", "/world/points", raw="{bad")
                     call("POST", "/world/points", json_body={"site": "atlantis", "points": [[0, 0]]})
                     call("POST", "/world/points", json_body={"points": [[0, 0]]})   # the budget is spent
+                    # SS-01 suitability and the SD-03 transect (RW-55b5c-2)
+                    call("GET", "/world/site-suitability?site=haworth")
+                    call("GET", "/world/site-suitability?site=shackleton_rim")
+                    call("GET", "/world/site-suitability?site=atlantis")
+                    call("GET", "/world/site-suitability?site=shoemaker")              # known, not imported
+                    call("POST", "/world/transect", json_body={"points": [[0, 0], [50, -35], [265, -175], [1e6, 0]]})
+                    call("POST", "/world/transect", json_body={"frame": "lonlat", "points": [
+                        [-26.3182865963215, -86.37652685731457], [0, 0], [-26.328914700094455, -86.37799567600852]]})
+                    call("POST", "/world/transect", json_body={"points": [[0, 0], ["nan", 1], [5, 5]]})
+                    call("POST", "/world/transect", json_body={"points": [[35, -65], [85, -140]]})   # a PSR cell; a sweep-sensitive one
+                    call("POST", "/world/transect", json_body={"frame": "utm", "points": [[0, 0], [1, 1]]})
+                    call("POST", "/world/transect", json_body={"points": [[0, 0]]})
+                    call("POST", "/world/transect", json_body={"points": [[0, 0]] * 513})
+                    call("POST", "/world/transect", json_body={"site": "atlantis", "points": [[0, 0], [1, 1]]})
+                    call("POST", "/world/transect", json_body={"points": [[0, 0], [1, 1]], "extra": 1})
                 finally:
                     _K.PHI, _MAT.PHI_LOOSE_DEG = _kphi, _phi
                     _W._world_point_budget = _budget

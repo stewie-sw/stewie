@@ -20,7 +20,9 @@ use crate::app::{
     ApiError, AppState, Head, blocking, body_model, err, parse_body, require_auth, split,
 };
 use crate::operators::py_repr;
-use crate::point::{Spine, point_values};
+use crate::point::{
+    SUN_AZ_DEG, Spine, grid_sun_az, point_values, site_suitability, transect_profile, work_area,
+};
 use crate::validate::{self, Field, Kind, Model};
 
 /// The LY-01 layer catalog, the committed source of truth.
@@ -743,6 +745,8 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/world/terrain_view.png", get(terrain_view_png))
         .route("/world/point", get(world_point))
         .route("/world/points", post(world_points))
+        .route("/world/site-suitability", get(world_site_suitability))
+        .route("/world/transect", post(world_transect))
 }
 
 const ANY_FLOAT: Kind = Kind::Float {
@@ -774,6 +778,31 @@ const POINTS_REQ: Model = Model {
             },
         ),
         Field("points", Kind::FloatPairList),
+    ],
+    forbid_extra: true,
+};
+/// The transect body (Python `TransectReq`).
+const TRANSECT_REQ: Model = Model {
+    fields: &[
+        Field(
+            "site",
+            Kind::Str {
+                min: 0,
+                max: usize::MAX,
+                nullable: false,
+                default: Some("haworth"),
+            },
+        ),
+        Field("points", Kind::FloatPairList),
+        Field(
+            "frame",
+            Kind::Str {
+                min: 0,
+                max: usize::MAX,
+                nullable: false,
+                default: Some("order"),
+            },
+        ),
     ],
     forbid_extra: true,
 };
@@ -838,17 +867,7 @@ async fn world_points(State(st): State<Arc<AppState>>, req: Request) -> Response
         let ip = st.world_quota(&h)?;
         let v = body_model(body.as_ref(), POINTS_REQ)?;
         let site = v["site"].as_str().unwrap_or("haworth").to_owned();
-        // the validated pairs, read raw so a NaN stays a value
-        let points: Vec<(f64, f64)> = body.as_ref().map_or_else(Vec::new, |b| {
-            b["points"].as_array().map_or_else(Vec::new, |ps| {
-                ps.iter()
-                    .map(|p| {
-                        let f = |i: usize| validate::as_float(&p[i]).unwrap_or(f64::NAN);
-                        (f(0), f(1))
-                    })
-                    .collect()
-            })
-        });
+        let points = pairs(body.as_ref(), "points");
         if points.len() > MAX_POINTS {
             return Err(err(
                 StatusCode::PAYLOAD_TOO_LARGE,
@@ -871,6 +890,107 @@ async fn world_points(State(st): State<Arc<AppState>>, req: Request) -> Response
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
         Ok(axum::Json(json!({"ok": true, "site": site, "points": out})).into_response())
+    })
+    .await
+}
+
+/// The validated pairs of `body[key]`, read raw so a NaN stays a value.
+fn pairs(body: Option<&Value>, key: &str) -> Vec<(f64, f64)> {
+    body.and_then(|b| b[key].as_array())
+        .map_or_else(Vec::new, |ps| {
+            ps.iter()
+                .map(|p| {
+                    let f = |i: usize| validate::as_float(&p[i]).unwrap_or(f64::NAN);
+                    (f(0), f(1))
+                })
+                .collect()
+        })
+}
+
+/// The SS-01 site-survey suitability over the site's work-area crop: public, under the per-IP world quota; 404
+/// for an unknown or unimported site.
+async fn world_site_suitability(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        st.world_quota(&h)?;
+        let site = site_of(&q);
+        if let Err(e) = st.terrain.bundle_for_site(&site) {
+            // an unknown site is the Python's KeyError, whose text is the message's repr
+            let msg = if st.terrain.is_known(&site) {
+                e
+            } else {
+                py_repr(&e)
+            };
+            return Err(err(StatusCode::NOT_FOUND, msg));
+        }
+        let (dem, origin) = st.terrain.moon_dem(&site).ok_or_else(|| no_dem(&site))?;
+        let (crop, rows, cols, (r0, c0)) = work_area(&dem, origin);
+        #[allow(clippy::cast_precision_loss)] // crop offsets
+        let (cx, cy) = (
+            (c0 as f64 + cols as f64 / 2.0) * dem.cell_m,
+            (r0 as f64 + rows as f64 / 2.0) * dem.cell_m,
+        );
+        // the drape sun in the grid frame; the uncorrected azimuth where the bearing cannot be taken
+        let sun = st
+            .terrain
+            .grid_north_bearing_deg(&dem, cx, cy)
+            .map_or(SUN_AZ_DEG, |b| grid_sun_az(SUN_AZ_DEG, b));
+        let spine =
+            Spine::ipex(&st.planning).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let v = site_suitability(&site, &crop, rows, cols, dem.cell_m, sun, &spine)
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        Ok(axum::Json(v).into_response())
+    })
+    .await
+}
+
+/// The SD-03 cross-section: 2..=512 samples, order-frame metres or `[lon, lat]` degrees per `frame`, each with the
+/// point query's elevation, slope, bearing and sinkage, the PSR flag and the distance along. Public, under the
+/// per-IP world quota.
+async fn world_transect(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (h, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        st.world_quota(&h)?;
+        let v = body_model(body.as_ref(), TRANSECT_REQ)?;
+        let site = v["site"].as_str().unwrap_or("haworth").to_owned();
+        let frame = v["frame"].as_str().unwrap_or("order");
+        let bad = |m: &str| err(StatusCode::BAD_REQUEST, m);
+        if frame != "order" && frame != "lonlat" {
+            return Err(bad("frame must be 'order' or 'lonlat'"));
+        }
+        let raw = pairs(body.as_ref(), "points");
+        if raw.len() < 2 {
+            return Err(bad("a transect needs >= 2 sample points"));
+        }
+        if raw.len() > MAX_POINTS {
+            return Err(err(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "too many points (max 512 per transect)",
+            ));
+        }
+        let (dem, origin) = st.terrain.moon_dem(&site).ok_or_else(|| no_dem(&site))?;
+        let view = st.terrain.current_terrain_view(&site, &dem, origin);
+        // an out-of-tile lon/lat or a non-finite order sample is a no-data row, not a refusal of the whole draw
+        let points: Vec<Option<(f64, f64)>> = raw
+            .iter()
+            .map(|&(a, b)| {
+                if frame == "lonlat" {
+                    st.terrain.latlon_to_order(&dem, origin, a, b).ok()
+                } else {
+                    (a.is_finite() && b.is_finite()).then_some((a, b))
+                }
+            })
+            .collect();
+        let spine =
+            Spine::ipex(&st.planning).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let v = transect_profile(&site, &points, &dem, origin, &view, &spine)
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        Ok(axum::Json(v).into_response())
     })
     .await
 }

@@ -513,6 +513,52 @@ impl Terrain {
         Ok((ci as f64 * cell - origin.0, ri as f64 * cell - origin.1))
     }
 
+    /// Whether the site registry names `site`.
+    #[must_use]
+    pub fn is_known(&self, site: &str) -> bool {
+        self.sites.get(site).is_some()
+    }
+
+    /// The selenographic position of order-frame pixel-metres `(x, y)` (Python `site_dem.dem_origin_to_latlon`).
+    ///
+    /// # Errors
+    /// A position outside the tile, in the Python's words.
+    #[allow(clippy::cast_precision_loss)] // grid sizes
+    pub fn dem_origin_to_latlon(&self, dem: &SiteDem, x: f64, y: f64) -> Result<LatLon, String> {
+        let (w, h, cell) = (dem.cols as f64, dem.rows as f64, dem.cell_m);
+        let (col, row) = (x / cell, y / cell);
+        if !((-0.5..=w - 0.5).contains(&col) && (-0.5..=h - 0.5).contains(&row)) {
+            return Err(format!(
+                "site (x, y) = ({x:.0}, {y:.0}) m is outside the mapped tile ({}x{} @ {cell} m)",
+                dem.cols, dem.rows
+            ));
+        }
+        let (ax0, ay0) = dem.pixel0_m;
+        Ok(PolarStereographic::south(self.sphere).inverse(ax0 + col * cell, ay0 - row * cell))
+    }
+
+    /// The true bearing [deg, clockwise from north] of the grid's +row direction at pixel-metres `(x, y)` (Python
+    /// `site_dem.grid_north_bearing_deg`): a one-cell finite difference, stepped backwards and turned 180 deg at
+    /// the tile's last row.
+    ///
+    /// # Errors
+    /// A position off the tile by more than a cell either way.
+    pub fn grid_north_bearing_deg(&self, dem: &SiteDem, x: f64, y: f64) -> Result<f64, String> {
+        let a = self.dem_origin_to_latlon(dem, x, y)?;
+        let (b, flip) = match self.dem_origin_to_latlon(dem, x, y + dem.cell_m) {
+            Ok(b) => (b, 0.0),
+            Err(_) => (self.dem_origin_to_latlon(dem, x, y - dem.cell_m)?, 180.0),
+        };
+        let (p1, p2) = (a.lat_deg.to_radians(), b.lat_deg.to_radians());
+        let dl = (b.lon_deg - a.lon_deg).to_radians();
+        let east = dl.sin() * p2.cos();
+        let north = p1.cos() * p2.sin() - p1.sin() * p2.cos() * dl.cos();
+        Ok(crate::point::py_mod(
+            east.atan2(north).to_degrees() + flip,
+            360.0,
+        ))
+    }
+
     /// The composed planning surface of a site's DEM (`origin` the order-frame anchor): the recorded Terrain
     /// Memory imprinted, then the site's observed twin where it has measured cells on the same grid. A layer
     /// that cannot be read is skipped, never failing the consumer.

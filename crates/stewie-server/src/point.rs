@@ -8,13 +8,13 @@
 //! The IPEx figures come from the rover profile and fleet registry, the soil from the body registry (D-R72: the
 //! loose friction is the registry's 35 deg), and the representative dig from the profile's large drum on BP-1.
 
-use lunar_dem::slope_deg_grid;
+use lunar_dem::{slope_deg_grid, uniform_filter_nearest};
 use serde_json::{Value, json};
 use stewie_physics::excavation::{self, Dig};
 use stewie_physics::material::MaterialModel;
 use stewie_physics::soil::SoilParams;
 use stewie_physics::terra::{self, DriveCase};
-use stewie_traverse::layers::{Context, Rover, compose};
+use stewie_traverse::layers::{Context, Rover, compose, horizon_clip};
 use stewie_twin::numpy::round;
 use stewie_twin::terrain_view::{Source, TerrainView};
 
@@ -482,6 +482,313 @@ pub fn point_values(
     });
     out["actions"] = actions(true, passable);
     Ok(out)
+}
+
+/// The planner's work-area crop (Python `gis_layers._work_area`): 128 x 128 cells around the flattest anchor,
+/// kept inside the tile. Returns the crop (row-major), its rows and columns, and its offset `(r0, c0)`.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss
+)] // tile indices
+#[must_use]
+pub fn work_area(dem: &SiteDem, origin: (f64, f64)) -> (Vec<f64>, usize, usize, (usize, usize)) {
+    const HALF: i64 = 64;
+    let (rows, cols) = (dem.rows as i64, dem.cols as i64);
+    // int() truncates toward zero
+    let r0 = 0.max((rows - 2 * HALF).min((origin.1 / dem.cell_m) as i64 - HALF)) as usize;
+    let c0 = 0.max((cols - 2 * HALF).min((origin.0 / dem.cell_m) as i64 - HALF)) as usize;
+    let (r1, c1) = (dem.rows.min(r0 + 128), dem.cols.min(c0 + 128));
+    let crop = (r0..r1)
+        .flat_map(|r| dem.z[r * dem.cols + c0..r * dem.cols + c1].iter().copied())
+        .collect();
+    (crop, r1 - r0, c1 - c0, (r0, c0))
+}
+
+/// Python's float `%`: the result takes the divisor's sign.
+pub(crate) fn py_mod(a: f64, b: f64) -> f64 {
+    let m = a % b;
+    if m == 0.0 {
+        0.0_f64.copysign(b)
+    } else if (b < 0.0) != (m < 0.0) {
+        m + b
+    } else {
+        m
+    }
+}
+
+/// A true sun azimuth in the DEM grid's frame (Python `gis_layers.grid_sun_az`): a reflection about the grid's
+/// +row bearing, since the north-up raster makes the grid left-handed against the compass.
+#[must_use]
+pub fn grid_sun_az(sun_az_true_deg: f64, grid_north_bearing_deg: f64) -> f64 {
+    py_mod(grid_north_bearing_deg - sun_az_true_deg, 360.0)
+}
+
+/// `np.nanmean`: the pairwise sum of the non-NaN values over their count.
+#[allow(clippy::cast_precision_loss)] // a cell count
+fn nanmean(v: &[f64]) -> f64 {
+    let kept: Vec<f64> = v
+        .iter()
+        .map(|x| if x.is_nan() { 0.0 } else { *x })
+        .collect();
+    let n = v.iter().filter(|x| !x.is_nan()).count();
+    stewie_twin::numpy::sum(&kept) / n as f64
+}
+
+/// `np.nanpercentile(v, q)` with numpy's default linear method.
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::many_single_char_names
+)] // indices of a sorted copy; numpy's n, q, t, a, b, d
+fn nanpercentile(v: &[f64], q_pct: f64) -> f64 {
+    let mut s: Vec<f64> = v.iter().copied().filter(|x| !x.is_nan()).collect();
+    if s.is_empty() {
+        return f64::NAN;
+    }
+    s.sort_by(f64::total_cmp);
+    let n = s.len() as f64;
+    let q = q_pct / 100.0;
+    // numpy's virtual index for alpha = beta = 1, in its order of operations (`alpha + q * (1 - alpha - beta)`
+    // is exactly 1 - q)
+    let vi = n * q + (1.0 - q) - 1.0;
+    let prev = vi.floor().clamp(0.0, n - 1.0);
+    let next = (prev + 1.0).min(n - 1.0);
+    let t = vi - vi.floor();
+    let (a, b) = (s[prev as usize], s[next as usize]);
+    let d = b - a;
+    if t >= 0.5 {
+        b - d * (1.0 - t)
+    } else {
+        a + d * t
+    }
+}
+
+fn nan_extreme(v: &[f64], max: bool) -> f64 {
+    v.iter()
+        .copied()
+        .filter(|x| !x.is_nan())
+        .reduce(if max { f64::max } else { f64::min })
+        .unwrap_or(f64::NAN)
+}
+
+/// The veto reasons a blocked cell is attributed to, in the costmap's first-blocking order.
+const SUITABILITY_REASONS: [&str; 7] = [
+    "slope",
+    "sinkage",
+    "tip_risk",
+    "negative_obstacle",
+    "psr",
+    "keepout",
+    "reservation",
+];
+
+/// The stated rating band of the suitable-fraction score (a decision-support label, not a measurement).
+fn grade(score: i64) -> &'static str {
+    match score {
+        90.. => "excellent",
+        75..=89 => "good",
+        50..=74 => "marginal",
+        25..=49 => "poor",
+        _ => "unsuitable",
+    }
+}
+
+/// The SS-01 site-survey suitability (Python `gis_layers.site_suitability`): the fraction of the work-area cells
+/// the AS-11 costmap passes (no weighting), the dominant first-blocking veto, and the crop's terrain statistics.
+/// `sun_az_grid_deg` is the drape sun's azimuth re-expressed in the grid frame.
+///
+/// # Errors
+/// A solve the physics refuses.
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::too_many_lines
+)] // cell counts; one payload
+pub fn site_suitability(
+    site: &str,
+    crop: &[f64],
+    rows: usize,
+    cols: usize,
+    cell_m: f64,
+    sun_az_grid_deg: f64,
+    s: &Spine,
+) -> Result<Value, String> {
+    let cm = drape_costmap(crop, cols, rows, cell_m, sun_az_grid_deg, s)?;
+    let n = cm.passable.len();
+    let n_suitable = cm.passable.iter().filter(|p| **p).count();
+    let fraction = if n > 0 {
+        n_suitable as f64 / n as f64
+    } else {
+        0.0
+    };
+    let score = (100.0 * fraction).round_ties_even() as i64;
+    let mut counts: Vec<(&str, usize)> = SUITABILITY_REASONS
+        .iter()
+        .map(|name| {
+            let c = cm
+                .passable
+                .iter()
+                .zip(&cm.reason)
+                .filter(|(p, r)| !**p && **r == Some(*name))
+                .count();
+            (*name, c)
+        })
+        .filter(|(_, c)| *c > 0)
+        .collect();
+    counts.sort_by_key(|(_, c)| std::cmp::Reverse(*c)); // stable: ties keep the veto order
+    let blocking: Vec<Value> = counts
+        .iter()
+        .map(|(name, c)| json!({"reason": name, "count": c, "fraction": round(*c as f64 / n as f64, 6)}))
+        .collect();
+    let slope = slope_deg_grid(crop, cols, rows, cell_m);
+    let mean = uniform_filter_nearest(&slope, cols, rows, 3);
+    let sq: Vec<f64> = slope.iter().map(|x| x * x).collect();
+    let mean_sq = uniform_filter_nearest(&sq, cols, rows, 3);
+    let rough: Vec<f64> = mean_sq
+        .iter()
+        .zip(&mean)
+        .map(|(q, m)| (q - m * m).max(0.0).sqrt() / 10.0)
+        .collect();
+    let lut = Terra::over(&slope, s)?;
+    let at: Vec<TerraAt> = slope.iter().map(|x| lut.at(*x)).collect();
+    let field = |f: fn(&TerraAt) -> f64| at.iter().map(f).collect::<Vec<f64>>();
+    let (bearing, margin, sinkage) = (
+        field(|a| a.bearing_pa),
+        field(|a| a.traction_margin),
+        field(|a| a.sinkage_m),
+    );
+    let r4 = |v: f64| round(v, 4);
+    Ok(json!({
+        "ok": true, "site": site,
+        "score": score, "grade": grade(score),
+        "suitable_fraction": round(fraction, 6),
+        "n_cells": n, "n_suitable": n_suitable,
+        "binding_constraint": counts.first().map(|(name, _)| *name),
+        "blocking": blocking,
+        "fields": {
+            "slope_deg": {"mean": r4(nanmean(&slope)), "p95": r4(nanpercentile(&slope, 95.0)),
+                          "max": r4(nan_extreme(&slope, true))},
+            "roughness": {"mean": r4(nanmean(&rough)), "p95": r4(nanpercentile(&rough, 95.0))},
+            "bearing_pa": {"mean": r4(nanmean(&bearing))},
+            "traction_margin": {"mean": r4(nanmean(&margin)), "min": r4(nan_extreme(&margin, false))},
+            "sinkage_m": {"mean": r4(nanmean(&sinkage)), "max": r4(nan_extreme(&sinkage, true))},
+        },
+        "thresholds": {"max_slope_deg": MAX_SLOPE_DEG, "max_sinkage_m": MAX_SINKAGE_M,
+                       "max_drop_m": r4(cell_m * MAX_SLOPE_DEG.to_radians().tan())},
+        "grid": {"rows": rows, "cols": cols, "cell_m": cell_m},
+        "sun": {"el_deg": SUN_EL_DEG, "az_deg": SUN_AZ_DEG},
+        "provenance": "FORGE costmap compose (lode.costmap_layers) + terramechanics spine (_terra_fields) + LY-05 \
+                       roughness over the real site work-area crop; score = passable fraction, no invented weighting; \
+                       grade band is a stated decision-support label",
+    }))
+}
+
+/// A site's permanently-shadowed mask (SD-03; Python `gis_layers._site_psr_mask`): cells never lit across a
+/// 0..330 deg azimuth sweep (every 30 deg) at 3 deg elevation, on the DEM strided to about 384 px. Returns the
+/// stride, the strided grid's columns, and the never-lit mask.
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)] // grid sizes
+#[must_use]
+pub fn psr_mask(dem: &SiteDem) -> (usize, usize, Vec<bool>) {
+    let step = ((dem.rows.max(dem.cols) as f64 / 384.0).round_ties_even() as usize).max(1);
+    let (sh, sw) = (dem.rows.div_ceil(step), dem.cols.div_ceil(step));
+    let strided: Vec<f64> = (0..sh)
+        .flat_map(|r| (0..sw).map(move |c| (r * step, c * step)))
+        .map(|(r, c)| dem.z[r * dem.cols + c])
+        .collect();
+    let mut ever = vec![false; sh * sw];
+    for az in (0..360).step_by(30) {
+        let lit = horizon_clip(
+            &strided,
+            sw,
+            sh,
+            dem.cell_m * step as f64,
+            f64::from(az),
+            3.0,
+        );
+        for (e, l) in ever.iter_mut().zip(lit) {
+            *e |= l;
+        }
+    }
+    (step, sw, ever.into_iter().map(|e| !e).collect())
+}
+
+/// The SD-03 cross-section (Python `gis_layers.transect_profile`): per sample the elevation, slope, bearing and
+/// sinkage the point query reads, the PSR flag, and the cumulative distance. `points` are order-frame metres, or
+/// already resolved from lon/lat with `None` for a sample outside the tile (distance is carried, not advanced).
+///
+/// # Errors
+/// A solve the physics refuses.
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)] // grid indices
+pub fn transect_profile(
+    site: &str,
+    points: &[Option<(f64, f64)>],
+    dem: &SiteDem,
+    origin: (f64, f64),
+    view: &TerrainView,
+    s: &Spine,
+) -> Result<Value, String> {
+    let (step, sw, psr) = psr_mask(dem);
+    let sh = psr.len() / sw.max(1);
+    let mut samples = Vec::with_capacity(points.len());
+    let (mut prev, mut dist): (Option<(f64, f64)>, f64) = (None, 0.0);
+    for p in points {
+        let Some((x, y)) = *p else {
+            samples.push(json!({"dist_m": round(dist, 2), "x_m": null, "y_m": null, "in_bounds": false,
+                "elevation_m": null, "slope_deg": null, "bearing_pa": null, "sinkage_m": null, "psr": null}));
+            continue;
+        };
+        if let Some((px, py)) = prev {
+            dist += (x - px).hypot(y - py);
+        }
+        prev = Some((x, y));
+        let pv = point_values(site, x, y, dem, origin, view, s)?;
+        let value = |id: &str| {
+            pv["attributes"]
+                .as_array()
+                .and_then(|a| a.iter().find(|r| r["id"] == id))
+                .map_or(Value::Null, |r| r["value"].clone())
+        };
+        let col = ((origin.0 + x) / dem.cell_m).round_ties_even();
+        let row = ((origin.1 + y) / dem.cell_m).round_ties_even();
+        let in_b = row >= 0.0 && row < dem.rows as f64 && col >= 0.0 && col < dem.cols as f64;
+        let flag = if in_b {
+            let (dr, dc) = (row as usize / step, col as usize / step);
+            (dr < sh && dc < sw).then(|| psr[dr * sw + dc])
+        } else {
+            None
+        };
+        samples.push(json!({
+            "dist_m": round(dist, 2), "x_m": round(x, 2), "y_m": round(y, 2), "in_bounds": in_b,
+            "elevation_m": value("base.dem"), "slope_deg": value("terrain.slope"),
+            "bearing_pa": value("physics.bearing"), "sinkage_m": value("physics.sinkage"), "psr": flag,
+        }));
+    }
+    Ok(json!({
+        "ok": true, "site": site, "n": samples.len(), "samples": samples,
+        "sources": {
+            "elevation_m": "LOLA DEM (base.dem, prior/observed)",
+            "slope_deg": "derived from the DEM gradient",
+            "bearing_pa": "terramechanics spine (physics.bearing, derived/estimated)",
+            "sinkage_m": "terramechanics spine (physics.sinkage, derived/estimated)",
+            "psr": "permanently-shadowed = never lit across a 0..360 deg sun-azimuth sweep at 3 deg elevation \
+                    (dart.illumination horizon-clip on the real DEM)",
+        },
+        "unavailable": {
+            "ice_stability": "NO real per-cell producer -- terrain.thermal is catalog-only (no Diviner/thermal \
+                              ice-stability raster wired). NOT fabricated. PSR (cold-trap candidate) is the real \
+                              ice-relevant proxy; a quantitative depth-to-ice needs a Diviner/LOLA thermal dataset.",
+        },
+    }))
 }
 
 #[cfg(test)]

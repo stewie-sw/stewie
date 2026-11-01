@@ -9527,6 +9527,2716 @@
     "raw": null
    },
    "status": 429
+  },
+  {
+   "body": {
+    "binding_constraint": "psr",
+    "blocking": [
+     {
+      "count": 10150,
+      "fraction": 0.619507,
+      "reason": "psr"
+     },
+     {
+      "count": 4589,
+      "fraction": 0.28009,
+      "reason": "negative_obstacle"
+     },
+     {
+      "count": 1431,
+      "fraction": 0.087341,
+      "reason": "slope"
+     }
+    ],
+    "fields": {
+     "bearing_pa": {
+      "mean": 642.6636
+     },
+     "roughness": {
+      "mean": 0.0911,
+      "p95": 0.2564
+     },
+     "sinkage_m": {
+      "max": 0.0091,
+      "mean": 0.0008
+     },
+     "slope_deg": {
+      "max": 43.7374,
+      "mean": 16.575,
+      "p95": 26.2765
+     },
+     "traction_margin": {
+      "mean": 0.6837,
+      "min": 0.046
+     }
+    },
+    "grade": "unsuitable",
+    "grid": {
+     "cell_m": 5.0,
+     "cols": 128,
+     "rows": 128
+    },
+    "n_cells": 16384,
+    "n_suitable": 214,
+    "ok": true,
+    "provenance": "FORGE costmap compose (lode.costmap_layers) + terramechanics spine (_terra_fields) + LY-05 roughness over the real site work-area crop; score = passable fraction, no invented weighting; grade band is a stated decision-support label",
+    "score": 1,
+    "site": "haworth",
+    "suitable_fraction": 0.013062,
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    },
+    "thresholds": {
+     "max_drop_m": 2.3315,
+     "max_sinkage_m": 0.1,
+     "max_slope_deg": 25.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-048"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/site-suitability?site=haworth",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "binding_constraint": "psr",
+    "blocking": [
+     {
+      "count": 5246,
+      "fraction": 0.32019,
+      "reason": "psr"
+     },
+     {
+      "count": 10,
+      "fraction": 0.00061,
+      "reason": "negative_obstacle"
+     },
+     {
+      "count": 1,
+      "fraction": 6.1e-05,
+      "reason": "slope"
+     }
+    ],
+    "fields": {
+     "bearing_pa": {
+      "mean": 670.826
+     },
+     "roughness": {
+      "mean": 0.0678,
+      "p95": 0.1629
+     },
+     "sinkage_m": {
+      "max": 0.0009,
+      "mean": 0.0008
+     },
+     "slope_deg": {
+      "max": 26.835,
+      "mean": 5.4552,
+      "p95": 12.6138
+     },
+     "traction_margin": {
+      "mean": 0.8952,
+      "min": 0.4796
+     }
+    },
+    "grade": "marginal",
+    "grid": {
+     "cell_m": 5.0,
+     "cols": 128,
+     "rows": 128
+    },
+    "n_cells": 16384,
+    "n_suitable": 11127,
+    "ok": true,
+    "provenance": "FORGE costmap compose (lode.costmap_layers) + terramechanics spine (_terra_fields) + LY-05 roughness over the real site work-area crop; score = passable fraction, no invented weighting; grade band is a stated decision-support label",
+    "score": 68,
+    "site": "shackleton_rim",
+    "suitable_fraction": 0.679138,
+    "sun": {
+     "az_deg": 90.0,
+     "el_deg": 6.0
+    },
+    "thresholds": {
+     "max_drop_m": 2.3315,
+     "max_sinkage_m": 0.1,
+     "max_slope_deg": 25.0
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-049"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/site-suitability?site=shackleton_rim",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "\"unknown site 'atlantis' (known: ['amundsen_rim', 'connecting_ridge', 'de_gerlache_kocher', 'de_gerlache_rim', 'faustini_psr', 'haworth', 'haworth_sfs', 'leibnitz_beta', 'malapert_massif', 'nobile_rim', 'nobile_rim2', 'peak_near_shackleton', 'shackleton_rim', 'shoemaker'])\"",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-050"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/site-suitability?site=atlantis",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "site 'shoemaker' is not imported (no DEM bundle); fetch it first",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-051"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/site-suitability?site=shoemaker",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "n": 4,
+    "ok": true,
+    "samples": [
+     {
+      "bearing_pa": 674.9842,
+      "dist_m": 0.0,
+      "elevation_m": 1097.7743,
+      "in_bounds": true,
+      "psr": false,
+      "sinkage_m": 0.0008,
+      "slope_deg": 0.3902,
+      "x_m": 0.0,
+      "y_m": 0.0
+     },
+     {
+      "bearing_pa": 673.7797,
+      "dist_m": 61.03,
+      "elevation_m": 1096.5551,
+      "in_bounds": true,
+      "psr": false,
+      "sinkage_m": 0.0008,
+      "slope_deg": 3.4456,
+      "x_m": 50.0,
+      "y_m": -35.0
+     },
+     {
+      "bearing_pa": 487.6981,
+      "dist_m": 317.6,
+      "elevation_m": 1140.1475,
+      "in_bounds": true,
+      "psr": false,
+      "sinkage_m": 0.0082,
+      "slope_deg": 43.7374,
+      "x_m": 265.0,
+      "y_m": -175.0
+     },
+     {
+      "bearing_pa": null,
+      "dist_m": 1000052.61,
+      "elevation_m": null,
+      "in_bounds": false,
+      "psr": null,
+      "sinkage_m": null,
+      "slope_deg": null,
+      "x_m": 1000000.0,
+      "y_m": 0.0
+     }
+    ],
+    "site": "haworth",
+    "sources": {
+     "bearing_pa": "terramechanics spine (physics.bearing, derived/estimated)",
+     "elevation_m": "LOLA DEM (base.dem, prior/observed)",
+     "psr": "permanently-shadowed = never lit across a 0..360 deg sun-azimuth sweep at 3 deg elevation (dart.illumination horizon-clip on the real DEM)",
+     "sinkage_m": "terramechanics spine (physics.sinkage, derived/estimated)",
+     "slope_deg": "derived from the DEM gradient"
+    },
+    "unavailable": {
+     "ice_stability": "NO real per-cell producer -- terrain.thermal is catalog-only (no Diviner/thermal ice-stability raster wired). NOT fabricated. PSR (cold-trap candidate) is the real ice-relevant proxy; a quantitative depth-to-ice needs a Diviner/LOLA thermal dataset."
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-052"
+    },
+    "json": {
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       50,
+       -35
+      ],
+      [
+       265,
+       -175
+      ],
+      [
+       1000000.0,
+       0
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/transect",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "n": 3,
+    "ok": true,
+    "samples": [
+     {
+      "bearing_pa": 673.7797,
+      "dist_m": 0.0,
+      "elevation_m": 1096.5551,
+      "in_bounds": true,
+      "psr": false,
+      "sinkage_m": 0.0008,
+      "slope_deg": 3.4456,
+      "x_m": 50.0,
+      "y_m": -35.0
+     },
+     {
+      "bearing_pa": null,
+      "dist_m": 0.0,
+      "elevation_m": null,
+      "in_bounds": false,
+      "psr": null,
+      "sinkage_m": null,
+      "slope_deg": null,
+      "x_m": null,
+      "y_m": null
+     },
+     {
+      "bearing_pa": 673.946,
+      "dist_m": 45.28,
+      "elevation_m": 1099.0009,
+      "in_bounds": true,
+      "psr": false,
+      "sinkage_m": 0.0008,
+      "slope_deg": 3.202,
+      "x_m": 55.0,
+      "y_m": 10.0
+     }
+    ],
+    "site": "haworth",
+    "sources": {
+     "bearing_pa": "terramechanics spine (physics.bearing, derived/estimated)",
+     "elevation_m": "LOLA DEM (base.dem, prior/observed)",
+     "psr": "permanently-shadowed = never lit across a 0..360 deg sun-azimuth sweep at 3 deg elevation (dart.illumination horizon-clip on the real DEM)",
+     "sinkage_m": "terramechanics spine (physics.sinkage, derived/estimated)",
+     "slope_deg": "derived from the DEM gradient"
+    },
+    "unavailable": {
+     "ice_stability": "NO real per-cell producer -- terrain.thermal is catalog-only (no Diviner/thermal ice-stability raster wired). NOT fabricated. PSR (cold-trap candidate) is the real ice-relevant proxy; a quantitative depth-to-ice needs a Diviner/LOLA thermal dataset."
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-053"
+    },
+    "json": {
+     "frame": "lonlat",
+     "points": [
+      [
+       -26.3182865963215,
+       -86.37652685731457
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       -26.328914700094455,
+       -86.37799567600852
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/transect",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "n": 3,
+    "ok": true,
+    "samples": [
+     {
+      "bearing_pa": 674.9842,
+      "dist_m": 0.0,
+      "elevation_m": 1097.7743,
+      "in_bounds": true,
+      "psr": false,
+      "sinkage_m": 0.0008,
+      "slope_deg": 0.3902,
+      "x_m": 0.0,
+      "y_m": 0.0
+     },
+     {
+      "bearing_pa": null,
+      "dist_m": 0.0,
+      "elevation_m": null,
+      "in_bounds": false,
+      "psr": null,
+      "sinkage_m": null,
+      "slope_deg": null,
+      "x_m": null,
+      "y_m": null
+     },
+     {
+      "bearing_pa": 674.9404,
+      "dist_m": 7.07,
+      "elevation_m": 1097.8405,
+      "in_bounds": true,
+      "psr": false,
+      "sinkage_m": 0.0008,
+      "slope_deg": 0.7606,
+      "x_m": 5.0,
+      "y_m": 5.0
+     }
+    ],
+    "site": "haworth",
+    "sources": {
+     "bearing_pa": "terramechanics spine (physics.bearing, derived/estimated)",
+     "elevation_m": "LOLA DEM (base.dem, prior/observed)",
+     "psr": "permanently-shadowed = never lit across a 0..360 deg sun-azimuth sweep at 3 deg elevation (dart.illumination horizon-clip on the real DEM)",
+     "sinkage_m": "terramechanics spine (physics.sinkage, derived/estimated)",
+     "slope_deg": "derived from the DEM gradient"
+    },
+    "unavailable": {
+     "ice_stability": "NO real per-cell producer -- terrain.thermal is catalog-only (no Diviner/thermal ice-stability raster wired). NOT fabricated. PSR (cold-trap candidate) is the real ice-relevant proxy; a quantitative depth-to-ice needs a Diviner/LOLA thermal dataset."
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-054"
+    },
+    "json": {
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       "nan",
+       1
+      ],
+      [
+       5,
+       5
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/transect",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "n": 2,
+    "ok": true,
+    "samples": [
+     {
+      "bearing_pa": 673.3012,
+      "dist_m": 0.0,
+      "elevation_m": 1095.1775,
+      "in_bounds": true,
+      "psr": true,
+      "sinkage_m": 0.0008,
+      "slope_deg": 4.0656,
+      "x_m": 35.0,
+      "y_m": -65.0
+     },
+     {
+      "bearing_pa": 668.8457,
+      "dist_m": 90.14,
+      "elevation_m": 1091.0342,
+      "in_bounds": true,
+      "psr": false,
+      "sinkage_m": 0.0008,
+      "slope_deg": 7.7428,
+      "x_m": 85.0,
+      "y_m": -140.0
+     }
+    ],
+    "site": "haworth",
+    "sources": {
+     "bearing_pa": "terramechanics spine (physics.bearing, derived/estimated)",
+     "elevation_m": "LOLA DEM (base.dem, prior/observed)",
+     "psr": "permanently-shadowed = never lit across a 0..360 deg sun-azimuth sweep at 3 deg elevation (dart.illumination horizon-clip on the real DEM)",
+     "sinkage_m": "terramechanics spine (physics.sinkage, derived/estimated)",
+     "slope_deg": "derived from the DEM gradient"
+    },
+    "unavailable": {
+     "ice_stability": "NO real per-cell producer -- terrain.thermal is catalog-only (no Diviner/thermal ice-stability raster wired). NOT fabricated. PSR (cold-trap candidate) is the real ice-relevant proxy; a quantitative depth-to-ice needs a Diviner/LOLA thermal dataset."
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-055"
+    },
+    "json": {
+     "points": [
+      [
+       35,
+       -65
+      ],
+      [
+       85,
+       -140
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/transect",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "frame must be 'order' or 'lonlat'",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-056"
+    },
+    "json": {
+     "frame": "utm",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       1,
+       1
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/transect",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "a transect needs >= 2 sample points",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-057"
+    },
+    "json": {
+     "points": [
+      [
+       0,
+       0
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/transect",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "too many points (max 512 per transect)",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-058"
+    },
+    "json": {
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ],
+      [
+       0,
+       0
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/transect",
+    "raw": null
+   },
+   "status": 413
+  },
+  {
+   "body": {
+    "error": "no DEM bundle for site 'atlantis'",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-059"
+    },
+    "json": {
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       1,
+       1
+      ]
+     ],
+     "site": "atlantis"
+    },
+    "method": "POST",
+    "path": "/world/transect",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "extra: Extra inputs are not permitted",
+    "ok": false
+   },
+   "cache_control": "no-store",
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-060"
+    },
+    "json": {
+     "extra": 1,
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       1,
+       1
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/world/transect",
+    "raw": null
+   },
+   "status": 400
   }
  ],
  "store": null
