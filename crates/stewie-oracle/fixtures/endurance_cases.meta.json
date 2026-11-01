@@ -1,0 +1,14 @@
+{
+ "fixture": "endurance_cases",
+ "generator": "oracle/build_fixtures.py::endurance_cases (lode.planner_endurance.endurance on the real Haworth DEM and DEM-less bodies)",
+ "payload_sha256": "862e659fc79ae6493fc82c41ae58c68ae36cad2e7f8ca45828c6eed89b12317e",
+ "sources": {
+  "lode/planner_constants.py": "588a9ff4a38c5ef6a27133e27e0dd5473374111f7539ef6b5b0ff0326e611e1c",
+  "lode/planner_endurance.py": "4a620dec960bd0d89c900036e8a163408677c0b838edc098fa42bb99e9a97632",
+  "lode/planner_model.py": "6ade8f7eeea9de9386c009ed63e0e005e69b8dfd6fa7ff8d44ce42216fec3e46",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/slip.py": "bfb6938e63fdc0e0dbfbc01f6200bc4d783c982213fba611652e4840ecf096a0",
+  "stewie/server/sample_missions/01_flatten_pad.json": "95e2e79b1b238c7630a4a8a232e209b546583c872b9905450657ff0dc9fa15e7",
+  "stewie/specs/ipex_specs.py": "4465ff80e5427a067b52bde12c69c8b726a73f8eb1b7dbe60522f9bbdce1e7d6"
+ }
+}

@@ -1,0 +1,61 @@
+{
+  "body_timescale": {
+    "ceres": {
+      "day_label": "Ceres day",
+      "daylight_h": 4.54,
+      "op_window_h": [
+        2.0,
+        3.0
+      ],
+      "solar_day_h": 9.07
+    },
+    "earth": {
+      "day_label": "day",
+      "daylight_h": 12.0,
+      "op_window_h": [
+        6.0,
+        8.0
+      ],
+      "solar_day_h": 24.0
+    },
+    "mars": {
+      "day_label": "sol",
+      "daylight_h": 12.33,
+      "op_window_h": [
+        6.0,
+        8.0
+      ],
+      "solar_day_h": 24.66
+    },
+    "moon": {
+      "day_label": "lunar day",
+      "daylight_h": 354.4,
+      "op_window_h": [
+        216.0,
+        264.0
+      ],
+      "solar_day_h": 708.7
+    }
+  },
+  "conops": {
+    "mission_days": 11.0,
+    "total_regolith_kg": [
+      5000.0,
+      10000.0
+    ],
+    "traverse_km": 70.0
+  },
+  "default_timescale": {
+    "day_label": "day",
+    "daylight_h": 12.0,
+    "op_window_h": [
+      6.0,
+      8.0
+    ],
+    "solar_day_h": 24.0
+  },
+  "power_kinds": [
+    "psr_tower",
+    "sunlit_solar"
+  ]
+}

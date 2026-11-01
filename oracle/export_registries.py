@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
 """
 from __future__ import annotations
 
@@ -86,6 +86,23 @@ def model_registries() -> dict:
         "backend_authority": list_backend_authority(),
         "terra_spine": list_terra_spine(),
     }
+
+
+def endurance() -> dict:
+    """The endurance report's tables (``lode.planner_endurance``): each body's operating timescale and the
+    generic fallback for an unlisted body (``planner_model.BODY_TIMESCALE``, hand-written there with its
+    sources), the IPEx ConOps figures (``ipex_specs``) and the power-site kinds."""
+    from lode import planner_endurance as E
+    from lode.planner_model import BODY_TIMESCALE, body_timescale
+    from stewie.specs import ipex_specs as S
+    fallback = body_timescale("_unlisted_")
+    fallback.pop("body")
+    lo, hi = S.TOTAL_REGOLITH_KG
+    return {"body_timescale": {b: dict(v, op_window_h=list(v["op_window_h"])) for b, v in BODY_TIMESCALE.items()},
+            "default_timescale": dict(fallback, op_window_h=list(fallback["op_window_h"])),
+            "conops": {"traverse_km": S.TRAVERSE_KM, "mission_days": S.MISSION_DAYS,
+                       "total_regolith_kg": [lo, hi]},
+            "power_kinds": list(E.POWER_KINDS)}
 
 
 def soil_baseline() -> dict:
@@ -258,6 +275,7 @@ def main() -> None:
     print(_write("site_order.json", site_order()))
     print(_write("overlay_constants.json", overlay_constants()))
     print(_write("model_registries.json", model_registries()))
+    print(_write("endurance.json", endurance()))
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))

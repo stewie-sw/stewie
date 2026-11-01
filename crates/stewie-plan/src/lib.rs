@@ -5,6 +5,7 @@
 pub mod acceptance;
 pub mod assemble;
 pub mod balance;
+pub mod endurance;
 pub mod fleet;
 pub mod ir;
 pub mod mission;

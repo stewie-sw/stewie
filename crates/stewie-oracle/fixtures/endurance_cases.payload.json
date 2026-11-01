@@ -1,0 +1,1578 @@
+{
+ "cases": [
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "ipex"
+   },
+   "power_site": "psr_tower",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 1.0206,
+     "drive_packs": 0.2128378378378378,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 274.07407407407413,
+    "flat_j_per_m": 14.58,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "anytime (lander/tower budget; a PSR has no sun)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 1.0,
+     "effective_charge_w": 700.0,
+     "kind": "psr_tower",
+     "solar_day_h": 708.7,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 328.8888888888889,
+    "range_flat_reserve_km": 296.00000000000006,
+    "range_slopeslip_km": 138.93942141822313,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 245045.65437679426,
+     "worst_cell_pack_frac": 0.0511022802754409
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": false,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 274.07407407407413,
+     "sorties_per_window": 0.7881081081081079,
+     "spans_days": 0.7733467101412927
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": null
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "ipex"
+   },
+   "power_site": "sunlit_solar",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 1.0206,
+     "drive_packs": 0.2128378378378378,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 274.07407407407413,
+    "flat_j_per_m": 14.58,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "daylight only (~354 h / 709 h lunar day)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 0.5000705517144066,
+     "effective_charge_w": 350.04938620008465,
+     "kind": "sunlit_solar",
+     "solar_day_h": 708.7,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 328.8888888888889,
+    "range_flat_reserve_km": 296.00000000000006,
+    "range_slopeslip_km": 138.93942141822313,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 245045.65437679426,
+     "worst_cell_pack_frac": 0.0511022802754409
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": false,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 274.07407407407413,
+     "sorties_per_window": 0.7881081081081079,
+     "spans_days": 0.7733467101412927
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": 10.0
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "ipex"
+   },
+   "power_site": "psr_tower",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 1.0206,
+     "drive_packs": 0.2128378378378378,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 274.07407407407413,
+    "flat_j_per_m": 14.58,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "anytime (lander/tower budget; a PSR has no sun)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 1.0,
+     "effective_charge_w": 700.0,
+     "kind": "psr_tower",
+     "solar_day_h": 708.7,
+     "thermal_derate": 0.8,
+     "usable_pack_J": 3836160.000000001
+    },
+    "range_flat_full_km": 328.8888888888889,
+    "range_flat_reserve_km": 296.00000000000006,
+    "range_slopeslip_km": 138.93942141822313,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 245045.65437679426,
+     "worst_cell_pack_frac": 0.0511022802754409
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": false,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 274.07407407407413,
+     "sorties_per_window": 0.7881081081081079,
+     "spans_days": 0.7733467101412927
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": -20.0
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "ipex"
+   },
+   "power_site": "sunlit_solar",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 1.0206,
+     "drive_packs": 0.2128378378378378,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 274.07407407407413,
+    "flat_j_per_m": 14.58,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "daylight only (~354 h / 709 h lunar day)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 0.5000705517144066,
+     "effective_charge_w": 350.04938620008465,
+     "kind": "sunlit_solar",
+     "solar_day_h": 708.7,
+     "thermal_derate": 0.5,
+     "usable_pack_J": 2397600.0000000005
+    },
+    "range_flat_full_km": 328.8888888888889,
+    "range_flat_reserve_km": 296.00000000000006,
+    "range_slopeslip_km": 138.93942141822313,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 245045.65437679426,
+     "worst_cell_pack_frac": 0.0511022802754409
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": false,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 274.07407407407413,
+     "sorties_per_window": 0.7881081081081079,
+     "spans_days": 0.7733467101412927
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": -80.0
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "ez_rassor"
+   },
+   "power_site": "psr_tower",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 1.0206,
+     "drive_packs": 0.2128378378378378,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 274.07407407407413,
+    "flat_j_per_m": 14.58,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "anytime (lander/tower budget; a PSR has no sun)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 1.0,
+     "effective_charge_w": 700.0,
+     "kind": "psr_tower",
+     "solar_day_h": 708.7,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 328.8888888888889,
+    "range_flat_reserve_km": 296.00000000000006,
+    "range_slopeslip_km": 138.93942141822313,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 245045.65437679426,
+     "worst_cell_pack_frac": 0.0511022802754409
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": false,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 274.07407407407413,
+     "sorties_per_window": 0.7881081081081079,
+     "spans_days": 0.7733467101412927
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": null
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "ez_rassor"
+   },
+   "power_site": "sunlit_solar",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 1.0206,
+     "drive_packs": 0.2128378378378378,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 274.07407407407413,
+    "flat_j_per_m": 14.58,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "daylight only (~354 h / 709 h lunar day)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 0.5000705517144066,
+     "effective_charge_w": 350.04938620008465,
+     "kind": "sunlit_solar",
+     "solar_day_h": 708.7,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 328.8888888888889,
+    "range_flat_reserve_km": 296.00000000000006,
+    "range_slopeslip_km": 138.93942141822313,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 245045.65437679426,
+     "worst_cell_pack_frac": 0.0511022802754409
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": false,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 274.07407407407413,
+     "sorties_per_window": 0.7881081081081079,
+     "spans_days": 0.7733467101412927
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": 10.0
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "ez_rassor"
+   },
+   "power_site": "psr_tower",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 1.0206,
+     "drive_packs": 0.2128378378378378,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 274.07407407407413,
+    "flat_j_per_m": 14.58,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "anytime (lander/tower budget; a PSR has no sun)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 1.0,
+     "effective_charge_w": 700.0,
+     "kind": "psr_tower",
+     "solar_day_h": 708.7,
+     "thermal_derate": 0.8,
+     "usable_pack_J": 3836160.000000001
+    },
+    "range_flat_full_km": 328.8888888888889,
+    "range_flat_reserve_km": 296.00000000000006,
+    "range_slopeslip_km": 138.93942141822313,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 245045.65437679426,
+     "worst_cell_pack_frac": 0.0511022802754409
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": false,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 274.07407407407413,
+     "sorties_per_window": 0.7881081081081079,
+     "spans_days": 0.7733467101412927
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": -20.0
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "ez_rassor"
+   },
+   "power_site": "sunlit_solar",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 1.0206,
+     "drive_packs": 0.2128378378378378,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 274.07407407407413,
+    "flat_j_per_m": 14.58,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "daylight only (~354 h / 709 h lunar day)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 0.5000705517144066,
+     "effective_charge_w": 350.04938620008465,
+     "kind": "sunlit_solar",
+     "solar_day_h": 708.7,
+     "thermal_derate": 0.5,
+     "usable_pack_J": 2397600.0000000005
+    },
+    "range_flat_full_km": 328.8888888888889,
+    "range_flat_reserve_km": 296.00000000000006,
+    "range_slopeslip_km": 138.93942141822313,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 245045.65437679426,
+     "worst_cell_pack_frac": 0.0511022802754409
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": false,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 274.07407407407413,
+     "sorties_per_window": 0.7881081081081079,
+     "spans_days": 0.7733467101412927
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": -80.0
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "rassor2"
+   },
+   "power_site": "psr_tower",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 2.2113000000000005,
+     "drive_packs": 0.46114864864864863,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 126.49572649572652,
+    "flat_j_per_m": 31.590000000000003,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "anytime (lander/tower budget; a PSR has no sun)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 1.0,
+     "effective_charge_w": 700.0,
+     "kind": "psr_tower",
+     "solar_day_h": 708.7,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 151.79487179487182,
+    "range_flat_reserve_km": 136.6153846153846,
+    "range_slopeslip_km": 62.436107134608804,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 530932.2511497213,
+     "worst_cell_pack_frac": 0.11072160726345538
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 65.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": true,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 126.49572649572652,
+     "sorties_per_window": 1.7075675675675672,
+     "spans_days": 0.35692925083444277
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": null
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "rassor2"
+   },
+   "power_site": "sunlit_solar",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 2.2113000000000005,
+     "drive_packs": 0.46114864864864863,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 126.49572649572652,
+    "flat_j_per_m": 31.590000000000003,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "daylight only (~354 h / 709 h lunar day)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 0.5000705517144066,
+     "effective_charge_w": 350.04938620008465,
+     "kind": "sunlit_solar",
+     "solar_day_h": 708.7,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 151.79487179487182,
+    "range_flat_reserve_km": 136.6153846153846,
+    "range_slopeslip_km": 62.436107134608804,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 530932.2511497213,
+     "worst_cell_pack_frac": 0.11072160726345538
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 65.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": true,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 126.49572649572652,
+     "sorties_per_window": 1.7075675675675672,
+     "spans_days": 0.35692925083444277
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": 10.0
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "rassor2"
+   },
+   "power_site": "psr_tower",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 2.2113000000000005,
+     "drive_packs": 0.46114864864864863,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 126.49572649572652,
+    "flat_j_per_m": 31.590000000000003,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "anytime (lander/tower budget; a PSR has no sun)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 1.0,
+     "effective_charge_w": 700.0,
+     "kind": "psr_tower",
+     "solar_day_h": 708.7,
+     "thermal_derate": 0.8,
+     "usable_pack_J": 3836160.000000001
+    },
+    "range_flat_full_km": 151.79487179487182,
+    "range_flat_reserve_km": 136.6153846153846,
+    "range_slopeslip_km": 62.436107134608804,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 530932.2511497213,
+     "worst_cell_pack_frac": 0.11072160726345538
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 65.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": true,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 126.49572649572652,
+     "sorties_per_window": 1.7075675675675672,
+     "spans_days": 0.35692925083444277
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": -20.0
+  },
+  {
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ],
+    "vehicle": "rassor2"
+   },
+   "power_site": "sunlit_solar",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 2.2113000000000005,
+     "drive_packs": 0.46114864864864863,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 126.49572649572652,
+    "flat_j_per_m": 31.590000000000003,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "daylight only (~354 h / 709 h lunar day)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 0.5000705517144066,
+     "effective_charge_w": 350.04938620008465,
+     "kind": "sunlit_solar",
+     "solar_day_h": 708.7,
+     "thermal_derate": 0.5,
+     "usable_pack_J": 2397600.0000000005
+    },
+    "range_flat_full_km": 151.79487179487182,
+    "range_flat_reserve_km": 136.6153846153846,
+    "range_slopeslip_km": 62.436107134608804,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 530932.2511497213,
+     "worst_cell_pack_frac": 0.11072160726345538
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 65.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": true,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 126.49572649572652,
+     "sorties_per_window": 1.7075675675675672,
+     "spans_days": 0.35692925083444277
+    },
+    "work_area_median_slope_deg": 16.708860234905764
+   },
+   "site": "haworth",
+   "temp_c": -80.0
+  },
+  {
+   "origin": [
+    4117.5,
+    6922.5
+   ],
+   "payload": {
+    "body": "moon",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   },
+   "power_site": "psr_tower",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 1.0206,
+     "drive_packs": 0.2128378378378378,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 274.07407407407413,
+    "flat_j_per_m": 14.58,
+    "g": 1.62,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "anytime (lander/tower budget; a PSR has no sun)",
+     "charge_power_w": 700.0,
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "duty_frac": 1.0,
+     "effective_charge_w": 700.0,
+     "kind": "psr_tower",
+     "solar_day_h": 708.7,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 328.8888888888889,
+    "range_flat_reserve_km": 296.00000000000006,
+    "range_slopeslip_km": 138.9774887853933,
+    "reach": {
+     "area_m2": 100000000.0,
+     "grid_cell_m": 50.0,
+     "radius_m": 9046.131769988762,
+     "tile_fully_reachable": true,
+     "worst_cell_J": 245045.65437679426,
+     "worst_cell_pack_frac": 0.0511022802754409
+    },
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "moon",
+     "day_label": "lunar day",
+     "daylight_h": 354.4,
+     "fits_in_window": false,
+     "op_window_h": [
+      216.0,
+      264.0
+     ],
+     "solar_day_h": 708.7,
+     "sortie_h": 274.07407407407413,
+     "sorties_per_window": 0.7881081081081079,
+     "spans_days": 0.7733467101412927
+    },
+    "work_area_median_slope_deg": 16.700742236636792
+   },
+   "site": "haworth",
+   "temp_c": null
+  },
+  {
+   "payload": {
+    "body": "mars",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   },
+   "power_site": "sunlit_solar",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 2.3373,
+     "drive_packs": 0.48742492492492484,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 119.67654986522913,
+    "flat_j_per_m": 33.39,
+    "g": 3.71,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "daylight only (~12 h / 25 h sol)",
+     "charge_power_w": 700.0,
+     "day_label": "sol",
+     "daylight_h": 12.33,
+     "duty_frac": 0.5,
+     "effective_charge_w": 350.0,
+     "kind": "sunlit_solar",
+     "solar_day_h": 24.66,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 143.61185983827494,
+    "range_flat_reserve_km": 129.25067385444746,
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "mars",
+     "day_label": "sol",
+     "daylight_h": 12.33,
+     "fits_in_window": false,
+     "op_window_h": [
+      6.0,
+      8.0
+     ],
+     "solar_day_h": 24.66,
+     "sortie_h": 119.67654986522913,
+     "sorties_per_window": 0.05013513513513512,
+     "spans_days": 9.706127320780952
+    }
+   },
+   "site": null,
+   "temp_c": null
+  },
+  {
+   "payload": {
+    "body": "ceres",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   },
+   "power_site": "sunlit_solar",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 0.17891999999999997,
+     "drive_packs": 0.0373123123123123,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 1563.3802816901416,
+    "flat_j_per_m": 2.5559999999999996,
+    "g": 0.284,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "daylight only (~5 h / 9 h Ceres day)",
+     "charge_power_w": 700.0,
+     "day_label": "Ceres day",
+     "daylight_h": 4.54,
+     "duty_frac": 0.5005512679162073,
+     "effective_charge_w": 350.3858875413451,
+     "kind": "sunlit_solar",
+     "solar_day_h": 9.07,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 1876.0563380281696,
+    "range_flat_reserve_km": 1688.4507042253526,
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "ceres",
+     "day_label": "Ceres day",
+     "daylight_h": 4.54,
+     "fits_in_window": false,
+     "op_window_h": [
+      2.0,
+      3.0
+     ],
+     "solar_day_h": 9.07,
+     "sortie_h": 1563.3802816901416,
+     "sorties_per_window": 0.0012792792792792787,
+     "spans_days": 344.3568902401193
+    }
+   },
+   "site": null,
+   "temp_c": null
+  },
+  {
+   "payload": {
+    "body": "bp1_testbed",
+    "charger": [
+     0,
+     0
+    ],
+    "keepouts": [],
+    "name": "Tutorial 1 — flatten a landing pad",
+    "orders": [
+     {
+      "action": "cut high spot",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "cut",
+      "x": 10,
+      "y": 10
+     },
+     {
+      "action": "fill pad",
+      "depth_m": 0.15,
+      "footprint_m2": 36,
+      "kind": "fill",
+      "x": 40,
+      "y": 10
+     }
+    ]
+   },
+   "power_site": "sunlit_solar",
+   "result": {
+    "conops": {
+     "dig_energy_MJ": [
+      20.75695146121828,
+      41.51390292243656
+     ],
+     "dig_packs": [
+      4.328693581335142,
+      8.657387162670284
+     ],
+     "drive_energy_MJ": 6.1803,
+     "drive_packs": 1.288851351351351,
+     "drums_dominate": true,
+     "mission_days": 11.0,
+     "regolith_t": [
+      5.0,
+      10.0
+     ],
+     "traverse_km": 70.0
+    },
+    "drive_power_w": 40.37574878393602,
+    "duration_flat_h": 45.2599388379205,
+    "flat_j_per_m": 88.29,
+    "g": 9.81,
+    "pack_energy_MJ": 4.795200000000001,
+    "power": {
+     "availability": "daylight only (~12 h / 24 h day)",
+     "charge_power_w": 700.0,
+     "day_label": "day",
+     "daylight_h": 12.0,
+     "duty_frac": 0.5,
+     "effective_charge_w": 350.0,
+     "kind": "sunlit_solar",
+     "solar_day_h": 24.0,
+     "thermal_derate": 1.0,
+     "usable_pack_J": 4795200.000000001
+    },
+    "range_flat_full_km": 54.311926605504595,
+    "range_flat_reserve_km": 48.88073394495413,
+    "reserve_frac": 0.1,
+    "rover_mass_kg": 30.0,
+    "speed_ms": 0.3,
+    "timescale": {
+     "body": "bp1_testbed",
+     "day_label": "day",
+     "daylight_h": 12.0,
+     "fits_in_window": false,
+     "op_window_h": [
+      6.0,
+      8.0
+     ],
+     "solar_day_h": 24.0,
+     "sortie_h": 45.2599388379205,
+     "sorties_per_window": 0.13256756756756755,
+     "spans_days": 3.7716615698267084
+    }
+   },
+   "site": null,
+   "temp_c": null
+  }
+ ],
+ "origin": [
+  4115.0,
+  6915.0
+ ]
+}

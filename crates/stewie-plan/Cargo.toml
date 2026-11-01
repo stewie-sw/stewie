@@ -13,6 +13,7 @@ stewie-contracts = { path = "../stewie-contracts" }
 stewie-physics = { path = "../stewie-physics" }
 stewie-traverse = { path = "../stewie-traverse" }
 stewie-twin = { path = "../stewie-twin" }
+serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 sha1 = "0.10"
 sha2 = "0.10"

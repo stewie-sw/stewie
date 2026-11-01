@@ -1565,3 +1565,68 @@ async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     );
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn the_endurance_report_matches_the_python_on_the_real_haworth_dem() {
+    let fx = stewie_oracle::load("endurance_cases").unwrap().payload;
+    let dir = std::env::temp_dir().join(format!("stewie-endurance-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let cfg = stewie_oracle::repo_root()
+        .join("deploy/planner.json")
+        .display()
+        .to_string();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+        ("STEWIE_PLANNER_CONFIG", cfg),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"endurance").into(),
+        n: Mutex::new(0),
+    }));
+    let st = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
+    let (site, origin) = st.terrain.moon_dem("haworth").unwrap();
+    assert_eq!(
+        json!([origin.0, origin.1]),
+        fx["origin"],
+        "the flattest anchor"
+    );
+    let dem_at = |o: (f64, f64)| stewie_traverse::route::Dem {
+        z: &site.z,
+        width: site.cols,
+        height: site.rows,
+        cell_m: site.cell_m,
+        origin: o,
+    };
+    let cases = fx["cases"].as_array().unwrap();
+    assert!(
+        cases.iter().any(|c| c["result"].get("reach").is_some()),
+        "vacuity: a reach field"
+    );
+    for (i, c) in cases.iter().enumerate() {
+        let m = st.planning.mission(&c["payload"]).unwrap();
+        let inputs = st.planning.inputs(&m).unwrap();
+        let o = c
+            .get("origin")
+            .map_or(origin, |o| (o[0].as_f64().unwrap(), o[1].as_f64().unwrap()));
+        let dem = dem_at(o);
+        let got = st
+            .planning
+            .endurance(
+                &m,
+                &inputs,
+                c["site"].is_string().then_some(&dem),
+                c["power_site"].as_str().unwrap(),
+                c["temp_c"].as_f64(),
+            )
+            .unwrap();
+        if let Err(e) = close(&got, &c["result"], &format!("case {i}")) {
+            panic!("{e}");
+        }
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}

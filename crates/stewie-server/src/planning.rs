@@ -36,6 +36,8 @@ pub struct PlannerConfig {
     /// The math worksheet's `DIG_J_PER_KG` and `DRIVE_J_PER_M` (the Python's IPEx module constants).
     pub ipex_dig_j_per_kg: f64,
     pub ipex_drive_j_per_m: f64,
+    /// Slip energy multiplier versus tan(slope) [CALIB] (the endurance reach field).
+    pub slip_alpha: f64,
 }
 
 impl PlannerConfig {
@@ -94,6 +96,7 @@ impl PlannerConfig {
             },
             ipex_dig_j_per_kg: get("ipex_dig_j_per_kg")?,
             ipex_drive_j_per_m: get("ipex_drive_j_per_m")?,
+            slip_alpha: get("slip_alpha")?,
         })
     }
 }
@@ -157,6 +160,8 @@ pub struct Planning {
     pub soil_base: SoilBaseline,
     /// The planner parameters, or why there are none.
     pub config: Result<PlannerConfig, String>,
+    /// The endurance report's timescale and `ConOps` tables.
+    pub endurance: stewie_plan::endurance::Tables,
 }
 
 impl Planning {
@@ -177,12 +182,56 @@ impl Planning {
                     .to_owned(),
             ),
         };
+        let endurance = serde_json::from_str(include_str!(
+            "../../stewie-contracts/fixtures/endurance.json"
+        ))
+        .map_err(|e| format!("the endurance tables: {e}"))?;
         Ok(Self {
             fleet,
             bodies,
             soil_base,
             config,
+            endurance,
         })
+    }
+
+    /// The endurance report of `m`'s vehicle (Python `planner_endurance.endurance`), on `dem` when there is one.
+    ///
+    /// # Errors
+    /// Planner parameters not configured, an unknown power kind, or a registry without the IPEx pack or the Moon.
+    pub fn endurance(
+        &self,
+        m: &Mission,
+        inputs: &Inputs,
+        dem: Option<&Dem<'_>>,
+        power_site: &str,
+        temp_c: Option<f64>,
+    ) -> Result<serde_json::Value, String> {
+        let cfg = self.config.as_ref().map_err(Clone::clone)?;
+        let ctx = context(m, &self.fleet, &inputs.params)?;
+        let ipex_battery_j = self
+            .fleet
+            .power_sources
+            .get("ipex_battery")
+            .map(|p| p.capacity_j)
+            .ok_or("the fleet registry has no ipex_battery")?;
+        let lunar_g = self
+            .bodies
+            .get("moon")
+            .map(|b| b.g)
+            .ok_or("the body registry has no moon")?;
+        let inp = stewie_plan::endurance::Inputs {
+            body: &m.body,
+            gravity_ms2: inputs.params.gravity_ms2,
+            slip_gravity_ms2: lunar_g,
+            charge_w: cfg.charge_w,
+            ipex_battery_j,
+            slip_alpha: cfg.slip_alpha,
+            soil: &inputs.soil,
+            slip: &inputs.slip,
+            tables: &self.endurance,
+        };
+        stewie_plan::endurance::endurance(&ctx, dem, power_site, temp_c, &inp)
     }
 
     /// A mission from its JSON, checked against the registries (the Python's `mission_from_dict`).

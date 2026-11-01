@@ -5418,6 +5418,43 @@ def http_planmath_cases() -> None:
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
 
+def endurance_cases() -> None:
+    """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
+    real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
+    packs, each vehicle, a SYNTHETIC half-cell anchor (labelled) whose index is a rounding tie, and DEM-less bodies
+    with and without a timescale entry."""
+    from lode.planner_endurance import endurance
+    from lode.planner_model import mission_from_dict
+    from stewie.server import state as ST
+
+    with open(os.path.join(REPO, "stewie", "server", "sample_missions", "01_flatten_pad.json")) as fh:
+        base = json.load(fh)
+    dem, origin = ST.moon_dem("haworth")
+    cases = []
+    for vehicle in ("ipex", "ez_rassor", "rassor2"):
+        for power, temp in (("psr_tower", None), ("sunlit_solar", 10.0), ("psr_tower", -20.0), ("sunlit_solar", -80.0)):
+            m = mission_from_dict(dict(base, vehicle=vehicle))
+            out = endurance(m, dem=dem, dem_origin=origin, power_site=power, temp_c=temp)
+            cases.append({"payload": dict(base, vehicle=vehicle), "site": "haworth", "power_site": power,
+                          "temp_c": temp, "result": out})
+    # SYNTHETIC (labelled): the anchor moved half a cell, so its grid index is a rounding tie (ties to even)
+    tie = (origin[0] + 2.5, origin[1] + 7.5)
+    out = endurance(mission_from_dict(base), dem=dem, dem_origin=tie, power_site="psr_tower", temp_c=None)
+    cases.append({"payload": base, "site": "haworth", "origin": list(tie), "power_site": "psr_tower", "temp_c": None,
+                  "result": out})
+    for body in ("mars", "ceres", "bp1_testbed"):
+        payload = dict(base, body=body)
+        out = endurance(mission_from_dict(payload), power_site="sunlit_solar", temp_c=None)
+        cases.append({"payload": payload, "site": None, "power_site": "sunlit_solar", "temp_c": None, "result": out})
+    write_fixture(ORACLE_FIXTURES, "endurance_cases", "oracle/build_fixtures.py::endurance_cases "
+                  "(lode.planner_endurance.endurance on the real Haworth DEM and DEM-less bodies)",
+                  ["lode/planner_endurance.py", "lode/planner_model.py", "lode/planner_constants.py",
+                   "stewie/specs/ipex_specs.py", "stewie/physics/slip.py",
+                   "stewie/server/sample_missions/01_flatten_pad.json",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"],
+                  {"origin": list(origin), "cases": cases})
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -5538,6 +5575,7 @@ def main() -> None:
     http_editsession_cases()
     http_models_cases()
     http_planmath_cases()
+    endurance_cases()
 
 
 if __name__ == "__main__":

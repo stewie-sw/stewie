@@ -96,5 +96,9 @@
  "ipex_drive_j_per_m": {
   "value": 14.58,
   "source": "lode/planner_constants.py DRIVE_J_PER_M = ipex_specs.drive_energy_per_m() (the plan_math worksheet's constant)"
+ },
+ "slip_alpha": {
+  "value": 2.0,
+  "source": "lode/planner_constants.py SLIP_ALPHA [CALIB] (slip energy multiplier vs tan(slope); the endurance reach field and the I10 costmap)"
  }
 }
