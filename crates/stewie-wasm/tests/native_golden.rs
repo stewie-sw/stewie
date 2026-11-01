@@ -1,5 +1,7 @@
 //! The committed golden scenario (written natively by `cargo run -p xtask -- wasm-golden`) must still match
-//! a native run: it is the reference the WASM build is held to (R10).
+//! a native run: it is the reference the WASM build is held to (R10). Native output is deterministic per libm
+//! build, not across them: the CI runner's glibc moves the run by one ULP (8.9e-16) against the fixture host's, so
+//! the native check allows 1e-12, three orders under the WASM bound (D-R126).
 #![cfg(not(target_arch = "wasm32"))]
 
 use stewie_wasm::scenario;
@@ -12,7 +14,7 @@ fn native_run_reproduces_the_committed_golden() {
     let now = serde_json::to_value(now).unwrap();
     let diff = scenario::max_abs_diff(&golden, &now);
     assert!(
-        diff <= 0.0,
+        diff <= 1e-12,
         "native output drifted from the golden by {diff}"
     );
 }

@@ -20,29 +20,33 @@ from lode.planner_routing import MAX_DROP_M, route_least_cost, route_leg, route_
 _SITE = Path(__file__).resolve().parents[1] / "samples/lunar_dem/haworth_sfs_2km_1m"
 _HEIGHT_SHA256 = "686dc62484c1d69edf041219a03306946c9742287049f28beed74830659f750c"
 _METADATA_SHA256 = "f0c6ef1492212be12639e910f8ce2fe44e618a6a4230632235efe1083edf6b5f"
+# Each case: the crop (row, col, size), the slope cap, the endpoints, the crop's sha256, and the expected
+# (reached, optimal route cost). The cost is the Dijkstra objective along the returned path, which is unique even
+# where tied paths are not; it replaced a sha256 of the whole result (2026-11-01, D-R124), which pinned the last
+# bit of numpy's tan/arctan -- and those come from AVX-512 SVML kernels on some CI runners, libm on others.
 # Centered crops use safe cells nearest quarter-grid targets, with row-major ties.
 # The rugged tile has the most cells above a conservative 10-degree operating cap.
 # Tile selection scans complete 256-cell tiles, with row-major ties. This cap is not vehicle qualification.
 _CASES = (
     (968, 968, 64, 25.0, (16., 16.), (48., 48.),
      "08e97f2c49088477c3dc07be4bf801e92bcc135c4f9e5b8e0a26c3f1619edd68",
-     "2c7894f18c72723d9ac00b8d4f4f29004a527ed8e6312a753cd2280d0c8f0f35"),
+     (True, 47.85428757655659)),
     (936, 936, 128, 25.0, (32., 32.), (96., 96.),
      "6f6bf2615d62d6e94a799cd8a9ae6b40477d2e5edd458514a4d7b097a619e454",
-     "10c58f2d7b9453c03cc6c0df6f7994e23607fdccb9a87d4ed4e56c4b6c9c8231"),
+     (True, 96.35390240940285)),
     (872, 872, 256, 25.0, (64., 64.), (192., 192.),
      "102dae06097b91e60da733ac5df6b2d619ef8caba1c7c7d28d2b193047f7eb8f",
-     "c34c85b118ffaeb29515653c8a9dc318ba7a2c27bec93e9091643e21ce145a86"),
+     (True, 192.94922306289428)),
     (1024, 1280, 256, 10.0, (64., 64.), (192., 192.),
      "10e5633e2601773df342b8567de0d755a0d0fb11a729fefa3275a2e84f38b330",
-     "c2e9c60380657239357d8b8b66aae9244f239f6f1d8c3d99a7d3bde74f6f008f"),
+     (True, 219.22520379812616)),
     # The first blocked cell in the rugged tile provides a measured unreachable endpoint.
     (1024, 1280, 256, 10.0, (103., 0.), (192., 192.),
      "10e5633e2601773df342b8567de0d755a0d0fb11a729fefa3275a2e84f38b330",
-     "8c76644bbb5c638ebb0a3f302c1a43dd836218ea827b15d4c9b04540e716c60f"),
+     (False, 0.0)),
     (1024, 1280, 256, 10.0, (64., 64.), (64., 64.),
      "10e5633e2601773df342b8567de0d755a0d0fb11a729fefa3275a2e84f38b330",
-     "df8bda257282686814904aa27bf94c7b846450e773dd58e71b2ab9779671a9dc"),
+     (True, 0.0)),
 )
 
 
@@ -64,11 +68,16 @@ def _request(case, heights):
 def test_native_route_equivalence_and_safety(case):
     crop, cap, a, b = _request(case, _native_heights())
     result = route_leg((crop, 1.), (0., 0.), a, b, max_slope_deg=cap, return_terms=True)
-    encoded = json.dumps(result, separators=(",", ":")).encode()
-    assert hashlib.sha256(encoded).hexdigest() == case[-1]
     assert route_leg((crop, 1.), (0., 0.), a, b, max_slope_deg=cap, return_terms=True) == result
     cost, passable = slope_costmap(crop, 1., max_slope_deg=cap, max_drop_m=MAX_DROP_M)
     length, _, reached, waypoints, terms = result
+    want_reached, want_cost = case[-1]
+    assert reached is want_reached
+    cells = [(int(y), int(x)) for x, y in waypoints]
+    path_cost = 0.0                  # the router's edge cost, accumulated as it does
+    for (r, c), (nr, nc) in zip(cells, cells[1:]):
+        path_cost += math.hypot(nr - r, nc - c) * 0.5 * (float(cost[r, c]) + float(cost[nr, nc]))
+    assert path_cost == pytest.approx(want_cost, rel=1e-9, abs=1e-12)
     if not reached:
         assert waypoints == [] and terms == {}
         return
