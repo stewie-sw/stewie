@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 stewie-contracts = { path = "../stewie-contracts" }
+stewie-physics = { path = "../stewie-physics" }
 stewie-traverse = { path = "../stewie-traverse" }
 stewie-twin = { path = "../stewie-twin" }
 serde_json = { version = "1", features = ["float_roundtrip"] }

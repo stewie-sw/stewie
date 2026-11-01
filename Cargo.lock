@@ -1161,6 +1161,7 @@ dependencies = [
  "serde_json",
  "stewie-contracts",
  "stewie-oracle",
+ "stewie-physics",
  "stewie-traverse",
  "stewie-twin",
 ]

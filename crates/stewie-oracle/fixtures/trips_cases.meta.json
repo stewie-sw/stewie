@@ -1,0 +1,15 @@
+{
+ "fixture": "trips_cases",
+ "generator": "oracle/build_fixtures.py::trips_cases (lode.planner_trips on missions routed over the real Haworth route window; window gates SYNTHETIC, labelled)",
+ "payload_sha256": "7f87344455f20944b51e99a7d2e33b14e830bdf087f49b587cefa5dafb32eb17",
+ "sources": {
+  "lode/planner_balance.py": "4a6525cbd58f357a9aaafca2f2b298249e29b2550923f262f118c82687a6221f",
+  "lode/planner_endurance.py": "4a620dec960bd0d89c900036e8a163408677c0b838edc098fa42bb99e9a97632",
+  "lode/planner_model.py": "6ade8f7eeea9de9386c009ed63e0e005e69b8dfd6fa7ff8d44ce42216fec3e46",
+  "lode/planner_trips.py": "b99ba6933410a53abcbd16fc6b04745b51db2a3cf644e74ad1585c1650d22f8c",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/physics/slip.py": "bfb6938e63fdc0e0dbfbc01f6200bc4d783c982213fba611652e4840ecf096a0",
+  "stewie/specs/ipex_specs.py": "4465ff80e5427a067b52bde12c69c8b726a73f8eb1b7dbe60522f9bbdce1e7d6",
+  "stewie/specs/vehicles.py": "c0effee79d7bde16e8abd1bc87d2f776a752f2d8b8cd5b6ad614baa4d9c1fef6"
+ }
+}

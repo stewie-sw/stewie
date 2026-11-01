@@ -268,7 +268,8 @@ fn fleet_registry_validates_and_its_references_resolve() {
 
 /// A source line that compiles a reserve number in (comments and string literals excluded).
 fn compiles_a_reserve(line: &str) -> bool {
-    let l = line.to_lowercase();
+    // `1.0 - reserve` is the complement of a given reserve, not a value for one
+    let l = line.to_lowercase().replace("1.0 - ", "");
     // a numeric literal starts with a digit not glued to an identifier (so `f64` is not a number)
     let b = l.as_bytes();
     let literal = (0..b.len()).any(|i| {
@@ -293,6 +294,14 @@ fn no_reserve_default_is_compiled_into_any_crate() {
         "a type name is not a number"
     );
     assert!(!compiles_a_reserve("    // reserve 10% before recharge"));
+    assert!(
+        !compiles_a_reserve("        self.battery_j * (1.0 - self.reserve_frac)"),
+        "the complement of a given reserve is not a reserve value"
+    );
+    assert!(
+        compiles_a_reserve("    let reserve_frac = 1.0 - 0.9;"),
+        "a number beside the complement still counts"
+    );
     assert!(is_shipped(Path::new("crates/stewie-assess/src/eva.rs")));
     assert!(!is_shipped(Path::new("crates/stewie-assess/tests/eva.rs")));
     let mut hits = Vec::new();

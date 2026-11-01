@@ -4,3 +4,4 @@
 
 pub mod balance;
 pub mod mission;
+pub mod trips;

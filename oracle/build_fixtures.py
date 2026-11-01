@@ -1454,6 +1454,97 @@ def balance_cases() -> None:
                    "missions": out})
 
 
+def trips_cases() -> None:
+    """Trip construction (RW-33c1): lode.planner_trips._build_trips on missions routed over the real Haworth route
+    window (sites picked as route_cases picks them; every mission free of cost ties, so the balance is unique),
+    with the planning context, trip precedence and SYNTHETIC mission-clock window gates (labelled)."""
+    import dataclasses
+
+    from scipy import ndimage
+
+    from lode import planner_constants as PC
+    from lode import planner_routing as PR
+    from lode.planner_model import mission_from_dict, mission_soil_params, plan_context
+    from lode.planner_trips import _build_trips, _precedence_is_feasible, _window_gate, trip_precedence
+    from stewie.physics.worksite import coarse_base_from_bundle
+    from stewie.specs import ipex_specs as S
+
+    base, _ = coarse_base_from_bundle(os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    r0, c0, n = ROUTE_WINDOW
+    Z = np.array(base.derive_height()[r0:r0 + n, c0:c0 + n], dtype=np.float64)
+    cell, origin = 5.0, (100.0, 50.0)
+    _, passable = PR.slope_costmap(Z, cell, max_drop_m=PR.MAX_DROP_M)
+    lab, _ = ndimage.label(passable, structure=np.ones((3, 3)))
+    rr, cc = np.nonzero(lab == np.argmax(np.bincount(lab.ravel())[1:]) + 1)
+
+    def site(fr, fc):
+        k = int(np.argmin((rr - fr * n) ** 2 + (cc - fc * n) ** 2))
+        return [float(cc[k] * cell - origin[0] + 2.5), float(rr[k] * cell - origin[1] + 2.5)]
+
+    br, bc = np.nonzero(~passable)
+    blocked = [float(bc[0] * cell - origin[0] + 2.5), float(br[0] * cell - origin[1] + 2.5)]
+
+    def order(action, kind, xy, fp=None, depth=None, **kw):
+        o = {"action": action, "kind": kind, "x": xy[0], "y": xy[1], **kw}
+        if kind != "goto":
+            o.update(footprint_m2=fp, depth_m=depth)
+        return o
+
+    missions = {
+        "haul_two_pairs": {"orders": [order("cut a", "cut", site(0.2, 0.2), 40, 0.3),
+                                      order("cut b", "cut", site(0.7, 0.3), 30, 0.08, insitu_density_kg_m3=1650.0),
+                                      order("fill c", "fill", site(0.4, 0.5), 36, 0.2),
+                                      order("fill d", "fill", site(0.85, 0.75), 10, 0.15),
+                                      order("w1", "goto", site(0.5, 0.2)), order("w2", "goto", site(0.6, 0.2))],
+                           "precedence": [["cut a", "fill d"]]},
+        "deficit": {"orders": [order("cut a", "cut", site(0.3, 0.3), 10, 0.1), order("fill b", "fill", site(0.6, 0.6), 50, 0.3)]},
+        "unreachable_fill": {"orders": [order("cut a", "cut", site(0.3, 0.3), 30, 0.2), order("fill b", "fill", blocked, 20, 0.2),
+                                        order("fill c", "fill", site(0.7, 0.4), 10, 0.2)]},
+        "cuts_only": {"orders": [order("cut a", "cut", site(0.3, 0.3), 30, 0.2), order("cut b", "cut", site(0.6, 0.5), 12, 0.6)]},
+        "heavy_rassor": {"orders": [order("cut a", "cut", site(0.25, 0.6), 60, 0.4), order("fill b", "fill", site(0.6, 0.35), 50, 0.3)],
+                         "vehicle": "rassor2", "dig_energy_factor": 1.3},
+    }
+    out = []
+    for name, extra in missions.items():
+        payload = {"name": name, "body": "moon", "charger": site(0.5, 0.5), **extra}
+        m = mission_from_dict(payload)
+        ctx = plan_context(m)
+        trips, flows, surplus, meta = _build_trips(m, (Z, cell), origin, 25.0)
+        prec = trip_precedence(trips, m)
+        idx = {id(o): i for i, o in enumerate(m.orders)}
+        keep = ("kind", "site", "dest", "label", "mass", "dig_e", "dig_t", "haul_m", "haul_e", "drive_e", "slip_e", "lift_e",
+                "offload_e", "offload_t", "shape")
+        out.append({"name": name, "payload": payload, "context": dataclasses.asdict(ctx), "soil": mission_soil_params(m).to_dict(),
+                    "trips": [{**{k: (list(t[k]) if isinstance(t.get(k), tuple) else t.get(k, 0.0 if k not in ("shape",) else None))
+                                  for k in keep}, "actions": sorted(t["actions"])} for t in trips],
+                    "flows": [{"cut": None if c is None else idx[id(c)], "fill": None if f is None else idx[id(f)], "mass_kg": mm}
+                              for c, f, mm, _d in flows],
+                    "surplus_kg": surplus, "precedence": [list(p) for p in prec],
+                    "precedence_feasible": _precedence_is_feasible(len(trips), prec),
+                    "meta": {k: meta[k] for k in ("straight_haul_m", "routed_haul_m", "blocked_legs", "traverse_cap_deg", "feasible")},
+                    "routes": [{"from": list(r["from_xy"]), "to": list(r["to_xy"]), "reached": r["reached"],
+                                "waypoints": r["waypoints"]} for r in meta["routes"]]})
+    kinds = {t["kind"] for r in out for t in r["trips"]}
+    assert kinds == {"goto", "import", "dig", "cutfill"}, kinds
+    assert any(r["meta"]["blocked_legs"] for r in out) and any(r["precedence"] for r in out)
+    assert any(t["kind"] == "cutfill" and t["haul_m"] > 0 and t["slip_e"] > 0 for r in out for t in r["trips"])
+    windows = {"work": [[100.0, 200.0], [0.0, 50.0]], "drive": []}
+    gates = [{"class": c, "t": t, "result": list(_window_gate(windows, c, t))}
+             for c, t in (("work", 10.0), ("work", 60.0), ("work", 150.0), ("work", 250.0), ("drive", 5.0), ("recharge", 5.0))]
+    gates.append({"class": "work", "t": 7.0, "result": list(_window_gate(None, "work", 7.0)), "no_windows": True})
+    write_fixture(ORACLE_FIXTURES, "trips_cases", "oracle/build_fixtures.py::trips_cases (lode.planner_trips on missions "
+                  "routed over the real Haworth route window; window gates SYNTHETIC, labelled)",
+                  ["samples/lunar_dem/haworth_10km_5m/metadata.json", "lode/planner_trips.py", "lode/planner_model.py",
+                   "lode/planner_endurance.py", "lode/planner_balance.py", "stewie/physics/slip.py", "stewie/specs/ipex_specs.py",
+                   "stewie/specs/vehicles.py"],
+                  {"window": list(ROUTE_WINDOW), "cell_m": cell, "origin": list(origin),
+                   "params": {"reserve_frac": PC.RESERVE_FRAC, "charge_w": PC.CHARGE_W, "dig_rate_kg_s": PC.DIG_RATE_KG_S,
+                              "drive_speed_ms": PC.DRIVE_SPEED_MS, "rolling_resistance": S.ROLLING_RESISTANCE_COEFF,
+                              "drivetrain_efficiency": S.DRIVETRAIN_EFFICIENCY, "gravity_ms2": 1.62},
+                   "slip": {"n_wheels": 4, "contact_len_m": 0.10, "contact_width_m": 0.18, "z_entrap_m": 0.36},
+                   "windows": windows, "gates": gates, "missions": out})
+
+
 def world_log_cases() -> None:
     """SYNTHETIC commit inputs (labelled); every byte of the journal is the Python implementation's."""
     import tempfile
@@ -1723,6 +1814,7 @@ def main() -> None:
     route_cases()
     route_extras()
     balance_cases()
+    trips_cases()
 
 
 if __name__ == "__main__":
