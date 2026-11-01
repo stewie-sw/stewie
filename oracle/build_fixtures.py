@@ -3220,6 +3220,206 @@ def http_auth_cases() -> None:
                    "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger})
 
 
+def http_admin_cases() -> None:
+    """The account-administration surface (RW-55b1): the real FastAPI app driven by the Starlette TestClient through
+    /admin/operators (list, create, approve, revoke, role, reset, delete) with the last-director guard, /admin/invite
+    and /auth/invite/redeem, and the director-only /events ledger view, including the role gates and the request
+    validation envelopes. Same harness as http_auth_cases: pinned clock, seeded randomness, client 127.0.0.1, the
+    store and ledger recorded at the end. Emails, passwords, keys and the scenario are SYNTHETIC test inputs."""
+    import hashlib
+    import importlib
+    import tempfile
+    import uuid as _uuid
+
+    from fastapi.testclient import TestClient
+
+    import stewie.server.auth as A
+    import stewie.server.operators as O
+    import stewie.server.routers.auth as R
+    import stewie.server.services as S
+
+    seed = hashlib.sha256(b"stewie-http-admin-oracle").digest()
+    stream = {"n": 0}
+
+    def det_bytes(n: int) -> bytes:                         # SYNTHETIC deterministic randomness (labelled)
+        out = b""
+        while len(out) < n:
+            out += hashlib.sha256(seed + stream["n"].to_bytes(8, "big")).digest()
+            stream["n"] += 1
+        return out[:n]
+
+    clock = {"t": 1_800_000_000.0}
+    env = {"STEWIE_API_KEY": "automation-key-0123456789", "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+           "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+           "STEWIE_DIRECTORS": "alice@example.org", "STEWIE_REGISTRATION": "1"}
+    unset = ("STEWIE_TOKEN_AUD", "STEWIE_TLS_TERMINATED", "STEWIE_DESKTOP", "STEWIE_OPERATOR_LOGIN",
+             "STEWIE_TRUST_PROXY", "STEWIE_CORS_ORIGINS", "STEWIE_DEV_OPEN", "STEWIE_AUDIT_MAX_BYTES",
+             "STEWIE_GIS_ANON_KEY", "STEWIE_TRUST_TAILSCALE", "STEWIE_TRUSTED_PROXIES", "STEWIE_MAX_BODY_BYTES")
+    saved = {k: os.environ.get(k) for k in list(env) + list(unset) + ["STEWIE_DATA_DIR"]}
+    patched = {"urandom": O.os.urandom, "token_urlsafe": O.secrets.token_urlsafe, "token_hex": S.secrets.token_hex,
+               "clock": O._clock, "uuid4": A.uuid.uuid4, "a_time": A.time.time, "s_time": S.time.time}
+    steps = []
+
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            os.environ.update(env)
+            os.environ["STEWIE_DATA_DIR"] = d
+            for k in unset:
+                os.environ.pop(k, None)
+            O.os.urandom = det_bytes
+            O.secrets.token_urlsafe = lambda n: __import__("base64").urlsafe_b64encode(det_bytes(n)).decode().rstrip("=")
+            S.secrets.token_hex = lambda n: det_bytes(n).hex()
+            O._clock = lambda: clock["t"]
+            A.uuid.uuid4 = lambda: _uuid.UUID(bytes=det_bytes(16), version=4)
+            A.time.time = lambda: clock["t"]
+            S.time.time = lambda: clock["t"]
+            S.reset_audit_health()
+            S.reset_revocation_health()
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            import stewie.server.server as srv
+            importlib.reload(srv)
+            client = TestClient(srv.app, client=("127.0.0.1", 50000))
+            n = {"i": 0}
+
+            def call(method, path, *, headers=None, json_body=None, raw=None):
+                n["i"] += 1
+                h = dict(headers or {})
+                h["X-Correlation-Id"] = f"cid-{n['i']:03d}"
+                client.cookies.clear()
+                kw = {}
+                if json_body is not None:
+                    kw["json"] = json_body
+                if raw is not None:
+                    kw["content"] = raw
+                    h.setdefault("Content-Type", "application/json")
+                r = client.request(method, path, headers=h, **kw)
+                try:
+                    body = r.json()
+                except ValueError:
+                    body = r.text
+                steps.append({"request": {"method": method, "path": path, "headers": h, "json": json_body,
+                                          "raw": raw}, "clock": clock["t"], "status": r.status_code, "body": body})
+                return r
+
+            key = {"X-API-Key": env["STEWIE_API_KEY"]}
+            alice = {"Authorization": "Bearer " + call("POST", "/auth/login", json_body={"email": "alice@example.org"},
+                                                      headers=key).json()["token"]}
+            bob = {"Authorization": "Bearer " + call("POST", "/auth/login", json_body={"email": "bob@example.org"},
+                                                    headers=key).json()["token"]}
+            clock["t"] += 1.0
+            call("POST", "/auth/password", json_body={"new_password": "alice password 1"}, headers=alice)
+            # the role gates
+            call("GET", "/admin/operators", headers=alice)
+            call("GET", "/admin/operators", headers=bob)
+            call("GET", "/admin/operators")
+            call("GET", "/admin/operators", headers=key)
+            # create
+            clock["t"] += 1.0
+            call("POST", "/admin/operators/create", headers=key,
+                 json_body={"email": "Carol@Example.org", "password": "carol password 1", "role": "director"})
+            call("POST", "/admin/operators/create", headers=key,
+                 json_body={"email": "carol@example.org", "password": "carol password 1"})
+            call("POST", "/admin/operators/create", headers=key,
+                 json_body={"email": "erin@example.org", "password": "erin password 1", "role": "pilot"})
+            call("POST", "/admin/operators/create", headers=key, json_body={"email": 5, "password": True})
+            call("POST", "/admin/operators/create", headers=key, json_body={"email": None, "password": [1, "a"]})
+            call("POST", "/admin/operators/create", headers=key, raw="[1, 2]")
+            call("POST", "/admin/operators/create", headers=key, raw="")
+            call("POST", "/admin/operators/create", headers=key, raw="{bad")
+            call("POST", "/admin/operators/create", headers=bob, json_body={"email": "x@example.org"})
+            # approve a registered account
+            call("POST", "/auth/register", json_body={"email": "dave@example.org", "password": "dave password 1"})
+            clock["t"] += 1.0
+            call("POST", "/admin/operators/approve", headers=alice, json_body={"email": "dave@example.org"})
+            call("POST", "/admin/operators/approve", headers=key, json_body={"email": "nobody@example.org"})
+            call("POST", "/admin/operators/approve", headers=key, json_body={"email": "dave@example.org", "role": "boss"})
+            # roles and the last-director guard
+            call("POST", "/admin/operators/role", headers=key, json_body={"email": "carol@example.org", "role": "trainee"})
+            call("POST", "/admin/operators/role", headers=key, json_body={"email": "alice@example.org", "role": "operator"})
+            call("POST", "/admin/operators/role", headers=key, json_body={"email": "carol@example.org", "role": "director"})
+            call("POST", "/admin/operators/role", headers=key, json_body={"email": "alice@example.org", "role": "operator"})
+            call("POST", "/admin/operators/revoke", headers=key, json_body={"email": "carol@example.org"})
+            call("DELETE", "/admin/operators/carol%40example.org", headers=key)
+            call("POST", "/admin/operators/role", headers=key, json_body={"email": "alice@example.org", "role": "director"})
+            call("DELETE", "/admin/operators/Carol@Example.org", headers=key)
+            call("DELETE", "/admin/operators/nobody@example.org", headers=key)
+            call("POST", "/admin/operators/revoke", headers=key, json_body={"email": "dave@example.org"})
+            call("POST", "/admin/operators/revoke", headers=key, json_body={"email": "nobody@example.org"})
+            call("POST", "/admin/operators/reset", headers=key, json_body={"email": "dave@example.org", "new_password": "short"})
+            call("POST", "/admin/operators/reset", headers=key,
+                 json_body={"email": "dave@example.org", "new_password": "dave password 2"})
+            call("POST", "/admin/operators/reset", headers=key, json_body={"email": "x@example.org",
+                                                                          "new_password": "long enough pw"})
+            call("GET", "/admin/operators/dave@example.org", headers=key)
+            # invites
+            clock["t"] += 1.0
+            r = call("POST", "/admin/invite", headers=key, json_body={})
+            one = r.json()["token"]
+            r = call("POST", "/admin/invite", headers=alice, json_body={"role": "trainee", "ttl_s": 60, "max_uses": 2})
+            two = r.json()["token"]
+            call("POST", "/admin/invite", headers=key, json_body={"role": "pilot"})
+            call("POST", "/admin/invite", headers=key, json_body={"ttl_s": 0})
+            call("POST", "/admin/invite", headers=key, json_body={"ttl_s": 7776001, "max_uses": 0})
+            call("POST", "/admin/invite", headers=key, json_body={"max_uses": 2.5})
+            call("POST", "/admin/invite", headers=key, json_body={"max_uses": 2.0, "ttl_s": "30"})
+            call("POST", "/admin/invite", headers=key, json_body={"max_uses": "x", "ttl_s": "abc", "role": 3})
+            call("POST", "/admin/invite", headers=key, json_body={"extra": 1})
+            call("POST", "/admin/invite", headers=key, json_body={"z": 1, "ttl_s": 0, "max_uses": None})
+            call("POST", "/admin/invite", headers=key, json_body={"ttl_s": True, "max_uses": " 3 "})
+            call("POST", "/admin/invite", headers=key, json_body={"ttl_s": "1e3", "max_uses": "2.0", "role": "guest"})
+            call("POST", "/admin/invite", headers=key, json_body={"ttl_s": None, "max_uses": [1]})
+            call("POST", "/admin/invite", headers=bob, json_body={})
+            call("POST", "/auth/invite/redeem", json_body={"token": "short", "email": "ab", "password": ""})
+            call("POST", "/auth/invite/redeem", json_body={"token": one})
+            call("POST", "/auth/invite/redeem", json_body={"token": one, "email": "erin@example.org",
+                                                          "password": "erin password 1", "x": 1})
+            clock["t"] += 1.0
+            call("POST", "/auth/invite/redeem", json_body={"token": one, "email": "erin@example.org",
+                                                          "password": "erin password 1"})
+            call("POST", "/auth/invite/redeem", json_body={"token": one, "email": "fay@example.org",
+                                                          "password": "fay password 1"})
+            call("POST", "/auth/invite/redeem", json_body={"token": two, "email": "gus@example.org", "password": "weak"})
+            call("POST", "/auth/invite/redeem", json_body={"token": two, "email": "gus@example.org",
+                                                          "password": "gus password 1"})
+            clock["t"] += 61.0
+            call("POST", "/auth/invite/redeem", json_body={"token": two, "email": "hal@example.org",
+                                                          "password": "hal password 1"})
+            # the ledger view
+            call("GET", "/events?n=3", headers=key)
+            call("GET", "/events?actor=Alice@Example.org", headers=key)
+            call("GET", "/events?action=admin.operator.role&n=2", headers=key)
+            call("GET", "/events?n=0", headers=alice)
+            call("GET", "/events?n=abc", headers=key)
+            call("GET", "/events", headers=bob)
+            call("GET", "/admin/operators", headers=key)
+            store = json.load(open(os.path.join(d, "operators.json")))
+            ledger = [json.loads(x) for x in open(os.path.join(d, "events.jsonl"))]
+        finally:
+            O.os.urandom = patched["urandom"]
+            O.secrets.token_urlsafe = patched["token_urlsafe"]
+            S.secrets.token_hex = patched["token_hex"]
+            O._clock = patched["clock"]
+            A.uuid.uuid4 = patched["uuid4"]
+            A.time.time = patched["a_time"]
+            S.time.time = patched["s_time"]
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+                lim.reset()
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            importlib.reload(srv)
+    write_fixture(ORACLE_FIXTURES, "http_admin_cases", "oracle/build_fixtures.py::http_admin_cases (the FastAPI app's "
+                  "account administration, invites and /events through one scripted TestClient session; pinned clock, "
+                  "seeded randomness; every input SYNTHETIC, labelled)",
+                  ["stewie/server/routers/operators_admin.py", "stewie/server/routers/invites.py",
+                   "stewie/server/deps.py", "stewie/server/operators.py"],
+                  {"env": env, "seed_sha256_of": "stewie-http-admin-oracle", "clock0": 1_800_000_000.0,
+                   "client": "127.0.0.1", "steps": steps, "store": store, "ledger": ledger})
+
+
 def main() -> None:
     export_registries.main()
     dem_samples()
@@ -3263,6 +3463,7 @@ def main() -> None:
     auth_cases()
     services_cases()
     http_auth_cases()
+    http_admin_cases()
 
 
 if __name__ == "__main__":

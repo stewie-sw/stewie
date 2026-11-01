@@ -23,14 +23,42 @@ use subtle::ConstantTimeEq;
 use crate::auth::{Auth, AuthConfig, TOKEN_TTL_S};
 use crate::operators::{Store, StoreError, py_repr};
 use crate::services::{AUDIT_DEFAULT_MAX_BYTES, Ledger, RateLimiter, new_correlation_id};
+use crate::validate::{self, Field, Kind, Model};
 use crate::{Clock, Entropy};
 
 /// The browser's session credential (`HttpOnly`).
 pub const SESSION_COOKIE: &str = "stewie_session";
 /// The double-submit CSRF token (readable by the page).
 pub const CSRF_COOKIE: &str = "stewie_csrf";
-const MAX_EMAIL_LEN: usize = 254;
-const MAX_PASSWORD_LEN: usize = 256;
+const fn text(max: usize) -> Kind {
+    Kind::Str {
+        min: 0,
+        max,
+        nullable: false,
+        default: Some(""),
+    }
+}
+const OPTIONAL: Kind = Kind::Str {
+    min: 0,
+    max: 256,
+    nullable: true,
+    default: None,
+};
+const LOGIN: Model = Model {
+    fields: &[Field("email", text(254)), Field("password", OPTIONAL)],
+    forbid_extra: false,
+};
+const REGISTER: Model = Model {
+    fields: &[Field("email", text(254)), Field("password", text(256))],
+    forbid_extra: false,
+};
+const PASSWORD: Model = Model {
+    fields: &[
+        Field("new_password", text(256)),
+        Field("old_password", OPTIONAL),
+    ],
+    forbid_extra: false,
+};
 
 /// The server settings beyond identity, from the environment.
 #[derive(Debug, Clone, PartialEq)]
@@ -150,7 +178,7 @@ impl AppState {
         Ok(state)
     }
 
-    fn auth<'a>(&'a self, cid: Option<&'a str>) -> Auth<'a> {
+    pub(crate) fn auth<'a>(&'a self, cid: Option<&'a str>) -> Auth<'a> {
         Auth {
             cfg: &self.cfg,
             store: &self.store,
@@ -177,7 +205,7 @@ impl IntoResponse for ApiError {
     }
 }
 
-fn err(status: StatusCode, msg: impl Into<String>) -> ApiError {
+pub(crate) fn err(status: StatusCode, msg: impl Into<String>) -> ApiError {
     ApiError(status, msg.into())
 }
 
@@ -196,15 +224,15 @@ struct Cid(String);
 
 /// What a handler needs from the request head.
 #[derive(Debug, Clone)]
-struct Head {
-    method: Method,
-    headers: HeaderMap,
-    peer: Option<String>,
-    cid: String,
+pub(crate) struct Head {
+    pub(crate) method: Method,
+    pub(crate) headers: HeaderMap,
+    pub(crate) peer: Option<String>,
+    pub(crate) cid: String,
 }
 
 impl Head {
-    fn of(req: &Request) -> Self {
+    pub(crate) fn of(req: &Request) -> Self {
         Self {
             method: req.method().clone(),
             headers: req.headers().clone(),
@@ -219,7 +247,7 @@ impl Head {
         }
     }
 
-    fn header(&self, name: &str) -> Option<String> {
+    pub(crate) fn header(&self, name: &str) -> Option<String> {
         self.headers
             .get(name)
             .and_then(|v| v.to_str().ok())
@@ -273,7 +301,7 @@ fn same(a: &str, b: &str) -> bool {
 /// The caller's identity, in the Python's order, failing closed: the desktop app on loopback, the scoped public-GIS
 /// key, a trusted-proxy Tailscale identity, an explicit header credential (session token or automation key,
 /// CSRF-exempt), then the session cookie (CSRF-checked on a state-changing method).
-fn require_auth(st: &AppState, h: &Head) -> Result<String, ApiError> {
+pub(crate) fn require_auth(st: &AppState, h: &Head) -> Result<String, ApiError> {
     if st.cfg.desktop && h.loopback() {
         return Ok("desktop-local".to_owned());
     }
@@ -319,55 +347,17 @@ fn require_auth(st: &AppState, h: &Head) -> Result<String, ApiError> {
     Err(err(StatusCode::UNAUTHORIZED, "invalid or missing API key"))
 }
 
-/// A body field: its name, whether null is allowed (else the empty string is its default), and its length cap.
-struct Field(&'static str, bool, usize);
-
 /// Parse a JSON body (empty means absent); a parse failure is the Python's `bad JSON` envelope.
-fn parse_body(bytes: &Bytes) -> Result<Option<Value>, ApiError> {
-    if bytes.is_empty() {
-        return Ok(None);
-    }
-    serde_json::from_slice(bytes)
-        .map(Some)
-        .map_err(|_| err(StatusCode::BAD_REQUEST, "bad JSON: JSON decode error"))
+pub(crate) fn parse_body(bytes: &Bytes) -> Result<Option<Value>, ApiError> {
+    validate::parse(bytes).map_err(|m| err(StatusCode::BAD_REQUEST, m))
 }
 
-/// Validate a parsed body against `fields` with Pydantic's messages: each field a string (or null when allowed)
-/// of at most its cap in characters, missing fields defaulted, extra keys ignored, at most three errors reported.
-fn validate(body: Option<&Value>, fields: &[Field]) -> Result<Vec<Option<String>>, ApiError> {
-    let bad = |msg: String| err(StatusCode::BAD_REQUEST, msg);
-    let Some(body) = body else {
-        return Err(bad("body: Field required".to_owned()));
-    };
-    let Some(obj) = body.as_object() else {
-        return Err(bad(
-            "body: Input should be a valid dictionary or object to extract fields from".to_owned(),
-        ));
-    };
-    let mut out = Vec::new();
-    let mut errors = Vec::new();
-    for Field(name, nullable, max) in fields {
-        match obj.get(*name) {
-            None => out.push((!nullable).then(String::new)),
-            Some(Value::Null) if *nullable => out.push(None),
-            Some(Value::String(s)) if s.chars().count() > *max => {
-                errors.push(format!(
-                    "{name}: String should have at most {max} characters"
-                ));
-            }
-            Some(Value::String(s)) => out.push(Some(s.clone())),
-            Some(_) => errors.push(format!("{name}: Input should be a valid string")),
-        }
-    }
-    if errors.is_empty() {
-        Ok(out)
-    } else {
-        Err(bad(errors
-            .into_iter()
-            .take(3)
-            .collect::<Vec<_>>()
-            .join("; ")))
-    }
+/// Validate a parsed body against a model, as the Python's 400 envelope on failure.
+pub(crate) fn body_model(
+    body: Option<&Value>,
+    m: Model,
+) -> Result<serde_json::Map<String, Value>, ApiError> {
+    validate::model(body, m).map_err(|e| err(StatusCode::BAD_REQUEST, e))
 }
 
 /// The session and CSRF cookies of a sign-in (both `SameSite=strict`, `Secure` when TLS is terminated upstream).
@@ -426,13 +416,13 @@ fn token_response(
     ))
 }
 
-fn log(st: &AppState, h: &Head, actor: &str, action: &str, target: &str) {
+pub(crate) fn log(st: &AppState, h: &Head, actor: &str, action: &str, target: &str) {
     st.ledger
         .log_event(actor, action, target, Some(&h.cid), &serde_json::Map::new());
 }
 
 /// Run a handler body off the async workers (the credential paths run PBKDF2).
-async fn blocking(
+pub(crate) async fn blocking(
     st: Arc<AppState>,
     f: impl FnOnce(&AppState) -> Result<Response, ApiError> + Send + 'static,
 ) -> Response {
@@ -443,7 +433,7 @@ async fn blocking(
     }
 }
 
-async fn split(req: Request, max: usize) -> (Head, Result<Bytes, ApiError>) {
+pub(crate) async fn split(req: Request, max: usize) -> (Head, Result<Bytes, ApiError>) {
     let head = Head::of(&req);
     let bytes = axum::body::to_bytes(req.into_body(), max.saturating_add(1))
         .await
@@ -478,21 +468,18 @@ async fn auth_login(State(st): State<Arc<AppState>>, req: Request) -> Response {
     let (h, bytes) = split(req, st.settings.max_body).await;
     blocking(st, move |st| {
         let body = parse_body(&bytes?)?;
-        let v = validate(
-            body.as_ref(),
-            &[
-                Field("email", false, MAX_EMAIL_LEN),
-                Field("password", true, MAX_PASSWORD_LEN),
-            ],
-        )?;
+        let v = body_model(body.as_ref(), LOGIN)?;
         if !st.settings.operator_login {
             return Err(err(
                 StatusCode::FORBIDDEN,
                 "operator login is disabled (STEWIE_OPERATOR_LOGIN=0); use the API key",
             ));
         }
-        let email = v[0].as_deref().unwrap_or("").trim().to_lowercase();
-        let password = v[1].clone().filter(|p| !p.is_empty());
+        let email = v["email"].as_str().unwrap_or("").trim().to_lowercase();
+        let password = v["password"]
+            .as_str()
+            .filter(|p| !p.is_empty())
+            .map(str::to_owned);
         let header_credential = h.header("x-api-key").is_some_and(|k| !k.is_empty())
             || h.header("authorization").is_some_and(|a| !a.is_empty());
         // only the password-less key/proxy bootstrap is exempt; the PBKDF2 path is always limited
@@ -594,15 +581,15 @@ async fn auth_register(State(st): State<Arc<AppState>>, req: Request) -> Respons
     let (h, bytes) = split(req, st.settings.max_body).await;
     blocking(st, move |st| {
         let body = parse_body(&bytes?)?;
-        let v = validate(body.as_ref(), &[Field("email", false, MAX_EMAIL_LEN), Field("password", false, MAX_PASSWORD_LEN)])?;
+        let v = body_model(body.as_ref(), REGISTER)?;
         if !st.settings.registration_open {
             return Err(err(StatusCode::FORBIDDEN, "registration is closed"));
         }
         if !st.register_ip.allow(&h.client_ip(st), st.mono(), 1) {
             return Err(err(StatusCode::TOO_MANY_REQUESTS, "too many registration attempts; slow down"));
         }
-        let email = v[0].as_deref().unwrap_or("").trim().to_lowercase();
-        let rec = st.store.register(&email, v[1].as_deref().unwrap_or(""), "operator", "pending", None)?;
+        let email = v["email"].as_str().unwrap_or("").trim().to_lowercase();
+        let rec = st.store.register(&email, v["password"].as_str().unwrap_or(""), "operator", "pending", None)?;
         log(st, &h, &email, "auth.register", "pending");
         Ok(axum::Json(json!({"ok": true, "status": rec["status"],
                               "message": "request received -- a director must approve this account before sign-in"}))
@@ -634,20 +621,14 @@ async fn auth_password(State(st): State<Arc<AppState>>, req: Request) -> Respons
         // FastAPI's order: a malformed body first, then the auth dependency, then the fields
         let body = parse_body(&bytes?)?;
         let identity = require_auth(st, &h)?;
-        let v = validate(
-            body.as_ref(),
-            &[
-                Field("new_password", false, MAX_PASSWORD_LEN),
-                Field("old_password", true, MAX_PASSWORD_LEN),
-            ],
-        )?;
+        let v = body_model(body.as_ref(), PASSWORD)?;
         if matches!(identity.as_str(), "api-key" | "dev-open") {
             return Err(err(
                 StatusCode::BAD_REQUEST,
                 "an automation identity has no password",
             ));
         }
-        let new = v[0].as_deref().unwrap_or("");
+        let new = v["new_password"].as_str().unwrap_or("");
         if st.store.get(&identity)?.is_none() {
             // a fallback-allowlist identity becomes a real active account, its role preserved
             let role = st
@@ -659,7 +640,7 @@ async fn auth_password(State(st): State<Arc<AppState>>, req: Request) -> Respons
         } else if st.store.has_password(&identity)? {
             if !st
                 .store
-                .verify_old_password(&identity, v[1].as_deref().unwrap_or(""))?
+                .verify_old_password(&identity, v["old_password"].as_str().unwrap_or(""))?
             {
                 return Err(err(StatusCode::FORBIDDEN, "current password is incorrect"));
             }
@@ -765,6 +746,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/auth/register", post(auth_register))
         .route("/auth/me", get(auth_me))
         .route("/auth/password", post(auth_password))
+        .merge(crate::admin::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

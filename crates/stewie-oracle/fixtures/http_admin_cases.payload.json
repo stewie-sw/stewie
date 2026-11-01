@@ -1,0 +1,1772 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_REGISTRATION": "1",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "auth.login",
+   "actor": "alice@example.org",
+   "correlation_id": "cid-001",
+   "target": "bootstrap",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "auth.login",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-002",
+   "target": "bootstrap",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "auth.password",
+   "actor": "alice@example.org",
+   "correlation_id": "cid-003",
+   "target": "set",
+   "ts": 1800000001.0
+  },
+  {
+   "action": "admin.operator.create",
+   "actor": "api-key",
+   "correlation_id": "cid-008",
+   "target": "carol@example.org as director",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "auth.register",
+   "actor": "dave@example.org",
+   "correlation_id": "cid-017",
+   "target": "pending",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "admin.operator.approve",
+   "actor": "alice@example.org",
+   "correlation_id": "cid-018",
+   "target": "dave@example.org as operator",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "admin.operator.role",
+   "actor": "api-key",
+   "correlation_id": "cid-021",
+   "target": "carol@example.org -> trainee",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "admin.operator.role",
+   "actor": "api-key",
+   "correlation_id": "cid-023",
+   "target": "carol@example.org -> director",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "admin.operator.role",
+   "actor": "api-key",
+   "correlation_id": "cid-024",
+   "target": "alice@example.org -> operator",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "admin.operator.role",
+   "actor": "api-key",
+   "correlation_id": "cid-027",
+   "target": "alice@example.org -> director",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "admin.operator.delete",
+   "actor": "api-key",
+   "correlation_id": "cid-028",
+   "target": "carol@example.org",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "admin.operator.delete",
+   "actor": "api-key",
+   "correlation_id": "cid-029",
+   "target": "nobody@example.org",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "admin.operator.revoke",
+   "actor": "api-key",
+   "correlation_id": "cid-030",
+   "target": "dave@example.org",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "admin.operator.reset",
+   "actor": "api-key",
+   "correlation_id": "cid-033",
+   "target": "dave@example.org",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "invite.mint",
+   "actor": "api-key",
+   "correlation_id": "cid-036",
+   "target": "operator",
+   "ts": 1800000004.0
+  },
+  {
+   "action": "invite.mint",
+   "actor": "alice@example.org",
+   "correlation_id": "cid-037",
+   "target": "trainee",
+   "ts": 1800000004.0
+  },
+  {
+   "action": "invite.mint",
+   "actor": "api-key",
+   "correlation_id": "cid-042",
+   "target": "operator",
+   "ts": 1800000004.0
+  },
+  {
+   "action": "invite.mint",
+   "actor": "api-key",
+   "correlation_id": "cid-046",
+   "target": "operator",
+   "ts": 1800000004.0
+  },
+  {
+   "action": "invite.mint",
+   "actor": "api-key",
+   "correlation_id": "cid-047",
+   "target": "guest",
+   "ts": 1800000004.0
+  },
+  {
+   "action": "invite.redeem",
+   "actor": "erin@example.org",
+   "correlation_id": "cid-053",
+   "target": "operator",
+   "ts": 1800000005.0
+  },
+  {
+   "action": "invite.redeem",
+   "actor": "gus@example.org",
+   "correlation_id": "cid-056",
+   "target": "trainee",
+   "ts": 1800000005.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-admin-oracle",
+ "steps": [
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "alice@example.org",
+    "role": "director",
+    "token": "eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNzU2ZGRiMzg0ODM5NGRmNWIyZTM3N2E2OTk0Y2QxNGMifQ.o5KrdQE08-1zWTprOpYAl3b1VNhCZ3XUw9Ce4kYjCZA",
+    "ttl_s": 43200
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "email": "alice@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "bob@example.org",
+    "role": "operator",
+    "token": "eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImExMWMyOThjYWYwMDQxNjZiOTA5OTk2NDY1YzUyMTM3In0.cgPziKm_8as9_boygFFzIbEchI5EYWFejkElyDkrSb0",
+    "ttl_s": 43200
+   },
+   "clock": 1800000000.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "email": "bob@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "message": "password set",
+    "ok": true
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNzU2ZGRiMzg0ODM5NGRmNWIyZTM3N2E2OTk0Y2QxNGMifQ.o5KrdQE08-1zWTprOpYAl3b1VNhCZ3XUw9Ce4kYjCZA",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "new_password": "alice password 1"
+    },
+    "method": "POST",
+    "path": "/auth/password",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "operators": [
+     {
+      "approved_at": 1800000001.0,
+      "approved_by": "alice@example.org",
+      "created_at": 1800000001.0,
+      "email": "alice@example.org",
+      "failed": 0,
+      "last_login": null,
+      "locked_until": 0.0,
+      "role": "director",
+      "status": "active"
+     }
+    ]
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNzU2ZGRiMzg0ODM5NGRmNWIyZTM3N2E2OTk0Y2QxNGMifQ.o5KrdQE08-1zWTprOpYAl3b1VNhCZ3XUw9Ce4kYjCZA",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/operators",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'bob@example.org')",
+    "ok": false
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImExMWMyOThjYWYwMDQxNjZiOTA5OTk2NDY1YzUyMTM3In0.cgPziKm_8as9_boygFFzIbEchI5EYWFejkElyDkrSb0",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/operators",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/operators",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true,
+    "operators": [
+     {
+      "approved_at": 1800000001.0,
+      "approved_by": "alice@example.org",
+      "created_at": 1800000001.0,
+      "email": "alice@example.org",
+      "failed": 0,
+      "last_login": null,
+      "locked_until": 0.0,
+      "role": "director",
+      "status": "active"
+     }
+    ]
+   },
+   "clock": 1800000001.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/operators",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "operator": {
+     "approved_at": 1800000002.0,
+     "approved_by": "api-key",
+     "created_at": 1800000002.0,
+     "email": "carol@example.org",
+     "failed": 0,
+     "last_login": null,
+     "locked_until": 0.0,
+     "role": "director",
+     "status": "active"
+    }
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "email": "Carol@Example.org",
+     "password": "carol password 1",
+     "role": "director"
+    },
+    "method": "POST",
+    "path": "/admin/operators/create",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "an account for 'carol@example.org' already exists",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "email": "carol@example.org",
+     "password": "carol password 1"
+    },
+    "method": "POST",
+    "path": "/admin/operators/create",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "role must be one of ('guest', 'trainee', 'operator', 'director')",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "email": "erin@example.org",
+     "password": "erin password 1",
+     "role": "pilot"
+    },
+    "method": "POST",
+    "path": "/admin/operators/create",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "'5' is not a valid email address",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "email": 5,
+     "password": true
+    },
+    "method": "POST",
+    "path": "/admin/operators/create",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "'none' is not a valid email address",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "email": null,
+     "password": [
+      1,
+      "a"
+     ]
+    },
+    "method": "POST",
+    "path": "/admin/operators/create",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "body: Input should be a valid dictionary",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/operators/create",
+    "raw": "[1, 2]"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "body: Field required",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/operators/create",
+    "raw": ""
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/operators/create",
+    "raw": "{bad"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'bob@example.org')",
+    "ok": false
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImExMWMyOThjYWYwMDQxNjZiOTA5OTk2NDY1YzUyMTM3In0.cgPziKm_8as9_boygFFzIbEchI5EYWFejkElyDkrSb0",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "email": "x@example.org"
+    },
+    "method": "POST",
+    "path": "/admin/operators/create",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "message": "request received -- a director must approve this account before sign-in",
+    "ok": true,
+    "status": "pending"
+   },
+   "clock": 1800000002.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "email": "dave@example.org",
+     "password": "dave password 1"
+    },
+    "method": "POST",
+    "path": "/auth/register",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "operator": {
+     "approved_at": 1800000003.0,
+     "approved_by": "alice@example.org",
+     "created_at": 1800000002.0,
+     "email": "dave@example.org",
+     "fail_by_ip": {},
+     "failed": 0,
+     "last_login": null,
+     "locked_until": 0.0,
+     "role": "operator",
+     "status": "active"
+    }
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNzU2ZGRiMzg0ODM5NGRmNWIyZTM3N2E2OTk0Y2QxNGMifQ.o5KrdQE08-1zWTprOpYAl3b1VNhCZ3XUw9Ce4kYjCZA",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": {
+     "email": "dave@example.org"
+    },
+    "method": "POST",
+    "path": "/admin/operators/approve",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no account for 'nobody@example.org'",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": {
+     "email": "nobody@example.org"
+    },
+    "method": "POST",
+    "path": "/admin/operators/approve",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "role must be one of ('guest', 'trainee', 'operator', 'director')",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": {
+     "email": "dave@example.org",
+     "role": "boss"
+    },
+    "method": "POST",
+    "path": "/admin/operators/approve",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "ok": true,
+    "operator": {
+     "approved_at": 1800000002.0,
+     "approved_by": "api-key",
+     "created_at": 1800000002.0,
+     "email": "carol@example.org",
+     "failed": 0,
+     "last_login": null,
+     "locked_until": 0.0,
+     "role": "trainee",
+     "status": "active"
+    }
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": {
+     "email": "carol@example.org",
+     "role": "trainee"
+    },
+    "method": "POST",
+    "path": "/admin/operators/role",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "refused: this is the last active director (would lock out admin)",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": {
+     "email": "alice@example.org",
+     "role": "operator"
+    },
+    "method": "POST",
+    "path": "/admin/operators/role",
+    "raw": null
+   },
+   "status": 409
+  },
+  {
+   "body": {
+    "ok": true,
+    "operator": {
+     "approved_at": 1800000002.0,
+     "approved_by": "api-key",
+     "created_at": 1800000002.0,
+     "email": "carol@example.org",
+     "failed": 0,
+     "last_login": null,
+     "locked_until": 0.0,
+     "role": "director",
+     "status": "active"
+    }
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": {
+     "email": "carol@example.org",
+     "role": "director"
+    },
+    "method": "POST",
+    "path": "/admin/operators/role",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "operator": {
+     "approved_at": 1800000001.0,
+     "approved_by": "api-key",
+     "created_at": 1800000001.0,
+     "email": "alice@example.org",
+     "failed": 0,
+     "last_login": null,
+     "locked_until": 0.0,
+     "role": "operator",
+     "status": "active"
+    }
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": {
+     "email": "alice@example.org",
+     "role": "operator"
+    },
+    "method": "POST",
+    "path": "/admin/operators/role",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "refused: this is the last active director (would lock out admin)",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": {
+     "email": "carol@example.org"
+    },
+    "method": "POST",
+    "path": "/admin/operators/revoke",
+    "raw": null
+   },
+   "status": 409
+  },
+  {
+   "body": {
+    "error": "refused: this is the last active director (would lock out admin)",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/admin/operators/carol%40example.org",
+    "raw": null
+   },
+   "status": 409
+  },
+  {
+   "body": {
+    "ok": true,
+    "operator": {
+     "approved_at": 1800000001.0,
+     "approved_by": "api-key",
+     "created_at": 1800000001.0,
+     "email": "alice@example.org",
+     "failed": 0,
+     "last_login": null,
+     "locked_until": 0.0,
+     "role": "director",
+     "status": "active"
+    }
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": {
+     "email": "alice@example.org",
+     "role": "director"
+    },
+    "method": "POST",
+    "path": "/admin/operators/role",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/admin/operators/Carol@Example.org",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "DELETE",
+    "path": "/admin/operators/nobody@example.org",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "operator": {
+     "approved_at": 1800000003.0,
+     "approved_by": "api-key",
+     "created_at": 1800000002.0,
+     "email": "dave@example.org",
+     "fail_by_ip": {},
+     "failed": 0,
+     "last_login": null,
+     "locked_until": 0.0,
+     "role": "operator",
+     "status": "revoked"
+    }
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-030"
+    },
+    "json": {
+     "email": "dave@example.org"
+    },
+    "method": "POST",
+    "path": "/admin/operators/revoke",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no account for 'nobody@example.org'",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": {
+     "email": "nobody@example.org"
+    },
+    "method": "POST",
+    "path": "/admin/operators/revoke",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "password must be at least 10 characters",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": {
+     "email": "dave@example.org",
+     "new_password": "short"
+    },
+    "method": "POST",
+    "path": "/admin/operators/reset",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "message": "password reset for dave@example.org",
+    "ok": true
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": {
+     "email": "dave@example.org",
+     "new_password": "dave password 2"
+    },
+    "method": "POST",
+    "path": "/admin/operators/reset",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no account for 'x@example.org'",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": {
+     "email": "x@example.org",
+     "new_password": "long enough pw"
+    },
+    "method": "POST",
+    "path": "/admin/operators/reset",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "no route /admin/operators/dave@example.org",
+    "ok": false
+   },
+   "clock": 1800000003.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/operators/dave@example.org",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "max_uses": 1,
+    "ok": true,
+    "role": "operator",
+    "token": "YkbAD3guwQGkPfcGrH268U4X-dx0WaRfAhy0-PuFlGo"
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-036"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "max_uses": 2,
+    "ok": true,
+    "role": "trainee",
+    "token": "-YWPCM4ZyuvnafOMeVs52undHfMYEFBILXTtjTt4D78"
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNzU2ZGRiMzg0ODM5NGRmNWIyZTM3N2E2OTk0Y2QxNGMifQ.o5KrdQE08-1zWTprOpYAl3b1VNhCZ3XUw9Ce4kYjCZA",
+     "X-Correlation-Id": "cid-037"
+    },
+    "json": {
+     "max_uses": 2,
+     "role": "trainee",
+     "ttl_s": 60
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "role must be one of ('guest', 'trainee', 'operator', 'director')",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-038"
+    },
+    "json": {
+     "role": "pilot"
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "ttl_s: Input should be greater than 0",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-039"
+    },
+    "json": {
+     "ttl_s": 0
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "ttl_s: Input should be less than or equal to 7776000; max_uses: Input should be greater than or equal to 1",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-040"
+    },
+    "json": {
+     "max_uses": 0,
+     "ttl_s": 7776001
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "max_uses: Input should be a valid integer, got a number with a fractional part",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-041"
+    },
+    "json": {
+     "max_uses": 2.5
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "max_uses": 2,
+    "ok": true,
+    "role": "operator",
+    "token": "0WYhYOS1quUG92-z9ChhMe8ZS-4yJa9wyMe86pcJ2Ro"
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-042"
+    },
+    "json": {
+     "max_uses": 2.0,
+     "ttl_s": "30"
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "role: Input should be a valid string; ttl_s: Input should be a valid number, unable to parse string as a number; max_uses: Input should be a valid integer, unable to parse string as an integer",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-043"
+    },
+    "json": {
+     "max_uses": "x",
+     "role": 3,
+     "ttl_s": "abc"
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "extra: Extra inputs are not permitted",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-044"
+    },
+    "json": {
+     "extra": 1
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "ttl_s: Input should be greater than 0; max_uses: Input should be a valid integer; z: Extra inputs are not permitted",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-045"
+    },
+    "json": {
+     "max_uses": null,
+     "ttl_s": 0,
+     "z": 1
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "max_uses": 3,
+    "ok": true,
+    "role": "operator",
+    "token": "1z2Zp2URJD3cDj76Q5-UFuenHHRStLLxb6HkVOD9r6U"
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-046"
+    },
+    "json": {
+     "max_uses": " 3 ",
+     "ttl_s": true
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "max_uses": 2,
+    "ok": true,
+    "role": "guest",
+    "token": "LDUKBDtJ9-sZzFrd8kBlVmET2DoHcRhvXI09lu0KMD8"
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-047"
+    },
+    "json": {
+     "max_uses": "2.0",
+     "role": "guest",
+     "ttl_s": "1e3"
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "ttl_s: Input should be a valid number; max_uses: Input should be a valid integer",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-048"
+    },
+    "json": {
+     "max_uses": [
+      1
+     ],
+     "ttl_s": null
+    },
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "director+ role required (signed in as operator 'bob@example.org')",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImExMWMyOThjYWYwMDQxNjZiOTA5OTk2NDY1YzUyMTM3In0.cgPziKm_8as9_boygFFzIbEchI5EYWFejkElyDkrSb0",
+     "X-Correlation-Id": "cid-049"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/admin/invite",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "token: String should have at least 8 characters; email: String should have at least 3 characters; password: String should have at least 1 character",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-050"
+    },
+    "json": {
+     "email": "ab",
+     "password": "",
+     "token": "short"
+    },
+    "method": "POST",
+    "path": "/auth/invite/redeem",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "email: Field required; password: Field required",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-051"
+    },
+    "json": {
+     "token": "YkbAD3guwQGkPfcGrH268U4X-dx0WaRfAhy0-PuFlGo"
+    },
+    "method": "POST",
+    "path": "/auth/invite/redeem",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "x: Extra inputs are not permitted",
+    "ok": false
+   },
+   "clock": 1800000004.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-052"
+    },
+    "json": {
+     "email": "erin@example.org",
+     "password": "erin password 1",
+     "token": "YkbAD3guwQGkPfcGrH268U4X-dx0WaRfAhy0-PuFlGo",
+     "x": 1
+    },
+    "method": "POST",
+    "path": "/auth/invite/redeem",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "email": "erin@example.org",
+    "ok": true,
+    "role": "operator"
+   },
+   "clock": 1800000005.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-053"
+    },
+    "json": {
+     "email": "erin@example.org",
+     "password": "erin password 1",
+     "token": "YkbAD3guwQGkPfcGrH268U4X-dx0WaRfAhy0-PuFlGo"
+    },
+    "method": "POST",
+    "path": "/auth/invite/redeem",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid invite",
+    "ok": false
+   },
+   "clock": 1800000005.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-054"
+    },
+    "json": {
+     "email": "fay@example.org",
+     "password": "fay password 1",
+     "token": "YkbAD3guwQGkPfcGrH268U4X-dx0WaRfAhy0-PuFlGo"
+    },
+    "method": "POST",
+    "path": "/auth/invite/redeem",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "password must be at least 10 characters",
+    "ok": false
+   },
+   "clock": 1800000005.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-055"
+    },
+    "json": {
+     "email": "gus@example.org",
+     "password": "weak",
+     "token": "-YWPCM4ZyuvnafOMeVs52undHfMYEFBILXTtjTt4D78"
+    },
+    "method": "POST",
+    "path": "/auth/invite/redeem",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "email": "gus@example.org",
+    "ok": true,
+    "role": "trainee"
+   },
+   "clock": 1800000005.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-056"
+    },
+    "json": {
+     "email": "gus@example.org",
+     "password": "gus password 1",
+     "token": "-YWPCM4ZyuvnafOMeVs52undHfMYEFBILXTtjTt4D78"
+    },
+    "method": "POST",
+    "path": "/auth/invite/redeem",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invite expired",
+    "ok": false
+   },
+   "clock": 1800000066.0,
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-057"
+    },
+    "json": {
+     "email": "hal@example.org",
+     "password": "hal password 1",
+     "token": "-YWPCM4ZyuvnafOMeVs52undHfMYEFBILXTtjTt4D78"
+    },
+    "method": "POST",
+    "path": "/auth/invite/redeem",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "events": [
+     {
+      "action": "invite.redeem",
+      "actor": "gus@example.org",
+      "correlation_id": "cid-056",
+      "target": "trainee",
+      "ts": 1800000005.0
+     },
+     {
+      "action": "invite.redeem",
+      "actor": "erin@example.org",
+      "correlation_id": "cid-053",
+      "target": "operator",
+      "ts": 1800000005.0
+     },
+     {
+      "action": "invite.mint",
+      "actor": "api-key",
+      "correlation_id": "cid-047",
+      "target": "guest",
+      "ts": 1800000004.0
+     }
+    ],
+    "ok": true
+   },
+   "clock": 1800000066.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-058"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/events?n=3",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "events": [
+     {
+      "action": "invite.mint",
+      "actor": "alice@example.org",
+      "correlation_id": "cid-037",
+      "target": "trainee",
+      "ts": 1800000004.0
+     },
+     {
+      "action": "admin.operator.approve",
+      "actor": "alice@example.org",
+      "correlation_id": "cid-018",
+      "target": "dave@example.org as operator",
+      "ts": 1800000003.0
+     },
+     {
+      "action": "auth.password",
+      "actor": "alice@example.org",
+      "correlation_id": "cid-003",
+      "target": "set",
+      "ts": 1800000001.0
+     },
+     {
+      "action": "auth.login",
+      "actor": "alice@example.org",
+      "correlation_id": "cid-001",
+      "target": "bootstrap",
+      "ts": 1800000000.0
+     }
+    ],
+    "ok": true
+   },
+   "clock": 1800000066.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-059"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/events?actor=Alice@Example.org",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "events": [
+     {
+      "action": "admin.operator.role",
+      "actor": "api-key",
+      "correlation_id": "cid-027",
+      "target": "alice@example.org -> director",
+      "ts": 1800000003.0
+     },
+     {
+      "action": "admin.operator.role",
+      "actor": "api-key",
+      "correlation_id": "cid-024",
+      "target": "alice@example.org -> operator",
+      "ts": 1800000003.0
+     }
+    ],
+    "ok": true
+   },
+   "clock": 1800000066.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-060"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/events?action=admin.operator.role&n=2",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "events": [
+     {
+      "action": "invite.redeem",
+      "actor": "gus@example.org",
+      "correlation_id": "cid-056",
+      "target": "trainee",
+      "ts": 1800000005.0
+     }
+    ],
+    "ok": true
+   },
+   "clock": 1800000066.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImFsaWNlQGV4YW1wbGUub3JnIiwiZXhwIjoxODAwMDQzMjAwLjAsImlhdCI6MTgwMDAwMDAwMC4wLCJpc3MiOiJzdGV3aWUtYXV0aCIsImF1ZCI6InN0ZXdpZS1jb2NrcGl0IiwianRpIjoiNzU2ZGRiMzg0ODM5NGRmNWIyZTM3N2E2OTk0Y2QxNGMifQ.o5KrdQE08-1zWTprOpYAl3b1VNhCZ3XUw9Ce4kYjCZA",
+     "X-Correlation-Id": "cid-061"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/events?n=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "n: Input should be a valid integer, unable to parse string as an integer",
+    "ok": false
+   },
+   "clock": 1800000066.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-062"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/events?n=abc",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'bob@example.org')",
+    "ok": false
+   },
+   "clock": 1800000066.0,
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImExMWMyOThjYWYwMDQxNjZiOTA5OTk2NDY1YzUyMTM3In0.cgPziKm_8as9_boygFFzIbEchI5EYWFejkElyDkrSb0",
+     "X-Correlation-Id": "cid-063"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/events",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "ok": true,
+    "operators": [
+     {
+      "approved_at": 1800000001.0,
+      "approved_by": "api-key",
+      "created_at": 1800000001.0,
+      "email": "alice@example.org",
+      "failed": 0,
+      "last_login": null,
+      "locked_until": 0.0,
+      "role": "director",
+      "status": "active"
+     },
+     {
+      "approved_at": 1800000003.0,
+      "approved_by": "api-key",
+      "created_at": 1800000002.0,
+      "email": "dave@example.org",
+      "fail_by_ip": {},
+      "failed": 0,
+      "last_login": null,
+      "locked_until": 0.0,
+      "role": "operator",
+      "status": "revoked"
+     },
+     {
+      "approved_at": 1800000005.0,
+      "approved_by": "invite:api-key",
+      "created_at": 1800000005.0,
+      "email": "erin@example.org",
+      "failed": 0,
+      "last_login": null,
+      "locked_until": 0.0,
+      "role": "operator",
+      "status": "active"
+     },
+     {
+      "approved_at": 1800000005.0,
+      "approved_by": "invite:alice@example.org",
+      "created_at": 1800000005.0,
+      "email": "gus@example.org",
+      "failed": 0,
+      "last_login": null,
+      "locked_until": 0.0,
+      "role": "trainee",
+      "status": "active"
+     }
+    ]
+   },
+   "clock": 1800000066.0,
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-064"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/operators",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": {
+  "invites": {
+   "2abba9e9d381e2a50b2cdfcb3aa73e1fdf1a5270307189629c3d381bc4cce494": {
+    "by": "alice@example.org",
+    "created_at": 1800000004.0,
+    "expires_at": 1800000064.0,
+    "max_uses": 2,
+    "role": "trainee",
+    "uses": 1
+   },
+   "a0fe4709902fa2bb9ce81634e5cabe9b83575a909751a62e44b12f3466bec9fb": {
+    "by": "api-key",
+    "created_at": 1800000004.0,
+    "expires_at": 1800000005.0,
+    "max_uses": 3,
+    "role": "operator",
+    "uses": 0
+   },
+   "b85eba6f9528634fdf224ed077f31127b2589ddbd5d8da673d9d5668f42aab89": {
+    "by": "api-key",
+    "created_at": 1800000004.0,
+    "expires_at": 1800000034.0,
+    "max_uses": 2,
+    "role": "operator",
+    "uses": 0
+   },
+   "cb60ce92b9eca0c6c6441dfca34a7e7bb02464879133a79496c01df29344c4ff": {
+    "by": "api-key",
+    "created_at": 1800000004.0,
+    "expires_at": 1800001004.0,
+    "max_uses": 2,
+    "role": "guest",
+    "uses": 0
+   }
+  },
+  "operators": {
+   "alice@example.org": {
+    "approved_at": 1800000001.0,
+    "approved_by": "api-key",
+    "created_at": 1800000001.0,
+    "email": "alice@example.org",
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "pw_hash": "9950603a1329dccea5116ee8cc499cf909c1d1ed82de9a10188d43a5072b1a5b",
+    "pw_salt": "efd95a8b00e1ea05325e4fcd18cd14e4",
+    "role": "director",
+    "status": "active"
+   },
+   "dave@example.org": {
+    "approved_at": 1800000003.0,
+    "approved_by": "api-key",
+    "created_at": 1800000002.0,
+    "email": "dave@example.org",
+    "fail_by_ip": {},
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "pw_hash": "f27617d9cc3be9c6badc579a2a40e07f63a25f9575732afbf409bd13302b30c9",
+    "pw_salt": "83d65479c38118b8d62773b02331a9fb",
+    "role": "operator",
+    "status": "revoked"
+   },
+   "erin@example.org": {
+    "approved_at": 1800000005.0,
+    "approved_by": "invite:api-key",
+    "created_at": 1800000005.0,
+    "email": "erin@example.org",
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "pw_hash": "c0093b43729cb64817c2df144a876376f0d90203050b97fcb371cda50b7c5f9f",
+    "pw_salt": "fe9ebeb94026bca14f71c002761637d4",
+    "role": "operator",
+    "status": "active"
+   },
+   "gus@example.org": {
+    "approved_at": 1800000005.0,
+    "approved_by": "invite:alice@example.org",
+    "created_at": 1800000005.0,
+    "email": "gus@example.org",
+    "failed": 0,
+    "last_login": null,
+    "locked_until": 0.0,
+    "pw_hash": "3c330b9a8e43766100004476aa9b3486d3bc254819628b631fffef8f0ee77a86",
+    "pw_salt": "f32f0fa4c944a204b4d492800f6fa4cf",
+    "role": "trainee",
+    "status": "active"
+   }
+  },
+  "version": 1
+ }
+}

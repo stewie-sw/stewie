@@ -1,4 +1,4 @@
-//! RW-55a2b against the Python oracle (`http_auth_cases`): the `FastAPI` `TestClient` session, request for request,
+//! RW-55a2b and RW-55b1 against the Python oracles (`http_auth_cases`, `http_admin_cases`): the `FastAPI` `TestClient` session, request for request,
 //! through the Axum app from the same peer (127.0.0.1) on the same pinned clock and seeded bytes. Each response's
 //! status, JSON body, hardening headers and parsed Set-Cookie attributes must match, then the account store and
 //! the audit ledger. The clock, the byte stream, emails, passwords and keys are SYNTHETIC test inputs.
@@ -93,10 +93,15 @@ fn normalise(body: &mut Value) {
     }
 }
 
-#[tokio::test]
-async fn the_python_identity_session_replays_exactly() {
-    let fx = stewie_oracle::load("http_auth_cases").unwrap().payload;
-    let dir = std::env::temp_dir().join(format!("stewie-http-oracle-{}", std::process::id()));
+/// Replay the fixture `name` (seeded from `seed`) through a fresh app; `before(i, step, clock, dir)` reproduces
+/// what the oracle did between requests. Headers and cookies are compared where the fixture recorded them.
+async fn replay(
+    name: &str,
+    seed: &[u8],
+    before: impl Fn(usize, &Value, &PinnedClock, &std::path::Path),
+) {
+    let fx = stewie_oracle::load(name).unwrap().payload;
+    let dir = std::env::temp_dir().join(format!("stewie-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let mut env: HashMap<String, String> = fx["env"]
@@ -110,22 +115,14 @@ async fn the_python_identity_session_replays_exactly() {
         fx["clock0"].as_f64().unwrap(),
     ))));
     let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
-        seed: Sha256::digest(b"stewie-http-auth-oracle").into(),
+        seed: Sha256::digest(seed).into(),
         n: Mutex::new(0),
     }));
     let state = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
     let app = router(Arc::new(state));
     let steps = fx["steps"].as_array().unwrap();
-    // the oracle advanced its clock before these requests (1-based), and corrupted the revocation store before the
-    // last two
-    let advance_before = [15, 18, 24];
     for (i, step) in steps.iter().enumerate() {
-        if advance_before.contains(&(i + 1)) {
-            *clock.0.lock().unwrap() += 1.0;
-        }
-        if i + 2 == steps.len() {
-            std::fs::write(dir.join("revoked_jti.json"), "[not json").unwrap();
-        }
+        before(i, step, clock, &dir);
         let r = &step["request"];
         let mut req = Request::builder()
             .method(r["method"].as_str().unwrap())
@@ -167,8 +164,10 @@ async fn the_python_identity_session_replays_exactly() {
             "{what}: status ({body})"
         );
         assert_eq!(body, step["body"], "{what}: body");
-        assert_eq!(Value::Object(headers), step["headers"], "{what}: headers");
-        assert_eq!(Value::Array(cookies), step["cookies"], "{what}: cookies");
+        if step.get("headers").is_some() {
+            assert_eq!(Value::Object(headers), step["headers"], "{what}: headers");
+            assert_eq!(Value::Array(cookies), step["cookies"], "{what}: cookies");
+        }
     }
     let store: Value =
         serde_json::from_str(&std::fs::read_to_string(dir.join("operators.json")).unwrap())
@@ -186,6 +185,41 @@ async fn the_python_identity_session_replays_exactly() {
     }
     assert_eq!(Value::Array(ledger), fx["ledger"], "the audit ledger");
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn the_python_identity_session_replays_exactly() {
+    // the oracle advanced its clock before requests 15, 18 and 24 (1-based), and corrupted the revocation store
+    // before the last two
+    let steps = stewie_oracle::load("http_auth_cases").unwrap().payload["steps"]
+        .as_array()
+        .unwrap()
+        .len();
+    replay(
+        "http_auth_cases",
+        b"stewie-http-auth-oracle",
+        |i, _, clock, dir| {
+            if [15, 18, 24].contains(&(i + 1)) {
+                *clock.0.lock().unwrap() += 1.0;
+            }
+            if i + 2 == steps {
+                std::fs::write(dir.join("revoked_jti.json"), "[not json").unwrap();
+            }
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_python_administration_session_replays_exactly() {
+    replay(
+        "http_admin_cases",
+        b"stewie-http-admin-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+    )
+    .await;
 }
 
 #[test]

@@ -46,6 +46,11 @@ done
 git grep -InE "(api[_-]?key|secret|password|token)[\"'[:space:]]*[:=][\"'[:space:]]*[A-Za-z0-9/+_-]{24,}" \
   -- ':!*test*' ':!*.md'
 
+#    Expected hits (SYNTHETIC, not deployable): in crates/stewie-oracle/fixtures/http_*_cases.payload.json,
+#    session tokens signed with the oracle's own secret `session-secret-abcdef` (oracle/build_fixtures.py;
+#    never in deploy/.env), invite tokens drawn from the oracle's seeded byte stream in a throwaway data dir,
+#    and the over-length test password. Any other hit stops the push.
+
 # 3. no bare 64-hex key blobs (the artemis-api-key.conf shape).
 #    Docker image digests and pip lock hashes are expected hits; anything else is not.
 git grep -InE "\b[0-9a-f]{64}\b" -- ':!*.md' ':!*test*' ':!*.json'

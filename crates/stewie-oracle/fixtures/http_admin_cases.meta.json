@@ -1,0 +1,11 @@
+{
+ "fixture": "http_admin_cases",
+ "generator": "oracle/build_fixtures.py::http_admin_cases (the FastAPI app's account administration, invites and /events through one scripted TestClient session; pinned clock, seeded randomness; every input SYNTHETIC, labelled)",
+ "payload_sha256": "f428566ccb0d25501f99d7e799fd70d94818cc0f33d7b69178252713867ff530",
+ "sources": {
+  "stewie/server/deps.py": "b6534254f6276754db3847d9002d4b68e8d5f8ef5176651dfc58bebe51cc55c1",
+  "stewie/server/operators.py": "ece37e235d4133d5ad61aa207e15430f413f6760b466480a075fc4adac752eb1",
+  "stewie/server/routers/invites.py": "7b60d82d6b44ec8d941642778d204f6a02120ce3dd11fb627f496701d7107c2c",
+  "stewie/server/routers/operators_admin.py": "c59a0e387a8a533bcbff152fe30247005c84d73653e75d6b553f126ba0a73674"
+ }
+}
