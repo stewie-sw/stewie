@@ -2890,7 +2890,7 @@
      "feature_count": 15,
      "mission": "SYNTHETIC gis export",
      "objective": "time",
-     "raster_cog_available": false
+     "raster_cog_available": true
     }
    },
    "cache_control": null,
@@ -8617,10 +8617,10 @@
   },
   {
    "body": {
-    "available": false,
+    "available": true,
     "format": "cloud-optimized GeoTIFF (IAU_2015:30135)",
     "ok": true,
-    "reason": "COG export is not yet ported to the Rust server (RW-55b20b: no GeoTIFF writer in this build); the Python server serves it through rasterio."
+    "reason": "rasterio available"
    },
    "cache_control": null,
    "clock": 1800000000.0,
@@ -8638,26 +8638,6 @@
   },
   {
    "body": {
-    "error": "COG export is not yet ported to the Rust server (RW-55b20b: no GeoTIFF writer in this build); the Python server serves it through rasterio.",
-    "ok": false
-   },
-   "cache_control": null,
-   "clock": 1800000000.0,
-   "content_type": "application/json",
-   "request": {
-    "headers": {
-     "X-API-Key": "automation-key-0123456789",
-     "X-Correlation-Id": "cid-026"
-    },
-    "json": null,
-    "method": "GET",
-    "path": "/export/cog/slope.tif",
-    "raw": null
-   },
-   "status": 503
-  },
-  {
-   "body": {
     "error": "unknown value-raster kind 'aspect'; supported: ['slope']",
     "ok": false
    },
@@ -8667,7 +8647,7 @@
    "request": {
     "headers": {
      "X-API-Key": "automation-key-0123456789",
-     "X-Correlation-Id": "cid-027"
+     "X-Correlation-Id": "cid-026"
     },
     "json": null,
     "method": "GET",
@@ -8686,7 +8666,7 @@
    "content_type": "application/json",
    "request": {
     "headers": {
-     "X-Correlation-Id": "cid-028"
+     "X-Correlation-Id": "cid-027"
     },
     "json": null,
     "method": "GET",

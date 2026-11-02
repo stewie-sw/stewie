@@ -25,9 +25,8 @@ use crate::state::SiteDem;
 use crate::validate::{self, Field, Kind, Model};
 
 const CRS_NAME: &str = "IAU_2015:30100";
-/// Why there is no COG export on this server yet (Python `cog_available` when rasterio is absent).
-const COG_UNAVAILABLE: &str = "COG export is not yet ported to the Rust server (RW-55b20b: no GeoTIFF writer in \
-                               this build); the Python server serves it through rasterio.";
+/// The COG backend (Python `cog_available`'s reason): this server's own `GeoTIFF` writer.
+const COG_AVAILABLE: &str = "GeoTIFF writer built in (stewie_server::geotiff)";
 
 fn bad(e: impl Into<String>) -> ApiError {
     err(StatusCode::BAD_REQUEST, e)
@@ -437,7 +436,7 @@ async fn mission_package(
             "format": "stewie.mission_package/1.0",
             "manifest": {"mission": e.mission.name, "body": e.mission.body, "crs": CRS_NAME, "crs_note": fc["crs_note"],
                          "dem_origin": [p.origin.0, p.origin.1], "algorithm": e.algorithm, "objective": e.objective,
-                         "feature_count": n, "raster_cog_available": false},
+                         "feature_count": n, "raster_cog_available": true},
             "geojson": fc,
         }))
         .into_response())
@@ -620,30 +619,132 @@ async fn gis_query(State(st): State<Arc<AppState>>, req: Request) -> Response {
     .await
 }
 
-/// Whether the COG export is available (public): not on this server yet (RW-55b20b).
+/// Whether the COG export is available (public): this server writes `GeoTIFF` itself.
 async fn cog_available() -> Response {
     axum::Json(
-        json!({"ok": true, "available": false, "reason": COG_UNAVAILABLE,
+        json!({"ok": true, "available": true, "reason": COG_AVAILABLE,
                       "format": "cloud-optimized GeoTIFF (IAU_2015:30135)"}),
     )
     .into_response()
 }
 
-/// A value raster as a COG (under the heavy quota): the kind is checked, then the missing writer reported (503).
-async fn cog(State(st): State<Arc<AppState>>, Path(file): Path<String>, req: Request) -> Response {
+const COG_Q: Model = Model {
+    fields: &[
+        Field(
+            "site",
+            Kind::Str {
+                min: 0,
+                max: 40,
+                nullable: false,
+                default: Some("haworth"),
+            },
+        ),
+        Field(
+            "breaks",
+            Kind::Str {
+                min: 0,
+                max: 200,
+                nullable: true,
+                default: None,
+            },
+        ),
+    ],
+    forbid_extra: false,
+};
+
+/// A value raster of the site DEM as a tiled `GeoTIFF` with overviews (under the heavy quota, ArcGIS-G2): the slope
+/// [deg], or with `breaks` its classes (map algebra).
+async fn cog(
+    State(st): State<Arc<AppState>>,
+    Path(file): Path<String>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
     let Some(kind) = file.strip_suffix(".tif").map(str::to_owned) else {
         return crate::app::no_route_for(&axum::http::Method::GET, &format!("/export/cog/{file}"));
     };
     let h = Head::of(&req);
     blocking(st, move |st| {
         st.heavy(&h)?;
+        let raw = crate::spec_routes::query(&q, COG_Q)?;
         if kind != "slope" {
             return Err(bad(format!(
                 "unknown value-raster kind {}; supported: ['slope']",
                 py_repr(&kind)
             )));
         }
-        Err(err(StatusCode::SERVICE_UNAVAILABLE, COG_UNAVAILABLE))
+        let site = raw
+            .get("site")
+            .and_then(Value::as_str)
+            .unwrap_or("haworth")
+            .to_owned();
+        let breaks = match raw
+            .get("breaks")
+            .and_then(Value::as_str)
+            .filter(|b| !b.is_empty())
+        {
+            None => None,
+            Some(b) => {
+                let v: Vec<f64> = b
+                    .split(',')
+                    .filter(|x| !x.trim().is_empty())
+                    .map(|x| x.trim().parse::<f64>())
+                    .collect::<Result<_, _>>()
+                    .map_err(|_| bad("breaks must be numbers"))?;
+                if !(1..=32).contains(&v.len()) || v.windows(2).any(|w| w[0] >= w[1]) {
+                    return Err(bad("breaks must be 1-32 strictly ascending numbers"));
+                }
+                Some(v)
+            }
+        };
+        let (dem, _) = st.terrain.moon_dem(&site).ok_or_else(|| {
+            err(
+                StatusCode::SERVICE_UNAVAILABLE,
+                format!(
+                    "site {} DEM bundle absent; cannot build the value raster",
+                    py_repr(&site)
+                ),
+            )
+        })?;
+        let dir = bundle(st, &site).map_err(|m| match m {
+            Missing::Unknown(x) | Missing::NotImported(x) => err(StatusCode::NOT_FOUND, x),
+        })?;
+        let (x0, _, _, y1) = crate::layer_routes::world_bounds(&dir)?;
+        let slope = crate::geotiff::slope_f32(&dem.z, dem.cols, dem.rows, dem.cell_m);
+        // shortcut: a DEM with holes (NaN slope) would need GDAL's nodata-aware average; no imported DEM has any
+        if slope.iter().any(|v| !v.is_finite()) {
+            return Err(err(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "the DEM has holes the GeoTIFF writer does not average",
+            ));
+        }
+        let (band, nodata) = match &breaks {
+            Some(b) => (
+                crate::geotiff::Band::I32(crate::geotiff::reclassify(&slope, b)),
+                Some("-1"),
+            ),
+            None => (crate::geotiff::Band::F32(slope), None),
+        };
+        let geo = crate::geotiff::Georef {
+            x0,
+            y1,
+            cell_m: dem.cell_m,
+        };
+        let tif = crate::geotiff::write(band, dem.cols, dem.rows, geo, nodata)
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let disposition = format!("attachment; filename=\"{kind}_{site}.tif\"");
+        Ok((
+            [
+                (header::CONTENT_TYPE, HeaderValue::from_static("image/tiff")),
+                (
+                    header::CONTENT_DISPOSITION,
+                    HeaderValue::from_str(&disposition)
+                        .map_err(|e| err(StatusCode::BAD_REQUEST, e.to_string()))?,
+                ),
+            ],
+            tif,
+        )
+            .into_response())
     })
     .await
 }

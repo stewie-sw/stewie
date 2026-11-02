@@ -1,0 +1,10 @@
+{
+ "fixture": "cog_cases",
+ "generator": "oracle/build_fixtures.py::cog_cases (lode.gis_export.value_raster_cog through rasterio/GDAL on the real Haworth slope)",
+ "payload_sha256": "704a2646d755047c9de5aa47c567b338a8a83dad323c6712cbf81fc36f5ac4a7",
+ "sources": {
+  "lode/gis_export.py": "5997f4120b248258347064281b8e0146bd66ba3557e5232c420faa8e634ac81e",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/terrain/site_dem.py": "ac5aaf0a3ee382098b2b12d38c59deabe5bd80e786efed9276308942d20444c8"
+ }
+}

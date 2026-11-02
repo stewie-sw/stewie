@@ -5784,13 +5784,10 @@ def http_gis_cases() -> None:
     """GIS interchange (RW-55b20a): GET /export/geojson and /gis/mission-package of a plan over the real Haworth
     DEM, POST /gis/import of the exported collection back to the order frame, POST /gis/query, and the COG
     availability, through one scripted session (_http_session). The mission is SYNTHETIC (labelled): small enough
-    that no action needs D-R96's per-charge split, with every footprint shape, keep-out form and a marker. The
-    Rust server has no GeoTIFF writer until RW-55b20b, so the session reports the COG export unavailable in its
-    words (``cog_available`` patched; D-R158)."""
+    that no action needs D-R96's per-charge split, with every footprint shape, keep-out form and a marker. The COG
+    file itself is checked by cog_cases."""
     import json as _json
     from urllib.parse import quote
-
-    from lode import gis_export as _GE
 
     mission = {                                                 # SYNTHETIC mission (labelled)
         "name": "SYNTHETIC gis export", "body": "moon", "charger": [0, 0],
@@ -5805,8 +5802,6 @@ def http_gis_cases() -> None:
         "keepouts": [{"x": 15, "y": 15, "r": 2}, {"x0": 0, "y0": -5, "x1": 3, "y1": -2},
                      {"points": [[30, 30], [33, 30], [31, 34]]}],
         "markers": [{"x": 3, "y": 4, "otype": "beacon", "label": "B1"}, {"x": None, "y": 1}, {"x": 6, "y": 7}]}
-    reason = ("COG export is not yet ported to the Rust server (RW-55b20b: no GeoTIFF writer in this build); "
-              "the Python server serves it through rasterio.")
 
     def script(call, key, d, clock):
         q = quote(_json.dumps(mission))
@@ -5841,16 +5836,10 @@ def http_gis_cases() -> None:
         call("POST", "/gis/query", headers=key, json_body={"featurecollection": fc, "attrs": {"feature": "x"}})
         call("POST", "/gis/query", headers=key, json_body={"featurecollection": [], "feature": "order"})
         call("GET", "/export/cog/available")
-        call("GET", "/export/cog/slope.tif", headers=key)
         call("GET", "/export/cog/aspect.tif", headers=key)
         call("GET", "/export/cog/slope.tif")                                       # no key
 
-    stock = _GE.cog_available
-    _GE.cog_available = lambda: (False, reason)
-    try:
-        payload = _http_session("stewie-http-gis-oracle", {}, script)
-    finally:
-        _GE.cog_available = stock
+    payload = _http_session("stewie-http-gis-oracle", {}, script)
     write_fixture(ORACLE_FIXTURES, "http_gis_cases", "oracle/build_fixtures.py::http_gis_cases (the FastAPI app's "
                   "GIS export, import and query over the real Haworth DEM)",
                   ["stewie/server/routers/gis_export.py", "lode/gis_export.py",
@@ -5906,6 +5895,81 @@ def http_ops_cases() -> None:
                   "director maintenance operations)",
                   ["stewie/server/routers/admin_ops.py", "stewie/server/ops_governance.py", "stewie/twin/backup.py"],
                   payload)
+
+def cog_cases() -> None:
+    """The value-raster GeoTIFF (RW-55b20b): ``lode.gis_export.value_raster_cog`` of the real Haworth slope, and of
+    its classes at three breaks, written by rasterio/GDAL. Recorded as every directory's tags (the tile offsets and
+    byte counts aside, which encode the layout) and each level's size, type and content: a float level's sum and
+    sum of squares, a class level's count per class. Content is recorded as these aggregates, not digests, so the
+    CI regeneration (whose libm may move a float32 slope by an ULP) stays within the reproducibility tolerance."""
+    import struct
+    import tempfile as _tf
+
+    import rasterio
+
+    from lode import gis_export as GE
+    from lode import mission_planner as mp
+    from stewie.server import state as ST
+
+    types = {1: ("B", 1), 2: ("s", 1), 3: ("H", 2), 4: ("I", 4), 12: ("d", 8)}
+
+    def tags(path):
+        b = open(path, "rb").read()
+        off, out = struct.unpack_from("<I", b, 4)[0], []
+        while off:
+            n = struct.unpack_from("<H", b, off)[0]
+            ifd = []
+            for i in range(n):
+                tag, typ, cnt, val = struct.unpack_from("<HHII", b, off + 2 + 12 * i)
+                if tag in (324, 325):
+                    continue
+                fmt, size = types[typ]
+                raw = b[off + 2 + 12 * i + 8: off + 2 + 12 * i + 8 + size * cnt] if size * cnt <= 4 else b[val:val + size * cnt]
+                v = raw.decode("latin-1") if typ == 2 else list(struct.unpack("<" + fmt * cnt, raw))
+                ifd.append({"tag": tag, "type": typ, "count": cnt, "value": v})
+            out.append(ifd)
+            off = struct.unpack_from("<I", b, off + 2 + 12 * n)[0]
+        return out
+
+    dem, _o = ST.moon_dem("haworth")
+    bd = mp.bundle_for_site("haworth")
+    cases = []
+    for name, breaks in (("slope", None), ("classes", [10.0, 20.0, 30.0])):
+        with _tf.TemporaryDirectory() as t:
+            path = os.path.join(t, "v.tif")
+            GE.value_raster_cog(dem, path, "slope", breaks=breaks, bundle_dir=bd)
+            levels = []
+            with rasterio.open(path) as r:
+                for k in (1, 2, 4, 8, 16):
+                    a = r.read(1, out_shape=(r.height // k, r.width // k))
+                    row = {"factor": k, "height": int(a.shape[0]), "width": int(a.shape[1]), "dtype": str(a.dtype)}
+                    if a.dtype.kind == "f":
+                        a64 = a.astype(np.float64)
+                        row.update(sum=float(a64.sum()), sum_sq=float((a64 * a64).sum()))
+                    else:
+                        vals, counts = np.unique(a, return_counts=True)
+                        row["counts"] = {str(int(v)): int(c) for v, c in zip(vals, counts)}
+                    levels.append(row)
+            cases.append({"name": name, "breaks": breaks, "tags": tags(path), "levels": levels})
+    # SYNTHETIC seeded rasters (labelled): GDAL's overview arithmetic exactly, on sides whose levels leave a row
+    # remainder past GDAL's four-pixel chunks (176 -> 88, 44, 22, 11); pure float32 adds and multiplies, so the
+    # recorded values reproduce on any host
+    rng = np.random.default_rng(20261103)
+    synthetic = []
+    for name, arr in (("float", (rng.random((112, 176)) * 40.0).astype(np.float32)),
+                      ("classes", rng.integers(-1, 4, (112, 176)).astype(np.int32))):
+        with _tf.TemporaryDirectory() as t:
+            path = os.path.join(t, "s.tif")
+            GE._array_to_cog(arr, 5.0, path, nodata=(-1 if name == "classes" else None), bundle_dir=bd)
+            with rasterio.open(path) as r:
+                levels = [r.read(1, out_shape=(r.height // k, r.width // k)).astype(np.float64).ravel().tolist()
+                          for k in (2, 4, 8, 16)]
+        synthetic.append({"name": name, "width": 176, "height": 112,
+                          "base": arr.astype(np.float64).ravel().tolist(), "levels": levels})
+    write_fixture(ORACLE_FIXTURES, "cog_cases", "oracle/build_fixtures.py::cog_cases (lode.gis_export.value_raster_cog "
+                  "through rasterio/GDAL on the real Haworth slope)",
+                  ["lode/gis_export.py", "stewie/terrain/site_dem.py",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], {"cases": cases, "synthetic": synthetic})
 
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
@@ -6240,6 +6304,7 @@ def main() -> None:
     http_evidence_cases()
     http_gis_cases()
     http_ops_cases()
+    cog_cases()
     contour_lines_cases()
     endurance_cases()
     timeline_cases()

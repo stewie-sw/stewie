@@ -1983,9 +1983,227 @@ async fn the_python_gis_session_replays_exactly() {
         |_, step, clock, _| {
             *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
         },
-        |_, _| {},
+        |step, body| {
+            // the COG backend is named in each server's words (rasterio there, its own GeoTIFF writer here)
+            if step["request"]["path"] == "/export/cog/available" {
+                assert_eq!(body["available"], json!(true));
+                body["reason"] = step["body"]["reason"].clone();
+            }
+        },
     )
     .await;
+}
+
+/// A tiled, deflated, one-band little-endian TIFF: each directory's tags (tile offsets and byte counts aside, as
+/// the oracle records them) and each level's samples as f64.
+/// A decoded level: width, height, whether float, its samples.
+type Level = (usize, usize, bool, Vec<f64>);
+
+#[allow(
+    clippy::many_single_char_names,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)] // TIFF fields
+fn decode_tiff(b: &[u8]) -> (Vec<Value>, Vec<Level>) {
+    use std::io::Read as _;
+    let u16_at = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]);
+    let u32_at = |o: usize| u32::from_le_bytes(b[o..o + 4].try_into().unwrap()) as usize;
+    let mut off = u32_at(4);
+    let (mut dirs, mut levels) = (Vec::new(), Vec::new());
+    while off != 0 {
+        let n = usize::from(u16_at(off));
+        let (mut tags, mut fields) = (Vec::new(), HashMap::new());
+        for i in 0..n {
+            let e = off + 2 + 12 * i;
+            let (tag, typ, cnt) = (u16_at(e), u16_at(e + 2), u32_at(e + 4));
+            let size = match typ {
+                1 | 2 => 1,
+                3 => 2,
+                4 => 4,
+                12 => 8,
+                t => panic!("type {t}"),
+            } * cnt;
+            let raw = if size <= 4 {
+                &b[e + 8..e + 8 + size]
+            } else {
+                &b[u32_at(e + 8)..u32_at(e + 8) + size]
+            };
+            let nums: Vec<f64> = match typ {
+                1 => raw.iter().map(|x| f64::from(*x)).collect(),
+                3 => raw
+                    .chunks(2)
+                    .map(|c| f64::from(u16::from_le_bytes([c[0], c[1]])))
+                    .collect(),
+                4 => raw
+                    .chunks(4)
+                    .map(|c| f64::from(u32::from_le_bytes(c.try_into().unwrap())))
+                    .collect(),
+                12 => raw
+                    .chunks(8)
+                    .map(|c| f64::from_le_bytes(c.try_into().unwrap()))
+                    .collect(),
+                _ => vec![],
+            };
+            fields.insert(tag, nums.clone());
+            if tag != 324 && tag != 325 {
+                // integer tags as integers, as the oracle's struct unpacking gives them
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                let value = match typ {
+                    2 => json!(raw.iter().map(|c| char::from(*c)).collect::<String>()),
+                    12 => json!(nums),
+                    _ => json!(nums.iter().map(|v| *v as u64).collect::<Vec<_>>()),
+                };
+                tags.push(json!({"tag": tag, "type": typ, "count": cnt, "value": value}));
+            }
+        }
+        dirs.push(Value::Array(tags));
+        let f = |t: u16| fields[&t].clone();
+        let (w, h, tw, th) = (
+            f(256)[0] as usize,
+            f(257)[0] as usize,
+            f(322)[0] as usize,
+            f(323)[0] as usize,
+        );
+        // SampleFormat 3 is IEEE float
+        let float = f(339)[0] as u64 == 3;
+        let (offs, lens) = (f(324), f(325));
+        let mut px = vec![0.0; w * h];
+        let across = w.div_ceil(tw);
+        for (k, (o, l)) in offs.iter().zip(&lens).enumerate() {
+            let mut tile = Vec::new();
+            flate2::read::ZlibDecoder::new(&b[*o as usize..(*o + *l) as usize])
+                .read_to_end(&mut tile)
+                .unwrap();
+            let (ty, tx) = (k / across, k % across);
+            for y in 0..th.min(h - ty * th) {
+                for x in 0..tw.min(w - tx * tw) {
+                    let c: [u8; 4] = tile[(y * tw + x) * 4..(y * tw + x) * 4 + 4]
+                        .try_into()
+                        .unwrap();
+                    px[(ty * th + y) * w + tx * tw + x] = if float {
+                        f64::from(f32::from_le_bytes(c))
+                    } else {
+                        f64::from(i32::from_le_bytes(c))
+                    };
+                }
+            }
+        }
+        levels.push((w, h, float, px));
+        off = u32_at(off + 2 + 12 * n);
+    }
+    (dirs, levels)
+}
+
+#[test]
+#[allow(clippy::cast_possible_truncation)] // the recorded raster sides
+fn the_overview_pyramid_is_gdals_value_for_value() {
+    use stewie_server::geotiff::{Band, pyramid};
+    let fx = stewie_oracle::load("cog_cases").unwrap().payload;
+    for c in fx["synthetic"].as_array().unwrap() {
+        let name = c["name"].as_str().unwrap();
+        let (w, h) = (
+            c["width"].as_u64().unwrap() as usize,
+            c["height"].as_u64().unwrap() as usize,
+        );
+        let base: Vec<f64> = c["base"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap())
+            .collect();
+        #[allow(clippy::cast_possible_truncation)] // the recorded float32 and int32 samples
+        let band = if name == "float" {
+            Band::F32(base.iter().map(|v| *v as f32).collect())
+        } else {
+            Band::I32(base.iter().map(|v| *v as i32).collect())
+        };
+        let levels = pyramid(band, w, h);
+        for (k, want) in c["levels"].as_array().unwrap().iter().enumerate() {
+            let got: Vec<f64> = match &levels[k + 1].0 {
+                Band::F32(a) => a.iter().map(|v| f64::from(*v)).collect(),
+                Band::I32(a) => a.iter().map(|v| f64::from(*v)).collect(),
+            };
+            let want: Vec<f64> = want
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap())
+                .collect();
+            assert_eq!(got, want, "{name} level {}", k + 1);
+        }
+    }
+}
+
+#[tokio::test]
+#[allow(clippy::cast_possible_truncation)] // the decoded int32 classes
+async fn the_value_raster_geotiff_is_the_pythons() {
+    let fx = stewie_oracle::load("cog_cases").unwrap().payload;
+    let (app, _dir) = bare_app("cog", false);
+    for c in fx["cases"].as_array().unwrap() {
+        let name = c["name"].as_str().unwrap();
+        let q = c["breaks"].as_array().map_or_else(String::new, |b| {
+            format!(
+                "?breaks={}",
+                b.iter()
+                    .map(|v| format!("{}", v.as_f64().unwrap()))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+        });
+        let mut req = Request::builder()
+            .uri(format!("/export/cog/slope.tif{q}"))
+            .header("x-api-key", "automation-key-0123456789")
+            .body(Body::empty())
+            .unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+        let r = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(r.status().as_u16(), 200, "{name}");
+        assert_eq!(r.headers()["content-type"], "image/tiff");
+        assert_eq!(
+            r.headers()["content-disposition"],
+            "attachment; filename=\"slope_haworth.tif\""
+        );
+        let bytes = r.into_body().collect().await.unwrap().to_bytes();
+        let (dirs, levels) = decode_tiff(&bytes);
+        assert_eq!(
+            Value::Array(dirs),
+            c["tags"],
+            "{name}: the directories' tags"
+        );
+        for ((w, h, float, px), want) in levels.iter().zip(c["levels"].as_array().unwrap()) {
+            assert_eq!(
+                (json!(w), json!(h)),
+                (want["width"].clone(), want["height"].clone()),
+                "{name}"
+            );
+            assert_eq!(*float, want["dtype"] == "float32", "{name}");
+            if *float {
+                let (sum, sq): (f64, f64) =
+                    px.iter().fold((0.0, 0.0), |(s, q), v| (s + v, q + v * v));
+                for (got, k) in [(sum, "sum"), (sq, "sum_sq")] {
+                    let w = want[k].as_f64().unwrap();
+                    assert!(
+                        (got - w).abs() <= 1e-9 * w.abs(),
+                        "{name} factor {}: {k} {got} vs {w}",
+                        want["factor"]
+                    );
+                }
+            } else {
+                let mut counts: std::collections::BTreeMap<String, u64> =
+                    std::collections::BTreeMap::new();
+                for v in px {
+                    *counts.entry(format!("{}", *v as i64)).or_default() += 1;
+                }
+                assert_eq!(
+                    json!(counts),
+                    want["counts"],
+                    "{name} factor {}",
+                    want["factor"]
+                );
+            }
+        }
+    }
 }
 
 #[tokio::test]

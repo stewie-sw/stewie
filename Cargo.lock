@@ -1924,6 +1924,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "base64",
+ "flate2",
  "getrandom 0.3.4",
  "hmac",
  "http-body-util",
