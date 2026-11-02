@@ -9,6 +9,7 @@ pub mod costmap;
 pub mod haul;
 pub mod illumination;
 pub mod layers;
+pub mod nav;
 pub mod profile;
 pub mod route;
 

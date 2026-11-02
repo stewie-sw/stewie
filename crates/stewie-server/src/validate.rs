@@ -50,6 +50,11 @@ pub enum Kind {
     FloatPairDefault(f64, f64),
     /// A number with `ge <= x < lt`; required.
     FloatLt { ge: Bound, lt: Bound },
+    /// A string matching an anchored alternation (`pattern`, shown in the refusal), given as its `options`.
+    Pattern {
+        pattern: &'static str,
+        options: &'static [&'static str],
+    },
     /// A required JSON object (a `dict` field without a default).
     DictRequired,
     /// A `list[dict]` of `min..=max` objects; required.
@@ -206,10 +211,12 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
         },
         Kind::IntPair => check_pair(v, path, errors, false),
         Kind::FloatPair | Kind::FloatPairDefault(..) => check_pair(v, path, errors, true),
-        Kind::FloatLt { ge, lt } => match check_float_lt(v, ge, lt) {
-            Ok(x) => Some(json!(x)),
-            Err(e) => fail(e),
-        },
+        Kind::Pattern { pattern, options } => {
+            check_pattern(v, pattern, options).map_or_else(fail, Some)
+        }
+        Kind::FloatLt { ge, lt } => check_float_lt(v, ge, lt)
+            .map(|x| json!(x))
+            .map_or_else(fail, Some),
         Kind::FloatPairList { max } | Kind::FloatList { max } | Kind::FloatTripleList { max } => {
             match v {
                 Value::Array(items) if items.len() > max => fail(format!(
@@ -259,6 +266,15 @@ fn check_floats(items: &[Value], path: &str, errors: &mut Vec<String>) -> Option
         })
         .collect();
     (errors.len() == before).then_some(Value::Array(out))
+}
+
+/// A string matching an anchored alternation given as its options.
+fn check_pattern(v: &Value, pattern: &str, options: &[&str]) -> Result<Value, String> {
+    match v {
+        Value::String(t) if options.contains(&t.as_str()) => Ok(v.clone()),
+        Value::String(_) => Err(format!("String should match pattern '{pattern}'")),
+        _ => Err("Input should be a valid string".to_owned()),
+    }
 }
 
 /// A number with `ge <= x < lt` (Pydantic checks `lt` first).

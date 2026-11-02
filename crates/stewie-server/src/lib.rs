@@ -22,6 +22,7 @@ pub mod library_routes;
 pub mod metrics;
 pub mod mission_routes;
 pub mod model_routes;
+pub mod nav_routes;
 pub mod objects;
 pub mod ogc_routes;
 pub mod operators;

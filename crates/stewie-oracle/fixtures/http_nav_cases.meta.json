@@ -1,0 +1,12 @@
+{
+ "fixture": "http_nav_cases",
+ "generator": "oracle/build_fixtures.py::http_nav_cases (the FastAPI app's navigation decisions)",
+ "payload_sha256": "c9b21c13ff380a093239bf89521f97d9a642f9127d554a5f1d257e6c5ce97442",
+ "sources": {
+  "lode/executive.py": "f39b4576938bbe38656e9711866751c5811ae06d36d542c4a4b11701af98ac4a",
+  "lode/faults.py": "8b38e1eefb352113a95710f839b34b9c3692e86e54dab5ab0c8f7c3690ef85ff",
+  "lode/local_planner.py": "483d2e2728ea2b3e6c58a4b47affee6cfdbd4dc75a03aa2f5f063b20eac01360",
+  "lode/recovery.py": "cfcde125ee14dacf18b7ce90b0a04d5fff59e9319d89b1a0714ed2a5deb91122",
+  "stewie/server/routers/nav.py": "66c31c2c28e50c57d7047988bcf267650528584b3567b3fb9ddcacc17e74535c"
+ }
+}

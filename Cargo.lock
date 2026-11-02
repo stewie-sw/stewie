@@ -2506,6 +2506,7 @@ dependencies = [
  "stewie-contracts",
  "stewie-oracle",
  "stewie-physics",
+ "stewie-twin",
 ]
 
 [[package]]

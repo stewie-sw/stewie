@@ -1,0 +1,1119 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "nav.faults",
+   "actor": "api-key",
+   "correlation_id": "cid-002",
+   "target": "0 active, safety_critical=False",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.faults",
+   "actor": "api-key",
+   "correlation_id": "cid-003",
+   "target": "5 active, safety_critical=False",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.faults",
+   "actor": "api-key",
+   "correlation_id": "cid-004",
+   "target": "6 active, safety_critical=True",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.executive",
+   "actor": "api-key",
+   "correlation_id": "cid-006",
+   "target": "continue",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.executive",
+   "actor": "api-key",
+   "correlation_id": "cid-007",
+   "target": "fail_safe",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.executive",
+   "actor": "api-key",
+   "correlation_id": "cid-008",
+   "target": "pause",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.executive",
+   "actor": "api-key",
+   "correlation_id": "cid-009",
+   "target": "pause",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.executive",
+   "actor": "api-key",
+   "correlation_id": "cid-010",
+   "target": "reverse",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.executive",
+   "actor": "api-key",
+   "correlation_id": "cid-011",
+   "target": "persist",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.executive",
+   "actor": "api-key",
+   "correlation_id": "cid-012",
+   "target": "replan_global",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.executive",
+   "actor": "api-key",
+   "correlation_id": "cid-013",
+   "target": "replan_local",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.executive",
+   "actor": "api-key",
+   "correlation_id": "cid-014",
+   "target": "replan_global",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.local_plan",
+   "actor": "api-key",
+   "correlation_id": "cid-016",
+   "target": "feasible=True",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.local_plan",
+   "actor": "api-key",
+   "correlation_id": "cid-017",
+   "target": "feasible=True",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.local_plan",
+   "actor": "api-key",
+   "correlation_id": "cid-018",
+   "target": "feasible=True",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.local_plan",
+   "actor": "api-key",
+   "correlation_id": "cid-019",
+   "target": "feasible=False",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-nav-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/nav/faults",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "faults": [],
+    "ok": true,
+    "summary": {
+     "classes": [],
+     "critical": [],
+     "n": 0,
+     "safety_critical": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/nav/faults",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "faults": [
+     {
+      "fault": "tip",
+      "limit": 5.0,
+      "message": "low tip-over margin",
+      "severity": "warn",
+      "value": 3.0
+     },
+     {
+      "fault": "entrapment",
+      "limit": 0.8,
+      "message": "high slip approaching entrapment",
+      "severity": "warn",
+      "value": 0.85
+     },
+     {
+      "fault": "localization_divergence",
+      "limit": 2.0,
+      "message": "growing pose uncertainty",
+      "severity": "warn",
+      "value": 2.5
+     },
+     {
+      "fault": "low_energy",
+      "limit": 0.2,
+      "message": "battery approaching reserve",
+      "severity": "warn",
+      "value": 0.15
+     },
+     {
+      "fault": "thermal",
+      "limit": [
+       -35.0,
+       40.0
+      ],
+      "message": "temperature near the qual edge",
+      "severity": "warn",
+      "value": 37.5
+     }
+    ],
+    "ok": true,
+    "summary": {
+     "classes": [
+      "entrapment",
+      "localization_divergence",
+      "low_energy",
+      "thermal",
+      "tip"
+     ],
+     "critical": [],
+     "n": 5,
+     "safety_critical": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "battery_frac": 0.15,
+     "loc_sigma_m": 2.5,
+     "slip": 0.85,
+     "temp_c": 37.5,
+     "tip_margin_deg": 3.0
+    },
+    "method": "POST",
+    "path": "/nav/faults",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "faults": [
+     {
+      "fault": "tip",
+      "limit": 0.0,
+      "message": "static stability margin exhausted -> tipping",
+      "severity": "critical",
+      "value": -1.0
+     },
+     {
+      "fault": "entrapment",
+      "limit": 0.95,
+      "message": "wheel slip at entrapment (slip-sinkage runaway)",
+      "severity": "critical",
+      "value": 0.97
+     },
+     {
+      "fault": "localization_divergence",
+      "limit": 5.0,
+      "message": "pose uncertainty diverged",
+      "severity": "critical",
+      "value": 6.0
+     },
+     {
+      "fault": "low_energy",
+      "limit": 0.1,
+      "message": "battery below operational reserve",
+      "severity": "critical",
+      "value": 0.05
+     },
+     {
+      "fault": "thermal",
+      "limit": [
+       -35.0,
+       40.0
+      ],
+      "message": "temperature outside the actuator qual range",
+      "severity": "critical",
+      "value": -40.0
+     },
+     {
+      "fault": "actuator",
+      "limit": true,
+      "message": "actuator fault reported",
+      "severity": "critical",
+      "value": false
+     }
+    ],
+    "ok": true,
+    "summary": {
+     "classes": [
+      "actuator",
+      "entrapment",
+      "localization_divergence",
+      "low_energy",
+      "thermal",
+      "tip"
+     ],
+     "critical": [
+      "actuator",
+      "entrapment",
+      "localization_divergence",
+      "low_energy",
+      "thermal",
+      "tip"
+     ],
+     "n": 6,
+     "safety_critical": true
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "actuator_ok": false,
+     "battery_frac": 0.05,
+     "loc_sigma_m": 6.0,
+     "slip": 0.97,
+     "temp_c": -40.0,
+     "tip_margin_deg": -1.0
+    },
+    "method": "POST",
+    "path": "/nav/faults",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "slip: Input should be less than or equal to 1; temp_c: Input should be a valid number, unable to parse string as a number; x: Extra inputs are not permitted",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "slip": 1.5,
+     "temp_c": "hot",
+     "x": 1
+    },
+    "method": "POST",
+    "path": "/nav/faults",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "action": "continue",
+    "fault_summary": {
+     "classes": [],
+     "critical": [],
+     "n": 0,
+     "safety_critical": false
+    },
+    "faults": [],
+    "ok": true,
+    "reason": "nominal",
+    "safety_critical": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "action": "fail_safe",
+    "fault_summary": {
+     "classes": [
+      "entrapment"
+     ],
+     "critical": [
+      "entrapment"
+     ],
+     "n": 1,
+     "safety_critical": true
+    },
+    "faults": [
+     {
+      "fault": "entrapment",
+      "limit": 0.95,
+      "message": "wheel slip at entrapment (slip-sinkage runaway)",
+      "severity": "critical",
+      "value": 0.99
+     }
+    ],
+    "ok": true,
+    "reason": "safety-critical fault(s): entrapment",
+    "safety_critical": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "command_acked": false,
+     "slip": 0.99
+    },
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "action": "pause",
+    "fault_summary": {
+     "classes": [],
+     "critical": [],
+     "n": 0,
+     "safety_critical": false
+    },
+    "faults": [],
+    "ok": true,
+    "reason": "last command not acknowledged (move-and-wait)",
+    "safety_critical": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "command_acked": false
+    },
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "action": "pause",
+    "fault_summary": {
+     "classes": [],
+     "critical": [],
+     "n": 0,
+     "safety_critical": false
+    },
+    "faults": [],
+    "ok": true,
+    "reason": "current step not accepted for execution",
+    "safety_critical": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "plan_accepted": false
+    },
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "action": "reverse",
+    "fault_summary": {
+     "classes": [],
+     "critical": [],
+     "n": 0,
+     "safety_critical": false
+    },
+    "faults": [],
+    "ok": true,
+    "reason": "blockage (progress far below slip prediction) -> back out",
+    "safety_critical": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "expected_progress_ratio": 0.9,
+     "progress_ratio": 0.05,
+     "stall_duration_s": 3.0
+    },
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "action": "persist",
+    "fault_summary": {
+     "classes": [],
+     "critical": [],
+     "n": 0,
+     "safety_critical": false
+    },
+    "faults": [],
+    "ok": true,
+    "reason": "expected slope/slip slowdown -> keep pushing (no false reverse)",
+    "safety_critical": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "expected_progress_ratio": 0.2,
+     "progress_ratio": 0.1,
+     "stall_duration_s": 3.0
+    },
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "action": "replan_global",
+    "fault_summary": {
+     "classes": [],
+     "critical": [],
+     "n": 0,
+     "safety_critical": false
+    },
+    "faults": [],
+    "ok": true,
+    "reason": "planner failure / no local detour -> global re-route",
+    "safety_critical": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "expected_progress_ratio": 0.6,
+     "planner_failed": true,
+     "progress_ratio": 0.5,
+     "stall_duration_s": 0.0
+    },
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "action": "replan_local",
+    "fault_summary": {
+     "classes": [
+      "thermal"
+     ],
+     "critical": [],
+     "n": 1,
+     "safety_critical": false
+    },
+    "faults": [
+     {
+      "fault": "thermal",
+      "limit": [
+       -35.0,
+       40.0
+      ],
+      "message": "temperature near the qual edge",
+      "severity": "warn",
+      "value": 38.0
+     }
+    ],
+    "ok": true,
+    "reason": "reactive hazard -> local detour",
+    "safety_critical": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {
+     "reactive_scope": "local",
+     "temp_c": 38.0
+    },
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "action": "replan_global",
+    "fault_summary": {
+     "classes": [],
+     "critical": [],
+     "n": 0,
+     "safety_critical": false
+    },
+    "faults": [],
+    "ok": true,
+    "reason": "planner failure / no local detour -> global re-route",
+    "safety_critical": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "reactive_scope": "global"
+    },
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "reactive_scope: String should match pattern '^(local|global)$'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": {
+     "reactive_scope": "sideways"
+    },
+    "method": "POST",
+    "path": "/nav/executive",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "arc": [
+     [
+      0.0,
+      0.0,
+      0.3
+     ],
+     [
+      0.6948,
+      0.2149,
+      0.3
+     ],
+     [
+      1.3896,
+      0.4298,
+      0.3
+     ],
+     [
+      2.0844,
+      0.6448,
+      0.3
+     ],
+     [
+      2.7792,
+      0.8597,
+      0.3
+     ],
+     [
+      3.474,
+      1.0746,
+      0.3
+     ],
+     [
+      4.1687,
+      1.2895,
+      0.3
+     ],
+     [
+      4.8635,
+      1.5045,
+      0.3
+     ],
+     [
+      5.5583,
+      1.7194,
+      0.3
+     ],
+     [
+      6.2531,
+      1.9343,
+      0.3
+     ],
+     [
+      6.9479,
+      2.1492,
+      0.3
+     ],
+     [
+      7.6427,
+      2.3642,
+      0.3
+     ]
+    ],
+    "command": {
+     "arc_length_m": 8.0,
+     "duration_s": 26.667,
+     "expected_speed_ms": 0.3,
+     "omega_cmd": 0.0,
+     "v_cmd": 0.3
+    },
+    "curvature": 0.0,
+    "endpoint": [
+     7.6427,
+     2.3642
+    ],
+    "feasible": true,
+    "heading_end": 0.3,
+    "n_feasible": 11,
+    "n_sampled": 11,
+    "ok": true,
+    "progress_m": 7.9995
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "goal": [
+      20.0,
+      6.0
+     ],
+     "heading_rad": 0.3,
+     "pose": [
+      0.0,
+      0.0
+     ]
+    },
+    "method": "POST",
+    "path": "/nav/local_plan",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "arc": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.7273,
+      0.0,
+      0.0
+     ],
+     [
+      1.4545,
+      0.0,
+      0.0
+     ],
+     [
+      2.1818,
+      0.0,
+      0.0
+     ],
+     [
+      2.9091,
+      0.0,
+      0.0
+     ],
+     [
+      3.6364,
+      0.0,
+      0.0
+     ],
+     [
+      4.3636,
+      0.0,
+      0.0
+     ],
+     [
+      5.0909,
+      0.0,
+      0.0
+     ],
+     [
+      5.8182,
+      0.0,
+      0.0
+     ],
+     [
+      6.5455,
+      0.0,
+      0.0
+     ],
+     [
+      7.2727,
+      0.0,
+      0.0
+     ],
+     [
+      8.0,
+      0.0,
+      0.0
+     ]
+    ],
+    "command": {
+     "arc_length_m": 8.0,
+     "duration_s": 26.667,
+     "expected_speed_ms": 0.3,
+     "omega_cmd": 0.0,
+     "v_cmd": 0.3
+    },
+    "curvature": 0.0,
+    "endpoint": [
+     8.0,
+     0.0
+    ],
+    "feasible": true,
+    "heading_end": 0.0,
+    "n_feasible": 11,
+    "n_sampled": 11,
+    "ok": true,
+    "progress_m": 7.6813
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "goal": [
+      15.0,
+      3.0
+     ],
+     "heading_rad": 0.0,
+     "pose": [
+      0.0,
+      0.0
+     ]
+    },
+    "method": "POST",
+    "path": "/nav/local_plan",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "arc": [
+     [
+      2.0,
+      -1.0,
+      0.0
+     ],
+     [
+      2.9042,
+      -0.9184,
+      0.18
+     ],
+     [
+      3.7792,
+      -0.6762,
+      0.36
+     ],
+     [
+      4.5966,
+      -0.2814,
+      0.54
+     ],
+     [
+      5.3302,
+      0.2535,
+      0.72
+     ],
+     [
+      5.9562,
+      0.9111,
+      0.9
+     ],
+     [
+      6.4543,
+      1.6701,
+      1.08
+     ],
+     [
+      6.8085,
+      2.506,
+      1.26
+     ],
+     [
+      7.0074,
+      3.3918,
+      1.44
+     ],
+     [
+      7.0444,
+      4.2989,
+      1.62
+     ],
+     [
+      6.9184,
+      5.198,
+      1.8
+     ],
+     [
+      6.6335,
+      6.06,
+      1.98
+     ]
+    ],
+    "command": {
+     "arc_length_m": 9.9865,
+     "duration_s": 49.933,
+     "expected_speed_ms": 0.2,
+     "omega_cmd": 0.0396,
+     "v_cmd": 0.2
+    },
+    "curvature": 0.198,
+    "endpoint": [
+     6.6335,
+     6.06
+    ],
+    "feasible": true,
+    "heading_end": 1.98,
+    "n_feasible": 4,
+    "n_sampled": 11,
+    "ok": true,
+    "progress_m": 3.8783
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": {
+     "clearance_m": 0.5,
+     "goal": [
+      30.0,
+      0.0
+     ],
+     "heading_rad": 0.0,
+     "horizon_m": 10.0,
+     "keepouts": [
+      [
+       7.0,
+       -1.0,
+       1.5
+      ]
+     ],
+     "omega_max": 0.05,
+     "pose": [
+      2.0,
+      -1.0
+     ],
+     "rocks": [
+      [
+       5.0,
+       1.5,
+       0.4
+      ]
+     ],
+     "v_max": 0.2
+    },
+    "method": "POST",
+    "path": "/nav/local_plan",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "feasible": false,
+    "n_feasible": 0,
+    "n_sampled": 11,
+    "ok": true,
+    "reason": "all sampled arcs blocked (terrain / keep-out / rock)"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": {
+     "goal": [
+      10.0,
+      0.0
+     ],
+     "heading_rad": 0.0,
+     "keepouts": [
+      [
+       2.0,
+       0.0,
+       6.0
+      ]
+     ],
+     "pose": [
+      0.0,
+      0.0
+     ]
+    },
+    "method": "POST",
+    "path": "/nav/local_plan",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "pose.1: Field required; heading_rad: Input should be less than or equal to 7; rocks.0.2: Field required",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": {
+     "goal": [
+      1,
+      2
+     ],
+     "heading_rad": 9.0,
+     "pose": [
+      0.0
+     ],
+     "rocks": [
+      [
+       1,
+       2
+      ]
+     ],
+     "v_max": 0
+    },
+    "method": "POST",
+    "path": "/nav/local_plan",
+    "raw": null
+   },
+   "status": 400
+  }
+ ],
+ "store": null
+}

@@ -1229,6 +1229,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::ops_routes::routes())
         .merge(crate::perception_routes::routes())
         .merge(crate::ros_routes::routes())
+        .merge(crate::nav_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

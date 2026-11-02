@@ -6020,6 +6020,53 @@ def http_ros_cases() -> None:
                    "dart/dem_cross.py", "lode/costmap_layers.py"], payload)
 
 
+def http_nav_cases() -> None:
+    """The navigation decisions (RW-55b24): POST /nav/faults (every NV-08 class at warn and critical), /nav/executive
+    (the NV-09 precedence ladder with the NV-06/07 recovery and the NV-05 scope) and /nav/local_plan (a clear arc, a
+    detour round keep-outs and rocks, an all-blocked fan, custom caps), and their refusals. The telemetry and the
+    geometry are SYNTHETIC (labelled)."""
+    def script(call, key, d, clock):
+        call("POST", "/nav/faults", json_body={})                                                         # no key
+        call("POST", "/nav/faults", headers=key, json_body={})
+        call("POST", "/nav/faults", headers=key, json_body={"tip_margin_deg": 3.0, "slip": 0.85, "loc_sigma_m": 2.5,
+                                                            "battery_frac": 0.15, "temp_c": 37.5})
+        call("POST", "/nav/faults", headers=key, json_body={"tip_margin_deg": -1.0, "slip": 0.97, "loc_sigma_m": 6.0,
+                                                            "battery_frac": 0.05, "temp_c": -40.0,
+                                                            "actuator_ok": False})
+        call("POST", "/nav/faults", headers=key, json_body={"slip": 1.5, "temp_c": "hot", "x": 1})
+        call("POST", "/nav/executive", headers=key, json_body={})
+        call("POST", "/nav/executive", headers=key, json_body={"slip": 0.99, "command_acked": False})
+        call("POST", "/nav/executive", headers=key, json_body={"command_acked": False})
+        call("POST", "/nav/executive", headers=key, json_body={"plan_accepted": False})
+        call("POST", "/nav/executive", headers=key, json_body={"progress_ratio": 0.05, "stall_duration_s": 3.0,
+                                                               "expected_progress_ratio": 0.9})
+        call("POST", "/nav/executive", headers=key, json_body={"progress_ratio": 0.1, "stall_duration_s": 3.0,
+                                                               "expected_progress_ratio": 0.2})
+        call("POST", "/nav/executive", headers=key, json_body={"progress_ratio": 0.5, "stall_duration_s": 0.0,
+                                                               "expected_progress_ratio": 0.6, "planner_failed": True})
+        call("POST", "/nav/executive", headers=key, json_body={"reactive_scope": "local", "temp_c": 38.0})
+        call("POST", "/nav/executive", headers=key, json_body={"reactive_scope": "global"})
+        call("POST", "/nav/executive", headers=key, json_body={"reactive_scope": "sideways"})
+        call("POST", "/nav/local_plan", headers=key, json_body={"pose": [0.0, 0.0], "heading_rad": 0.3,
+                                                                "goal": [20.0, 6.0]})
+        # a gentle arc ends nearer this goal, but the straightness penalty keeps the straight one
+        call("POST", "/nav/local_plan", headers=key, json_body={"pose": [0.0, 0.0], "heading_rad": 0.0,
+                                                                "goal": [15.0, 3.0]})
+        call("POST", "/nav/local_plan", headers=key, json_body={
+            "pose": [2.0, -1.0], "heading_rad": 0.0, "goal": [30.0, 0.0], "keepouts": [[7.0, -1.0, 1.5]],
+            "rocks": [[5.0, 1.5, 0.4]], "horizon_m": 10.0, "clearance_m": 0.5, "v_max": 0.2, "omega_max": 0.05})
+        call("POST", "/nav/local_plan", headers=key, json_body={"pose": [0.0, 0.0], "heading_rad": 0.0,
+                                                                "goal": [10.0, 0.0], "keepouts": [[2.0, 0.0, 6.0]]})
+        call("POST", "/nav/local_plan", headers=key, json_body={"pose": [0.0], "heading_rad": 9.0, "goal": [1, 2],
+                                                                "rocks": [[1, 2]], "v_max": 0})
+
+    payload = _http_session("stewie-http-nav-oracle", {}, script)
+    write_fixture(ORACLE_FIXTURES, "http_nav_cases", "oracle/build_fixtures.py::http_nav_cases (the FastAPI app's "
+                  "navigation decisions)",
+                  ["stewie/server/routers/nav.py", "lode/faults.py", "lode/recovery.py", "lode/executive.py",
+                   "lode/local_planner.py"], payload)
+
+
 def cog_cases() -> None:
     """The value-raster GeoTIFF (RW-55b20b): ``lode.gis_export.value_raster_cog`` of the real Haworth slope, and of
     its classes at three breaks, written by rasterio/GDAL. Recorded as every directory's tags (the tile offsets and
@@ -6630,6 +6677,7 @@ def main() -> None:
     http_localize_cases()
     http_compare_cases()
     http_ros_cases()
+    http_nav_cases()
 
 
 if __name__ == "__main__":
