@@ -1,0 +1,1879 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "localize",
+   "actor": "api",
+   "correlation_id": "cid-002",
+   "target": "3 landmarks -> fix (12.58,-3.08) sigma 1.075m",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "localize",
+   "actor": "api",
+   "correlation_id": "cid-003",
+   "target": "2 landmarks -> fix (12.61,-3.05) sigma 1.154m",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "localize",
+   "actor": "api",
+   "correlation_id": "cid-004",
+   "target": "3 landmarks -> fix (12.50,-3.00) sigma 0.374m",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "localize",
+   "actor": "api",
+   "correlation_id": "cid-005",
+   "target": "3 landmarks -> fix (12.58,-3.08) sigma 1.075m + 2 shadow-yaw",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "localize",
+   "actor": "api",
+   "correlation_id": "cid-006",
+   "target": "3 landmarks -> fix (12.58,-3.08) sigma 1.075m",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-localize-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ],
+      [
+       -5.0,
+       -18.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299,
+      5.480953451236814,
+      6.257597185177297
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ambiguous": false,
+    "fix_sigma_m": 1.075340983382618,
+    "fix_xy": [
+     12.575821154463917,
+     -3.080362415540952
+    ],
+    "hypotheses": [
+     [
+      12.575821154463917,
+      -3.080362415540952
+     ]
+    ],
+    "ok": true,
+    "pose": {
+     "0": [
+      12.574470529995535,
+      -3.0784150700432797,
+      0.3999999999999999
+     ]
+    },
+    "shadow_yaw_factors_added": 0,
+    "xy_sigma": {
+     "0": 1.0749870195386055
+    },
+    "yaw_sigma": {
+     "0": 0.9999999998043112
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ],
+      [
+       -5.0,
+       -18.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299,
+      5.480953451236814,
+      6.257597185177297
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ambiguous": true,
+    "fix_sigma_m": 1.1544392806171668,
+    "fix_xy": [
+     12.607620188205487,
+     -3.0501191351882184
+    ],
+    "hypotheses": [
+     [
+      12.607620188205487,
+      -3.0501191351882184
+     ],
+     [
+      26.00466742107387,
+      23.74397533054854
+     ]
+    ],
+    "ok": true,
+    "pose": {
+     "0": [
+      10.0,
+      -1.0,
+      0.4
+     ]
+    },
+    "shadow_yaw_factors_added": 0,
+    "xy_sigma": {
+     "0": 49.99993751810823
+    },
+    "yaw_sigma": {
+     "0": 0.999999999360222
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299,
+      5.480953451236814
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ambiguous": true,
+    "fix_sigma_m": 0.37415775514769706,
+    "fix_xy": [
+     12.5,
+     -2.9999999999999996
+    ],
+    "hypotheses": [
+     [
+      12.5,
+      -2.9999999999999996
+     ],
+     [
+      -3.0,
+      12.5
+     ]
+    ],
+    "ok": true,
+    "pose": {
+     "0": [
+      10.0,
+      -1.0,
+      0.4
+     ]
+    },
+    "shadow_yaw_factors_added": 0,
+    "xy_sigma": {
+     "0": 49.99993751810823
+    },
+    "yaw_sigma": {
+     "0": 0.999999999360222
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       0.0,
+       0.0
+      ],
+      [
+       10.0,
+       10.0
+      ],
+      [
+       20.0,
+       20.0
+      ]
+     ],
+     "pixel_shifts": [
+      11.201901718815561,
+      10.87760987424717,
+      5.952395516753606
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ambiguous": false,
+    "fix_sigma_m": 1.075340983382618,
+    "fix_xy": [
+     12.575821154463917,
+     -3.080362415540952
+    ],
+    "hypotheses": [
+     [
+      12.575821154463917,
+      -3.080362415540952
+     ]
+    ],
+    "ok": true,
+    "pose": {
+     "0": [
+      12.574470529995535,
+      -3.0784150700432797,
+      0.3999999979075213
+     ]
+    },
+    "shadow_yaw_factors_added": 2,
+    "xy_sigma": {
+     "0": 1.0749870195386055
+    },
+    "yaw_sigma": {
+     "0": 0.3297062779311136
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "anti_solar_az_deg": 271.5,
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ],
+      [
+       -5.0,
+       -18.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299,
+      5.480953451236814,
+      6.257597185177297
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4,
+     "shadow_bearings_deg": [
+      12.0,
+      -40.0,
+      100.5
+     ],
+     "shadow_contrasts": [
+      35.0,
+      12.0,
+      60.0
+     ]
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ambiguous": false,
+    "fix_sigma_m": 1.075340983382618,
+    "fix_xy": [
+     12.575821154463917,
+     -3.080362415540952
+    ],
+    "hypotheses": [
+     [
+      12.575821154463917,
+      -3.080362415540952
+     ]
+    ],
+    "ok": true,
+    "pose": {
+     "0": [
+      12.574470529995535,
+      -3.0784150700432797,
+      0.3999999999999999
+     ]
+    },
+    "shadow_yaw_factors_added": 0,
+    "xy_sigma": {
+     "0": 1.0749870195386055
+    },
+    "yaw_sigma": {
+     "0": 0.9999999998043112
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "anti_solar_az_deg": 271.5,
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ],
+      [
+       -5.0,
+       -18.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299,
+      5.480953451236814,
+      6.257597185177297
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4,
+     "shadow_bearings_deg": [
+      12.0
+     ],
+     "shadow_sigma_deg": 30.0
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "shadow_bearings_deg requires anti_solar_az_deg (the ephemeris anti-solar azimuth)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ],
+      [
+       -5.0,
+       -18.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299,
+      5.480953451236814,
+      6.257597185177297
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4,
+     "shadow_bearings_deg": [
+      12.0
+     ]
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "shadow_contrasts must match shadow_bearings_deg in length",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "anti_solar_az_deg": 10.0,
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ],
+      [
+       -5.0,
+       -18.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299,
+      5.480953451236814,
+      6.257597185177297
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4,
+     "shadow_bearings_deg": [
+      12.0,
+      3.0
+     ],
+     "shadow_contrasts": [
+      40.0
+     ]
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "need >= 2 landmarks for a heading-free fix",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "pixel_shifts must match landmarks_xy in length",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ],
+      [
+       -5.0,
+       -18.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299,
+      5.480953451236814
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "articulation parallax: only 1 finite range(s) from 3 landmark(s) (non-positive pixel shift or inconsistent geometry); need >= 2 for a heading-free fix",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ],
+      [
+       -5.0,
+       -18.0
+      ]
+     ],
+     "pixel_shifts": [
+      4.0,
+      0.0,
+      -1.0
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "true_pose: Extra inputs are not permitted",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "dh_m": 0.12,
+     "fx_px": 1200.0,
+     "landmarks_xy": [
+      [
+       30.0,
+       5.0
+      ],
+      [
+       0.0,
+       20.0
+      ],
+      [
+       -5.0,
+       -18.0
+      ]
+     ],
+     "pixel_shifts": [
+      7.513675684820299,
+      5.480953451236814,
+      6.257597185177297
+     ],
+     "prior_xy": [
+      10.0,
+      -1.0
+     ],
+     "prior_yaw": 0.4,
+     "true_pose": [
+      12.5,
+      -3.0
+     ]
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "landmarks_xy: List should have at most 256 items after validation, not 257; pixel_shifts.0: Input should be a valid number, unable to parse string as a number; dh_m: Input should be greater than 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {
+     "anti_solar_az_deg": 360,
+     "dh_m": 0,
+     "fx_px": 200000.0,
+     "landmarks_xy": [
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ],
+      [
+       0,
+       "x"
+      ]
+     ],
+     "pixel_shifts": [
+      "a"
+     ],
+     "prior_xy": [
+      1
+     ],
+     "prior_yaw": -8
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "landmarks_xy.0.1: Input should be a valid number, unable to parse string as a number; pixel_shifts.0: Input should be a valid number, unable to parse string as a number; shadow_contrasts: Input should be a valid list",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "dh_m": 0.1,
+     "fx_px": 10,
+     "landmarks_xy": [
+      [
+       0,
+       "x"
+      ]
+     ],
+     "pixel_shifts": [
+      "a",
+      1
+     ],
+     "shadow_contrasts": "no"
+    },
+    "method": "POST",
+    "path": "/localize",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/localize",
+    "raw": "{not json"
+   },
+   "status": 400
+  }
+ ],
+ "store": null
+}

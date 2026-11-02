@@ -2154,6 +2154,19 @@ async fn the_globe_quota_limits_each_client_ip() {
 }
 
 #[tokio::test]
+async fn the_python_localize_session_replays() {
+    replay(
+        "http_localize_cases",
+        b"stewie-http-localize-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn the_python_globe_session_replays_exactly() {
     replay(
         "http_globe_cases",

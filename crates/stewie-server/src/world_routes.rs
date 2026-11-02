@@ -803,7 +803,7 @@ const POINTS_REQ: Model = Model {
                 default: Some("haworth"),
             },
         ),
-        Field("points", Kind::FloatPairList),
+        Field("points", Kind::FloatPairList { max: usize::MAX }),
     ],
     forbid_extra: true,
 };
@@ -819,7 +819,7 @@ const TRANSECT_REQ: Model = Model {
                 default: Some("haworth"),
             },
         ),
-        Field("points", Kind::FloatPairList),
+        Field("points", Kind::FloatPairList { max: usize::MAX }),
         Field(
             "frame",
             Kind::Str {

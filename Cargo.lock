@@ -2482,6 +2482,7 @@ dependencies = [
  "stewie-build",
  "stewie-contracts",
  "stewie-oracle",
+ "stewie-perceive",
  "stewie-physics",
  "stewie-plan",
  "stewie-traverse",

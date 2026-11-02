@@ -26,6 +26,7 @@ pub mod objects;
 pub mod ogc_routes;
 pub mod operators;
 pub mod ops_routes;
+pub mod perception_routes;
 pub mod plan_routes;
 pub mod planning;
 pub mod point;

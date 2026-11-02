@@ -27,6 +27,7 @@ sha2 = "0.10"
 stewie-build = { path = "../stewie-build" }
 stewie-contracts = { path = "../stewie-contracts" }
 stewie-physics = { path = "../stewie-physics" }
+stewie-perceive = { path = "../stewie-perceive" }
 stewie-plan = { path = "../stewie-plan" }
 stewie-traverse = { path = "../stewie-traverse" }
 stewie-twin = { path = "../stewie-twin" }

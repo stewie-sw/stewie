@@ -39,8 +39,15 @@ pub enum Kind {
     IntPair,
     /// A `tuple[float, float]`: exactly two numbers; required.
     FloatPair,
-    /// A `list[tuple[float, float]]`, each pair reported at its index; required.
-    FloatPairList,
+    /// A `list[tuple[float, float]]` of at most `max` pairs, each reported at its index; required. A too-long list is
+    /// refused on its length alone, before its items are read (Pydantic's order).
+    FloatPairList { max: usize },
+    /// A `list[float]` of at most `max` numbers; required; the length checked first, as above.
+    FloatList { max: usize },
+    /// A `tuple[float, float]` with a default.
+    FloatPairDefault(f64, f64),
+    /// A number with `ge <= x < lt`; required.
+    FloatLt { ge: Bound, lt: Bound },
     /// A required JSON object (a `dict` field without a default).
     DictRequired,
     /// A `list[dict]` of `min..=max` objects; required.
@@ -196,8 +203,20 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
             _ => fail("Input should be a valid list".to_owned()),
         },
         Kind::IntPair => check_pair(v, path, errors, false),
-        Kind::FloatPair => check_pair(v, path, errors, true),
-        Kind::FloatPairList => match v {
+        Kind::FloatPair | Kind::FloatPairDefault(..) => check_pair(v, path, errors, true),
+        Kind::FloatLt { ge, lt } => match check_float_lt(v, ge, lt) {
+            Ok(x) => Some(json!(x)),
+            Err(e) => fail(e),
+        },
+        Kind::FloatPairList { max } | Kind::FloatList { max } => match v {
+            Value::Array(items) if items.len() > max => fail(format!(
+                "List should have at most {max} item{} after validation, not {}",
+                if max == 1 { "" } else { "s" },
+                items.len()
+            )),
+            Value::Array(items) if matches!(kind, Kind::FloatList { .. }) => {
+                check_floats(items, path, errors)
+            }
             Value::Array(items) => {
                 let before = errors.len();
                 let out: Vec<Value> = items
@@ -216,6 +235,39 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
         },
         Kind::List { min, max, item } => check_list(v, min, max, item, path, errors),
     }
+}
+
+/// A `list[float]`'s items, each error reported at its index.
+fn check_floats(items: &[Value], path: &str, errors: &mut Vec<String>) -> Option<Value> {
+    let before = errors.len();
+    let out: Vec<Value> = items
+        .iter()
+        .enumerate()
+        .filter_map(|(i, x)| match as_float(x) {
+            Ok(f) => Some(json!(f)),
+            Err(e) => {
+                errors.push(format!("{path}.{i}: {e}"));
+                None
+            }
+        })
+        .collect();
+    (errors.len() == before).then_some(Value::Array(out))
+}
+
+/// A number with `ge <= x < lt` (Pydantic checks `lt` first).
+fn check_float_lt(v: &Value, ge: Bound, lt: Bound) -> Result<f64, String> {
+    let x = as_float(v).map_err(str::to_owned)?;
+    if let Some((b, shown)) = lt
+        && (x.is_nan() || x >= b)
+    {
+        return Err(format!("Input should be less than {shown}"));
+    }
+    if let Some((b, shown)) = ge
+        && x < b
+    {
+        return Err(format!("Input should be greater than or equal to {shown}"));
+    }
+    Ok(x)
 }
 
 /// A `list[dict]` of `min..=max` objects: item errors first, then the length.
@@ -372,6 +424,7 @@ fn fields(
                 },
             ) => Some(json!(d)),
             (None, Kind::Int { default, .. }) => Some(json!(default)),
+            (None, Kind::FloatPairDefault(a, b)) => Some(json!([a, b])),
             (None, Kind::Dict) => Some(json!({})),
             (None, Kind::AnyListDefault) => Some(json!([])),
             (None, Kind::Bool { default }) => Some(json!(default)),

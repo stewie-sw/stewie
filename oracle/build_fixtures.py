@@ -5904,6 +5904,56 @@ def http_ops_cases() -> None:
                   ["stewie/server/routers/admin_ops.py", "stewie/server/ops_governance.py", "stewie/twin/backup.py"],
                   payload)
 
+def http_localize_cases() -> None:
+    """SN-10 relocalization (RW-41a): POST /localize through one scripted session (_http_session): an unambiguous
+    three-landmark parallax fix, a two-landmark mirror pair and a collinear triple (H-14, not fused), the #148
+    shadow-yaw heading fusion (a below-contrast shadow refused, a fuzzy high-sun shadow gated out), and every 400 and
+    422 the route answers. The landmarks, the true pose the pixel shifts are drawn from and the shadow bearings are
+    SYNTHETIC (labelled)."""
+    fx, dh = 1200.0, 0.12
+    truth = (12.5, -3.0)                                     # SYNTHETIC true rover position
+
+    def shifts(lms, noise=(0.0, 0.0, 0.0)):
+        return [fx * dh / math.hypot(truth[0] - x, truth[1] - y) + e for (x, y), e in zip(lms, noise)]
+
+    tri = [[30.0, 5.0], [0.0, 20.0], [-5.0, -18.0]]
+    base = {"landmarks_xy": tri, "pixel_shifts": shifts(tri, (0.03, -0.02, 0.01)), "dh_m": dh, "fx_px": fx,
+            "prior_xy": [10.0, -1.0], "prior_yaw": 0.4}
+
+    def script(call, key, d, clock):
+        call("POST", "/localize", json_body=base)                                         # no key
+        call("POST", "/localize", headers=key, json_body=base)
+        call("POST", "/localize", headers=key, json_body={**base, "landmarks_xy": tri[:2],
+                                                           "pixel_shifts": base["pixel_shifts"][:2]})
+        line = [[0.0, 0.0], [10.0, 10.0], [20.0, 20.0]]
+        call("POST", "/localize", headers=key, json_body={**base, "landmarks_xy": line, "pixel_shifts": shifts(line)})
+        call("POST", "/localize", headers=key, json_body={**base, "shadow_bearings_deg": [12.0, -40.0, 100.5],
+                                                           "shadow_contrasts": [35.0, 12.0, 60.0],
+                                                           "anti_solar_az_deg": 271.5})
+        call("POST", "/localize", headers=key, json_body={**base, "shadow_bearings_deg": [12.0],
+                                                           "anti_solar_az_deg": 271.5, "shadow_sigma_deg": 30.0})
+        call("POST", "/localize", headers=key, json_body={**base, "shadow_bearings_deg": [12.0]})
+        call("POST", "/localize", headers=key, json_body={**base, "shadow_bearings_deg": [12.0, 3.0],
+                                                           "shadow_contrasts": [40.0], "anti_solar_az_deg": 10.0})
+        call("POST", "/localize", headers=key, json_body={**base, "landmarks_xy": tri[:1],
+                                                           "pixel_shifts": base["pixel_shifts"][:1]})
+        call("POST", "/localize", headers=key, json_body={**base, "pixel_shifts": base["pixel_shifts"][:2]})
+        call("POST", "/localize", headers=key, json_body={**base, "pixel_shifts": [4.0, 0.0, -1.0]})
+        call("POST", "/localize", headers=key, json_body={**base, "true_pose": [12.5, -3.0]})
+        call("POST", "/localize", headers=key, json_body={"landmarks_xy": [[0, "x"]] * 257, "pixel_shifts": ["a"],
+                                                           "dh_m": 0, "fx_px": 2e5, "anti_solar_az_deg": 360,
+                                                           "prior_xy": [1], "prior_yaw": -8})
+        call("POST", "/localize", headers=key, json_body={"landmarks_xy": [[0, "x"]], "pixel_shifts": ["a", 1],
+                                                           "dh_m": 0.1, "fx_px": 10, "shadow_contrasts": "no"})
+        call("POST", "/localize", headers=key, raw="{not json")
+
+    payload = _http_session("stewie-http-localize-oracle", {}, script)
+    write_fixture(ORACLE_FIXTURES, "http_localize_cases", "oracle/build_fixtures.py::http_localize_cases (the FastAPI "
+                  "app's SN-10 articulation-parallax relocalization)",
+                  ["stewie/server/routers/perception.py", "dart/articulated_parallax.py", "dart/shadow_factors.py",
+                   "dart/pose_graph_se2.py"], payload)
+
+
 def cog_cases() -> None:
     """The value-raster GeoTIFF (RW-55b20b): ``lode.gis_export.value_raster_cog`` of the real Haworth slope, and of
     its classes at three breaks, written by rasterio/GDAL. Recorded as every directory's tags (the tile offsets and
@@ -6511,6 +6561,7 @@ def main() -> None:
     dem_fix_cases()
     pose_graph_se2_cases()
     pose_graph_se2_s3li()
+    http_localize_cases()
 
 
 if __name__ == "__main__":
