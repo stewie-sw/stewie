@@ -43,6 +43,24 @@ def _digest_may_drift(path: str, ptr: str) -> bool:
     return path.startswith("pipeline/packages/") and ptr.startswith("/ephemeris/") and key in ("sha256", "bytes")
 
 
+# The real S3LI SE(2) loop-closure graph (D-R163) has condition number 3.4e9: the order a host's BLAS sums its
+# normal equations in moves the converged poses by about 1e-6 m (measured: 3.5e-7 m from reversing the summation
+# order alone, 1.04e-6 m between two implementations at an equal cost) and its condition number by cond*eps. Its poses
+# are held to 1e-5 m and its condition number to 256*cond*eps relative; everything else in it to the default.
+ILL_CONDITIONED = "crates/stewie-oracle/fixtures/pose_graph_se2_s3li.payload.json"
+
+
+def _tolerance(path: str, ptr: str, a: float, b: float) -> float:
+    """The allowed |a - b| for a float at ``ptr`` of ``path``."""
+    tol = ATOL + RTOL * max(abs(a), abs(b))
+    if path == ILL_CONDITIONED:
+        if ptr.startswith("/pose/"):
+            return max(tol, 1e-5)
+        if ptr == "/status/condition_number":
+            return max(tol, 256.0 * sys.float_info.epsilon * max(abs(a), abs(b)) ** 2)
+    return tol
+
+
 class Drift:
     def __init__(self) -> None:
         self.errors: list[str] = []
@@ -53,7 +71,7 @@ class Drift:
         if a == b or (math.isnan(a) and math.isnan(b)):
             return
         d = abs(a - b)
-        if not d <= ATOL + RTOL * max(abs(a), abs(b)):
+        if not d <= _tolerance(path, ptr, a, b):
             self.errors.append(f"{path}{ptr}: {a!r} != {b!r} (|d| {d:.3g})")
             return
         self.drifted.add(path)

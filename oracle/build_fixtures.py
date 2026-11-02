@@ -6262,7 +6262,9 @@ def pose_graph_se2_s3li() -> None:
     (``dart.loop_pose_graph_se2.solve_se2_keyframes``: the stride-3 stereo VO odometry between 538 keyframes, the five
     accepted visual loop closures, the start prior), rebuilt from the frozen VO poses and the committed recipe meta,
     recorded as its add calls in order with the Python's solve. The frozen VO (``vo_cam_stride3.npz``, from the S3LI
-    imagery) is not in the repository or CI, so where it is absent the committed fixture stands (as D-R162's)."""
+    imagery) is tracked; where it is absent the committed fixture stands. The graph's condition number is 3.4e9, so a
+    host's BLAS summation order moves its poses by about 1e-6 m (D-R163); the reproducibility gate holds this fixture
+    to the measured bound (scripts/check_fixtures_reproduce.py)."""
     import json as _json
 
     import dart.loop_pose_graph_se2 as L
@@ -6312,9 +6314,11 @@ def pose_graph_se2_s3li() -> None:
                                        step=meta["se2"]["step"])
     finally:
         L.PoseGraphSE2, L.solve_se2_keyframes = real_cls, solve
-    # vacuity: the rebuilt graph is the recipe's (its recorded keyframes, loops and final cost)
-    assert (r.n_keyframes, r.n_loops, r.converged, r.final_cost) == (
-        meta["se2"]["n_keyframes"], meta["se2"]["n_loops"], meta["se2"]["converged"], meta["se2"]["final_cost"])
+    # vacuity: the rebuilt graph is the recipe's (its recorded keyframes, loops and convergence exactly; its final
+    # cost to the summation noise of another host's BLAS)
+    assert (r.n_keyframes, r.n_loops, r.converged) == (
+        meta["se2"]["n_keyframes"], meta["se2"]["n_loops"], meta["se2"]["converged"])
+    assert math.isclose(r.final_cost, meta["se2"]["final_cost"], rel_tol=1e-9), r.final_cost
     keys = ("converged", "iterations", "condition_number", "well_conditioned", "final_gradient_norm", "final_cost")
     status = _se2_status({k: solved["status"][k] for k in keys})
     pose = {str(nid): [float(v) for v in p] for nid, p in solved["pose"].items()}
