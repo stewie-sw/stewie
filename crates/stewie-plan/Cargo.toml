@@ -8,6 +8,7 @@ license-file.workspace = true
 publish.workspace = true
 
 [dependencies]
+stewie-perceive = { path = "../stewie-perceive" }
 lunar-dem = { path = "../lunar-dem" }
 stewie-contracts = { path = "../stewie-contracts" }
 stewie-physics = { path = "../stewie-physics" }

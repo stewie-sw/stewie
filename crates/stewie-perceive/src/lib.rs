@@ -3,3 +3,4 @@
 
 pub mod localize;
 pub mod pose_graph_se2;
+pub mod slam_seam;

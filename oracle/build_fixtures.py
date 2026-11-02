@@ -5909,7 +5909,7 @@ def http_localize_cases() -> None:
     three-landmark parallax fix, a two-landmark mirror pair and a collinear triple (H-14, not fused), the #148
     shadow-yaw heading fusion (a below-contrast shadow refused, a fuzzy high-sun shadow gated out), and every 400 and
     422 the route answers. The landmarks, the true pose the pixel shifts are drawn from and the shadow bearings are
-    SYNTHETIC (labelled)."""
+    SYNTHETIC (labelled). RW-41b adds GET /localize/traverse: the real Haworth DEM est-vs-truth traverse."""
     fx, dh = 1200.0, 0.12
     truth = (12.5, -3.0)                                     # SYNTHETIC true rover position
 
@@ -5946,12 +5946,15 @@ def http_localize_cases() -> None:
         call("POST", "/localize", headers=key, json_body={"landmarks_xy": [[0, "x"]], "pixel_shifts": ["a", 1],
                                                            "dh_m": 0.1, "fx_px": 10, "shadow_contrasts": "no"})
         call("POST", "/localize", headers=key, raw="{not json")
+        call("GET", "/localize/traverse")                                             # no key
+        call("GET", "/localize/traverse", headers=key)                                # the real Haworth DEM
 
     payload = _http_session("stewie-http-localize-oracle", {}, script)
     write_fixture(ORACLE_FIXTURES, "http_localize_cases", "oracle/build_fixtures.py::http_localize_cases (the FastAPI "
                   "app's SN-10 articulation-parallax relocalization)",
                   ["stewie/server/routers/perception.py", "dart/articulated_parallax.py", "dart/shadow_factors.py",
-                   "dart/pose_graph_se2.py"], payload)
+                   "dart/pose_graph_se2.py", "dart/slam_seam.py", "dart/localization.py", "dart/integrated_slam.py",
+                   "dart/ablation.py"], payload)
 
 
 def cog_cases() -> None:

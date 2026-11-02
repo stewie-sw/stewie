@@ -8,12 +8,12 @@ use axum::Router;
 use axum::extract::{Request, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::post;
+use axum::routing::{get, post};
 use serde_json::{Map, Value, json};
-use stewie_perceive::localize;
 use stewie_perceive::pose_graph_se2::PoseGraphSe2;
+use stewie_perceive::{localize, slam_seam};
 
-use crate::app::{AppState, blocking, body_model, err, log, parse_body, require_auth, split};
+use crate::app::{AppState, Head, blocking, body_model, err, log, parse_body, require_auth, split};
 use crate::validate::{Field, Kind, Model};
 
 const fn float(
@@ -183,7 +183,48 @@ async fn localize(State(st): State<Arc<AppState>>, req: Request) -> Response {
     .await
 }
 
+/// #148: the real lunar est-vs-truth: a reproducible traverse over the real Haworth DEM, dead reckoning drifted by a
+/// gyro bias and corrected by real terrain registrations fused in the pose graph, scored against the DEM's own path;
+/// 503 when the bundle is absent (never a fabricated run).
+async fn localize_traverse(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        require_auth(st, &h)?;
+        let Some((dem, _)) = st.terrain.moon_dem("haworth") else {
+            return Err(err(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Haworth DEM unavailable on this host (bundle absent); the real terrain-fix traverse needs it",
+            ));
+        };
+        let grid = slam_seam::Grid { z: &dem.z, rows: dem.rows, cols: dem.cols, cell_m: dem.cell_m };
+        let (t, (r0, c0)) =
+            slam_seam::demo_traverse(&grid).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e.0))?;
+        log(
+            st,
+            &h,
+            "api",
+            "localize/traverse",
+            &format!(
+                "real Haworth DEM-fix: odom {:.1}m -> fused {:.1}m ({} fixes)",
+                t.odom.abs_max_err_m, t.fused.abs_max_err_m, t.n_dem_fix
+            ),
+        );
+        Ok(axum::Json(json!({
+            "ok": true,
+            "ate_fused_m": t.fused.ate_aligned_m, "ate_odom_m": t.odom.ate_aligned_m,
+            "abs_max_fused_m": t.fused.abs_max_err_m, "abs_max_odom_m": t.odom.abs_max_err_m,
+            "n_dem_fix": t.n_dem_fix, "n_keyframes": t.true_xy.len(), "measured": t.fused.measured,
+            "true_xy": t.true_xy, "fused_xy": t.fused.est_xy, "odom_xy": t.odom.est_xy,
+            "fix_keyframes": t.fix_keyframes, "start_rc": [r0, c0],
+        }))
+        .into_response())
+    })
+    .await
+}
+
 /// The perception routes.
 pub fn routes() -> Router<Arc<AppState>> {
-    Router::new().route("/localize", post(localize))
+    Router::new()
+        .route("/localize", post(localize))
+        .route("/localize/traverse", get(localize_traverse))
 }

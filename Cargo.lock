@@ -2444,6 +2444,7 @@ dependencies = [
  "sha2",
  "stewie-contracts",
  "stewie-oracle",
+ "stewie-perceive",
  "stewie-physics",
  "stewie-traverse",
  "stewie-twin",

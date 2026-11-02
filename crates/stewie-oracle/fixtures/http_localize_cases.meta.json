@@ -1,11 +1,15 @@
 {
  "fixture": "http_localize_cases",
  "generator": "oracle/build_fixtures.py::http_localize_cases (the FastAPI app's SN-10 articulation-parallax relocalization)",
- "payload_sha256": "1834cd81aa0835b05a665de8756431b70bceb7613e865ae693e4d039e0ca82b8",
+ "payload_sha256": "7d362dcecb22964f576441f3c53fcc6e3da0d3c1970536002bb7bb970a88bb97",
  "sources": {
+  "dart/ablation.py": "752e924a2ec5611d14b458508d093753ca6cc45227502adfe196cd0ae4ed2d43",
   "dart/articulated_parallax.py": "8f510f4a42322b2df60554e927c27c243bf2d6a78269377d1e815932ec68d75c",
+  "dart/integrated_slam.py": "73476879038ce482efce26d9dce9a463ab7beb3e0f25bbedc2bc68bef3b9c5b5",
+  "dart/localization.py": "987a693c021a16ea2e16282934e873349cf71f41dfae80ac7341ce81ac549e6d",
   "dart/pose_graph_se2.py": "b29899d684730e1dce25fc50b0bb12bee187599db38a87e86e091540d9e88ade",
   "dart/shadow_factors.py": "a6efdff7dd0a0079952fa52a3ff51ff9e34e351f779337cdb6cf61f79ae35aeb",
+  "dart/slam_seam.py": "2afc62b6024a36af682b24fd137a61adb9112b230c655183332eec0446e0b695",
   "stewie/server/routers/perception.py": "06f756bd9539a0fbde360dfbcadcf2ecb5ea0ad9ef84b24d7e78fbae7c466237"
  }
 }

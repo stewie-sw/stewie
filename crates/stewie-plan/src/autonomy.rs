@@ -211,49 +211,25 @@ pub fn dem_position_fix(
     }
     let side = (2 * HALF + 1) as usize;
     let at = |r: i64, c: i64| ((r - HALF) as usize, (c - HALF) as usize);
+    // the observed patch is an in-bounds view: numpy reduces its mean row by row
     let obs_mean = view_mean(dem.z, dem.width, at(tr, tc), side);
     let observed = window(dem.z, dem.width, at(tr, tc), side);
     let (gr, gc) = (grid((oy + guess.1) / cell), grid((ox + guess.0) / cell));
-    let mut ssds: Vec<(f64, i64, i64)> = Vec::new();
-    let mut best: Option<(f64, i64, i64)> = None;
-    for dr in -SEARCH..=SEARCH {
-        for dc in -SEARCH..=SEARCH {
-            let (r, c) = (gr + dr, gc + dc);
-            if r - HALF < 0 || r + HALF >= h || c - HALF < 0 || c + HALF >= w {
-                continue;
-            }
-            let mean = view_mean(dem.z, dem.width, at(r, c), side);
-            let p = window(dem.z, dem.width, at(r, c), side);
-            let sq: Vec<f64> = p
-                .iter()
-                .zip(&observed)
-                .map(|(&pv, &ov)| {
-                    let res = (pv - mean) - (ov - obs_mean);
-                    res * res
-                })
-                .collect();
-            let ssd = stewie_twin::numpy::sum(&sq) / sq.len() as f64;
-            ssds.push((ssd, dr, dc));
-            let better = best.is_none_or(|(b, br, bc)| {
-                ssd < b || (ssd == b && dr.abs() + dc.abs() < br.abs() + bc.abs())
-            });
-            if better {
-                best = Some((ssd, dr, dc));
-            }
-        }
-    }
-    let (best_ssd, br, bc) = best?;
-    let second = ssds
-        .iter()
-        .filter(|&&(_, dr, dc)| (dr - br).abs().max((dc - bc).abs()) > 1)
-        .map(|&(v, ..)| v)
-        .fold(None, |m: Option<f64>, v| Some(m.map_or(v, |m| m.min(v))))
-        .unwrap_or(0.0);
-    let confidence = if second > 1e-12 {
-        (1.0 - best_ssd / second).clamp(0.0, 1.0)
-    } else {
-        0.0
+    let g = stewie_perceive::slam_seam::Grid {
+        z: dem.z,
+        rows: dem.height,
+        cols: dem.width,
+        cell_m: cell,
     };
+    let reg = stewie_perceive::slam_seam::register_to_dem(
+        &g,
+        &observed,
+        obs_mean,
+        HALF,
+        (gr, gc),
+        SEARCH,
+    )?;
+    let (confidence, (br, bc)) = (reg.confidence, reg.shift_cells);
     if confidence < MIN_CONFIDENCE {
         return None;
     }
@@ -262,7 +238,7 @@ pub fn dem_position_fix(
         xy: ((c - ox / cell) * cell, (r - oy / cell) * cell),
         sigma: base_sigma_m / MIN_CONFIDENCE.max(confidence),
         confidence,
-        residual_rmse_m: best_ssd.max(0.0).sqrt(),
+        residual_rmse_m: reg.residual_rmse_m,
         shift_cells: (br, bc),
     })
 }

@@ -2161,7 +2161,28 @@ async fn the_python_localize_session_replays() {
         |_, step, clock, _| {
             *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
         },
-        |_, _| {},
+        |step, body| {
+            // D-R166: the traverse's estimated trajectories come out of the robust LM solve, which agrees with the
+            // Python's to 1e-8 m (the D-R163 pose tolerance), not to the harness's 1e-12 relative; a sample within
+            // it takes the recorded value, anything wider still fails below
+            if step["request"]["path"] != "/localize/traverse" {
+                return;
+            }
+            for key in ["fused_xy", "odom_xy"] {
+                let want = step["body"][key].as_array().cloned().unwrap_or_default();
+                if let Some(got) = body.get_mut(key).and_then(Value::as_array_mut) {
+                    for (g, w) in got
+                        .iter_mut()
+                        .flat_map(|p| p.as_array_mut().into_iter().flatten())
+                        .zip(want.iter().flat_map(|p| p.as_array().into_iter().flatten()))
+                    {
+                        if (g.as_f64().unwrap() - w.as_f64().unwrap()).abs() <= 1e-8 {
+                            *g = w.clone();
+                        }
+                    }
+                }
+            }
+        },
     )
     .await;
 }
