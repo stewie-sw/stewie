@@ -5905,7 +5905,13 @@ def cog_cases() -> None:
     import struct
     import tempfile as _tf
 
-    import rasterio
+    try:
+        import rasterio
+    except ModuleNotFoundError:
+        # rasterio/GDAL is the [server] extra, not in the hash-pinned CI dev lock (D-R162): the committed fixture
+        # stands there and is regenerated where the server extra is installed (the local gate)
+        print("cog_cases: rasterio not installed; the committed fixture is kept, not regenerated")
+        return
 
     from lode import gis_export as GE
     from lode import mission_planner as mp

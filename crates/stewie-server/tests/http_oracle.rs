@@ -2485,10 +2485,13 @@ async fn the_value_raster_geotiff_is_the_pythons() {
             if *float {
                 let (sum, sq): (f64, f64) =
                     px.iter().fold((0.0, 0.0), |(s, q), v| (s + v, q + v * v));
+                // the slope's trig is the host libm's, which may move a float32 sample by an ULP (CI moved sum_sq by
+                // 2e-9): two float32 ULPs a sample bound both aggregates at 2^-21 relative. The overview arithmetic
+                // itself is pinned value for value by the_overview_pyramid_is_gdals_value_for_value (D-R162).
                 for (got, k) in [(sum, "sum"), (sq, "sum_sq")] {
                     let w = want[k].as_f64().unwrap();
                     assert!(
-                        (got - w).abs() <= 1e-9 * w.abs(),
+                        (got - w).abs() <= 2f64.powi(-21) * w.abs(),
                         "{name} factor {}: {k} {got} vs {w}",
                         want["factor"]
                     );
