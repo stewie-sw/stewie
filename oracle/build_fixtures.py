@@ -5789,6 +5789,14 @@ def http_gis_cases() -> None:
     import json as _json
     from urllib.parse import quote
 
+    try:
+        import rasterio  # noqa: F401
+    except ModuleNotFoundError:
+        # the COG availability and the mission package's manifest record the production install, whose [server]
+        # extra carries rasterio; the CI dev lock does not (D-R162), so the committed fixture stands there
+        print("http_gis_cases: rasterio not installed; the committed fixture is kept, not regenerated")
+        return
+
     mission = {                                                 # SYNTHETIC mission (labelled)
         "name": "SYNTHETIC gis export", "body": "moon", "charger": [0, 0],
         "orders": [
