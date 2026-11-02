@@ -1525,6 +1525,117 @@ async fn the_python_plan_math_session_replays_exactly() {
     .await;
 }
 
+/// D-R96: the Rust plan IR splits an action one charge cannot finish into `part: [k, n]` actions that the Python
+/// keeps whole. Check each split merges back into the Python's action (same op, site, destination and orders; the
+/// parts' mass, energy, duration and haul summing to its, to the parts' 0.1 rounding), and its precedence maps onto
+/// the Python's; then put the Python's action, ids, precedence and (content-hashed, so changed) `plan_id` in place,
+/// so everything else compares exactly.
+fn merge_split_ir(want: &Value, got: &mut Value) {
+    let Some(actions) = got["actions"].as_array() else {
+        return;
+    };
+    if !actions.iter().any(|a| a.get("part").is_some()) {
+        return;
+    }
+    let num = |v: &Value| v.as_f64().unwrap();
+    let mut merged: Vec<Value> = Vec::new();
+    let mut idmap = Vec::new();
+    let mut sums = [0.0; 4];
+    for a in actions {
+        let Some(part) = a.get("part") else {
+            idmap.push(merged.len());
+            let mut whole = a.clone();
+            whole["id"] = json!(merged.len());
+            merged.push(whole);
+            continue;
+        };
+        let (k, n) = (part[0].as_u64().unwrap(), part[1].as_u64().unwrap());
+        idmap.push(merged.len());
+        if k == 1 {
+            sums = [0.0; 4];
+        }
+        for (s, v) in sums.iter_mut().zip([
+            &a["mass_kg"],
+            &a["expect"]["energy_J"],
+            &a["expect"]["duration_s"],
+            &a["haul_m"],
+        ]) {
+            *s += num(v);
+        }
+        if k == n {
+            let py = &want["actions"][merged.len()];
+            for key in ["op", "vehicle", "site", "dest", "actions"] {
+                assert_eq!(a[key], py[key], "split action {}: {key}", merged.len());
+            }
+            #[allow(clippy::cast_precision_loss)]
+            let tol = 0.05 * n as f64 + 1e-9;
+            for (s, v) in sums.iter().zip([
+                &py["mass_kg"],
+                &py["expect"]["energy_J"],
+                &py["expect"]["duration_s"],
+                &py["haul_m"],
+            ]) {
+                assert!(
+                    (s - num(v)).abs() <= tol,
+                    "split action {}: parts sum {s} vs {v}",
+                    merged.len()
+                );
+            }
+            merged.push(py.clone());
+        }
+    }
+    let at = |v: &Value| idmap[usize::try_from(v.as_u64().unwrap()).unwrap()];
+    let mut prec: Vec<(usize, usize)> = got["precedence"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| (at(&p[0]), at(&p[1])))
+        .collect();
+    prec.sort_unstable();
+    prec.dedup();
+    assert_eq!(json!(prec), want["precedence"], "split IR precedence");
+    got["actions"] = json!(merged);
+    got["precedence"] = want["precedence"].clone();
+    got["plan_id"] = want["plan_id"].clone();
+}
+
+#[tokio::test]
+async fn the_python_plan_session_replays_exactly() {
+    replay(
+        "http_plan_cases",
+        b"stewie-http-plan-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |step, body| {
+            // the source commit and package version name the build (the fixture records placeholders)
+            if body.get("plan_result").is_some() {
+                // a mass drift is the residue of two ~1e5 kg sums: to 1e-3 kg, as the acceptance oracles
+                for path in [
+                    "/validation/mass_drift_kg",
+                    "/ordered_acceptance/mass_drift_kg",
+                ] {
+                    let want = &step["body"].pointer(path).unwrap();
+                    let got = body.pointer_mut(path).unwrap();
+                    if (got.as_f64().unwrap() - want.as_f64().unwrap()).abs() <= 1e-3 {
+                        *got = (*want).clone();
+                    }
+                }
+                merge_split_ir(&step["body"]["plan_ir"], &mut body["plan_ir"]);
+                for path in ["/provenance", "/timeline/provenance", "/plan_ir/provenance"] {
+                    // an H-03 suppressed IR carries none
+                    let Some(prov) = body.pointer_mut(path) else {
+                        continue;
+                    };
+                    prov["commit"] = json!("<commit>");
+                    prov["version"] = json!("<version>");
+                }
+            }
+        },
+    )
+    .await;
+}
+
 #[tokio::test]
 async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts

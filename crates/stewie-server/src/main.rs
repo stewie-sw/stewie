@@ -60,6 +60,8 @@ async fn main() {
              of the server, or bind 127.0.0.1"
         ));
     }
+    // the Python's serve entry point prunes stale plan reports before it listens
+    stewie_server::plan_routes::prune_reports(&state);
     let addr = format!("{host}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)
         .await

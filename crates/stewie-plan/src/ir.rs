@@ -12,8 +12,8 @@
 //! runs from the earlier trip's last part to the later trip's first. With no split the IR equals the Python's.
 //!
 //! Drive legs and the reserve are priced with the mission vehicle's context; the Python prices them with the IPEx
-//! constants whatever the vehicle (D-R95). The DEM is required: there is no straight-line plan IR. The Python's
-//! `provenance` block hashes its own object dump; the Rust plan identity is RW-33f.
+//! constants whatever the vehicle (D-R95). The DEM is required: there is no straight-line plan IR. The `/plan`
+//! route attaches the plan's `provenance` block (D-R148).
 
 use serde_json::{Value, json};
 use sha1::{Digest, Sha1};

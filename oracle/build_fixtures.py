@@ -4468,7 +4468,7 @@ def http_record_cases() -> None:
 
 def _http_session(seed_text: str, env_extra: dict, script) -> dict:
     """One scripted FastAPI TestClient session on a throwaway data dir, as the http_*_cases builders run it:
-    the pinned clock, the seeded byte stream, the synthetic keys and operators, the auth limiters reset, the
+    the pinned clock, the seeded byte stream, the synthetic keys and operators, the auth limiters and the heavy quota reset, the
     server state caches cleared and the app reloaded. ``script(call, key, d, clock)`` makes the requests. Returns
     the replay payload (env, steps, the account store and the audit ledger). The clock, bytes, emails and keys
     are SYNTHETIC test inputs (labelled)."""
@@ -4483,6 +4483,7 @@ def _http_session(seed_text: str, env_extra: dict, script) -> dict:
     from PIL import Image as _Image
 
     import stewie.server.auth as A
+    import stewie.server.deps as D
     import stewie.server.operators as O
     import stewie.server.routers.auth as R
     import stewie.server.services as S
@@ -4527,7 +4528,7 @@ def _http_session(seed_text: str, env_extra: dict, script) -> dict:
             S.time.time = lambda: clock["t"]
             S.reset_audit_health()
             S.reset_revocation_health()
-            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter, D._heavy_quota):
                 lim.reset()
             ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS = {}, None, None, {}, None
             import stewie.server.server as srv
@@ -4579,7 +4580,7 @@ def _http_session(seed_text: str, env_extra: dict, script) -> dict:
             (O.os.urandom, O.secrets.token_urlsafe, S.secrets.token_hex, O._clock, A.uuid.uuid4, A.time.time,
              S.time.time) = patched
             ST._SITE_DEMS, ST._MOON_DEM, ST._TWIN, ST._TWINS, ST._WSS = saved_state
-            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter):
+            for lim in (R._login_ip_limiter, R._login_acct_limiter, R._register_ip_limiter, D._heavy_quota):
                 lim.reset()
             for k, v in saved.items():
                 if v is None:
@@ -5418,6 +5419,85 @@ def http_planmath_cases() -> None:
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
 
+def http_plan_cases() -> None:
+    """The full plan response (RW-55b14d-1): POST /plan on the bundled sample missions over the real Haworth DEM,
+    one rover and a fleet, a globe site pick, the request checks, each plan's Markdown report (RW-55b14d-2), through
+    one scripted session (_http_session). The acceptance column is the bank-density one (D-R98). The PDF link is
+    dropped: the Rust server does not render the PDF (D-R148). The source commit and package version name the build,
+    so both are recorded as placeholders. The edit-session geometry is SYNTHETIC (labelled)."""
+    import copy
+
+    from lode import planner_acceptance as _PA
+
+    samples = {}
+    for n in ("01_flatten_pad", "02_haul_around_hazard", "03_blocked_infeasible"):
+        with open(os.path.join(REPO, "stewie", "server", "sample_missions", n + ".json")) as fh:
+            samples[n] = json.load(fh)
+
+    def script(call, key, d, clock):
+        mds = []
+
+        def plan(body):                                 # a planned mission, then its Markdown report
+            r = call("POST", "/plan", headers=key, json_body=body)
+            if r.status_code == 200:
+                mds.append(r.json()["md"])
+                call("GET", mds[-1], headers=key)
+
+        for m in samples.values():
+            plan(m)
+        m = samples["01_flatten_pad"]
+        plan(dict(m, vehicles=2))
+        plan(dict(samples["02_haul_around_hazard"], vehicles=2, objective="energy", max_traverse_slope_deg=20.0))
+        # the autonomy overlay replans one rover at 25 deg whatever the budget asked
+        plan(dict(samples["02_haul_around_hazard"], max_traverse_slope_deg=5.0))
+        plan(dict(m, accept_flatness_tol_m=0.05, algorithm="held_karp"))
+        plan(dict(m, lat=-86.37652685731457, lon=-26.3182865963215))
+        plan(dict(m, lat=0.0, lon=0.0))                                    # off the tile: a 400
+        plan(dict(m, lat=-86.4))                                           # lat alone: the anchor
+        call("POST", "/plan", json_body=m)                                 # no key
+        plan(dict(m, vehicles=0))
+        plan({"name": "empty"})
+        # only the fields the client set reach the mission: an order without x is refused, not placed at 0
+        plan(dict(m, orders=[{"action": "a", "kind": "goto", "y": 1.0}]))
+        plan(dict(m, vehicle="nope"))
+        plan(dict(m, keepouts=[{"x": 0, "y": 0, "r": 1}] * 201))
+        r = call("POST", "/edit/session")
+        sid = r.json()["session"]
+        call("POST", f"/edit/session/{sid}/keepout", json_body={"kind": "circle", "cx": 1000.25, "cy": 2000.75, "r": 6})
+        plan(dict(copy.deepcopy(m), edit_session=sid, anchor_xy=[1000.0, 2000.0]))
+        # a plan prunes reports past their TTL: far past it (whatever the build date), an earlier report is gone
+        clock["t"] = 4_000_000_000.0
+        plan(samples["03_blocked_infeasible"])
+        call("GET", mds[1], headers=key)
+
+    stock = _PA.ColumnState
+
+    def _bank_density_column(**kw):
+        kw.setdefault("density", kw["mass_areal"] / 10.0)
+        return stock(**kw)
+    _PA.ColumnState = _bank_density_column
+    try:
+        payload = _http_session("stewie-http-plan-oracle", {}, script)
+    finally:
+        _PA.ColumnState = stock
+    for step in payload["steps"]:
+        b = step["body"]
+        if isinstance(b, dict) and "plan_result" in b:
+            b.pop("pdf", None)
+            for prov in (b["provenance"], b["timeline"]["provenance"], b["plan_ir"].get("provenance")):
+                if prov is None:                                         # an H-03 suppressed IR carries none
+                    continue
+                prov["commit"], prov["version"] = "<commit>", "<version>"
+    write_fixture(ORACLE_FIXTURES, "http_plan_cases", "oracle/build_fixtures.py::http_plan_cases (the FastAPI "
+                  "app's POST /plan on the bundled sample missions over the real Haworth DEM)",
+                  ["stewie/server/routers/plan.py", "lode/mission_planner.py", "lode/planner_views.py",
+                   "lode/planner_assembly.py", "lode/planner_acceptance.py", "lode/autonomy.py",
+                   "stewie/server/sample_missions/01_flatten_pad.json",
+                   "stewie/server/sample_missions/02_haul_around_hazard.json",
+                   "stewie/server/sample_missions/03_blocked_infeasible.json",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
+
+
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
     real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
@@ -5697,6 +5777,7 @@ def main() -> None:
     http_editsession_cases()
     http_models_cases()
     http_planmath_cases()
+    http_plan_cases()
     endurance_cases()
     timeline_cases()
     autonomy_cases()

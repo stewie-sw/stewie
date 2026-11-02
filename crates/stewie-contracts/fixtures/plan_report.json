@@ -1,0 +1,76 @@
+{
+  "assumptions_register": [
+    {
+      "name": "DRIVETRAIN_EFFICIENCY",
+      "note": "electrical->tractive (motor+gearbox+slip); not in [SCHULER24]",
+      "source": "ipex_specs.py",
+      "tag": "[CALIB]",
+      "value": "0.5"
+    },
+    {
+      "name": "ROLLING_RESISTANCE_COEFF",
+      "note": "rigid wheel on loose regolith (~0.1-0.4); the rigorous",
+      "source": "ipex_specs.py",
+      "tag": "[ASSUMPTION]",
+      "value": "0.15"
+    },
+    {
+      "name": "AVIONICS_POWER_W",
+      "note": "flight computer + autonomy compute (SLAM/perception)",
+      "source": "ipex_specs.py",
+      "tag": "[ASSUMPTION]",
+      "value": "15.0"
+    },
+    {
+      "name": "COMMS_TX_POWER_W",
+      "note": "X-band direct-to-Earth transmit (duty-cycled)",
+      "source": "ipex_specs.py",
+      "tag": "[ASSUMPTION]",
+      "value": "15.0"
+    },
+    {
+      "name": "THERMAL_SURVIVAL_POWER_W",
+      "note": "flat fallback heater load; superseded by the model below",
+      "source": "ipex_specs.py",
+      "tag": "[ASSUMPTION]",
+      "value": "30.0"
+    },
+    {
+      "name": "ELECTRONICS_SETPOINT_C",
+      "note": "minimum electronics survival temperature",
+      "source": "ipex_specs.py",
+      "tag": "[ASSUMPTION]",
+      "value": "-20.0"
+    },
+    {
+      "name": "RADIATOR_EMISSIVITY",
+      "note": "MLI-wrapped low-emissivity enclosure",
+      "source": "ipex_specs.py",
+      "tag": "[ASSUMPTION]",
+      "value": "0.10"
+    },
+    {
+      "name": "RADIATOR_AREA_M2",
+      "note": "effective radiating area for a ~30 kg rover box",
+      "source": "ipex_specs.py",
+      "tag": "[ASSUMPTION]",
+      "value": "0.30"
+    },
+    {
+      "name": "THERMAL_CONDUCTANCE_W_PER_K",
+      "note": "lumped conductive loss (structure/wheels to surface)",
+      "source": "ipex_specs.py",
+      "tag": "[ASSUMPTION]",
+      "value": "0.05"
+    },
+    {
+      "name": "RECHARGE_POWER_W",
+      "note": "surface recharge power (no IPEx solar/charge spec)",
+      "source": "ipex_specs.py",
+      "tag": "[CALIB]",
+      "value": "700.0"
+    }
+  ],
+  "fdc_mpe_all": 0.07403,
+  "fdc_mpe_half_full": 0.02558
+}

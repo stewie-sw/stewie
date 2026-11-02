@@ -90,6 +90,10 @@ pub struct Settings {
     pub heavy_window_s: f64,
     /// `STEWIE_MAX_KEEPOUTS` (200): the plan routes refuse a mission with more keep-outs (413, ARCH-01/04).
     pub max_keepouts: usize,
+    /// `STEWIE_PLAN_DEADLINE_S` (120): the wall clock a `/plan` may take before it is answered 503 (ARCH-01/04).
+    pub plan_deadline_s: f64,
+    /// `STEWIE_REPORTS_TTL_S` (86400): plan reports older than this are pruned (0 or less keeps them).
+    pub reports_ttl_s: f64,
     /// `STEWIE_TILES_DIR`: the Cesium 3D Tiles tilesets (default the checkout's `out/colmap`).
     pub tiles_dir: std::path::PathBuf,
     /// `STEWIE_VALIDATION_DIR`: the validation figures `/figures` lists (default the checkout's `validation/`; the
@@ -173,6 +177,8 @@ impl Settings {
             heavy_quota_max: num("STEWIE_HEAVY_QUOTA_MAX", "30")? as i64,
             heavy_window_s: num("STEWIE_HEAVY_QUOTA_WINDOW_S", "60")?,
             max_keepouts: num("STEWIE_MAX_KEEPOUTS", "200")? as usize,
+            plan_deadline_s: num("STEWIE_PLAN_DEADLINE_S", "120")?,
+            reports_ttl_s: num("STEWIE_REPORTS_TTL_S", "86400")?,
             tiles_dir: get("STEWIE_TILES_DIR")
                 .filter(|v| !v.is_empty())
                 .map_or_else(

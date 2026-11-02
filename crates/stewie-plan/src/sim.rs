@@ -330,8 +330,15 @@ pub fn simulate(
         });
     }
     s.drive(m.charger)?;
-    let drive_m: f64 = s.tl.iter().map(|p| (p.t1 - p.t0) * p.speed).sum();
-    let haul_m: f64 = order.iter().map(|&k| trips[k].haul_m).sum();
+    // Python `sum` starts at +0.0 (an idle fleet rover drives 0.0 m, not -0.0)
+    let drive_m: f64 =
+        s.tl.iter()
+            .map(|p| (p.t1 - p.t0) * p.speed)
+            .fold(0.0, |a, b| a + b);
+    let haul_m: f64 = order
+        .iter()
+        .map(|&k| trips[k].haul_m)
+        .fold(0.0, |a, b| a + b);
     let core = Core {
         time_s: s.t,
         mass_kg: s.cum_mass,

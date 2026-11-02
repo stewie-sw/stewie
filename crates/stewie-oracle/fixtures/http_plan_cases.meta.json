@@ -1,0 +1,17 @@
+{
+ "fixture": "http_plan_cases",
+ "generator": "oracle/build_fixtures.py::http_plan_cases (the FastAPI app's POST /plan on the bundled sample missions over the real Haworth DEM)",
+ "payload_sha256": "9e21874aea49aa0fa4cc05a3932e7260bb725356ec3f9a6b56d318efd2731e83",
+ "sources": {
+  "lode/autonomy.py": "e4f42dff1611c4ad24231bd2d1e7ffe7b8a670eafe05eb81c6160d0f53079f9e",
+  "lode/mission_planner.py": "7e1b478c380d588bb3eeddcd93e66e31fcddd994ff89328f85035a93ad3036fd",
+  "lode/planner_acceptance.py": "808a7e6c7e0b324390bce48b4d665668577be20a3a3d734ec53efa928549091a",
+  "lode/planner_assembly.py": "7dd0a07dd38d7f86f7cbcbfbffa2ae4d527d0642cd1841c3b7b0c0cb5a7de298",
+  "lode/planner_views.py": "0e711d6668713f629e555040cefbc8f59863a5a63114f0f377da3c938aed24d4",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/server/routers/plan.py": "c039109919db9ebdbdd90b1a5223e8ff9f67c64d454e1132420464f5531ee857",
+  "stewie/server/sample_missions/01_flatten_pad.json": "95e2e79b1b238c7630a4a8a232e209b546583c872b9905450657ff0dc9fa15e7",
+  "stewie/server/sample_missions/02_haul_around_hazard.json": "d9b6c8481609061c422e9078c15147ad148ba13ae18f79fbb47fd712ef14d3d9",
+  "stewie/server/sample_missions/03_blocked_infeasible.json": "1bd723c33b713eb4d87bda31f853f65114acec7f68df47b497a80780501cbe32"
+ }
+}

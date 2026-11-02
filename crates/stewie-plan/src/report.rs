@@ -6,6 +6,8 @@
 //! The dig band scales the plan's own dig energy (the vehicle's, times the operator's factor) and the relocalization
 //! fix lifts the vehicle's own mass; the Python uses the IPEx constants for both whatever the vehicle and factor
 //! (D-R97). The report constants are configuration, given in [`ReportParams`].
+//!
+//! Sums fold from +0.0 as Python's `sum` does; Rust's `f64` `Sum` starts at -0.0, which an empty sum would print.
 
 use serde_json::{Value, json};
 use stewie_twin::numpy::round;
@@ -70,7 +72,7 @@ pub fn report_totals(
         .iter()
         .filter(|t| digs(t.kind))
         .map(|t| t.mass_kg)
-        .sum();
+        .fold(0.0, |a, b| a + b);
     let band = [
         round(ctx.dig_j_per_kg * p.drum_rate_ratio * dug / 1e6, 1),
         round(ctx.dig_j_per_kg * dug / 1e6, 1),
@@ -86,14 +88,14 @@ pub fn report_totals(
             .iter()
             .filter(|o| o.kind == k)
             .map(|o| order_mass_kg(o, rho(o)))
-            .sum()
+            .fold(0.0, |a, b| a + b)
     };
     let imported: f64 = plan
         .flows
         .iter()
         .filter(|f| f.cut.is_none())
         .map(|f| f.mass_kg)
-        .sum();
+        .fold(0.0, |a, b| a + b);
     // cast: a positive pass count
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let cut_passes = m
@@ -136,12 +138,12 @@ pub fn report_totals(
             .filter_map(|t| t.actions.iter().next()).collect::<Vec<_>>(),
         "deficit_kg": imported,
         "import_kg": imported,
-        "offload_energy_J": plan.trips.iter().map(|t| t.offload_e).sum::<f64>(),
+        "offload_energy_J": plan.trips.iter().map(|t| t.offload_e).fold(0.0, |a, b| a + b),
         "drum_cycles": drum_cycles,
         "cut_passes": cut_passes,
         "dig_energy_bounds_MJ": band,
         "plan_uncertainty": uncertainty,
-        "lift_energy_J": plan.trips.iter().map(|t| t.lift_e).sum::<f64>(),
+        "lift_energy_J": plan.trips.iter().map(|t| t.lift_e).fold(0.0, |a, b| a + b),
         "routed_haul": true,
         "traverse_cap_deg": meta.traverse_cap_deg,
         "haul_detour_frac": if meta.straight_haul_m > 1e-9 {
@@ -205,7 +207,7 @@ fn relocalization(traverse_m: f64, mass_kg: f64, p: &ReportParams) -> Value {
 #[must_use]
 pub fn energy_ledger(plan: &Plan, ctx: &Context) -> Value {
     let t = &plan.totals;
-    let sum = |f: fn(&crate::trips::Trip) -> f64| plan.trips.iter().map(f).sum::<f64>();
+    let sum = |f: fn(&crate::trips::Trip) -> f64| plan.trips.iter().map(f).fold(0.0, |a, b| a + b);
     let haul_m = sum(|t| t.haul_m);
     let terms = [
         (
@@ -225,13 +227,13 @@ pub fn energy_ledger(plan: &Plan, ctx: &Context) -> Value {
         ("compute", 0.0),
         ("survival", t.survival_energy_j),
     ];
-    let total: f64 = terms.iter().map(|(_, v)| v).sum();
+    let total: f64 = terms.iter().map(|(_, v)| v).fold(0.0, |a, b| a + b);
     let recharge: f64 = plan
         .tl
         .iter()
         .filter(|s| s.kind == SpanKind::Charge)
         .map(|s| (s.batt1 - s.batt0).max(0.0))
-        .sum();
+        .fold(0.0, |a, b| a + b);
     // Python math.isclose(rel_tol=1e-9, abs_tol=1e-6)
     let close = (total - t.energy_j).abs() <= (1e-9 * total.abs().max(t.energy_j.abs())).max(1e-6);
     json!({

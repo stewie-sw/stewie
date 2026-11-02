@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,autonomy,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,autonomy,plan_report,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
 """
 from __future__ import annotations
 
@@ -116,6 +116,16 @@ def plan_provenance() -> dict:
     mode = MP._plan_provenance.__code__.co_consts
     assert "PLAN" in mode, "the provenance mode literal moved"
     return {"schema_version": MP.PLAN_RESULT_VERSION, "mode": "PLAN", "default_date": date}
+
+
+def plan_report() -> dict:
+    """What the Markdown plan report (``planner_views.report``) needs beyond the plan: the Assumptions Register (every
+    ``[CALIB]``/``[ASSUMPTION]`` value parsed from the spec sources, ``planner_views.assumptions_register``) and the
+    drum-fill sensing error bands (``rassor_mass_model``, ICE-RASSOR NTRS 20210022781)."""
+    from lode.planner_views import assumptions_register
+    from stewie.physics import rassor_mass_model as RM
+    return {"assumptions_register": assumptions_register(), "fdc_mpe_half_full": RM.FDC_MPE_HALF_FULL,
+            "fdc_mpe_all": RM.FDC_MPE_ALL}
 
 
 def autonomy() -> dict:
@@ -309,6 +319,7 @@ def main() -> None:
     print(_write("endurance.json", endurance()))
     print(_write("plan_provenance.json", plan_provenance()))
     print(_write("autonomy.json", autonomy()))
+    print(_write("plan_report.json", plan_report()))
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))

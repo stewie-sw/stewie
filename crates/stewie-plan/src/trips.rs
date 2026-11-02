@@ -162,6 +162,19 @@ pub enum TripKind {
     CutFill,
 }
 
+impl TripKind {
+    /// The Python trip dict's `kind`.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Goto => "goto",
+            Self::Import => "import",
+            Self::Dig => "dig",
+            Self::CutFill => "cutfill",
+        }
+    }
+}
+
 /// One trip with its order-independent costs.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Trip {

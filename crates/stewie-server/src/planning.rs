@@ -166,6 +166,17 @@ pub struct Planning {
     pub provenance: stewie_plan::provenance::Defaults,
     /// The closed-loop overlay's map-channel constants and learned slip model.
     pub autonomy: stewie_plan::autonomy::Tables,
+    /// What the Markdown report quotes: the Assumptions Register and the drum-fill sensing bands.
+    pub report: ReportTables,
+}
+
+/// `plan_report.json`: the Assumptions Register (`planner_views.assumptions_register`) and the drum-fill sensing
+/// error bands (`rassor_mass_model`).
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ReportTables {
+    pub assumptions_register: Vec<Value>,
+    pub fdc_mpe_half_full: f64,
+    pub fdc_mpe_all: f64,
 }
 
 impl Planning {
@@ -198,6 +209,10 @@ impl Planning {
             "../../stewie-contracts/fixtures/plan_provenance.json"
         ))
         .map_err(|e| format!("the plan provenance defaults: {e}"))?;
+        let report = serde_json::from_str(include_str!(
+            "../../stewie-contracts/fixtures/plan_report.json"
+        ))
+        .map_err(|e| format!("the plan report tables: {e}"))?;
         Ok(Self {
             fleet,
             bodies,
@@ -206,6 +221,7 @@ impl Planning {
             endurance,
             provenance,
             autonomy,
+            report,
         })
     }
 
@@ -315,6 +331,41 @@ impl Planning {
         stewie_plan::autonomy::autonomy_perception(m, plan, dem, &inp)
     }
 
+    /// The Markdown report of `plan` (Python `planner_views.report`, its Markdown half), with its `totals` and
+    /// endurance report `endu`.
+    ///
+    /// # Errors
+    /// Planner parameters not configured, or a registry without the IPEx pack or vehicle.
+    pub fn markdown(
+        &self,
+        m: &Mission,
+        inputs: &Inputs,
+        plan: &stewie_plan::assemble::Plan,
+        totals: &Value,
+        endu: &Value,
+    ) -> Result<String, String> {
+        let cfg = self.config.as_ref().map_err(Clone::clone)?;
+        let ctx = context(m, &self.fleet, &inputs.params)?;
+        let ipex = self
+            .fleet
+            .vehicles
+            .get("ipex")
+            .ok_or("the fleet registry has no ipex")?;
+        let c = stewie_plan::report_md::Consts {
+            battery_j: self.ipex_battery_j()?,
+            dig_j_per_kg: cfg.ipex_dig_j_per_kg,
+            drive_j_per_m: cfg.ipex_drive_j_per_m,
+            recharge_w: cfg.charge_w,
+            drum_kg: ctx.drum_kg,
+            fdc_mpe_half_full: self.report.fdc_mpe_half_full,
+            fdc_mpe_all: self.report.fdc_mpe_all,
+            geometry: (ipex.gauge_m, ipex.wheelbase_m, ipex.cg_height_m),
+            register: &self.report.assumptions_register,
+            default_date: &self.provenance.default_date,
+        };
+        Ok(stewie_plan::report_md::markdown(m, plan, totals, endu, &c))
+    }
+
     /// A mission from its JSON, checked against the registries (the Python's `mission_from_dict`).
     ///
     /// # Errors
@@ -379,5 +430,45 @@ impl Planning {
             },
             idle_power_w: cfg.idle_power_w,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::Value;
+
+    use super::ReportTables;
+
+    /// The report quotes the Assumptions Register exported from the spec sources, while the planner runs on
+    /// `deploy/planner.json`: every configured value whose source names a register constant must equal it, so the
+    /// report cannot describe values the plan was not computed with.
+    #[test]
+    fn the_report_register_agrees_with_the_configured_planner_values() {
+        let tables: ReportTables = serde_json::from_str(include_str!(
+            "../../stewie-contracts/fixtures/plan_report.json"
+        ))
+        .unwrap();
+        let cfg: Value =
+            serde_json::from_str(include_str!("../../../deploy/planner.json")).unwrap();
+        let mut checked = 0;
+        for (key, entry) in cfg.as_object().unwrap() {
+            let (Some(v), Some(src)) = (entry["value"].as_f64(), entry["source"].as_str()) else {
+                continue;
+            };
+            for r in &tables.assumptions_register {
+                let name = r["name"].as_str().unwrap();
+                let named = src
+                    .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                    .any(|w| w == name);
+                if let (true, Ok(rv)) = (named, r["value"].as_str().unwrap().parse::<f64>()) {
+                    assert!(
+                        (rv - v).abs() <= 1e-12 * v.abs(),
+                        "{key} = {v}, but the register's {name} = {rv}"
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked > 0, "no configured value names a register constant");
     }
 }

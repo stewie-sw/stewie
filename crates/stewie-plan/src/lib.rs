@@ -14,5 +14,6 @@ pub mod optimize;
 pub mod provenance;
 pub mod release;
 pub mod report;
+pub mod report_md;
 pub mod sim;
 pub mod trips;

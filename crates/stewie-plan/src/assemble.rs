@@ -405,21 +405,21 @@ impl FleetRun<'_> {
             &m.shared_resources,
             0.5,
         );
-        let charger_wait: f64 = joint.charger_delay.iter().sum();
-        let resource_wait: f64 = joint.resource_delay.iter().sum();
+        let charger_wait: f64 = joint.charger_delay.iter().fold(0.0, |a, b| a + b);
+        let resource_wait: f64 = joint.resource_delay.iter().fold(0.0, |a, b| a + b);
         let crowd = resolve_spacetime_crowding(per, 10.0, 64);
-        let crowd_wait: f64 = crowd.iter().sum();
+        let crowd_wait: f64 = crowd.iter().fold(0.0, |a, b| a + b);
         let pdelay = resolve_cross_vehicle_precedence(per, prec);
-        let prec_wait: f64 = pdelay.iter().sum();
+        let prec_wait: f64 = pdelay.iter().fold(0.0, |a, b| a + b);
         let obs = resolve_observation_vantages(per.len(), &m.observations, 10.0)?;
-        let obs_wait: f64 = obs.delay.iter().sum();
+        let obs_wait: f64 = obs.delay.iter().fold(0.0, |a, b| a + b);
         let makespan = per
             .iter()
             .enumerate()
             .map(|(i, p)| p.core.time_s + joint.delay[i] + crowd[i] + pdelay[i] + obs.delay[i])
             .fold(0.0, f64::max);
-        let energy: f64 = per.iter().map(|p| p.core.energy_j).sum();
-        let busy: f64 = per.iter().map(|p| p.core.time_s).sum();
+        let energy: f64 = per.iter().map(|p| p.core.energy_j).fold(0.0, |a, b| a + b);
+        let busy: f64 = per.iter().map(|p| p.core.time_s).fold(0.0, |a, b| a + b);
         let survival = cfg.idle_power_w
             * (busy + charger_wait + resource_wait + prec_wait + obs_wait + crowd_wait);
         let total_energy = if survival > 0.0 {
