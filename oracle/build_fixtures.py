@@ -7135,6 +7135,16 @@ def viz2_runtime_cases() -> None:
 
     from stewie.runtime import viz2_runtime as VR
 
+    def stable(frames):
+        """The frames as recorded: ``imu_accel_long`` is (v - v_prev) / dt, a cancellation that turns the
+        last-ulp differences between hosts' numpy into drift past the reproduction tolerance, so it is left out;
+        the Rust test recomputes it from the recorded ``v_achieved`` and ``slope_rad``."""
+        for f in frames:
+            telem = f.get("payload", {}).get("telem")
+            if telem is not None:
+                telem.pop("imu_accel_long", None)
+        return frames
+
     clock = [1000.0]
     saved_time = VR.time
     VR.time = types.SimpleNamespace(monotonic=lambda: clock[0], sleep=lambda s: None)
@@ -7175,7 +7185,7 @@ def viz2_runtime_cases() -> None:
                     for fm in m["fields"].values():
                         fm.pop("digest")
                     manifests[str(gen)] = m
-                ticks.append({"note": note, "t": clock[0], "ok": ok, "frames": frames,
+                ticks.append({"note": note, "t": clock[0], "ok": ok, "frames": stable(frames),
                               "rejected_stale": rt._rejected_stale, "rejected_bounds": rt._rejected_bounds,
                               "safe_stopped": rt._safe_stopped, "generation": gen,
                               "last_acked_gen": rt._last_acked_gen, "epoch": rt._current_epoch})
@@ -7250,7 +7260,7 @@ def viz2_runtime_cases() -> None:
                     for f in frames:
                         if "payload" in f:
                             r2._inbound.put((ep, clock[0], {"cmd": "ack", "seq": f["seq"]}))
-                    rows.append({"ok": ok, "frames": frames})
+                    rows.append({"ok": ok, "frames": stable(frames)})
                     clock[0] += r2.dt
                 return {"bundle": bundle, "kw": kw, "spawn": list(r2.start_xy), "script": script, "t0": t0, "ticks": rows,
                         "generation_dirs": sorted(os.listdir(r2.generations_dir))}

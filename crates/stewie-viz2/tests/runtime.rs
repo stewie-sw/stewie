@@ -115,6 +115,34 @@ fn same(got: &Value, want: &Value, at: &str) {
     }
 }
 
+/// `imu_accel_long` is `(v - v_prev) / dt + g sin(slope)` (the Python's formula), a cancellation the oracle does not
+/// record because hosts' numpy differ in its last bits. Check the Rust's against the formula over the recorded
+/// `v_achieved` and `slope_rad` (the previous tick's speed carried across sessions, as the Python's), then drop it.
+fn imu(got: &mut [Value], want: &Value, prev: &mut f64, dt: f64) {
+    let (reg, _) = stewie_physics::soil::bundled();
+    let g = reg["moon"].g;
+    for (fr, w) in got.iter_mut().zip(want.as_array().unwrap()) {
+        let Some(telem) = fr.get_mut("payload").and_then(|p| p.get_mut("telem")) else {
+            continue;
+        };
+        let (va, slope) = (
+            f(&w["payload"]["telem"]["v_achieved"]),
+            f(&w["payload"]["telem"]["slope_rad"]),
+        );
+        let expect = (va - *prev) / dt.max(1e-6) + g * slope.sin();
+        let value = telem
+            .as_object_mut()
+            .unwrap()
+            .remove("imu_accel_long")
+            .unwrap();
+        assert!(
+            (f(&value) - expect).abs() <= 1e-8,
+            "imu_accel_long {value} vs {expect}"
+        );
+        *prev = va;
+    }
+}
+
 fn obj(v: Value) -> Map<String, Value> {
     match v {
         Value::Object(m) => m,
@@ -147,12 +175,19 @@ fn the_runtime_stepped_on_a_pinned_clock_equals_the_pythons() {
     let mut ack = true;
     let ticks = fx["ticks"].as_array().unwrap();
     let mut k = 0;
+    let prev_va = std::cell::RefCell::new(0.0);
     // the SYNTHETIC script, step for step as the oracle's
     let tick = |rt: &mut Runtime, clock: &mut f64, epoch: u64, ack: bool, k: &mut usize| {
         let want = &ticks[*k];
         let ok = rt.actor_once(*clock).unwrap();
-        let frames: Vec<Value> = rt.take_outbound().into_iter().map(|(_, fr)| fr).collect();
+        let mut frames: Vec<Value> = rt.take_outbound().into_iter().map(|(_, fr)| fr).collect();
         let tag = format!("tick {k} ({})", want["note"]);
+        imu(
+            &mut frames,
+            &want["frames"],
+            &mut prev_va.borrow_mut(),
+            rt.dt,
+        );
         assert_eq!(json!(ok), want["ok"], "{tag}");
         same(&json!(frames), &want["frames"], &tag);
         for fr in &frames {
@@ -371,6 +406,7 @@ fn scripted(name: &str) {
     same(&json!([rt.start_xy.0, rt.start_xy.1]), &sc["spawn"], name);
     let epoch = rt.register_session().unwrap();
     let mut clock = f(&sc["t0"]);
+    let mut prev_va = 0.0;
     for (i, (msgs, want)) in sc["script"]
         .as_array()
         .unwrap()
@@ -386,7 +422,8 @@ fn scripted(name: &str) {
             want["ok"],
             "{name} tick {i}"
         );
-        let frames: Vec<Value> = rt.take_outbound().into_iter().map(|(_, fr)| fr).collect();
+        let mut frames: Vec<Value> = rt.take_outbound().into_iter().map(|(_, fr)| fr).collect();
+        imu(&mut frames, &want["frames"], &mut prev_va, rt.dt);
         same(&json!(frames), &want["frames"], &format!("{name} tick {i}"));
         for fr in &frames {
             if fr.get("payload").is_some() {
