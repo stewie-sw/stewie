@@ -4,7 +4,7 @@
 //! horizon; roughness is the costmap's window-RMS slope. Floats are cast to bytes by truncation, as numpy's
 //! `astype("uint8")`.
 
-use lunar_dem::uniform_filter_nearest;
+use lunar_dem::{uniform_filter_nearest, uniform_filter_reflect};
 use stewie_traverse::layers::{horizon_clip, incidence_angle_deg};
 
 use crate::point::{Spine, Terra, drape_costmap, grid_sun_az, np_interp, py_mod};
@@ -124,6 +124,112 @@ fn hsv_to_rgb(h: f64, s: f64, v: f64) -> [f64; 3] {
     }
 }
 
+/// The slope layer under the graduated renderer (G5): `vmax` the ramp's domain [deg] (at least 1), `classes` >= 2 an
+/// equal-interval classified ramp instead of the stretch.
+#[must_use]
+pub fn slope_rgba(z: &[f64], w: usize, h: usize, cell: f64, vmax: f64, classes: usize) -> Vec<u8> {
+    let (gy, gx) = gradient(z, w, h, cell);
+    let vmax = vmax.max(1.0);
+    #[allow(clippy::cast_precision_loss)] // a class count of at most 12
+    let bands = classes as f64;
+    slope_of(&gy, &gx)
+        .into_iter()
+        .flat_map(|s| {
+            let mut t = (s / vmax).clamp(0.0, 1.0);
+            if classes >= 2 {
+                t = (t * bands).floor().clamp(0.0, bands - 1.0) / (bands - 1.0);
+            }
+            [60.0 + 195.0 * t, 200.0 * (1.0 - t), 40.0, 90.0 + 120.0 * t].map(u8_of)
+        })
+        .collect()
+}
+
+/// The surveyed work-area hazard: the navigation cost the routing detours on (Python `dart.hazard_map.
+/// build_hazard_map` with no rocks or zones, over `dem_cross.dem_layers`) drawn red, graded from benign
+/// (transparent) to costly, opaque where no-go (slope at the 20 deg tested limit, or no data).
+#[must_use]
+pub fn hazard_cost_rgba(z: &[f64], w: usize, h: usize, cell: f64) -> Vec<u8> {
+    let (gy, gx) = gradient(z, w, h, cell);
+    let slope = slope_of(&gy, &gx);
+    // roughness: the 5-cell windowed height std (scipy uniform_filter, reflect edges)
+    let sq: Vec<f64> = z.iter().map(|v| v * v).collect();
+    let (mean, mean_sq) = (
+        uniform_filter_reflect(z, w, h, 5),
+        uniform_filter_reflect(&sq, w, h, 5),
+    );
+    (0..z.len())
+        .flat_map(|i| {
+            let rough = (mean_sq[i] - mean[i] * mean[i]).max(0.0).sqrt();
+            let s = slope[i];
+            let mut cost = 1.0;
+            cost += ((s - 15.0) / 10.0).max(0.0);
+            cost += ((rough - 0.075) / 0.1).max(0.0) * 0.5;
+            let nogo = s >= 20.0 || !s.is_finite() || !rough.is_finite() || !cost.is_finite();
+            if nogo {
+                [255.0, 0.0, 0.0, 230.0].map(u8_of)
+            } else {
+                let graded = ((cost - 1.0) / 4.0).clamp(0.0, 1.0);
+                [255.0, 140.0 * (1.0 - graded), 0.0, 170.0 * graded].map(u8_of)
+            }
+        })
+        .collect()
+}
+
+/// The TW-11 traffic layer from a site's relative density `dr` and pass counts: colour the Dr band (loose
+/// `#f7f7f7` to paved `#252525`), opacity the hardening normalised to the layer's peak on driven cells.
+#[must_use]
+pub fn traffic_rgba(dr: &[f64], passes: &[u32]) -> Vec<u8> {
+    const THRESHOLDS: [f64; 4] = [0.2, 0.4, 0.6, 0.8];
+    const COLORS: [[f64; 3]; 5] = [
+        [247.0, 247.0, 247.0],
+        [204.0, 204.0, 204.0],
+        [150.0, 150.0, 150.0],
+        [99.0, 99.0, 99.0],
+        [37.0, 37.0, 37.0],
+    ];
+    // numpy max: NaN if any
+    let peak = dr.iter().copied().fold(f64::NEG_INFINITY, |m, x| {
+        if x.is_nan() || m.is_nan() {
+            f64::NAN
+        } else {
+            m.max(x)
+        }
+    });
+    dr.iter()
+        .zip(passes)
+        .flat_map(|(&d, &p)| {
+            // numpy digitize (right=False): how many thresholds are <= d; NaN sorts past them all
+            let band = if d.is_nan() {
+                4
+            } else {
+                THRESHOLDS.iter().filter(|&&t| t <= d).count()
+            };
+            let norm = if peak > 0.0 { d / peak } else { 0.0 };
+            let [r, g, b] = COLORS[band];
+            [r, g, b, if p > 0 { 60.0 + 180.0 * norm } else { 0.0 }].map(u8_of)
+        })
+        .collect()
+}
+
+/// Python `gis_layers._upscale`: each pixel repeated `k` times along both axes.
+#[must_use]
+pub fn upscale(rgba: &[u8], w: usize, h: usize, k: usize) -> Vec<u8> {
+    let mut out = Vec::with_capacity(rgba.len() * k * k);
+    for r in 0..h {
+        let row: Vec<u8> = (0..w)
+            .flat_map(|c| {
+                std::iter::repeat_n(&rgba[(r * w + c) * 4..(r * w + c) * 4 + 4], k)
+                    .flatten()
+                    .copied()
+            })
+            .collect();
+        for _ in 0..k {
+            out.extend_from_slice(&row);
+        }
+    }
+    out
+}
+
 /// One layer's RGBA bytes (row-major, `w * h * 4`) for a DEM patch, or `None` for a kind this renderer does not
 /// draw. `grid_north_bearing` re-expresses a true sun azimuth in the grid frame for the sun-parameterised layers.
 #[must_use]
@@ -160,13 +266,7 @@ pub fn layer_rgba(
                 push([g, g, g, 255.0]);
             }
         }
-        "slope" => {
-            let (gy, gx) = gradient(z, w, h, cell);
-            for s in slope_of(&gy, &gx) {
-                let t = (s / 30.0).clamp(0.0, 1.0);
-                push([60.0 + 195.0 * t, 200.0 * (1.0 - t), 40.0, 90.0 + 120.0 * t]);
-            }
-        }
+        "slope" => return Some(slope_rgba(z, w, h, cell, 30.0, 0)),
         "hazard" => {
             let (gy, gx) = gradient(z, w, h, cell);
             for s in slope_of(&gy, &gx) {

@@ -5557,6 +5557,54 @@ def http_resync_cases() -> None:
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
 
+def http_layers_cases() -> None:
+    """The selectable map layers (RW-55b15): GET /layers and every /layers/raster/{kind}.png overlay of the real
+    Haworth work area (the hazard cost, slope under the graduated renderer, illumination, incidence, PSR, traffic),
+    with the sun overrides and a mission time, through one scripted session (_http_session); a PNG is recorded by
+    its decoded pixels. The planted traffic memory is SYNTHETIC (labelled); its density runs at the registry's loose
+    friction (D-R72)."""
+    import numpy as np
+
+    from stewie.physics import material as _MAT
+    from stewie.twin import traffic_memory as TW
+
+    def script(call, key, d, clock):
+        call("GET", "/layers")
+        for kind in ("hazard", "slope", "illumination", "incidence", "psr", "traffic"):
+            call("GET", f"/layers/raster/{kind}.png", headers=key)
+        call("GET", "/layers/raster/slope.png?vmax=10&classes=5", headers=key)
+        call("GET", "/layers/raster/slope.png?vmax=nan&classes=99", headers=key)
+        call("GET", "/layers/raster/slope.png?vmax=0.5&classes=-3", headers=key)
+        call("GET", "/layers/raster/slope.png?vmax=200", headers=key)              # the ramp's 90 deg ceiling
+        call("GET", "/layers/raster/illumination.png?sun_az=-30.5&sun_el=200", headers=key)
+        call("GET", "/layers/raster/incidence.png?mission_t_s=86400&sun_az=1&sun_el=1", headers=key)
+        call("GET", "/layers/raster/nope.png", headers=key)
+        call("GET", "/layers/raster/slope.png?site=atlantis", headers=key)
+        call("GET", "/layers/raster/slope.png?site=amundsen_rim", headers=key)
+        call("GET", "/layers/raster/slope.png?sun_el=abc", headers=key)
+        call("GET", "/layers/raster/slope.png")                                       # no key
+        call("GET", "/layers/raster/slope", headers=key)                              # not a .png
+        tm = TW.TrafficMemory(site="haworth", rows=4, cols=5, cell_m=0.5, origin=(1.0, -2.0))
+        load = np.zeros((4, 5))                                                       # SYNTHETIC wheel load field
+        load[1, 1:4] = 2400.0
+        load[2, 2] = 900.0
+        tm.apply(load, mission="haul-1", event_id="ev-1")
+        TW.save_site(d, tm)
+        call("GET", "/layers/raster/traffic.png", headers=key)
+
+    phi = _MAT.PHI_LOOSE_DEG
+    _MAT.PHI_LOOSE_DEG = 35.0                       # D-R72: the body registry's loose friction
+    try:
+        payload = _http_session("stewie-http-layers-oracle", {}, script)
+    finally:
+        _MAT.PHI_LOOSE_DEG = phi
+    write_fixture(ORACLE_FIXTURES, "http_layers_cases", "oracle/build_fixtures.py::http_layers_cases (the FastAPI "
+                  "app's /layers and /layers/raster overlays of the real Haworth work area)",
+                  ["stewie/server/routers/plan.py", "stewie/server/map_layers.py", "stewie/server/gis_layers.py",
+                   "dart/hazard_map.py", "dart/dem_cross.py", "stewie/twin/traffic_memory.py",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
+
+
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
     real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
@@ -5838,6 +5886,7 @@ def main() -> None:
     http_planmath_cases()
     http_plan_cases()
     http_resync_cases()
+    http_layers_cases()
     endurance_cases()
     timeline_cases()
     autonomy_cases()

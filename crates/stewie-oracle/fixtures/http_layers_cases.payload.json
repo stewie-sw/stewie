@@ -1,0 +1,544 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [],
+ "seed_sha256_of": "stewie-http-layers-oracle",
+ "steps": [
+  {
+   "body": {
+    "layers": [
+     {
+      "default": true,
+      "group": "base",
+      "id": "imagery",
+      "imagery_only": true,
+      "kind": "raster",
+      "name": "Imagery"
+     },
+     {
+      "default": true,
+      "dem_source": "lunar_dem/haworth_10km_5m",
+      "group": "terrain",
+      "id": "dem",
+      "kind": "raster",
+      "name": "DEM (hillshade)"
+     },
+     {
+      "default": false,
+      "dem_source": "lunar_dem/haworth_10km_5m",
+      "group": "terrain",
+      "id": "topology",
+      "kind": "raster",
+      "name": "Topology (slope)"
+     },
+     {
+      "default": true,
+      "group": "nav",
+      "id": "hazard",
+      "kind": "vector",
+      "name": "Hazard / keep-outs"
+     },
+     {
+      "default": true,
+      "group": "ops",
+      "id": "excavation",
+      "kind": "vector",
+      "name": "Excavation history"
+     },
+     {
+      "default": true,
+      "group": "ops",
+      "id": "lander",
+      "kind": "vector",
+      "name": "Lander"
+     },
+     {
+      "group": "terrain",
+      "key": "slope",
+      "kind": "raster",
+      "name": "Slope (deg, from the real DEM)"
+     },
+     {
+      "default": true,
+      "group": "safety",
+      "key": "hazard",
+      "kind": "raster",
+      "name": "Hazard / no-go (nav cost)"
+     },
+     {
+      "group": "sun",
+      "key": "illumination",
+      "kind": "raster",
+      "name": "Shadow (horizon-clipped sun)"
+     },
+     {
+      "group": "sun",
+      "key": "incidence",
+      "kind": "raster",
+      "name": "Sun incidence (grazing-angle, from the DEM)"
+     },
+     {
+      "group": "sun",
+      "key": "psr",
+      "kind": "raster",
+      "name": "Permanently shadowed regions (PSR, never lit)"
+     },
+     {
+      "default": true,
+      "group": "reference",
+      "key": "grid",
+      "kind": "raster",
+      "name": "Site grid (100 m / 500 m)"
+     },
+     {
+      "group": "terrain",
+      "key": "traffic",
+      "kind": "raster",
+      "name": "Traffic hardening (Dr, TW-11)"
+     }
+    ],
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "141db71a07d9c6237b05bddaf04a90e18729e4da8e611250efdae10de92ba502",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/hazard.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "0d28963f244dbb5e9c19dbc18868ba1643b03a2178ee09071e13eb84fb826980",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "60a3a75b2d5b103e1debec12a9dfa6986c6b1538eff9fdfe92638439600ae3a8",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/illumination.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "5800fdebf0597ac242c1e73b4d61d091fccf23230bda01523a8e82aac88e2bfc",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/incidence.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "8887e223bdaffbe774a22cd6f3304ac7c366c89c049fd12b754841487e1b284f",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/psr.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "30e14955ebf1352266dc2ff8067e68104607e750abb9d3b36582b8af909fcb58",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/traffic.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "6f079c5c910e6e35f101f1bf88f471e73dcb00ae0ec1cb434bb8384907c04843",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope.png?vmax=10&classes=5",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "6d1563c628f039975af883421c03462d54050b887efeee82d769813231945854",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope.png?vmax=nan&classes=99",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "6b461ea93cbbff3276b41b15eeccf2259d69e08ececfc2857240822d0a47b8f3",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope.png?vmax=0.5&classes=-3",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "4cfa1928c0cf0af95427e108f82b955c3a412a591e321cf7831b251b016997d6",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope.png?vmax=200",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "4db16610c420040e3505627893e8e5afb4023d5fb07b946acf2a8d4cc41cdc95",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/illumination.png?sun_az=-30.5&sun_el=200",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "96d885ac1155bfd97ef5804409e2bb1cba0081e063bec99963891363428e8228",
+     "width": 512
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/incidence.png?mission_t_s=86400&sun_az=1&sun_el=1",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown layer 'nope'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/nope.png",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "\"unknown site 'atlantis' (known: ['amundsen_rim', 'connecting_ridge', 'de_gerlache_kocher', 'de_gerlache_rim', 'faustini_psr', 'haworth', 'haworth_sfs', 'leibnitz_beta', 'malapert_massif', 'nobile_rim', 'nobile_rim2', 'peak_near_shackleton', 'shackleton_rim', 'shoemaker'])\"",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope.png?site=atlantis",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "DEM bundle absent: site 'amundsen_rim' is not imported (no DEM bundle); fetch it first",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope.png?site=amundsen_rim",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "sun_el: Input should be a valid number, unable to parse string as a number",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope.png?sun_el=abc",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope.png",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "no route /layers/raster/slope",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/slope",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "png": {
+     "height": 16,
+     "rgba_b64": "9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cAJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXw9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wAlJSXwJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXwJSUl8CUlJfD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3ACUlJfAlJSXwJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXwJSUl8Pf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cAJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXwJSUl8CUlJfAlJSXw9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cAJSUl7yUlJe8lJSXvJSUl7/f39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wAlJSXvJSUl7yUlJe8lJSXv9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3ACUlJe8lJSXvJSUl7yUlJe/39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cAJSUl7yUlJe8lJSXvJSUl7/f39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wD39/cA9/f3APf39wA=",
+     "rgba_sha256": "6838c79bd1895908478f740393e6a080883d725f7bf3011295f48a66b1166545",
+     "width": 20
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/raster/traffic.png",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": null
+}

@@ -1661,6 +1661,42 @@ async fn the_python_resync_session_replays_exactly() {
 }
 
 #[tokio::test]
+async fn the_python_layers_session_replays_exactly() {
+    replay(
+        "http_layers_cases",
+        b"stewie-http-layers-oracle",
+        |i, step, clock, dir| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+            // the oracle planted this traffic memory before its second traffic request (SYNTHETIC, labelled)
+            if step["request"]["path"] == "/layers/raster/traffic.png" && i > 7 {
+                let mut tm = stewie_twin::traffic_memory::TrafficMemory::new(
+                    "haworth",
+                    4,
+                    5,
+                    0.5,
+                    (1.0, -2.0),
+                    stewie_twin::traffic_memory::TrafficParams {
+                        mass_areal: 130.0,
+                        sigma_c_n: 60.0,
+                        contact_width_m: 0.18,
+                    },
+                )
+                .unwrap();
+                let mut load = vec![0.0; 20];
+                for c in 1..4 {
+                    load[5 + c] = 2400.0;
+                }
+                load[12] = 900.0;
+                tm.apply(&load, "haul-1", "ev-1").unwrap();
+                stewie_twin::traffic_memory::save_site(dir, &tm).unwrap();
+            }
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts
     let dir = std::env::temp_dir().join(format!("stewie-heavy-{}", std::process::id()));

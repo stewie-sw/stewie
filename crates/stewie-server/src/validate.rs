@@ -102,7 +102,7 @@ pub(crate) fn as_bool(v: &Value) -> Option<bool> {
 }
 
 /// An integer the Pydantic way: an integer, a whole float, a bool, or a string holding either.
-fn as_int(v: &Value) -> Result<i64, &'static str> {
+pub(crate) fn as_int(v: &Value) -> Result<i64, &'static str> {
     const FRACTION: &str = "Input should be a valid integer, got a number with a fractional part";
     let whole = |x: f64, err: &'static str| -> Result<i64, &'static str> {
         if x.fract() != 0.0 || !x.is_finite() {

@@ -24,7 +24,7 @@ use crate::validate::{self, Field, Kind, Model};
 
 const DEM_SOURCES: &str = include_str!("../../stewie-contracts/fixtures/dem_sources.json");
 
-fn site_of(q: &[(String, String)]) -> String {
+pub(crate) fn site_of(q: &[(String, String)]) -> String {
     q.iter()
         .rev()
         .find(|(k, _)| k == "site")
@@ -33,12 +33,12 @@ fn site_of(q: &[(String, String)]) -> String {
 
 /// A site's bundle, or why not: an unknown site (the Python's `KeyError`, whose text is the message's repr), or
 /// a known site with no bundle (its `FileNotFoundError`, plain).
-enum Missing {
+pub(crate) enum Missing {
     Unknown(String),
     NotImported(String),
 }
 
-fn bundle(st: &AppState, site: &str) -> Result<PathBuf, Missing> {
+pub(crate) fn bundle(st: &AppState, site: &str) -> Result<PathBuf, Missing> {
     st.terrain.bundle_for_site(site).map_err(|e| {
         if st.terrain.is_known(site) {
             Missing::NotImported(e)
@@ -82,7 +82,7 @@ fn query(q: &[(String, String)], model: Model) -> Result<Map<String, Value>, Api
     Ok(raw)
 }
 
-const REQ_FLOAT: Kind = Kind::Float {
+pub(crate) const REQ_FLOAT: Kind = Kind::Float {
     gt: None,
     ge: None,
     le: None,
@@ -1000,7 +1000,7 @@ const WORKAREA_Q: Model = Model {
 
 /// Python `round(x) % 360` and the clamped elevation: the quantised sun the work-area drape renders under.
 #[allow(clippy::cast_possible_truncation)] // whole degrees
-fn quantised_sun(az: f64, el: f64) -> (f64, f64) {
+pub(crate) fn quantised_sun(az: f64, el: f64) -> (f64, f64) {
     let az = (az.round_ties_even() as i64).rem_euclid(360);
     let el = (el.round_ties_even() as i64).clamp(-90, 90);
     #[allow(clippy::cast_precision_loss)] // whole degrees

@@ -1,0 +1,14 @@
+{
+ "fixture": "http_layers_cases",
+ "generator": "oracle/build_fixtures.py::http_layers_cases (the FastAPI app's /layers and /layers/raster overlays of the real Haworth work area)",
+ "payload_sha256": "2a37a86309cf388435066f81dc5d014098f9843579f6d40637f5a7345c3755b6",
+ "sources": {
+  "dart/dem_cross.py": "3460f9d04ba4f493181114bdd2b003c4f59fbcd1185212d90b16a01e4166abc2",
+  "dart/hazard_map.py": "3839341374e5a28d152e37ecf993824591c90f83fa2855201307240a7140be68",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/server/gis_layers.py": "a10252b63ce66a11dccf9ac82686f9768b137a1aa90a640d54a035bdc4bbc2d3",
+  "stewie/server/map_layers.py": "bb04ba30cd07d6ca1f2c9727a2b6249aae5874b6585b0e8186cd6e7b7072eb65",
+  "stewie/server/routers/plan.py": "c039109919db9ebdbdd90b1a5223e8ff9f67c64d454e1132420464f5531ee857",
+  "stewie/twin/traffic_memory.py": "8f0a311ee1007738a7a74cfe8d6b12c776d3174e6193a800bc803eaed7d51f81"
+ }
+}

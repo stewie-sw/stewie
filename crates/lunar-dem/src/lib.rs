@@ -422,6 +422,27 @@ pub fn slope_deg_grid(z: &[f64], width: usize, height: usize, cell_m: f64) -> Ve
 /// leaving value.
 #[must_use]
 pub fn uniform_filter_nearest(v: &[f64], width: usize, height: usize, size: usize) -> Vec<f64> {
+    uniform_filter(v, width, height, size, |i, len| i.clamp(0, len - 1))
+}
+
+/// [`uniform_filter_nearest`] with `SciPy`'s default `mode="reflect"` edges (`d c b a | a b c d | d c b a`).
+#[must_use]
+pub fn uniform_filter_reflect(v: &[f64], width: usize, height: usize, size: usize) -> Vec<f64> {
+    uniform_filter(v, width, height, size, |i, len| {
+        // the half-sample-symmetric extension repeats with period 2 * len
+        let m = i.rem_euclid(2 * len);
+        if m < len { m } else { 2 * len - 1 - m }
+    })
+}
+
+#[allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)] // grid indices
+fn uniform_filter(
+    v: &[f64],
+    width: usize,
+    height: usize,
+    size: usize,
+    edge: impl Fn(isize, isize) -> isize,
+) -> Vec<f64> {
     #[allow(clippy::cast_precision_loss)] // a kernel width
     let n = size as f64;
     let pass =
@@ -431,9 +452,11 @@ pub fn uniform_filter_nearest(v: &[f64], width: usize, height: usize, size: usiz
             let mut ext = Vec::with_capacity(len + size);
             for line in 0..lines {
                 ext.clear();
-                ext.extend(std::iter::repeat_n(src[at(line, 0)], before));
-                ext.extend((0..len).map(|i| src[at(line, i)]));
-                ext.extend(std::iter::repeat_n(src[at(line, len - 1)], after));
+                let l = len as isize;
+                ext.extend(
+                    (-(before as isize)..l + after as isize)
+                        .map(|i| src[at(line, edge(i, l) as usize)]),
+                );
                 let mut sum: f64 = ext[..size].iter().sum();
                 out[at(line, 0)] = sum / n;
                 for i in 1..len {
