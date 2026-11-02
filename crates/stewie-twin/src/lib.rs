@@ -6,6 +6,7 @@ pub mod backup;
 pub mod cadence;
 pub mod journal;
 pub mod numpy;
+pub mod pcg64;
 pub mod pyjson;
 pub mod terrain_memory;
 pub mod terrain_view;

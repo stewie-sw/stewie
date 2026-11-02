@@ -1,0 +1,11 @@
+{
+ "fixture": "telemetry_link_cases",
+ "generator": "oracle/build_fixtures.py::telemetry_link_cases (stewie.bridge.telemetry.TelemetryLink on the packaged profiles)",
+ "payload_sha256": "d05fffb1ab84dc159870567d1385ad4cd5580fa721e18b4e6052d7b2a6ee1a57",
+ "sources": {
+  "stewie/bridge/profiles/comm_dropout.json": "b86f543ff05a988a7667f2196d87128f7566b2b121a8527e1dd5cc96b3a3990b",
+  "stewie/bridge/profiles/ideal.json": "4977c2511936c721b4ea03427d035c076fca99d2bf59b03c084643e585e0d0ad",
+  "stewie/bridge/profiles/mission_default.json": "ef2ab57cc50738f7e65d4784b90ff9ca105e0d2b4ecb74f754946c469b5f6ca7",
+  "stewie/bridge/telemetry.py": "76704d188697c27e86d7adcb942d5727e246acb6c97c707581ae2feec321eb93"
+ }
+}

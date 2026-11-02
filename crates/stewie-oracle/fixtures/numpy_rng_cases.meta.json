@@ -1,0 +1,6 @@
+{
+ "fixture": "numpy_rng_cases",
+ "generator": "oracle/build_fixtures.py::numpy_rng_cases (numpy.random.default_rng: SeedSequence -> PCG64 -> random())",
+ "payload_sha256": "9cdf714945dcf2b7dafa01a5a34a8c8dae07d51d6ec89cd4d7b50146f47d724d",
+ "sources": {}
+}

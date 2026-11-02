@@ -37,6 +37,7 @@ pub mod services;
 pub mod spec_routes;
 pub mod state;
 pub mod structure_routes;
+pub mod telemetry_link;
 pub mod twin;
 pub mod validate;
 pub mod world;

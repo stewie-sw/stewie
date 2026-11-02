@@ -6142,6 +6142,41 @@ def plan_lowering_cases() -> None:
                    "stewie/server/sample_missions/03_blocked_infeasible.json"], {"cases": cases})
 
 
+def numpy_rng_cases() -> None:
+    """numpy's default generator (RW-55b26a): ``np.random.default_rng(seed)`` for integer seeds from zero to
+    multi-word, recorded as its raw PCG64 64-bit outputs and its ``random()`` doubles, so a port is checked draw
+    for draw (the telemetry link's seeded packet drops use it)."""
+    cases = []
+    for seed in (0, 1, 42, 2**32 + 5, 2**40 + 7, 123456789012345678901234567):
+        raw = np.random.default_rng(seed).bit_generator.random_raw(6)
+        doubles = np.random.default_rng(seed).random(16)
+        cases.append({"seed": str(seed), "raw": [str(int(v)) for v in raw], "random": [float(v) for v in doubles]})
+    write_fixture(ORACLE_FIXTURES, "numpy_rng_cases", "oracle/build_fixtures.py::numpy_rng_cases "
+                  "(numpy.random.default_rng: SeedSequence -> PCG64 -> random())", [], {"cases": cases})
+
+
+def telemetry_link_cases() -> None:
+    """The mission-link constraint model (RW-55b26a, ``stewie.bridge.telemetry.TelemetryLink``): each packaged
+    profile driven through the training session's pattern (a 256-byte status packet a second for 60 s) and then a
+    burst of oversized packets that empties the rate bucket, recorded call by call with the final counters. Drops
+    are seeded (``default_rng(0)``, the session's seed)."""
+    from stewie.bridge import telemetry as tl
+
+    root = os.path.join(os.path.dirname(tl.__file__), "profiles")
+    cases = []
+    for name in ("ideal", "mission_default", "comm_dropout"):
+        link = tl.TelemetryLink(tl.load_profile(os.path.join(root, name + ".json")), seed=0)
+        calls = [[256, float(i)] for i in range(60)] + [[9000, 60.0 + 0.1 * k] for k in range(6)]
+        out = [link.deliver_at(b, t) for b, t in calls]
+        cases.append({"profile": name, "calls": calls, "visible_at": out, "stats": dict(link.stats)})
+    assert any(None in c["visible_at"] for c in cases), "vacuity: drops and rate limits are recorded"
+    write_fixture(ORACLE_FIXTURES, "telemetry_link_cases", "oracle/build_fixtures.py::telemetry_link_cases "
+                  "(stewie.bridge.telemetry.TelemetryLink on the packaged profiles)",
+                  ["stewie/bridge/telemetry.py", "stewie/bridge/profiles/ideal.json",
+                   "stewie/bridge/profiles/mission_default.json", "stewie/bridge/profiles/comm_dropout.json"],
+                  {"cases": cases})
+
+
 def cog_cases() -> None:
     """The value-raster GeoTIFF (RW-55b20b): ``lode.gis_export.value_raster_cog`` of the real Haworth slope, and of
     its classes at three breaks, written by rasterio/GDAL. Recorded as every directory's tags (the tile offsets and
@@ -6754,6 +6789,8 @@ def main() -> None:
     http_ros_cases()
     http_nav_cases()
     plan_lowering_cases()
+    numpy_rng_cases()
+    telemetry_link_cases()
 
 
 if __name__ == "__main__":
