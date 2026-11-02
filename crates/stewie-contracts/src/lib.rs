@@ -149,3 +149,6 @@ pub mod assessment_request {
     #![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
     typify::import_types!(schema = "schema/assessment_request.schema.json");
 }
+
+/// The versioned command/telemetry stream and its safe-stop (Python `stewie.bridge.stream`).
+pub mod stream;

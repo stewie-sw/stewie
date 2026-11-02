@@ -1,6 +1,6 @@
 //! [REQ:RT-06] [REQ:RT-07] The public stream runs under `godot_sim`: it must be unable to command a real rover. As
 //! the Python's AST guard proved its module could not name a real-rover egress, the Rust makes it structural: the
-//! `stewie-stream` binary's dependency closure (from `cargo metadata`) holds no rover-command (`stewie-server`),
+//! `stewie-stream` binary's dependency closure and the `stewie-viz2` runtime's (from `cargo metadata`) holds no rover-command (`stewie-server`),
 //! plan-lowering (`stewie-plan`), plugin-host (`stewie-plugins`, which can start the ROS 2 plugin) or ROS crate.
 //! A positive control checks the walk does see such a dependency where one exists.
 
@@ -86,6 +86,13 @@ fn the_stream_links_no_real_rover_egress() {
         "vacuity: the walk reaches real deps"
     );
     assert_eq!(forbidden(&stream), Vec::<&String>::new());
+    // the session runtime the stream spawns, the sole mutator of the simulated world
+    let runtime = closure(&meta, "stewie-viz2");
+    assert!(
+        runtime.contains("stewie-physics"),
+        "vacuity: the walk reaches real deps"
+    );
+    assert_eq!(forbidden(&runtime), Vec::<&String>::new());
     // positive control: the rover-command server's closure is seen to hold them
     let server = closure(&meta, "stewie-server");
     assert!(forbidden(&server).len() >= 3, "{:?}", forbidden(&server));

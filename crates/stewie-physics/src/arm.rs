@@ -39,3 +39,25 @@ pub fn cg_offset_m(
     }
     (mx / total, mz / total)
 }
+
+/// The drum-down dig posture [rad] (Python `ARM_DIG_DOWN_RAD`, an assumption, render-rig consistent).
+pub const ARM_DIG_DOWN_RAD: f64 = -0.55;
+/// The operator's arm offset travel on the dig posture [rad] (Python `ARM_OFFSET_MIN_RAD`/`ARM_OFFSET_MAX_RAD`):
+/// further down than the dig posture, up to well past stowed-horizontal.
+pub const ARM_OFFSET_MIN_RAD: f64 = -0.4;
+pub const ARM_OFFSET_MAX_RAD: f64 = 1.0;
+
+/// [REQ:PX-10] How much of the commanded bite a drum can take at the operator's arm offset (Python
+/// `arm_state.dig_engagement`): 0 when the drum is off the ground (stowed or raised; a non-finite offset too), 1 at
+/// or below the dig posture, a linear ramp between (the ramp's shape is an assumption; the gate is exact).
+#[must_use]
+pub fn dig_engagement(offset_rad: f64) -> f64 {
+    if !offset_rad.is_finite() {
+        return 0.0;
+    }
+    let pitch = ARM_DIG_DOWN_RAD + offset_rad;
+    if pitch >= 0.0 {
+        return 0.0;
+    }
+    (pitch / ARM_DIG_DOWN_RAD).clamp(0.0, 1.0)
+}

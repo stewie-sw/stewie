@@ -1,0 +1,873 @@
+{
+ "drums": {
+  "medium": {
+   "hold_kg": 14.6,
+   "intercept": -53.12500000000001,
+   "rows": [
+    {
+     "current_a": 1.7,
+     "inferred_kg": 7.105427357601002e-15,
+     "mass_kg": 0.0,
+     "offload": false,
+     "uncertainty_frac": 0.07402999999999998,
+     "upper_kg": 7.631442144884204e-15
+    },
+    {
+     "current_a": 1.7096,
+     "inferred_kg": 0.30000000000000426,
+     "mass_kg": 0.3,
+     "offload": false,
+     "uncertainty_frac": 0.07330324999999999,
+     "upper_kg": 0.32199097500000456
+    },
+    {
+     "current_a": 1.9336,
+     "inferred_kg": 7.300000000000004,
+     "mass_kg": 7.3,
+     "offload": false,
+     "uncertainty_frac": 0.056345749999999986,
+     "upper_kg": 7.711323975000004
+    },
+    {
+     "current_a": 2.12048,
+     "inferred_kg": 13.140000000000008,
+     "mass_kg": 13.14,
+     "offload": false,
+     "uncertainty_frac": 0.04219834999999998,
+     "upper_kg": 13.694486319000008
+    },
+    {
+     "current_a": 2.1672,
+     "inferred_kg": 14.600000000000001,
+     "mass_kg": 14.6,
+     "offload": true,
+     "uncertainty_frac": 0.038661499999999994,
+     "upper_kg": 15.1644579
+    },
+    {
+     "current_a": 2.5,
+     "inferred_kg": 25.000000000000007,
+     "mass_kg": 25.0,
+     "offload": true,
+     "uncertainty_frac": 0.02558,
+     "upper_kg": 25.639500000000005
+    }
+   ],
+   "slope": 31.250000000000007
+  },
+  "small": {
+   "hold_kg": 7.6,
+   "intercept": -53.125,
+   "rows": [
+    {
+     "current_a": 1.7,
+     "inferred_kg": -7.105427357601002e-15,
+     "mass_kg": 0.0,
+     "offload": false,
+     "uncertainty_frac": 0.07403,
+     "upper_kg": -7.631442144884204e-15
+    },
+    {
+     "current_a": 1.7096,
+     "inferred_kg": 0.29999999999999716,
+     "mass_kg": 0.3,
+     "offload": false,
+     "uncertainty_frac": 0.07330325,
+     "upper_kg": 0.3219909749999969
+    },
+    {
+     "current_a": 1.8215999999999999,
+     "inferred_kg": 3.79999999999999,
+     "mass_kg": 3.8,
+     "offload": false,
+     "uncertainty_frac": 0.06482450000000002,
+     "upper_kg": 4.046333099999989
+    },
+    {
+     "current_a": 1.91888,
+     "inferred_kg": 6.839999999999989,
+     "mass_kg": 6.84,
+     "offload": false,
+     "uncertainty_frac": 0.05746010000000003,
+     "upper_kg": 7.233027083999989
+    },
+    {
+     "current_a": 1.9432,
+     "inferred_kg": 7.599999999999994,
+     "mass_kg": 7.6,
+     "offload": true,
+     "uncertainty_frac": 0.055619000000000016,
+     "upper_kg": 8.022704399999995
+    },
+    {
+     "current_a": 2.5,
+     "inferred_kg": 24.999999999999986,
+     "mass_kg": 25.0,
+     "offload": true,
+     "uncertainty_frac": 0.02558,
+     "upper_kg": 25.639499999999984
+    }
+   ],
+   "slope": 31.249999999999996
+  }
+ },
+ "engagement": [
+  {
+   "e": 1.0,
+   "offset": -1.0
+  },
+  {
+   "e": 1.0,
+   "offset": -0.4
+  },
+  {
+   "e": 1.0,
+   "offset": -0.2
+  },
+  {
+   "e": 1.0,
+   "offset": 0.0
+  },
+  {
+   "e": 0.8181818181818182,
+   "offset": 0.1
+  },
+  {
+   "e": 0.5,
+   "offset": 0.275
+  },
+  {
+   "e": 0.09090909090909098,
+   "offset": 0.5
+  },
+  {
+   "e": 0.0,
+   "offset": 0.55
+  },
+  {
+   "e": 0.0,
+   "offset": 0.6
+  },
+  {
+   "e": 0.0,
+   "offset": 1.0
+  },
+  {
+   "e": 0.0,
+   "offset": 2.0
+  },
+  {
+   "e": 0.0,
+   "offset": "nan"
+  },
+  {
+   "e": 0.0,
+   "offset": "inf"
+  },
+  {
+   "e": 0.0,
+   "offset": "-inf"
+  }
+ ],
+ "resolve": [
+  {
+   "backend": "tier2_numpy",
+   "body": null,
+   "model": null
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "moon",
+   "model": null
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "mars",
+   "model": null
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "ceres",
+   "model": null
+  },
+  {
+   "body": "bennu",
+   "error": "model 'tier2_numpy@1.0' has no validated LIVE profile for body 'bennu' (validated for ['moon', 'mars', 'ceres', 'earth', 'bp1_testbed'])",
+   "model": null
+  },
+  {
+   "body": "phobos",
+   "error": "model 'tier2_numpy@1.0' has no validated LIVE profile for body 'phobos' (validated for ['moon', 'mars', 'ceres', 'earth', 'bp1_testbed'])",
+   "model": null
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "earth",
+   "model": null
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "bp1_testbed",
+   "model": null
+  },
+  {
+   "body": "pluto",
+   "error": "model 'tier2_numpy@1.0' has no validated LIVE profile for body 'pluto' (validated for ['moon', 'mars', 'ceres', 'earth', 'bp1_testbed'])",
+   "model": null
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": null,
+   "model": "tier2_numpy@1.0"
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "moon",
+   "model": "tier2_numpy@1.0"
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "mars",
+   "model": "tier2_numpy@1.0"
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "ceres",
+   "model": "tier2_numpy@1.0"
+  },
+  {
+   "body": "bennu",
+   "error": "model 'tier2_numpy@1.0' has no validated LIVE profile for body 'bennu' (validated for ['moon', 'mars', 'ceres', 'earth', 'bp1_testbed'])",
+   "model": "tier2_numpy@1.0"
+  },
+  {
+   "body": "phobos",
+   "error": "model 'tier2_numpy@1.0' has no validated LIVE profile for body 'phobos' (validated for ['moon', 'mars', 'ceres', 'earth', 'bp1_testbed'])",
+   "model": "tier2_numpy@1.0"
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "earth",
+   "model": "tier2_numpy@1.0"
+  },
+  {
+   "backend": "tier2_numpy",
+   "body": "bp1_testbed",
+   "model": "tier2_numpy@1.0"
+  },
+  {
+   "body": "pluto",
+   "error": "model 'tier2_numpy@1.0' has no validated LIVE profile for body 'pluto' (validated for ['moon', 'mars', 'ceres', 'earth', 'bp1_testbed'])",
+   "model": "tier2_numpy@1.0"
+  },
+  {
+   "body": null,
+   "error": "model 'tier2_numpy@0.1' is deprecated -- cannot be selected for LIVE",
+   "model": "tier2_numpy@0.1"
+  },
+  {
+   "body": "moon",
+   "error": "model 'tier2_numpy@0.1' is deprecated -- cannot be selected for LIVE",
+   "model": "tier2_numpy@0.1"
+  },
+  {
+   "body": "mars",
+   "error": "model 'tier2_numpy@0.1' is deprecated -- cannot be selected for LIVE",
+   "model": "tier2_numpy@0.1"
+  },
+  {
+   "body": "ceres",
+   "error": "model 'tier2_numpy@0.1' is deprecated -- cannot be selected for LIVE",
+   "model": "tier2_numpy@0.1"
+  },
+  {
+   "body": "bennu",
+   "error": "model 'tier2_numpy@0.1' is deprecated -- cannot be selected for LIVE",
+   "model": "tier2_numpy@0.1"
+  },
+  {
+   "body": "phobos",
+   "error": "model 'tier2_numpy@0.1' is deprecated -- cannot be selected for LIVE",
+   "model": "tier2_numpy@0.1"
+  },
+  {
+   "body": "earth",
+   "error": "model 'tier2_numpy@0.1' is deprecated -- cannot be selected for LIVE",
+   "model": "tier2_numpy@0.1"
+  },
+  {
+   "body": "bp1_testbed",
+   "error": "model 'tier2_numpy@0.1' is deprecated -- cannot be selected for LIVE",
+   "model": "tier2_numpy@0.1"
+  },
+  {
+   "body": "pluto",
+   "error": "model 'tier2_numpy@0.1' is deprecated -- cannot be selected for LIVE",
+   "model": "tier2_numpy@0.1"
+  },
+  {
+   "body": null,
+   "error": "model 'tier3_chrono@0.0' is unvalidated (calibration 'uncalibrated') -- cannot be selected for LIVE",
+   "model": "tier3_chrono@0.0"
+  },
+  {
+   "body": "moon",
+   "error": "model 'tier3_chrono@0.0' is unvalidated (calibration 'uncalibrated') -- cannot be selected for LIVE",
+   "model": "tier3_chrono@0.0"
+  },
+  {
+   "body": "mars",
+   "error": "model 'tier3_chrono@0.0' is unvalidated (calibration 'uncalibrated') -- cannot be selected for LIVE",
+   "model": "tier3_chrono@0.0"
+  },
+  {
+   "body": "ceres",
+   "error": "model 'tier3_chrono@0.0' is unvalidated (calibration 'uncalibrated') -- cannot be selected for LIVE",
+   "model": "tier3_chrono@0.0"
+  },
+  {
+   "body": "bennu",
+   "error": "model 'tier3_chrono@0.0' is unvalidated (calibration 'uncalibrated') -- cannot be selected for LIVE",
+   "model": "tier3_chrono@0.0"
+  },
+  {
+   "body": "phobos",
+   "error": "model 'tier3_chrono@0.0' is unvalidated (calibration 'uncalibrated') -- cannot be selected for LIVE",
+   "model": "tier3_chrono@0.0"
+  },
+  {
+   "body": "earth",
+   "error": "model 'tier3_chrono@0.0' is unvalidated (calibration 'uncalibrated') -- cannot be selected for LIVE",
+   "model": "tier3_chrono@0.0"
+  },
+  {
+   "body": "bp1_testbed",
+   "error": "model 'tier3_chrono@0.0' is unvalidated (calibration 'uncalibrated') -- cannot be selected for LIVE",
+   "model": "tier3_chrono@0.0"
+  },
+  {
+   "body": "pluto",
+   "error": "model 'tier3_chrono@0.0' is unvalidated (calibration 'uncalibrated') -- cannot be selected for LIVE",
+   "model": "tier3_chrono@0.0"
+  },
+  {
+   "body": null,
+   "error": "unknown physics model 'tier9@9'; registered: ['tier2_numpy@0.1', 'tier2_numpy@1.0', 'tier3_chrono@0.0']",
+   "model": "tier9@9"
+  },
+  {
+   "body": "moon",
+   "error": "unknown physics model 'tier9@9'; registered: ['tier2_numpy@0.1', 'tier2_numpy@1.0', 'tier3_chrono@0.0']",
+   "model": "tier9@9"
+  },
+  {
+   "body": "mars",
+   "error": "unknown physics model 'tier9@9'; registered: ['tier2_numpy@0.1', 'tier2_numpy@1.0', 'tier3_chrono@0.0']",
+   "model": "tier9@9"
+  },
+  {
+   "body": "ceres",
+   "error": "unknown physics model 'tier9@9'; registered: ['tier2_numpy@0.1', 'tier2_numpy@1.0', 'tier3_chrono@0.0']",
+   "model": "tier9@9"
+  },
+  {
+   "body": "bennu",
+   "error": "unknown physics model 'tier9@9'; registered: ['tier2_numpy@0.1', 'tier2_numpy@1.0', 'tier3_chrono@0.0']",
+   "model": "tier9@9"
+  },
+  {
+   "body": "phobos",
+   "error": "unknown physics model 'tier9@9'; registered: ['tier2_numpy@0.1', 'tier2_numpy@1.0', 'tier3_chrono@0.0']",
+   "model": "tier9@9"
+  },
+  {
+   "body": "earth",
+   "error": "unknown physics model 'tier9@9'; registered: ['tier2_numpy@0.1', 'tier2_numpy@1.0', 'tier3_chrono@0.0']",
+   "model": "tier9@9"
+  },
+  {
+   "body": "bp1_testbed",
+   "error": "unknown physics model 'tier9@9'; registered: ['tier2_numpy@0.1', 'tier2_numpy@1.0', 'tier3_chrono@0.0']",
+   "model": "tier9@9"
+  },
+  {
+   "body": "pluto",
+   "error": "unknown physics model 'tier9@9'; registered: ['tier2_numpy@0.1', 'tier2_numpy@1.0', 'tier3_chrono@0.0']",
+   "model": "tier9@9"
+  }
+ ],
+ "spawns": [
+  {
+   "base_cell_m": 5.0,
+   "bundle": "connecting_ridge_10km_5m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": -19000.0,
+   "world_y0": -20000.0,
+   "x": -16410.0,
+   "y": -18430.0
+  },
+  {
+   "base_cell_m": 5.0,
+   "bundle": "de_gerlache_rim_10km_5m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": -45000.0,
+   "world_y0": 7000.0,
+   "x": -38800.0,
+   "y": 8455.0
+  },
+  {
+   "base_cell_m": 5.0,
+   "bundle": "haworth_10km_5m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": -52900.0,
+   "world_y0": 95400.0,
+   "x": -48785.0,
+   "y": 102315.0
+  },
+  {
+   "base_cell_m": 1.0,
+   "bundle": "haworth_sfs_2km_1m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": -35290.0,
+   "world_y0": 88290.0,
+   "x": -34746.0,
+   "y": 89673.0
+  },
+  {
+   "base_cell_m": 5.0,
+   "bundle": "leibnitz_beta_10km_5m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": 65000.0,
+   "world_y0": 110000.0,
+   "x": 71035.0,
+   "y": 112275.0
+  },
+  {
+   "base_cell_m": 5.0,
+   "bundle": "malapert_massif_10km_5m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": -4000.0,
+   "world_y0": 122000.0,
+   "x": -1985.0,
+   "y": 131010.0
+  },
+  {
+   "base_cell_m": 5.0,
+   "bundle": "nobile_rim1_10km_5m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": 83000.0,
+   "world_y0": 100000.0,
+   "x": 83745.0,
+   "y": 101290.0
+  },
+  {
+   "base_cell_m": 5.0,
+   "bundle": "nobile_rim2_10km_5m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": 154000.0,
+   "world_y0": 85000.0,
+   "x": 162605.0,
+   "y": 86705.0
+  },
+  {
+   "base_cell_m": 5.0,
+   "bundle": "peak_near_shackleton_10km_5m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": 28000.0,
+   "world_y0": -22000.0,
+   "x": 34555.0,
+   "y": -15790.0
+  },
+  {
+   "base_cell_m": 5.0,
+   "bundle": "shackleton_rim_10km_5m",
+   "cols": 2000,
+   "rows": 2000,
+   "world_x0": -3000.0,
+   "world_y0": -10000.0,
+   "x": -1030.0,
+   "y": -8520.0
+  }
+ ],
+ "stream": [
+  {
+   "op": "send",
+   "out": {
+    "payload": {
+     "n": 0
+    },
+    "seq": 0,
+    "t": 0.0,
+    "v": "1.0"
+   },
+   "status": {
+    "last_ack": -1,
+    "outstanding": 1,
+    "refused": 0,
+    "seq": 1,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 0.0
+  },
+  {
+   "op": "send",
+   "out": {
+    "payload": {
+     "n": 1
+    },
+    "seq": 1,
+    "t": 0.5,
+    "v": "1.0"
+   },
+   "status": {
+    "last_ack": -1,
+    "outstanding": 2,
+    "refused": 0,
+    "seq": 2,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 0.5
+  },
+  {
+   "op": "tick",
+   "out": false,
+   "status": {
+    "last_ack": -1,
+    "outstanding": 2,
+    "refused": 0,
+    "seq": 2,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 1.0
+  },
+  {
+   "op": "send",
+   "out": {
+    "payload": {
+     "n": 3
+    },
+    "seq": 2,
+    "t": 1.0,
+    "v": "1.0"
+   },
+   "status": {
+    "last_ack": -1,
+    "outstanding": 3,
+    "refused": 0,
+    "seq": 3,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 1.0
+  },
+  {
+   "op": "send",
+   "out": null,
+   "status": {
+    "last_ack": -1,
+    "outstanding": 3,
+    "refused": 1,
+    "seq": 3,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 1.25
+  },
+  {
+   "op": "ack",
+   "out": null,
+   "status": {
+    "last_ack": 0,
+    "outstanding": 2,
+    "refused": 1,
+    "seq": 3,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 0
+  },
+  {
+   "op": "send",
+   "out": {
+    "payload": {
+     "n": 6
+    },
+    "seq": 3,
+    "t": 1.25,
+    "v": "1.0"
+   },
+   "status": {
+    "last_ack": 0,
+    "outstanding": 3,
+    "refused": 1,
+    "seq": 4,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 1.25
+  },
+  {
+   "op": "ack",
+   "out": null,
+   "status": {
+    "last_ack": 0,
+    "outstanding": 3,
+    "refused": 1,
+    "seq": 4,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 0
+  },
+  {
+   "op": "ack",
+   "out": null,
+   "status": {
+    "last_ack": 0,
+    "outstanding": 3,
+    "refused": 1,
+    "seq": 4,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": -5
+  },
+  {
+   "op": "tick",
+   "out": false,
+   "status": {
+    "last_ack": 0,
+    "outstanding": 3,
+    "refused": 1,
+    "seq": 4,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 2.5
+  },
+  {
+   "op": "ack",
+   "out": null,
+   "status": {
+    "last_ack": 2,
+    "outstanding": 1,
+    "refused": 1,
+    "seq": 4,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 2
+  },
+  {
+   "op": "tick",
+   "out": false,
+   "status": {
+    "last_ack": 2,
+    "outstanding": 1,
+    "refused": 1,
+    "seq": 4,
+    "tripped": false,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 3.25
+  },
+  {
+   "op": "tick",
+   "out": true,
+   "status": {
+    "last_ack": 2,
+    "outstanding": 1,
+    "refused": 1,
+    "seq": 4,
+    "tripped": true,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 3.5
+  },
+  {
+   "op": "send",
+   "out": null,
+   "status": {
+    "last_ack": 2,
+    "outstanding": 1,
+    "refused": 1,
+    "seq": 4,
+    "tripped": true,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 3.625
+  },
+  {
+   "op": "tick",
+   "out": true,
+   "status": {
+    "last_ack": 2,
+    "outstanding": 1,
+    "refused": 1,
+    "seq": 4,
+    "tripped": true,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 3.75
+  },
+  {
+   "op": "ack",
+   "out": null,
+   "status": {
+    "last_ack": 9,
+    "outstanding": 0,
+    "refused": 1,
+    "seq": 4,
+    "tripped": true,
+    "version": "1.0",
+    "window": 3
+   },
+   "x": 9
+  }
+ ],
+ "uniform": [
+  {
+   "line": [
+    1e+16,
+    1.0,
+    -1e+16,
+    3.0,
+    0.1,
+    0.2,
+    0.3,
+    7.0,
+    -2.5,
+    0.001,
+    5.0,
+    0.7,
+    0.1
+   ],
+   "out": [
+    4444444444444444.5,
+    3333333333333333.5,
+    2222222222222222.2,
+    1111111111111112.0,
+    0.6666666666666666,
+    -1111111111111110.5,
+    -1111111111111110.0,
+    1.1111111111111112,
+    0.7888888888888889,
+    0.7888888888888889,
+    0.7777777777777778,
+    0.7555555555555555,
+    -0.01111111111111117
+   ]
+  },
+  {
+   "line": [
+    0.0,
+    0.1,
+    0.2,
+    0.30000000000000004,
+    0.4,
+    0.5,
+    0.6000000000000001,
+    0.7000000000000001,
+    0.8,
+    0.9,
+    1.0,
+    1.1,
+    1.2000000000000002,
+    1.3,
+    1.4000000000000001,
+    1.5,
+    1.6,
+    1.7000000000000002,
+    1.8,
+    1.9000000000000001,
+    2.0,
+    2.1,
+    2.2,
+    2.3000000000000003,
+    2.4000000000000004,
+    2.5,
+    2.6,
+    2.7,
+    2.8000000000000003,
+    2.9000000000000004
+   ],
+   "out": [
+    0.1111111111111111,
+    0.16666666666666666,
+    0.23333333333333334,
+    0.3111111111111111,
+    0.4000000000000001,
+    0.5000000000000001,
+    0.6000000000000001,
+    0.7000000000000002,
+    0.8000000000000003,
+    0.9000000000000001,
+    1.0000000000000002,
+    1.1000000000000003,
+    1.2000000000000002,
+    1.3000000000000003,
+    1.4000000000000004,
+    1.5000000000000004,
+    1.6000000000000005,
+    1.7000000000000004,
+    1.8000000000000003,
+    1.9000000000000001,
+    2.0,
+    2.0999999999999996,
+    2.1999999999999997,
+    2.2999999999999994,
+    2.3999999999999995,
+    2.499999999999999,
+    2.588888888888888,
+    2.666666666666666,
+    2.7333333333333325,
+    2.7888888888888883
+   ]
+  },
+  {
+   "line": [
+    3.0
+   ],
+   "out": [
+    3.0
+   ]
+  },
+  {
+   "line": [
+    0.3,
+    0.6
+   ],
+   "out": [
+    0.43333333333333335,
+    0.4666666666666667
+   ]
+  }
+ ]
+}

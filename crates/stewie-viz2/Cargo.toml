@@ -1,0 +1,19 @@
+[package]
+name = "stewie-viz2"
+description = "The viz2 session runtime (RW-51e; Python stewie.runtime.viz2_runtime): the serialized, windowed conserved-terrain actor the live Godot client drives. Links the physics and contracts only: no rover-command, plan-lowering, plugin-host or ROS crate (RT-06)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }
+stewie-contracts = { path = "../stewie-contracts" }
+stewie-physics = { path = "../stewie-physics" }
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+
+[lints]
+workspace = true

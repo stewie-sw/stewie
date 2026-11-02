@@ -7034,6 +7034,89 @@ def stream_protocol_cases() -> None:
                                "splits": splits}})
 
 
+def viz2_parts_cases() -> None:
+    """The viz2 runtime's building blocks (RW-51e1a): ``StreamSession`` over a SYNTHETIC send/ack/tick script
+    (labelled: it reaches back-pressure, a cumulative ack, a stale ack and the deadman trip); the runtime's
+    ``DrumSensor`` (calibrated on five fills of the two-drum vehicle hold, noise off) for the small and medium
+    drums; ``resolve_live_backend`` over every model and body; ``arm_state.dig_engagement``; and the
+    flattest-interior spawn on every real bundle with a heightmap."""
+    import types
+
+    from stewie.bridge.stream import StreamSession
+    from stewie.contracts import physics_model_control as PMC
+    from stewie.physics import rassor_mass_model as RM
+    from stewie.physics.worksite import WorkSite
+    from stewie.runtime.viz2_runtime import Viz2Runtime
+    from stewie.specs import arm_state as AS
+    from stewie.specs import bodies as B
+    from stewie.specs.ipex_specs import DRUM_CAPACITY_KG
+
+    sess = StreamSession(window=3, ack_deadline_s=2.0)
+    # binary-exact times, so the deadline's strict ">" is met exactly once (3.25 - 1.25 == 2.0 does not trip)
+    script = [("send", 0.0), ("send", 0.5), ("tick", 1.0), ("send", 1.0), ("send", 1.25), ("ack", 0),
+              ("send", 1.25), ("ack", 0), ("ack", -5), ("tick", 2.5), ("ack", 2), ("tick", 3.25), ("tick", 3.5),
+              ("send", 3.625), ("tick", 3.75), ("ack", 9)]
+    stream_steps = []
+    for op, x in script:
+        if op == "send":
+            out = sess.send({"n": len(stream_steps)}, now=x)
+        elif op == "ack":
+            sess.ack(int(x))
+            out = None
+        else:
+            out = sess.tick(now=x)
+        stream_steps.append({"op": op, "x": x, "out": out, "status": sess.status()})
+    drums = {}
+    for drum in ("small", "medium"):
+        hold = 2.0 * DRUM_CAPACITY_KG[drum]
+        sensor = RM.DrumSensor.calibrated([f * hold for f in (0.0, 0.25, 0.5, 0.75, 1.0)], capacity_kg=hold)
+        rows = []
+        for m in (0.0, 0.3, 0.5 * hold, 0.9 * hold, hold, 25.0):
+            i = sensor.current(m)
+            inferred = sensor.infer(i)
+            d = sensor.offload(inferred)
+            rows.append({"mass_kg": m, "current_a": i, "inferred_kg": inferred, "offload": d.offload,
+                         "uncertainty_frac": d.uncertainty_frac, "upper_kg": d.upper_kg})
+        drums[drum] = {"hold_kg": hold, "slope": sensor.model.slope, "intercept": sensor.model.intercept,
+                       "rows": rows}
+    resolve = []
+    for mid in (None, *PMC.MODELS, "tier9@9"):
+        for body in (None, *B.BODIES, "pluto"):
+            try:
+                resolve.append({"model": mid, "body": body,
+                                "backend": PMC.resolve_live_backend(mid, body=body).info().id})
+            except (PMC.PhysicsModelRefused, KeyError) as e:
+                resolve.append({"model": mid, "body": body, "error": e.args[0]})
+    offsets = [-1.0, -0.4, -0.2, 0.0, 0.1, 0.275, 0.5, 0.55, 0.6, 1.0, 2.0]
+    engagement = [{"offset": o, "e": AS.dig_engagement(o)} for o in offsets]
+    engagement += [{"offset": t, "e": AS.dig_engagement(float(t))} for t in ("nan", "inf", "-inf")]
+    spawns = []
+    root = os.path.join(REPO, "samples", "lunar_dem")
+    for name in sorted(os.listdir(root)):
+        bundle = os.path.join(root, name)
+        if not os.path.isfile(os.path.join(bundle, "heightmap.rf32")):
+            continue
+        ws = WorkSite.from_haworth_bundle(bundle, fine_cell_m=None)
+        x, y = Viz2Runtime._flattest_interior_spawn(types.SimpleNamespace(ws=ws))
+        spawns.append({"bundle": name, "x": x, "y": y, "world_x0": ws.world_x0, "world_y0": ws.world_y0,
+                       "base_cell_m": ws.base_cell_m, "rows": ws.base.height, "cols": ws.base.width})
+    from scipy.ndimage import uniform_filter1d
+    import numpy as np
+    # SYNTHETIC lines (labelled) whose running sum rounds differently from a direct window sum
+    lines = [[1e16, 1.0, -1e16, 3.0, 0.1, 0.2, 0.3, 7.0, -2.5, 1e-3, 5.0, 0.7, 0.1],
+             [0.1 * k for k in range(30)], [3.0], [0.3, 0.6]]
+    uniform = [{"line": ln, "out": [float(x) for x in uniform_filter1d(np.asarray(ln, float), 9, mode="nearest")]}
+               for ln in lines]
+    write_fixture(ORACLE_FIXTURES, "viz2_parts_cases", "oracle/build_fixtures.py::viz2_parts_cases (the viz2 "
+                  "runtime's stream session, drum sensor, LIVE resolver, arm engagement and spawn; SYNTHETIC stream "
+                  "script, labelled)",
+                  ["stewie/bridge/stream.py", "stewie/physics/rassor_mass_model.py",
+                   "stewie/contracts/physics_model_control.py", "stewie/specs/arm_state.py",
+                   "stewie/runtime/viz2_runtime.py"],
+                  {"stream": stream_steps, "drums": drums, "resolve": resolve, "engagement": engagement,
+                   "spawns": spawns, "uniform": uniform})
+
+
 def godot_scene_cases() -> None:
     """The Godot renderer plugin's scene (RW-51a): the Python /render pipeline's own BEFORE bundle -- a window of the
     real Haworth DEM bundle cropped at its centre (u = v = 0.5, 10 cells resampled x5) by
@@ -7849,6 +7932,7 @@ def main() -> None:
     http_render_pair_cases()
     stream_http_cases()
     stream_protocol_cases()
+    viz2_parts_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()
