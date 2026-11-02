@@ -1,0 +1,12 @@
+{
+ "fixture": "http_sense_structure_cases",
+ "generator": "oracle/build_fixtures.py::http_sense_structure_cases (the FastAPI app's drum-fill sensing and structure constructability)",
+ "payload_sha256": "2ca50906e9544c010bf4bfdb7cec7cfa47f731997270aadbf2eadf3e7b1e1cdb",
+ "sources": {
+  "leap/structures.py": "f769d8338aa85f3ce25a44dacf4a30d3529a2f2be8720ab2ee5b3afffb85d8ba",
+  "stewie/physics/rassor_mass_model.py": "8f74ac186210ac6c52023ff213861e7db5a410182c9c6441b1978b71fc7fdc56",
+  "stewie/physics/slip.py": "bfb6938e63fdc0e0dbfbc01f6200bc4d783c982213fba611652e4840ecf096a0",
+  "stewie/server/constructability.py": "a1acc9aa70001dc7b69ed2e85f56aacf903eb6a060a1843a218a6bb258e5cc50",
+  "stewie/server/routers/perception.py": "06f756bd9539a0fbde360dfbcadcf2ecb5ea0ad9ef84b24d7e78fbae7c466237"
+ }
+}

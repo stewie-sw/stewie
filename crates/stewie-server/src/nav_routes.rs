@@ -412,7 +412,7 @@ const NAV_RUN: Model = Model {
 };
 
 /// The canonical lunar terramechanics set the navigation slip ladder reads (Python `_TM_PARAMS`, exported).
-fn constants_soil() -> Result<stewie_physics::soil::SoilParams, String> {
+pub(crate) fn constants_soil() -> Result<stewie_physics::soil::SoilParams, String> {
     let c: Value = serde_json::from_str(include_str!(
         "../../stewie-contracts/fixtures/terramechanics_constants.json"
     ))

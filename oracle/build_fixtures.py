@@ -6786,6 +6786,42 @@ def http_plan_ros_cases() -> None:
                    "lode/planner_views.py"], payload)
 
 
+def http_sense_structure_cases() -> None:
+    """Drum-fill sensing and structure constructability (RW-55c4): POST /sense (the free-spinning drum current, its
+    calibrated inverse and the offload decision, noise-free and with seeded noise, a custom capacity, a full drum, and
+    the validation answers) and POST /structure (templates decomposed into cut and fill orders with their earthwork,
+    and at a site's real DEM slope -- the site's centre window, a placement by lat/lon, a site with no DEM -- the
+    terramechanics and the verdict; an unnamed or unknown structure, unknown or too many params, an out-of-range
+    latitude), through one scripted session. The masses, placements and params are SYNTHETIC (labelled)."""
+
+    def script(call, key, d, clock):
+        call("POST", "/sense", json_body={"true_mass_kg": 22.5})                          # no key
+        for body in ({"true_mass_kg": 22.5}, {"true_mass_kg": 8.0}, {"true_mass_kg": 31.0},
+                     {"true_mass_kg": 12.0, "capacity_kg": 40.0}, {"true_mass_kg": 22.5, "noise_frac": 0.05, "seed": 7},
+                     {"true_mass_kg": 5.0, "noise_frac": 0.1}, {"true_mass_kg": 29.0, "noise_frac": 0.02, "seed": 2 ** 40},
+                     {"true_mass_kg": -1}, {"true_mass_kg": 1, "noise_frac": 2}, {"true_mass_kg": 1, "seed": -1},
+                     {"true_mass_kg": 1, "capacity_kg": 0}, {}):
+            call("POST", "/sense", headers=key, json_body=body)
+        call("POST", "/structure", json_body={"name": "landing_pad"})                       # no key
+        for body in ({"name": "landing_pad", "x": 5, "y": 3},
+                     {"name": "landing_pad", "x": 5, "y": 3, "site": "haworth"},
+                     {"name": "haul_road", "x": -4, "y": 2, "params": {"length_m": 30}, "site": "haworth",
+                      "lat": -86.33, "lon": -25.51},
+                     {"name": "berm", "x": 0, "y": 0},
+                     {"name": "blast_berm", "site": "atlantis"},
+                     {"x": 1},
+                     {"name": "solar_pad", "params": {"radius": 3}},
+                     {"name": "trench", "params": {f"p{i}": i for i in range(33)}},
+                     {"name": "crater_fill", "site": "haworth", "lat": 100}):
+            call("POST", "/structure", headers=key, json_body=body)
+
+    payload = _http_session("stewie-http-sense-structure-oracle", {}, script)
+    write_fixture(ORACLE_FIXTURES, "http_sense_structure_cases", "oracle/build_fixtures.py::http_sense_structure_cases "
+                  "(the FastAPI app's drum-fill sensing and structure constructability)",
+                  ["stewie/server/routers/perception.py", "stewie/physics/rassor_mass_model.py",
+                   "stewie/server/constructability.py", "leap/structures.py", "stewie/physics/slip.py"], payload)
+
+
 def plan_lowering_cases() -> None:
     """NV-11 (RW-55b25a): ``stewie.bridge.plan_lowering.lower_plan_ir`` on the plan IR of each repository sample
     mission (``lode.planner_views.plan_ir``, as ``/rc/plan_ros`` lowers it), with the AM-01 posture machine it
@@ -7483,6 +7519,7 @@ def main() -> None:
     http_executive_cases()
     http_executive_run_cases()
     http_plan_ros_cases()
+    http_sense_structure_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()

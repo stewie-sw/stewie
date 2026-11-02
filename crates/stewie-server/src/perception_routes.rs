@@ -254,4 +254,366 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/localize", post(localize))
         .route("/localize/traverse", get(localize_traverse))
         .route("/perception/depth-sources", get(depth_sources))
+        .route("/sense", post(sense))
+        .route("/structure", post(structure))
+}
+
+/// A float field whose upper bound is optional.
+const fn fl(
+    gt: crate::validate::Bound,
+    ge: crate::validate::Bound,
+    le: crate::validate::Bound,
+    default: Option<f64>,
+) -> Kind {
+    Kind::Float {
+        gt,
+        ge,
+        le,
+        default,
+    }
+}
+
+/// The paper's low-error drum fill [kg] (NTRS 20210022781: more than about half full, above 20 kg).
+const HALF_FULL_KG: f64 = 20.0;
+
+/// Python `SenseRequest`.
+const SENSE: Model = Model {
+    fields: &[
+        Field(
+            "true_mass_kg",
+            fl(None, Some((0.0, "0")), Some((1e5, "100000")), None),
+        ),
+        Field(
+            "capacity_kg",
+            Kind::Opt(&fl(Some((0.0, "0")), None, Some((1e5, "100000")), None)),
+        ),
+        Field(
+            "noise_frac",
+            fl(None, Some((0.0, "0")), Some((1.0, "1")), Some(0.0)),
+        ),
+        Field(
+            "seed",
+            Kind::Int {
+                ge: 0,
+                le: i64::MAX,
+                default: 0,
+            },
+        ),
+    ],
+    forbid_extra: false,
+};
+
+/// Drum-fill sensing (ICE-RASSOR; Python `post_sense`): the true drum mass becomes the free-spinning drum current
+/// (with seeded Gaussian noise when `noise_frac > 0`, Python's `random.Random(seed).gauss`), a linear model fitted on
+/// seven fills of the drum infers the mass back, and the offload decision fires when the upper uncertainty bound
+/// reaches capacity.
+async fn sense(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (head, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        require_auth(st, &head)?;
+        let v = body_model(body.as_ref(), SENSE)?;
+        let cfg = st.planning.config.clone().map_err(|e| err(StatusCode::SERVICE_UNAVAILABLE, e))?;
+        let num = |k: &str| v[k].as_f64().unwrap_or(0.0);
+        let drum = st.planning.fleet.vehicles.get("ipex").map(|v| v.drum_capacity_kg);
+        let cap = v["capacity_kg"].as_f64().or(drum).ok_or_else(|| err(StatusCode::SERVICE_UNAVAILABLE,
+                                                                          "the fleet registry has no ipex drum"))?;
+        let (base, slope) = (cfg.fdc_baseline_a, cfg.fdc_slope_a_per_kg);
+        // the calibration: currents synthesised at seven fills, then the least-squares inverse
+        let masses: Vec<f64> = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1.0].iter().map(|f| cap * f).collect();
+        let currents: Vec<f64> = masses.iter().map(|m| base + slope * m).collect();
+        #[allow(clippy::cast_precision_loss)] // seven samples
+        let n = masses.len() as f64;
+        let sum = |xs: &mut dyn Iterator<Item = f64>| xs.fold(0.0, |a, x| a + x);
+        let (mx, my) = (sum(&mut currents.iter().copied()) / n, sum(&mut masses.iter().copied()) / n);
+        let sxx = sum(&mut currents.iter().map(|x| (x - mx).powi(2)));
+        let sxy = sum(&mut currents.iter().zip(&masses).map(|(x, y)| (x - mx) * (y - my)));
+        let (k, b) = (sxy / sxx, my - sxy / sxx * mx);
+        let noise = num("noise_frac");
+        let mut current = base + slope * num("true_mass_kg");
+        if noise > 0.0 {
+            let seed = u128::try_from(v["seed"].as_i64().unwrap_or(0)).unwrap_or(0);
+            current += stewie_twin::mt19937::Mt19937::new(seed).gauss(0.0, noise * slope * cap);
+        }
+        let inferred = k * current + b;
+        let (lo, hf) = (st.planning.report.fdc_mpe_all, st.planning.report.fdc_mpe_half_full);
+        let unc = if inferred >= HALF_FULL_KG { hf } else { lo + inferred.max(0.0) / HALF_FULL_KG * (hf - lo) };
+        let (lower, upper) = (inferred * (1.0 - unc), inferred * (1.0 + unc));
+        let offload = upper >= cap;
+        // the Python audits drum sensing under the literal actor "api"
+        log(st, &head, "api", "sense", &format!("inferred {inferred:.1} kg, offload={}", if offload { "True" } else { "False" }));
+        Ok(axum::Json(json!({"ok": true, "true_mass_kg": num("true_mass_kg"), "current_a": current, "inferred_kg": inferred,
+                             "uncertainty_frac": unc, "lower_kg": lower, "upper_kg": upper, "capacity_kg": cap,
+                             "offload": offload, "noise_frac": noise}))
+        .into_response())
+    })
+    .await
+}
+
+const NAME: Kind = Kind::Str {
+    min: 0,
+    max: 80,
+    nullable: true,
+    default: None,
+};
+
+/// Python `StructureRequest` (`extra="allow"`).
+const STRUCTURE: Model = Model {
+    fields: &[
+        Field("name", NAME),
+        Field("x", fl(None, None, None, Some(0.0))),
+        Field("y", fl(None, None, None, Some(0.0))),
+        Field("params", Kind::Dict),
+        Field("site", NAME),
+        Field(
+            "lat",
+            Kind::Opt(&fl(None, Some((-90.0, "-90")), Some((90.0, "90")), None)),
+        ),
+        Field(
+            "lon",
+            Kind::Opt(&fl(
+                None,
+                Some((-360.0, "-360")),
+                Some((360.0, "360")),
+                None,
+            )),
+        ),
+    ],
+    forbid_extra: false,
+};
+
+/// The median slope [deg] of a 400 x 400 window of the site's DEM around the placement (or the centre), with the
+/// DEM cell and what it was measured at (Python `constructability.site_slope_deg`); no slope without a DEM.
+fn site_slope(
+    st: &AppState,
+    site: Option<&str>,
+    lat: Option<f64>,
+    lon: Option<f64>,
+) -> (Option<f64>, Option<f64>, &'static str) {
+    let Some(site) = site.filter(|s| !s.is_empty()) else {
+        return (None, None, "no-site");
+    };
+    let Some((dem, _)) = st.terrain.moon_dem(site) else {
+        return (None, None, "site-dem-unavailable");
+    };
+    let (h, w, cell) = (dem.rows, dem.cols, dem.cell_m);
+    let (mut rc, mut cc, mut source) = (h / 2, w / 2, "site-median");
+    if let (Some(lat), Some(lon)) = (lat, lon)
+        && let Ok((ox, oy)) = st.terrain.latlon_to_order(&dem, (0.0, 0.0), lon, lat)
+    {
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            clippy::cast_precision_loss
+        )] // grid indices
+        let clamp = |v: f64, n: usize| (v.round_ties_even().max(0.0) as usize).min(n - 1);
+        (rc, cc, source) = (clamp(oy / cell, h), clamp(ox / cell, w), "placement");
+    }
+    let half = 200;
+    let r0 = rc.saturating_sub(half).min(h.saturating_sub(2 * half));
+    let c0 = cc.saturating_sub(half).min(w.saturating_sub(2 * half));
+    let (rows, cols) = ((r0 + 2 * half).min(h) - r0, (c0 + 2 * half).min(w) - c0);
+    if rows * cols < 4 {
+        return (None, None, "dem-window-empty");
+    }
+    let win: Vec<f64> = (r0..r0 + rows)
+        .flat_map(|r| dem.z[r * w + c0..r * w + c0 + cols].iter().copied())
+        .collect();
+    let mut slope = lunar_dem::slope_deg_grid(&win, cols, rows, cell);
+    slope.sort_by(f64::total_cmp);
+    let n = slope.len();
+    let median = if n % 2 == 1 {
+        slope[n / 2]
+    } else {
+        f64::midpoint(slope[n / 2 - 1], slope[n / 2])
+    };
+    (Some(median), Some(cell), source)
+}
+
+/// Python's builtin `round(x, n)` (the evidence's rounding).
+fn round(x: f64, n: usize) -> f64 {
+    stewie_traverse::nav::py_round(x, n)
+}
+
+/// SD-01 (Python `constructability.structure_evidence`): the orders' volume and mass at the bank (cut) and loose
+/// (fill) densities; at the site slope, the applied wheel contact pressure against the allowable bearing, the
+/// slip-sinkage equilibrium on the canonical constants (as the Python's spine) and the derived verdict.
+#[allow(clippy::too_many_lines)] // the Python's evidence block, field by field
+fn structure_evidence(
+    st: &AppState,
+    name: &Value,
+    orders: &[Value],
+    site: &Value,
+    slope: (Option<f64>, Option<f64>, &str),
+) -> Result<Value, String> {
+    let (_, base) = stewie_physics::soil::bundled();
+    let (bank, loose) = (base.rho_deep.value, base.rho_spoil.value);
+    let (mut per, mut cv, mut fv, mut cm, mut fm) = (Vec::new(), 0.0, 0.0, 0.0, 0.0);
+    for o in orders {
+        let (fp, depth) = (
+            o["footprint_m2"].as_f64().unwrap_or(0.0),
+            o["depth_m"].as_f64().unwrap_or(0.0),
+        );
+        let vol = fp * depth;
+        let cut = o["kind"] == "cut";
+        let rho = if cut { bank } else { loose };
+        let mass = vol * rho;
+        per.push(json!({"action": o.get("action").cloned().unwrap_or(json!("")), "kind": o["kind"],
+                        "footprint_m2": round(fp, 3), "depth_m": round(depth, 4), "volume_m3": round(vol, 4),
+                        "mass_kg": round(mass, 1), "density_kg_m3": rho}));
+        if cut {
+            cv += vol;
+            cm += mass;
+        } else {
+            fv += vol;
+            fm += mass;
+        }
+    }
+    let balanced = cm > 0.0 && fm > 0.0 && (cm - fm).abs() <= 1e-6 * cm.max(fm);
+    let earthwork = json!({"orders": per, "cut_volume_m3": round(cv, 4), "fill_volume_m3": round(fv, 4),
+                           "cut_mass_kg": round(cm, 1), "fill_mass_kg": round(fm, 1), "excavated_volume_m3": round(cv, 4),
+                           "excavated_mass_kg": round(cm, 1), "mass_balanced": balanced});
+    let (mut terra, mut verdict) = (Value::Null, Value::Null);
+    if let Some(deg) = slope.0 {
+        let cfg = st.planning.config.as_ref().map_err(Clone::clone)?;
+        let soil = crate::nav_routes::constants_soil()?;
+        let ipex = st
+            .planning
+            .fleet
+            .vehicles
+            .get("ipex")
+            .ok_or("the fleet registry has no ipex")?;
+        let g = st
+            .planning
+            .bodies
+            .get("moon")
+            .map(|b| b.g)
+            .ok_or("no moon in the body registry")?;
+        let weight = ipex.dry_mass_kg * g;
+        let th = deg.to_radians();
+        let (len, width) = (cfg.slip.contact_len_m, cfg.slip.contact_width_m);
+        #[allow(clippy::cast_precision_loss)] // a wheel count
+        let applied = weight * th.cos() / ipex.n_wheels.get() as f64 / (width * len);
+        let case = stewie_physics::terra::DriveCase {
+            total_weight_n: weight,
+            slope_rad: th,
+            n_wheels: cfg.slip.n_wheels,
+            contact_len_m: len,
+            contact_width_m: width,
+            density: None,
+            demand_frac: 1.0,
+            extra_demand_n: 0.0,
+            s_entrap: 0.95,
+            z_entrap_m: cfg.slip.z_entrap_m,
+        };
+        let eq = stewie_physics::terra::slip_sinkage_equilibrium(&case, &soil)
+            .map_err(|e| e.to_string())?;
+        let allowable = stewie_physics::bearing::allowable_pa(
+            soil.cohesion_pa,
+            soil.phi_rad,
+            loose * g,
+            width,
+            0.0,
+            3.0,
+        );
+        let (pa, cap) = (round(applied, 1), round(allowable, 1));
+        let sink = round(eq.sinkage_m, 4);
+        terra = json!({"slope_deg": round(deg, 2), "contact_pressure_pa": pa, "bearing_capacity_pa": cap,
+                       "bearing_fs": 3.0, "bearing_ok": applied <= allowable, "sinkage_m": sink,
+                       "static_sinkage_m": round(eq.static_sinkage_m, 4), "slip": round(eq.slip, 4),
+                       "entrapped": eq.entrapped});
+        let limit = ipex.wheel_radius_m;
+        let within = sink <= limit;
+        let bearing_ok = applied <= allowable;
+        let status = if eq.entrapped {
+            format!(
+                "NOT constructable — sinkage runaway (entrapment) at {:.0}° (slip {:.2})",
+                round(deg, 2),
+                round(eq.slip, 4)
+            )
+        } else if !within {
+            format!(
+                "NOT constructable — sinkage {sink:.3} m exceeds the {limit:.3} m wheel-radius mobility limit"
+            )
+        } else if !bearing_ok {
+            format!(
+                "NOT constructable — contact pressure {pa:.0} Pa exceeds allowable bearing {cap:.0} Pa"
+            )
+        } else {
+            format!(
+                "bearing OK ({pa:.0} ≤ {cap:.0} Pa) · sinkage within limit ({sink:.3} ≤ {limit:.3} m)"
+            )
+        };
+        verdict = json!({"constructable": !eq.entrapped && within && bearing_ok, "status": status,
+                         "bearing_ok": bearing_ok, "sinkage_within_limit": within, "sinkage_limit_m": round(limit, 4),
+                         "sinkage_limit_basis": "wheel radius (IPEx WHEEL_RADIUS_M) — sinkage past it buries the hub"});
+    }
+    let spine = crate::model_routes::reg("terra_spine");
+    let cal = |id: &str, d: &str| {
+        spine
+            .as_array()
+            .and_then(|a| a.iter().find(|t| t["id"] == id))
+            .map_or_else(|| json!(d), |t| t["calibration"].clone())
+    };
+    Ok(
+        json!({"name": name, "site": site, "site_slope_deg": slope.0.map(|s| round(s, 2)), "slope_source": slope.2,
+              "earthwork": earthwork, "terramechanics": terra, "verdict": verdict,
+              "material": {"cut_density_kg_m3": bank, "fill_density_kg_m3": loose,
+                           "assumption": "conserved Apollo-profile bank(cut)/loose(fill) regolith density; mass = volume × density",
+                           "provenance": "stewie.specs.constants RHO_DEEP / RHO_SPOIL"},
+              "uncertainty": {"dem_resolution_m": slope.1.map(|c| round(c, 3)), "slope_calibration": cal("slope", "measured"),
+                              "density_calibration": cal("regolith_density", "calibrated"),
+                              "sinkage_calibration": cal("sinkage", "calibrated"),
+                              "bearing_calibration": cal("contact_pressure", "calibrated"),
+                              "note": "volume = footprint × depth (exact from the decomposed order); mass uses the calibrated \
+                                       bank/loose density profile; bearing/sinkage are calibrated Tier-2 spine terms (not \
+                                       oracle-fit); site slope is measured on the real DEM at the resolution above."}}),
+    )
+}
+
+/// SD-01: decompose a named structure at (x, y) into mass-balanced cut and fill orders, with its constructability
+/// evidence at the site's real slope.
+async fn structure(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (head, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        require_auth(st, &head)?;
+        let v = body_model(body.as_ref(), STRUCTURE)?;
+        let bad = |e: String| err(StatusCode::BAD_REQUEST, e);
+        let params = v["params"].as_object().cloned().unwrap_or_default();
+        if params.len() > 32 {
+            return Err(bad("too many structure params (max 32)".to_owned()));
+        }
+        let (_, base) = stewie_physics::soil::bundled();
+        let d = stewie_build::Densities {
+            bank: base.rho_deep.value,
+            loose: base.rho_spoil.value,
+        };
+        let num = |k: &str| v[k].as_f64().unwrap_or(0.0);
+        let Some(name) = v["name"].as_str() else {
+            let mut known: Vec<&str> = stewie_build::STRUCTURES.to_vec();
+            known.sort_unstable();
+            return Err(bad(format!(
+                "unknown structure None; known: {}",
+                stewie_twin::pyjson::repr_list(&known)
+            )));
+        };
+        let orders = stewie_build::decompose(name, num("x"), num("y"), &params, &d).map_err(bad)?;
+        let slope = site_slope(st, v["site"].as_str(), v["lat"].as_f64(), v["lon"].as_f64());
+        let evidence = structure_evidence(st, &v["name"], &orders, &v["site"], slope)
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let name = v["name"].as_str().unwrap_or("None");
+        log(
+            st,
+            &head,
+            "api",
+            "structure",
+            &format!("{name}: {} orders", orders.len()),
+        );
+        Ok(axum::Json(
+            json!({"ok": true, "name": v["name"], "orders": orders, "evidence": evidence}),
+        )
+        .into_response())
+    })
+    .await
 }

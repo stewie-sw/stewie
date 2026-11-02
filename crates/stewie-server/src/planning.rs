@@ -40,6 +40,9 @@ pub struct PlannerConfig {
     pub slip_alpha: f64,
     /// The traffic-hardening model's parameters (D-R83: no compiled default).
     pub traffic: stewie_twin::traffic_memory::TrafficParams,
+    /// The free-spinning drum current model `I = baseline + slope * mass` [A], [A/kg] ([CALIB]).
+    pub fdc_baseline_a: f64,
+    pub fdc_slope_a_per_kg: f64,
 }
 
 impl PlannerConfig {
@@ -104,6 +107,8 @@ impl PlannerConfig {
                 sigma_c_n: get("traffic_sigma_c_n")?,
                 contact_width_m: get("traffic_contact_width_m")?,
             },
+            fdc_baseline_a: get("fdc_baseline_a")?,
+            fdc_slope_a_per_kg: get("fdc_slope_a_per_kg")?,
         })
     }
 }

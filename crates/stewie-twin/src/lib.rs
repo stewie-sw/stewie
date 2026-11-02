@@ -5,6 +5,7 @@
 pub mod backup;
 pub mod cadence;
 pub mod journal;
+pub mod mt19937;
 pub mod numpy;
 pub mod pcg64;
 pub mod pyjson;

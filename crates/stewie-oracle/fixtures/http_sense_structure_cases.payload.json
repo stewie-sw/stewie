@@ -1,0 +1,1021 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "sense",
+   "actor": "api",
+   "correlation_id": "cid-002",
+   "target": "inferred 22.5 kg, offload=False",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "sense",
+   "actor": "api",
+   "correlation_id": "cid-003",
+   "target": "inferred 8.0 kg, offload=False",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "sense",
+   "actor": "api",
+   "correlation_id": "cid-004",
+   "target": "inferred 31.0 kg, offload=True",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "sense",
+   "actor": "api",
+   "correlation_id": "cid-005",
+   "target": "inferred 12.0 kg, offload=False",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "sense",
+   "actor": "api",
+   "correlation_id": "cid-006",
+   "target": "inferred 22.1 kg, offload=False",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "sense",
+   "actor": "api",
+   "correlation_id": "cid-007",
+   "target": "inferred 7.8 kg, offload=False",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "sense",
+   "actor": "api",
+   "correlation_id": "cid-008",
+   "target": "inferred 29.7 kg, offload=True",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "structure",
+   "actor": "api",
+   "correlation_id": "cid-015",
+   "target": "landing_pad: 2 orders",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "structure",
+   "actor": "api",
+   "correlation_id": "cid-016",
+   "target": "landing_pad: 2 orders",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "structure",
+   "actor": "api",
+   "correlation_id": "cid-017",
+   "target": "haul_road: 1 orders",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "structure",
+   "actor": "api",
+   "correlation_id": "cid-019",
+   "target": "blast_berm: 2 orders",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-sense-structure-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "true_mass_kg": 22.5
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "capacity_kg": 30.0,
+    "current_a": 2.42,
+    "inferred_kg": 22.499999999999986,
+    "lower_kg": 21.924449999999986,
+    "noise_frac": 0.0,
+    "offload": false,
+    "ok": true,
+    "true_mass_kg": 22.5,
+    "uncertainty_frac": 0.02558,
+    "upper_kg": 23.075549999999986
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "true_mass_kg": 22.5
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "capacity_kg": 30.0,
+    "current_a": 1.956,
+    "inferred_kg": 7.999999999999993,
+    "lower_kg": 7.562799999999993,
+    "noise_frac": 0.0,
+    "offload": false,
+    "ok": true,
+    "true_mass_kg": 8.0,
+    "uncertainty_frac": 0.05465000000000002,
+    "upper_kg": 8.437199999999994
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "true_mass_kg": 8.0
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "capacity_kg": 30.0,
+    "current_a": 2.692,
+    "inferred_kg": 31.0,
+    "lower_kg": 30.20702,
+    "noise_frac": 0.0,
+    "offload": true,
+    "ok": true,
+    "true_mass_kg": 31.0,
+    "uncertainty_frac": 0.02558,
+    "upper_kg": 31.792979999999996
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "true_mass_kg": 31.0
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "capacity_kg": 40.0,
+    "current_a": 2.084,
+    "inferred_kg": 12.0,
+    "lower_kg": 11.46048,
+    "noise_frac": 0.0,
+    "offload": false,
+    "ok": true,
+    "true_mass_kg": 12.0,
+    "uncertainty_frac": 0.04496,
+    "upper_kg": 12.539520000000001
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "capacity_kg": 40.0,
+     "true_mass_kg": 12.0
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "capacity_kg": 30.0,
+    "current_a": 2.407717746154515,
+    "inferred_kg": 22.116179567328587,
+    "lower_kg": 21.550447693996322,
+    "noise_frac": 0.05,
+    "offload": false,
+    "ok": true,
+    "true_mass_kg": 22.5,
+    "uncertainty_frac": 0.02558,
+    "upper_kg": 22.68191144066085
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "noise_frac": 0.05,
+     "seed": 7,
+     "true_mass_kg": 22.5
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "capacity_kg": 30.0,
+    "current_a": 1.9504046788493437,
+    "inferred_kg": 7.825146214041979,
+    "lower_kg": 7.394187372215778,
+    "noise_frac": 0.1,
+    "offload": false,
+    "ok": true,
+    "true_mass_kg": 5.0,
+    "uncertainty_frac": 0.055073583296483306,
+    "upper_kg": 8.256105055868181
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "noise_frac": 0.1,
+     "true_mass_kg": 5.0
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "capacity_kg": 30.0,
+    "current_a": 2.650756876498311,
+    "inferred_kg": 29.71115239057221,
+    "lower_kg": 28.95114111242137,
+    "noise_frac": 0.02,
+    "offload": true,
+    "ok": true,
+    "true_mass_kg": 29.0,
+    "uncertainty_frac": 0.02558,
+    "upper_kg": 30.471163668723044
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "noise_frac": 0.02,
+     "seed": 1099511627776,
+     "true_mass_kg": 29.0
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "true_mass_kg: Input should be greater than or equal to 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "true_mass_kg": -1
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "noise_frac: Input should be less than or equal to 1",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "noise_frac": 2,
+     "true_mass_kg": 1
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "seed: Input should be greater than or equal to 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "seed": -1,
+     "true_mass_kg": 1
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "capacity_kg: Input should be greater than 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "capacity_kg": 0,
+     "true_mass_kg": 1
+    },
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "true_mass_kg: Field required",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/sense",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "name": "landing_pad"
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "evidence": {
+     "earthwork": {
+      "cut_mass_kg": 3456.0,
+      "cut_volume_m3": 1.8,
+      "excavated_mass_kg": 3456.0,
+      "excavated_volume_m3": 1.8,
+      "fill_mass_kg": 3456.0,
+      "fill_volume_m3": 2.6585,
+      "mass_balanced": true,
+      "orders": [
+       {
+        "action": "Level landing pad",
+        "density_kg_m3": 1920.0,
+        "depth_m": 0.05,
+        "footprint_m2": 36.0,
+        "kind": "cut",
+        "mass_kg": 3456.0,
+        "volume_m3": 1.8
+       },
+       {
+        "action": "Perimeter blast berm",
+        "density_kg_m3": 1300.0,
+        "depth_m": 0.12,
+        "footprint_m2": 22.154,
+        "kind": "fill",
+        "mass_kg": 3456.0,
+        "volume_m3": 2.6585
+       }
+      ]
+     },
+     "material": {
+      "assumption": "conserved Apollo-profile bank(cut)/loose(fill) regolith density; mass = volume × density",
+      "cut_density_kg_m3": 1920.0,
+      "fill_density_kg_m3": 1300.0,
+      "provenance": "stewie.specs.constants RHO_DEEP / RHO_SPOIL"
+     },
+     "name": "landing_pad",
+     "site": null,
+     "site_slope_deg": null,
+     "slope_source": "no-site",
+     "terramechanics": null,
+     "uncertainty": {
+      "bearing_calibration": "calibrated",
+      "dem_resolution_m": null,
+      "density_calibration": "calibrated",
+      "note": "volume = footprint × depth (exact from the decomposed order); mass uses the calibrated bank/loose density profile; bearing/sinkage are calibrated Tier-2 spine terms (not oracle-fit); site slope is measured on the real DEM at the resolution above.",
+      "sinkage_calibration": "calibrated",
+      "slope_calibration": "measured"
+     },
+     "verdict": null
+    },
+    "name": "landing_pad",
+    "ok": true,
+    "orders": [
+     {
+      "action": "Level landing pad",
+      "depth_m": 0.05,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": 1920.0,
+      "kind": "cut",
+      "note": "6x6 m",
+      "x": 5.0,
+      "y": 3.0
+     },
+     {
+      "action": "Perimeter blast berm",
+      "depth_m": 0.12,
+      "footprint_m2": 22.153846153846157,
+      "kind": "fill",
+      "note": "from pad cut (bulked)",
+      "x": 12.353393621658208,
+      "y": 3.0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": {
+     "name": "landing_pad",
+     "x": 5,
+     "y": 3
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "evidence": {
+     "earthwork": {
+      "cut_mass_kg": 3456.0,
+      "cut_volume_m3": 1.8,
+      "excavated_mass_kg": 3456.0,
+      "excavated_volume_m3": 1.8,
+      "fill_mass_kg": 3456.0,
+      "fill_volume_m3": 2.6585,
+      "mass_balanced": true,
+      "orders": [
+       {
+        "action": "Level landing pad",
+        "density_kg_m3": 1920.0,
+        "depth_m": 0.05,
+        "footprint_m2": 36.0,
+        "kind": "cut",
+        "mass_kg": 3456.0,
+        "volume_m3": 1.8
+       },
+       {
+        "action": "Perimeter blast berm",
+        "density_kg_m3": 1300.0,
+        "depth_m": 0.12,
+        "footprint_m2": 22.154,
+        "kind": "fill",
+        "mass_kg": 3456.0,
+        "volume_m3": 2.6585
+       }
+      ]
+     },
+     "material": {
+      "assumption": "conserved Apollo-profile bank(cut)/loose(fill) regolith density; mass = volume × density",
+      "cut_density_kg_m3": 1920.0,
+      "fill_density_kg_m3": 1300.0,
+      "provenance": "stewie.specs.constants RHO_DEEP / RHO_SPOIL"
+     },
+     "name": "landing_pad",
+     "site": "haworth",
+     "site_slope_deg": 19.51,
+     "slope_source": "site-median",
+     "terramechanics": {
+      "bearing_capacity_pa": 7334.4,
+      "bearing_fs": 3.0,
+      "bearing_ok": true,
+      "contact_pressure_pa": 636.2,
+      "entrapped": false,
+      "sinkage_m": 0.0008,
+      "slip": 0.1691,
+      "slope_deg": 19.51,
+      "static_sinkage_m": 0.0008
+     },
+     "uncertainty": {
+      "bearing_calibration": "calibrated",
+      "dem_resolution_m": 5.0,
+      "density_calibration": "calibrated",
+      "note": "volume = footprint × depth (exact from the decomposed order); mass uses the calibrated bank/loose density profile; bearing/sinkage are calibrated Tier-2 spine terms (not oracle-fit); site slope is measured on the real DEM at the resolution above.",
+      "sinkage_calibration": "calibrated",
+      "slope_calibration": "measured"
+     },
+     "verdict": {
+      "bearing_ok": true,
+      "constructable": true,
+      "sinkage_limit_basis": "wheel radius (IPEx WHEEL_RADIUS_M) — sinkage past it buries the hub",
+      "sinkage_limit_m": 0.1525,
+      "sinkage_within_limit": true,
+      "status": "bearing OK (636 ≤ 7334 Pa) · sinkage within limit (0.001 ≤ 0.152 m)"
+     }
+    },
+    "name": "landing_pad",
+    "ok": true,
+    "orders": [
+     {
+      "action": "Level landing pad",
+      "depth_m": 0.05,
+      "footprint_m2": 36.0,
+      "insitu_density_kg_m3": 1920.0,
+      "kind": "cut",
+      "note": "6x6 m",
+      "x": 5.0,
+      "y": 3.0
+     },
+     {
+      "action": "Perimeter blast berm",
+      "depth_m": 0.12,
+      "footprint_m2": 22.153846153846157,
+      "kind": "fill",
+      "note": "from pad cut (bulked)",
+      "x": 12.353393621658208,
+      "y": 3.0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "name": "landing_pad",
+     "site": "haworth",
+     "x": 5,
+     "y": 3
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "evidence": {
+     "earthwork": {
+      "cut_mass_kg": 3456.0,
+      "cut_volume_m3": 1.8,
+      "excavated_mass_kg": 3456.0,
+      "excavated_volume_m3": 1.8,
+      "fill_mass_kg": 0.0,
+      "fill_volume_m3": 0.0,
+      "mass_balanced": false,
+      "orders": [
+       {
+        "action": "Grade haul road",
+        "density_kg_m3": 1920.0,
+        "depth_m": 0.03,
+        "footprint_m2": 60.0,
+        "kind": "cut",
+        "mass_kg": 3456.0,
+        "volume_m3": 1.8
+       }
+      ]
+     },
+     "material": {
+      "assumption": "conserved Apollo-profile bank(cut)/loose(fill) regolith density; mass = volume × density",
+      "cut_density_kg_m3": 1920.0,
+      "fill_density_kg_m3": 1300.0,
+      "provenance": "stewie.specs.constants RHO_DEEP / RHO_SPOIL"
+     },
+     "name": "haul_road",
+     "site": "haworth",
+     "site_slope_deg": 19.45,
+     "slope_source": "placement",
+     "terramechanics": {
+      "bearing_capacity_pa": 7334.4,
+      "bearing_fs": 3.0,
+      "bearing_ok": true,
+      "contact_pressure_pa": 636.5,
+      "entrapped": false,
+      "sinkage_m": 0.0008,
+      "slip": 0.1684,
+      "slope_deg": 19.45,
+      "static_sinkage_m": 0.0008
+     },
+     "uncertainty": {
+      "bearing_calibration": "calibrated",
+      "dem_resolution_m": 5.0,
+      "density_calibration": "calibrated",
+      "note": "volume = footprint × depth (exact from the decomposed order); mass uses the calibrated bank/loose density profile; bearing/sinkage are calibrated Tier-2 spine terms (not oracle-fit); site slope is measured on the real DEM at the resolution above.",
+      "sinkage_calibration": "calibrated",
+      "slope_calibration": "measured"
+     },
+     "verdict": {
+      "bearing_ok": true,
+      "constructable": true,
+      "sinkage_limit_basis": "wheel radius (IPEx WHEEL_RADIUS_M) — sinkage past it buries the hub",
+      "sinkage_limit_m": 0.1525,
+      "sinkage_within_limit": true,
+      "status": "bearing OK (636 ≤ 7334 Pa) · sinkage within limit (0.001 ≤ 0.152 m)"
+     }
+    },
+    "name": "haul_road",
+    "ok": true,
+    "orders": [
+     {
+      "action": "Grade haul road",
+      "depth_m": 0.03,
+      "footprint_m2": 60.0,
+      "insitu_density_kg_m3": 1920.0,
+      "kind": "cut",
+      "note": "30x2 m corridor",
+      "x": -4.0,
+      "y": 2.0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "lat": -86.33,
+     "lon": -25.51,
+     "name": "haul_road",
+     "params": {
+      "length_m": 30
+     },
+     "site": "haworth",
+     "x": -4,
+     "y": 2
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown structure 'berm'; known: ['blast_berm', 'borrow_pit', 'crater_fill', 'habitat_foundation', 'haul_road', 'landing_pad', 'solar_pad', 'trench']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": {
+     "name": "berm",
+     "x": 0,
+     "y": 0
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "evidence": {
+     "earthwork": {
+      "cut_mass_kg": 29250.0,
+      "cut_volume_m3": 15.2344,
+      "excavated_mass_kg": 29250.0,
+      "excavated_volume_m3": 15.2344,
+      "fill_mass_kg": 29250.0,
+      "fill_volume_m3": 22.5,
+      "mass_balanced": true,
+      "orders": [
+       {
+        "action": "Borrow pit (berm)",
+        "density_kg_m3": 1920.0,
+        "depth_m": 0.3,
+        "footprint_m2": 50.781,
+        "kind": "cut",
+        "mass_kg": 29250.0,
+        "volume_m3": 15.2344
+       },
+       {
+        "action": "Blast berm",
+        "density_kg_m3": 1300.0,
+        "depth_m": 0.5,
+        "footprint_m2": 45.0,
+        "kind": "fill",
+        "mass_kg": 29250.0,
+        "volume_m3": 22.5
+       }
+      ]
+     },
+     "material": {
+      "assumption": "conserved Apollo-profile bank(cut)/loose(fill) regolith density; mass = volume × density",
+      "cut_density_kg_m3": 1920.0,
+      "fill_density_kg_m3": 1300.0,
+      "provenance": "stewie.specs.constants RHO_DEEP / RHO_SPOIL"
+     },
+     "name": "blast_berm",
+     "site": "atlantis",
+     "site_slope_deg": null,
+     "slope_source": "site-dem-unavailable",
+     "terramechanics": null,
+     "uncertainty": {
+      "bearing_calibration": "calibrated",
+      "dem_resolution_m": null,
+      "density_calibration": "calibrated",
+      "note": "volume = footprint × depth (exact from the decomposed order); mass uses the calibrated bank/loose density profile; bearing/sinkage are calibrated Tier-2 spine terms (not oracle-fit); site slope is measured on the real DEM at the resolution above.",
+      "sinkage_calibration": "calibrated",
+      "slope_calibration": "measured"
+     },
+     "verdict": null
+    },
+    "name": "blast_berm",
+    "ok": true,
+    "orders": [
+     {
+      "action": "Borrow pit (berm)",
+      "depth_m": 0.3,
+      "footprint_m2": 50.78125,
+      "insitu_density_kg_m3": 1920.0,
+      "kind": "cut",
+      "note": "source",
+      "x": -7.063048203434806,
+      "y": 0.0
+     },
+     {
+      "action": "Blast berm",
+      "depth_m": 0.5,
+      "footprint_m2": 45.0,
+      "kind": "fill",
+      "note": "ridge to spec",
+      "x": 0.0,
+      "y": 0.0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": {
+     "name": "blast_berm",
+     "site": "atlantis"
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown structure None; known: ['blast_berm', 'borrow_pit', 'crater_fill', 'habitat_foundation', 'haul_road', 'landing_pad', 'solar_pad', 'trench']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": {
+     "x": 1
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "solar_pad() got an unexpected keyword argument 'radius'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": {
+     "name": "solar_pad",
+     "params": {
+      "radius": 3
+     }
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "too many structure params (max 32)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": {
+     "name": "trench",
+     "params": {
+      "p0": 0,
+      "p1": 1,
+      "p10": 10,
+      "p11": 11,
+      "p12": 12,
+      "p13": 13,
+      "p14": 14,
+      "p15": 15,
+      "p16": 16,
+      "p17": 17,
+      "p18": 18,
+      "p19": 19,
+      "p2": 2,
+      "p20": 20,
+      "p21": 21,
+      "p22": 22,
+      "p23": 23,
+      "p24": 24,
+      "p25": 25,
+      "p26": 26,
+      "p27": 27,
+      "p28": 28,
+      "p29": 29,
+      "p3": 3,
+      "p30": 30,
+      "p31": 31,
+      "p32": 32,
+      "p4": 4,
+      "p5": 5,
+      "p6": 6,
+      "p7": 7,
+      "p8": 8,
+      "p9": 9
+     }
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "lat: Input should be less than or equal to 90",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": {
+     "lat": 100,
+     "name": "crater_fill",
+     "site": "haworth"
+    },
+    "method": "POST",
+    "path": "/structure",
+    "raw": null
+   },
+   "status": 400
+  }
+ ],
+ "store": null
+}

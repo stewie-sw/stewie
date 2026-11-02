@@ -112,5 +112,13 @@
  "traffic_contact_width_m": {
   "value": 0.18,
   "source": "stewie/twin/traffic_memory.py TrafficMemory.contact_width_m = the IPEx wheel contact width (rover_ipex.json contact_width_m) [ASSUMPTION]"
+ },
+ "fdc_baseline_a": {
+  "value": 1.7,
+  "source": "stewie/physics/rassor_mass_model.py FDC_BASELINE_A: the empty-drum free-spinning current [CALIB] (NTRS 20210022781 Fig 8 structure)"
+ },
+ "fdc_slope_a_per_kg": {
+  "value": 0.032,
+  "source": "stewie/physics/rassor_mass_model.py FDC_SLOPE_A_PER_KG: the current rise per kg carried at 1 g [CALIB]"
  }
 }
