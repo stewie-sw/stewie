@@ -248,7 +248,7 @@ fn hash_intent(intent: &Value) -> Result<String, String> {
     Ok(hex(&Sha256::digest(text.as_bytes())))
 }
 
-fn float_repr(x: f64) -> String {
+pub(crate) fn float_repr(x: f64) -> String {
     stewie_twin::pyjson::float_repr(x).unwrap_or_else(|_| x.to_string())
 }
 

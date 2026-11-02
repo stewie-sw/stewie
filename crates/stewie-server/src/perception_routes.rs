@@ -256,6 +256,8 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/perception/depth-sources", get(depth_sources))
         .route("/sense", post(sense))
         .route("/structure", post(structure))
+        .route("/render/parallax", post(render_parallax))
+        .route("/localize/render", post(localize_render))
 }
 
 /// A float field whose upper bound is optional.
@@ -613,6 +615,270 @@ async fn structure(State(st): State<Arc<AppState>>, req: Request) -> Response {
         Ok(axum::Json(
             json!({"ok": true, "name": v["name"], "orders": orders, "evidence": evidence}),
         )
+        .into_response())
+    })
+    .await
+}
+
+/// Python `ParallaxPlanRequest` (`extra="forbid"`).
+const PARALLAX: Model = Model {
+    fields: &[
+        Field(
+            "scene",
+            Kind::Regex {
+                pattern: r"^[A-Za-z0-9_\-]+$",
+                max: 64,
+                default: Some("crater_boulders"),
+            },
+        ),
+        Field(
+            "sun_az_deg",
+            fl(None, Some((0.0, "0")), Some((360.0, "360")), None),
+        ),
+        Field(
+            "sun_el_deg",
+            fl(None, Some((0.0, "0")), Some((90.0, "90")), None),
+        ),
+        Field(
+            "posture_from",
+            Kind::Regex {
+                pattern: "^[A-Z_]+$",
+                max: 32,
+                default: Some("TRANSIT"),
+            },
+        ),
+        Field(
+            "posture_to",
+            Kind::Regex {
+                pattern: "^[A-Z_]+$",
+                max: 32,
+                default: Some("MEERKAT"),
+            },
+        ),
+        Field(
+            "size",
+            Kind::Regex {
+                pattern: r"^\d{2,5}x\d{2,5}$",
+                max: 12,
+                default: Some("1024x768"),
+            },
+        ),
+    ],
+    forbid_extra: true,
+};
+
+/// Python `LocalizeRenderRequest` (`extra="forbid"`).
+const LOCALIZE_RENDER: Model = Model {
+    fields: &[
+        Field(
+            "camera",
+            Kind::Regex {
+                pattern: "^[a-z_]+$",
+                max: 32,
+                default: Some("front_left"),
+            },
+        ),
+        Field(
+            "drift_m",
+            fl(Some((0.0, "0")), None, Some((50.0, "50")), Some(1.41)),
+        ),
+    ],
+    forbid_extra: true,
+};
+
+/// This checkout, resolved, as the Python names its files (`stewie/godot/...`, `samples/...`).
+fn checkout() -> std::path::PathBuf {
+    let repo = crate::content_routes::repo();
+    std::fs::canonicalize(&repo).unwrap_or(repo)
+}
+
+/// SN-10: the two-posture standstill capture plan: the known baseline `dh = lift_B - lift_A` and the two Godot render
+/// commands (same scene and sun, the eight-camera rig, each posture's chassis lift) a GPU host runs for the pair.
+async fn render_parallax(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (h, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        require_auth(st, &h)?;
+        let v = body_model(body.as_ref(), PARALLAX)?;
+        let text = |k: &str| v[k].as_str().unwrap_or_default().to_owned();
+        let num = |k: &str| crate::executive_routes::float_repr(v[k].as_f64().unwrap_or(0.0));
+        let (scene, from, to) = (text("scene"), text("posture_from"), text("posture_to"));
+        let unknown = |e: String| err(StatusCode::BAD_REQUEST, format!("unknown posture: {e}"));
+        let (lift_a, lift_b) = (
+            crate::spec_routes::chassis_lift(&from).map_err(unknown)?,
+            crate::spec_routes::chassis_lift(&to).map_err(unknown)?,
+        );
+        let render = checkout()
+            .join("stewie/godot/render_layers.sh")
+            .display()
+            .to_string();
+        let argv = |lift: f64| {
+            json!([
+                render,
+                "--",
+                "--scene",
+                scene,
+                "--cameras",
+                "--rover-rc",
+                "1000,1000",
+                "--chassis-lift",
+                format!("{lift:.4}"),
+                "--sun-elev",
+                num("sun_el_deg"),
+                "--sun-azim",
+                num("sun_az_deg"),
+                "--size",
+                text("size")
+            ])
+        };
+        log(st, &h, "api", "render/parallax", &scene);
+        Ok(axum::Json(json!({
+            "ok": true, "scene": scene, "dh_m": lift_b - lift_a,
+            "frames": [{"posture": from, "chassis_lift_m": lift_a, "argv": argv(lift_a)},
+                       {"posture": to, "chassis_lift_m": lift_b, "argv": argv(lift_b)}],
+        }))
+        .into_response())
+    })
+    .await
+}
+
+/// A sensor-metadata number, refused as the Python's `KeyError` when absent.
+fn meta_f64(v: &Value, path: &[&str]) -> Result<f64, String> {
+    let mut at = v;
+    for k in path {
+        at = at.get(*k).ok_or_else(|| format!("'{k}'"))?;
+    }
+    at.as_f64()
+        .ok_or_else(|| format!("{}: not a number", path.join(".")))
+}
+
+/// The rendered frame as PIL's `convert("L")`: ITU-R 601-2 luma in 16-bit fixed point, rounded.
+fn gray(path: &std::path::Path) -> Result<stewie_perceive::parallax::Gray, String> {
+    let (w, h, rgb) = crate::render_routes::read_rgb(path)?;
+    Ok(stewie_perceive::parallax::Gray {
+        px: rgb
+            .chunks_exact(3)
+            .map(|p| {
+                f64::from(
+                    (u32::from(p[0]) * 19595
+                        + u32::from(p[1]) * 38470
+                        + u32::from(p[2]) * 7471
+                        + 0x8000)
+                        >> 16,
+                )
+            })
+            .collect(),
+        width: w as usize,
+        height: h as usize,
+    })
+}
+
+/// The scene heightfield (`heightmap.rf32`, little-endian float32, its grid in `metadata.json`).
+fn heightfield(scene: &std::path::Path) -> Result<stewie_perceive::parallax::Heightfield, String> {
+    let meta: Value = serde_json::from_slice(
+        &std::fs::read(scene.join("metadata.json")).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    let g = &meta["grid"];
+    let dim = |k: &str| {
+        g[k].as_u64()
+            .and_then(|x| usize::try_from(x).ok())
+            .ok_or_else(|| format!("'{k}'"))
+    };
+    let (width, height) = (dim("width")?, dim("height")?);
+    let raw = std::fs::read(scene.join("heightmap.rf32")).map_err(|e| e.to_string())?;
+    if raw.len() != width * height * 4 {
+        return Err(format!(
+            "cannot reshape array of size {} into shape ({height},{width})",
+            raw.len() / 4
+        ));
+    }
+    Ok(stewie_perceive::parallax::Heightfield {
+        z: raw
+            .chunks_exact(4)
+            .map(|b| f64::from(f32::from_le_bytes([b[0], b[1], b[2], b[3]])))
+            .collect(),
+        width,
+        height,
+        cell_m: meta_f64(&meta, &["grid", "cell_m"])?,
+    })
+}
+
+/// SN-10: the measured articulation-parallax fix from the committed two-posture render pair (a truth-free confidence
+/// gate and a RANSAC over the measured ranges); 503 when the pair is absent, never a fabricated fix.
+async fn localize_render(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (h, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        require_auth(st, &h)?;
+        let v = body_model(body.as_ref(), LOCALIZE_RENDER)?;
+        let camera = v["camera"].as_str().unwrap_or_default().to_owned();
+        let drift = v["drift_m"].as_f64().unwrap_or(1.41);
+        let (render_dir, scene_dir) = (checkout().join("stewie/godot/out/parallax"), checkout().join("samples/crater_boulders"));
+        if !render_dir.join("A").join(format!("{camera}.png")).exists() {
+            return Err(err(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "two-posture render-pair unavailable (stewie/godot/out/parallax); render it with the Godot sidecar first",
+            ));
+        }
+        let internal = |e: String| err(StatusCode::INTERNAL_SERVER_ERROR, e);
+        let read = |name: &str| -> Result<Value, String> {
+            serde_json::from_slice(&std::fs::read(render_dir.join(name)).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())
+        };
+        let (sa, sb) = (read("A_sensors.json").map_err(internal)?, read("B_sensors.json").map_err(internal)?);
+        let bad = |e: String| err(StatusCode::BAD_REQUEST, e);
+        let ca = sa["cameras"]
+            .as_array()
+            .and_then(|cs| cs.iter().find(|c| c["name"] == camera.as_str()))
+            .ok_or_else(|| internal(format!("camera {camera} is not in the render pair's sensor metadata")))?;
+        let pos = |r: &Value, i: usize| {
+            r["position_m"].get(i).and_then(Value::as_f64).ok_or_else(|| "'position_m'".to_owned())
+        };
+        let triple = |k: &str, n: usize| -> Result<Vec<f64>, String> {
+            (0..n)
+                .map(|i| ca["pose_in_world"][k].get(i).and_then(Value::as_f64).ok_or_else(|| format!("'{k}'")))
+                .collect()
+        };
+        let (cpos, cquat) = (triple("position_m", 3).map_err(bad)?, triple("quaternion_xyzw", 4).map_err(bad)?);
+        let cam = stewie_perceive::parallax::Camera {
+            fx: meta_f64(ca, &["intrinsics", "fx"]).map_err(bad)?,
+            fy: meta_f64(ca, &["intrinsics", "fy"]).map_err(bad)?,
+            cx: meta_f64(ca, &["intrinsics", "cx"]).map_err(bad)?,
+            cy: meta_f64(ca, &["intrinsics", "cy"]).map_err(bad)?,
+            position: [cpos[0], cpos[1], cpos[2]],
+            quat_xyzw: [cquat[0], cquat[1], cquat[2], cquat[3]],
+        };
+        let dh = pos(&sb["rover"], 1).map_err(bad)? - pos(&sa["rover"], 1).map_err(bad)?;
+        if dh <= 0.0 {
+            return Err(bad("the B posture must lift the chassis above A (dh > 0)".to_owned()));
+        }
+        let true_xy = [pos(&sa["rover"], 0).map_err(bad)?, pos(&sa["rover"], 2).map_err(bad)?];
+        let frame = |side: &str| gray(&render_dir.join(side).join(format!("{camera}.png"))).map_err(internal);
+        let (ga, gb) = (frame("A")?, frame("B")?);
+        let terrain = heightfield(&scene_dir).map_err(bad)?;
+        let fix = stewie_perceive::parallax::localize_on_render_pair(&ga, &gb, &terrain, &cam, dh, true_xy, drift)
+            .map_err(bad)?;
+        let r = |x: f64, n: usize| stewie_traverse::nav::py_round(x, n);
+        let error_m = r((fix.fix_xy[0] - true_xy[0]).hypot(fix.fix_xy[1] - true_xy[1]), 3);
+        let n_inliers = fix.inlier_ranges.len();
+        let (lo, hi) = fix
+            .inlier_ranges
+            .iter()
+            .fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), &x| (lo.min(x), hi.max(x)));
+        log(
+            st,
+            &h,
+            "api",
+            "localize/render",
+            &format!("{camera}: fix err {} m, {n_inliers} inliers", crate::executive_routes::float_repr(error_m)),
+        );
+        Ok(axum::Json(json!({
+            "ok": true, "fix_xy": fix.fix_xy, "true_xy": true_xy, "seed_xy": fix.seed_xy, "error_m": error_m,
+            "fix_sigma_m": r(fix.fix_sigma_m, 3), "drift_m": r(drift, 3), "n_features": fix.n_features,
+            "n_inliers": n_inliers, "dh_m": r(dh, 4), "camera": camera, "range_span_m": [r(lo, 2), r(hi, 2)],
+            "landmarks_xy": fix.inlier_landmarks.iter().take(60).map(|l| [r(l[0], 2), r(l[1], 2)]).collect::<Vec<_>>(),
+        }))
         .into_response())
     })
     .await

@@ -403,6 +403,19 @@ fn postures() -> Result<std::collections::BTreeMap<String, Posture>, String> {
     Ok(out)
 }
 
+/// A posture's FK chassis lift [m] (Python `articulation_bridge.chassis_lift_for`); an unknown name is refused with
+/// the text of the Python's `KeyError`, which `str()` quotes.
+pub(crate) fn chassis_lift(name: &str) -> Result<f64, String> {
+    let ps = postures()?;
+    ps.get(name).map(|p| p.lift).ok_or_else(|| {
+        let known: Vec<String> = ps.keys().map(|k| format!("'{k}'")).collect();
+        format!(
+            "\"unknown posture '{name}'; known: [{}]\"",
+            known.join(", ")
+        )
+    })
+}
+
 const SOLAR_Q: Model = Model {
     fields: &[
         Field("mission_t_s", ANY_FLOAT),

@@ -2553,6 +2553,32 @@ async fn the_python_sense_and_structure_session_replays_exactly() {
 }
 
 #[tokio::test]
+async fn the_python_render_pair_session_replays_exactly() {
+    fn norm(v: &mut Value, repo: &str) {
+        match v {
+            Value::String(s) => *s = s.replace(repo, "{repo}"),
+            Value::Array(a) => a.iter_mut().for_each(|x| norm(x, repo)),
+            Value::Object(m) => m.values_mut().for_each(|x| norm(x, repo)),
+            _ => {}
+        }
+    }
+    // the capture plan's argv names this checkout, recorded as `{repo}`
+    let repo = std::fs::canonicalize(stewie_oracle::repo_root())
+        .unwrap()
+        .display()
+        .to_string();
+    replay(
+        "http_render_pair_cases",
+        b"stewie-http-render-pair-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, body| norm(body, &repo),
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn a_nav_run_routes_around_its_keepouts() {
     // D-R172: the Python 500s on any /nav/run keep-out (it hands route_leg tuples where it reads dicts); the Rust
     // routes the circles. SYNTHETIC keep-out across the straight line from the anchor to the goal.

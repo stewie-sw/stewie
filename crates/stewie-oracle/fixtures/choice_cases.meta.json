@@ -1,0 +1,6 @@
+{
+ "fixture": "choice_cases",
+ "generator": "oracle/build_fixtures.py::choice_cases (numpy Generator.choice without replacement)",
+ "payload_sha256": "1ba640b2e8ed7838093206b65dc35daa8ab7b9aebd01f4ee8f5daaade40b3f1c",
+ "sources": {}
+}

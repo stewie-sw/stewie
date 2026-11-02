@@ -1,0 +1,11 @@
+{
+ "fixture": "http_render_pair_cases",
+ "generator": "oracle/build_fixtures.py::http_render_pair_cases (the FastAPI app's articulation-parallax capture plan and render-pair fix)",
+ "payload_sha256": "da373e760d4d70cf1b34488fe033eb0ea8adf3fe66ebd0bf76f1dd2ba55b4cb5",
+ "sources": {
+  "stewie/godot/articulation_bridge.py": "beaa8c4cc5107029fac6b3581e40f967940f55b09bf2e7cb76be06a767980402",
+  "stewie/godot/out/parallax/A_sensors.json": "95a741302a770ba1a540cbc6923771dd564b51a6e6a0a29a8f29e145a8e3b3b1",
+  "stewie/physics/postures.py": "8776fc3be162031fb008606227752ca719c23f7471c1458f27fffaf889023aa4",
+  "stewie/server/routers/perception.py": "06f756bd9539a0fbde360dfbcadcf2ecb5ea0ad9ef84b24d7e78fbae7c466237"
+ }
+}

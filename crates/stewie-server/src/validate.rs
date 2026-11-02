@@ -79,6 +79,13 @@ pub enum Kind {
     IntReq { ge: i64 },
     /// A `list[str]`, `[]` when absent.
     StrList,
+    /// A string of at most `max` characters matching `pattern` (Pydantic's Rust regex: `$` is the very end), the
+    /// length checked first; required when there is no default.
+    Regex {
+        pattern: &'static str,
+        max: usize,
+        default: Option<&'static str>,
+    },
 }
 
 /// A field of a body model.
@@ -296,6 +303,16 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
             Err(e) => fail(e.to_owned()),
             Ok(x) if x < ge => fail(format!("Input should be greater than or equal to {ge}")),
             Ok(x) => Some(json!(x)),
+        },
+        Kind::Regex { pattern, max, .. } => match v {
+            Value::String(t) if t.chars().count() > max => {
+                fail(format!("String should have at most {max} {}", plural(max)))
+            }
+            Value::String(t) if regex::Regex::new(pattern).is_ok_and(|re| re.is_match(t)) => {
+                Some(v.clone())
+            }
+            Value::String(_) => fail(format!("String should match pattern '{pattern}'")),
+            _ => fail("Input should be a valid string".to_owned()),
         },
         Kind::StrList => match v {
             Value::Array(items) => {
@@ -520,6 +537,9 @@ fn fields(
             (
                 None,
                 Kind::Str {
+                    default: Some(d), ..
+                }
+                | Kind::Regex {
                     default: Some(d), ..
                 },
             ) => Some(json!(d)),

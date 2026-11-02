@@ -1,0 +1,1020 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "render/parallax",
+   "actor": "api",
+   "correlation_id": "cid-002",
+   "target": "crater_boulders",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "render/parallax",
+   "actor": "api",
+   "correlation_id": "cid-003",
+   "target": "haworth-window_2",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "render/parallax",
+   "actor": "api",
+   "correlation_id": "cid-004",
+   "target": "crater_boulders",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "localize/render",
+   "actor": "api",
+   "correlation_id": "cid-013",
+   "target": "front_left: fix err 0.29 m, 37 inliers",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "localize/render",
+   "actor": "api",
+   "correlation_id": "cid-014",
+   "target": "front_right: fix err 0.328 m, 45 inliers",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-render-pair-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "sun_az_deg": 215,
+     "sun_el_deg": 25
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "dh_m": 0.17429690249674176,
+    "frames": [
+     {
+      "argv": [
+       "{repo}/stewie/godot/render_layers.sh",
+       "--",
+       "--scene",
+       "crater_boulders",
+       "--cameras",
+       "--rover-rc",
+       "1000,1000",
+       "--chassis-lift",
+       "0.0000",
+       "--sun-elev",
+       "25.0",
+       "--sun-azim",
+       "215.0",
+       "--size",
+       "1024x768"
+      ],
+      "chassis_lift_m": 0.0,
+      "posture": "TRANSIT"
+     },
+     {
+      "argv": [
+       "{repo}/stewie/godot/render_layers.sh",
+       "--",
+       "--scene",
+       "crater_boulders",
+       "--cameras",
+       "--rover-rc",
+       "1000,1000",
+       "--chassis-lift",
+       "0.1743",
+       "--sun-elev",
+       "25.0",
+       "--sun-azim",
+       "215.0",
+       "--size",
+       "1024x768"
+      ],
+      "chassis_lift_m": 0.17429690249674176,
+      "posture": "MEERKAT"
+     }
+    ],
+    "ok": true,
+    "scene": "crater_boulders"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "sun_az_deg": 215,
+     "sun_el_deg": 25
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "dh_m": -0.17429690249674176,
+    "frames": [
+     {
+      "argv": [
+       "{repo}/stewie/godot/render_layers.sh",
+       "--",
+       "--scene",
+       "haworth-window_2",
+       "--cameras",
+       "--rover-rc",
+       "1000,1000",
+       "--chassis-lift",
+       "0.1743",
+       "--sun-elev",
+       "7.25",
+       "--sun-azim",
+       "90.5",
+       "--size",
+       "640x480"
+      ],
+      "chassis_lift_m": 0.17429690249674176,
+      "posture": "MEERKAT"
+     },
+     {
+      "argv": [
+       "{repo}/stewie/godot/render_layers.sh",
+       "--",
+       "--scene",
+       "haworth-window_2",
+       "--cameras",
+       "--rover-rc",
+       "1000,1000",
+       "--chassis-lift",
+       "0.0000",
+       "--sun-elev",
+       "7.25",
+       "--sun-azim",
+       "90.5",
+       "--size",
+       "640x480"
+      ],
+      "chassis_lift_m": 0.0,
+      "posture": "TRANSIT"
+     }
+    ],
+    "ok": true,
+    "scene": "haworth-window_2"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "posture_from": "MEERKAT",
+     "posture_to": "TRANSIT",
+     "scene": "haworth-window_2",
+     "size": "640x480",
+     "sun_az_deg": 90.5,
+     "sun_el_deg": 7.25
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "dh_m": 0.1047297574656729,
+    "frames": [
+     {
+      "argv": [
+       "{repo}/stewie/godot/render_layers.sh",
+       "--",
+       "--scene",
+       "crater_boulders",
+       "--cameras",
+       "--rover-rc",
+       "1000,1000",
+       "--chassis-lift",
+       "0.0000",
+       "--sun-elev",
+       "90.0",
+       "--sun-azim",
+       "0.0",
+       "--size",
+       "1024x768"
+      ],
+      "chassis_lift_m": 0.0,
+      "posture": "TRANSIT"
+     },
+     {
+      "argv": [
+       "{repo}/stewie/godot/render_layers.sh",
+       "--",
+       "--scene",
+       "crater_boulders",
+       "--cameras",
+       "--rover-rc",
+       "1000,1000",
+       "--chassis-lift",
+       "0.1047",
+       "--sun-elev",
+       "90.0",
+       "--sun-azim",
+       "0.0",
+       "--size",
+       "1024x768"
+      ],
+      "chassis_lift_m": 0.1047297574656729,
+      "posture": "COBRA"
+     }
+    ],
+    "ok": true,
+    "scene": "crater_boulders"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "posture_to": "COBRA",
+     "sun_az_deg": 0,
+     "sun_el_deg": 90
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown posture: \"unknown posture 'SQUAT'; known: ['BRAKED_HOLD', 'COBRA', 'DIG', 'DRUM_WALK', 'DUMP_Z', 'IRON_CROSS', 'MEERKAT', 'SELF_RIGHT', 'TRANSIT']\"",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "posture_to": "SQUAT",
+     "sun_az_deg": 0,
+     "sun_el_deg": 90
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "posture_from: String should match pattern '^[A-Z_]+$'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "posture_from": "transit",
+     "sun_az_deg": 10,
+     "sun_el_deg": 10
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "scene: String should match pattern '^[A-Za-z0-9_\\-]+$'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "scene": "../etc",
+     "sun_az_deg": 10,
+     "sun_el_deg": 10
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "size: String should match pattern '^\\d{2,5}x\\d{2,5}$'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "size": "1024x768\n",
+     "sun_az_deg": 10,
+     "sun_el_deg": 10
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "scene: String should have at most 64 characters",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "scene": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+     "sun_az_deg": 10,
+     "sun_el_deg": 10
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "sun_az_deg: Input should be less than or equal to 360; sun_el_deg: Input should be greater than or equal to 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "sun_az_deg": 361,
+     "sun_el_deg": -1
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "sun_az_deg: Field required; extra: Extra inputs are not permitted",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "extra": 1,
+     "sun_el_deg": 10
+    },
+    "method": "POST",
+    "path": "/render/parallax",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/localize/render",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "camera": "front_left",
+    "dh_m": 0.1743,
+    "drift_m": 1.41,
+    "error_m": 0.29,
+    "fix_sigma_m": 0.001,
+    "fix_xy": [
+     2.8432586946554816,
+     2.499022522520496
+    ],
+    "landmarks_xy": [
+     [
+      3.59,
+      2.17
+     ],
+     [
+      3.6,
+      2.19
+     ],
+     [
+      3.6,
+      2.2
+     ],
+     [
+      3.59,
+      2.18
+     ],
+     [
+      3.59,
+      2.19
+     ],
+     [
+      3.59,
+      2.21
+     ],
+     [
+      3.61,
+      2.22
+     ],
+     [
+      3.61,
+      2.23
+     ],
+     [
+      3.61,
+      2.27
+     ],
+     [
+      3.61,
+      2.32
+     ],
+     [
+      3.62,
+      2.34
+     ],
+     [
+      3.62,
+      2.35
+     ],
+     [
+      3.63,
+      2.37
+     ],
+     [
+      3.63,
+      2.39
+     ],
+     [
+      3.64,
+      2.4
+     ],
+     [
+      3.65,
+      2.7
+     ],
+     [
+      3.64,
+      2.75
+     ],
+     [
+      3.62,
+      2.84
+     ],
+     [
+      3.63,
+      2.48
+     ],
+     [
+      3.64,
+      2.49
+     ],
+     [
+      3.64,
+      2.51
+     ],
+     [
+      3.64,
+      2.53
+     ],
+     [
+      3.64,
+      2.55
+     ],
+     [
+      3.64,
+      2.57
+     ],
+     [
+      3.64,
+      2.59
+     ],
+     [
+      3.64,
+      2.6
+     ],
+     [
+      3.64,
+      2.7
+     ],
+     [
+      3.63,
+      2.75
+     ],
+     [
+      3.62,
+      2.77
+     ],
+     [
+      3.6,
+      2.83
+     ],
+     [
+      3.51,
+      2.5
+     ],
+     [
+      3.4,
+      2.73
+     ],
+     [
+      3.36,
+      2.85
+     ],
+     [
+      3.36,
+      2.86
+     ],
+     [
+      3.37,
+      2.81
+     ],
+     [
+      3.37,
+      2.82
+     ],
+     [
+      3.35,
+      2.87
+     ]
+    ],
+    "n_features": 56,
+    "n_inliers": 37,
+    "ok": true,
+    "range_span_m": [
+     0.5,
+     0.87
+    ],
+    "seed_xy": [
+     3.5570205042525718,
+     1.5629793813065083
+    ],
+    "true_xy": [
+     2.55999994277954,
+     2.55999994277954
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/localize/render",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "camera": "front_right",
+    "dh_m": 0.1743,
+    "drift_m": 0.3,
+    "error_m": 0.328,
+    "fix_sigma_m": 0.001,
+    "fix_xy": [
+     2.8529221727375402,
+     2.4119948583569455
+    ],
+    "landmarks_xy": [
+     [
+      3.57,
+      2.12
+     ],
+     [
+      3.57,
+      2.13
+     ],
+     [
+      3.57,
+      2.15
+     ],
+     [
+      3.59,
+      2.16
+     ],
+     [
+      3.59,
+      2.17
+     ],
+     [
+      3.6,
+      2.18
+     ],
+     [
+      3.6,
+      2.2
+     ],
+     [
+      3.55,
+      2.13
+     ],
+     [
+      3.56,
+      2.14
+     ],
+     [
+      3.57,
+      2.15
+     ],
+     [
+      3.58,
+      2.16
+     ],
+     [
+      3.59,
+      2.17
+     ],
+     [
+      3.59,
+      2.19
+     ],
+     [
+      3.59,
+      2.21
+     ],
+     [
+      3.61,
+      2.22
+     ],
+     [
+      3.61,
+      2.23
+     ],
+     [
+      3.6,
+      2.25
+     ],
+     [
+      3.61,
+      2.27
+     ],
+     [
+      3.61,
+      2.3
+     ],
+     [
+      3.61,
+      2.32
+     ],
+     [
+      3.62,
+      2.34
+     ],
+     [
+      3.62,
+      2.35
+     ],
+     [
+      3.65,
+      2.65
+     ],
+     [
+      3.64,
+      2.74
+     ],
+     [
+      3.63,
+      2.82
+     ],
+     [
+      3.63,
+      2.46
+     ],
+     [
+      3.64,
+      2.48
+     ],
+     [
+      3.64,
+      2.5
+     ],
+     [
+      3.64,
+      2.52
+     ],
+     [
+      3.64,
+      2.53
+     ],
+     [
+      3.64,
+      2.55
+     ],
+     [
+      3.64,
+      2.57
+     ],
+     [
+      3.64,
+      2.59
+     ],
+     [
+      3.64,
+      2.61
+     ],
+     [
+      3.65,
+      2.63
+     ],
+     [
+      3.64,
+      2.64
+     ],
+     [
+      3.63,
+      2.72
+     ],
+     [
+      3.63,
+      2.73
+     ],
+     [
+      3.61,
+      2.82
+     ],
+     [
+      3.5,
+      2.47
+     ],
+     [
+      3.5,
+      2.49
+     ],
+     [
+      3.5,
+      2.5
+     ],
+     [
+      3.39,
+      2.72
+     ],
+     [
+      3.37,
+      2.79
+     ],
+     [
+      3.37,
+      2.81
+     ]
+    ],
+    "n_features": 64,
+    "n_inliers": 45,
+    "ok": true,
+    "range_span_m": [
+     0.5,
+     0.87
+    ],
+    "seed_xy": [
+     2.7721319771355044,
+     2.347867908423576
+    ],
+    "true_xy": [
+     2.55999994277954,
+     2.55999994277954
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "camera": "front_right",
+     "drift_m": 0.3
+    },
+    "method": "POST",
+    "path": "/localize/render",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "only 2 confident parallax features (need >= 3); the render geometry may be outside the camera's resolvable range",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": {
+     "camera": "rear_left"
+    },
+    "method": "POST",
+    "path": "/localize/render",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "two-posture render-pair unavailable (stewie/godot/out/parallax); render it with the Godot sidecar first",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "camera": "no_such_camera"
+    },
+    "method": "POST",
+    "path": "/localize/render",
+    "raw": null
+   },
+   "status": 503
+  },
+  {
+   "body": {
+    "error": "camera: String should match pattern '^[a-z_]+$'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "camera": "Front"
+    },
+    "method": "POST",
+    "path": "/localize/render",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "drift_m: Input should be greater than 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": {
+     "drift_m": 0
+    },
+    "method": "POST",
+    "path": "/localize/render",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "drift_m: Input should be less than or equal to 50",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": {
+     "drift_m": 51
+    },
+    "method": "POST",
+    "path": "/localize/render",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "seed: Extra inputs are not permitted",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": {
+     "camera": "front_left",
+     "seed": 1
+    },
+    "method": "POST",
+    "path": "/localize/render",
+    "raw": null
+   },
+   "status": 400
+  }
+ ],
+ "store": null
+}

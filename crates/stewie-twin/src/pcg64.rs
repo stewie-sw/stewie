@@ -75,6 +75,8 @@ fn seed_sequence_state(seed: u128) -> [u64; 4] {
 pub struct Pcg64 {
     state: u128,
     inc: u128,
+    /// numpy's `has_uint32` / `uinteger`: the upper half of a 64-bit output kept for the next 32-bit draw.
+    spare_u32: Option<u32>,
 }
 
 impl Pcg64 {
@@ -87,6 +89,7 @@ impl Pcg64 {
         let mut g = Self {
             state: 0,
             inc: (initseq << 1) | 1,
+            spare_u32: None,
         };
         g.step();
         g.state = g.state.wrapping_add(initstate);
@@ -109,6 +112,109 @@ impl Pcg64 {
             (self.state >> 122) as u32,
         );
         (hi ^ lo).rotate_right(rot)
+    }
+
+    /// numpy's `pcg64_next32`: the low half of a fresh 64-bit output, its high half kept for the next call.
+    pub fn next_u32(&mut self) -> u32 {
+        if let Some(u) = self.spare_u32.take() {
+            return u;
+        }
+        let next = self.next_u64();
+        #[allow(clippy::cast_possible_truncation)] // the two halves, by construction
+        {
+            self.spare_u32 = Some((next >> 32) as u32);
+            next as u32
+        }
+    }
+
+    /// numpy's `random_bounded_uint64(0, rng)` for `rng` below 2^32: an integer in `[0, rng]` by Lemire's
+    /// multiply-and-reject on 32-bit draws.
+    fn bounded(&mut self, rng: u32) -> u32 {
+        if rng == 0 {
+            return 0;
+        }
+        if rng == u32::MAX {
+            return self.next_u32();
+        }
+        let excl = rng + 1;
+        let mut m = u64::from(self.next_u32()) * u64::from(excl);
+        #[allow(clippy::cast_possible_truncation)] // the low 32 bits
+        let mut leftover = m as u32;
+        if leftover < excl {
+            let threshold = (u32::MAX - rng) % excl;
+            while leftover < threshold {
+                m = u64::from(self.next_u32()) * u64::from(excl);
+                #[allow(clippy::cast_possible_truncation)] // the low 32 bits
+                {
+                    leftover = m as u32;
+                }
+            }
+        }
+        #[allow(clippy::cast_possible_truncation)] // the high 32 bits
+        {
+            (m >> 32) as u32
+        }
+    }
+
+    /// `Generator.choice(pop, size, replace=False)` for a population below 10,000 (Floyd's algorithm with numpy's
+    /// open-addressing hash set, then a Fisher-Yates shuffle of the picks), draw for draw.
+    ///
+    /// # Panics
+    /// `size` above `pop`, or a population beyond the 32-bit draws.
+    pub fn choice_without_replacement(&mut self, pop: usize, size: usize) -> Vec<usize> {
+        assert!(
+            size <= pop && pop < 10_000,
+            "choice: size {size} from a population of {pop}"
+        );
+        let mut idx = vec![0_usize; size];
+        // the smallest power of two above 1.2 size, less one
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            clippy::cast_precision_loss
+        )]
+        let set_size = (1.2 * size as f64) as u64;
+        let mask = if set_size == 0 {
+            0
+        } else {
+            u64::MAX >> set_size.leading_zeros()
+        };
+        let empty = u64::MAX;
+        #[allow(clippy::cast_possible_truncation)] // a small set
+        let m = mask as usize;
+        let mut hash = vec![empty; m + 1];
+        for j in pop - size..pop {
+            #[allow(clippy::cast_possible_truncation)] // the population is below 10,000
+            let val = u64::from(self.bounded(j as u32));
+            #[allow(clippy::cast_possible_truncation)] // masked
+            let mut loc = (val & mask) as usize;
+            while hash[loc] != empty && hash[loc] != val {
+                loc = (loc + 1) & m;
+            }
+            let pick = if hash[loc] == empty {
+                hash[loc] = val;
+                val
+            } else {
+                let j64 = j as u64;
+                #[allow(clippy::cast_possible_truncation)] // masked
+                let mut loc = (j64 & mask) as usize;
+                while hash[loc] != empty {
+                    loc = (loc + 1) & m;
+                }
+                hash[loc] = j64;
+                j64
+            };
+            #[allow(clippy::cast_possible_truncation)] // below the population
+            {
+                idx[j + size - pop] = pick as usize;
+            }
+        }
+        for i in (1..size).rev() {
+            #[allow(clippy::cast_possible_truncation)] // the population is below 10,000
+            let j = self.bounded(i as u32) as usize;
+            idx.swap(i, j);
+        }
+        idx
     }
 
     /// `Generator.random()`: a double in [0, 1) from the top 53 bits.

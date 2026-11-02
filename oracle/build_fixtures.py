@@ -6822,6 +6822,50 @@ def http_sense_structure_cases() -> None:
                    "stewie/server/constructability.py", "leap/structures.py", "stewie/physics/slip.py"], payload)
 
 
+def http_render_pair_cases() -> None:
+    """The articulation-parallax render surface (RW-51c): POST /render/parallax (the two-posture capture plan at the
+    defaults and for named postures and sizes, an unknown posture, and the validation answers) and POST
+    /localize/render (the fix from the committed real render pair for the default camera, another camera and drift,
+    a camera with too few confident features, a camera with no frames, and the validation answers), through one
+    scripted session. The suns, postures, sizes and drifts are SYNTHETIC request inputs (labelled); the frames and
+    the scene are the committed render pair. The plan's argv names this checkout, recorded as ``{repo}``."""
+
+    def script(call, key, d, clock):
+        call("POST", "/render/parallax", json_body={"sun_az_deg": 215, "sun_el_deg": 25})            # no key
+        for body in ({"sun_az_deg": 215, "sun_el_deg": 25},
+                     {"sun_az_deg": 90.5, "sun_el_deg": 7.25, "posture_from": "MEERKAT", "posture_to": "TRANSIT",
+                      "scene": "haworth-window_2", "size": "640x480"},
+                     {"sun_az_deg": 0, "sun_el_deg": 90, "posture_to": "COBRA"},
+                     {"sun_az_deg": 0, "sun_el_deg": 90, "posture_to": "SQUAT"},
+                     {"sun_az_deg": 10, "sun_el_deg": 10, "posture_from": "transit"},
+                     {"sun_az_deg": 10, "sun_el_deg": 10, "scene": "../etc"},
+                     {"sun_az_deg": 10, "sun_el_deg": 10, "size": "1024x768\n"},
+                     {"sun_az_deg": 10, "sun_el_deg": 10, "scene": "s" * 65},
+                     {"sun_az_deg": 361, "sun_el_deg": -1},
+                     {"sun_el_deg": 10, "extra": 1}):
+            call("POST", "/render/parallax", headers=key, json_body=body)
+        call("POST", "/localize/render", json_body={})                                                # no key
+        for body in ({}, {"camera": "front_right", "drift_m": 0.3}, {"camera": "rear_left"},
+                     {"camera": "no_such_camera"}, {"camera": "Front"}, {"drift_m": 0}, {"drift_m": 51},
+                     {"camera": "front_left", "seed": 1}):
+            call("POST", "/localize/render", headers=key, json_body=body)
+
+    payload = _http_session("stewie-http-render-pair-oracle", {}, script)
+
+    def norm(v):
+        if isinstance(v, dict):
+            return {k: norm(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [norm(x) for x in v]
+        return v.replace(REPO, "{repo}") if isinstance(v, str) else v
+    for step in payload["steps"]:
+        step["body"] = norm(step["body"])
+    write_fixture(ORACLE_FIXTURES, "http_render_pair_cases", "oracle/build_fixtures.py::http_render_pair_cases (the "
+                  "FastAPI app's articulation-parallax capture plan and render-pair fix)",
+                  ["stewie/server/routers/perception.py", "stewie/godot/articulation_bridge.py",
+                   "stewie/physics/postures.py", "stewie/godot/out/parallax/A_sensors.json"], payload)
+
+
 def godot_scene_cases() -> None:
     """The Godot renderer plugin's scene (RW-51a): the Python /render pipeline's own BEFORE bundle -- a window of the
     real Haworth DEM bundle cropped at its centre (u = v = 0.5, 10 cells resampled x5) by
@@ -6889,6 +6933,47 @@ def render_earthwork_cases() -> None:
                   "/render pipeline's crop and flatten on the real Haworth bundle)",
                   ["scripts/plan_render_pipeline.py", "stewie/physics/column_state.py", "stewie/physics/worksite.py",
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], {"cases": cases})
+
+
+def choice_cases() -> None:
+    """numpy's ``Generator.choice(n, 3, replace=False)`` (RW-51c: the render-pair localizer's RANSAC draws its
+    samples so): 200 consecutive calls per ``default_rng(seed)`` stream, so the PCG64 32-bit spare carried between
+    calls is exercised, for populations from 3 to 3,000. The seeds and populations are SYNTHETIC test inputs
+    (labelled); every draw is numpy's."""
+    import numpy as np
+    cases = []
+    for seed in (0, 1, 7, 12345):
+        for n in (3, 4, 5, 20, 57, 200, 3000):
+            rng = np.random.default_rng(seed)
+            cases.append({"seed": seed, "n": n,
+                          "draws": [[int(x) for x in rng.choice(n, 3, replace=False)] for _ in range(200)]})
+    write_fixture(ORACLE_FIXTURES, "choice_cases", "oracle/build_fixtures.py::choice_cases (numpy Generator.choice "
+                  "without replacement)", [], {"numpy": np.__version__, "cases": cases})
+
+
+def render_pair_cases() -> None:
+    """RW-51c: ``articulation_bridge.localize_on_render_pair`` (``POST /localize/render``) on the committed real
+    two-posture Godot render pair over the ``crater_boulders`` scene, for every camera of the rig at the route's
+    default drift and two others: the fix, its seed, sigma, feature and inlier counts, the inlier range span and
+    landmarks, or the refusal (fewer than three confident features)."""
+    from stewie.godot import articulation_bridge as AB
+
+    render_dir = os.path.join(REPO, "stewie", "godot", "out", "parallax")
+    scene_dir = os.path.join(REPO, "samples", "crater_boulders")
+    cases = []
+    for camera in ("front_left", "front_right", "rear_left", "rear_right", "left_mono", "right_mono",
+                   "drum_front_cam", "drum_back_cam"):
+        for drift in (1.41, 0.3, 4.0):
+            try:
+                res = AB.localize_on_render_pair(render_dir, scene_dir, camera=camera, drift_m=drift)
+                cases.append({"camera": camera, "drift_m": drift, "result": json.loads(json.dumps(res))})
+            except ValueError as e:
+                cases.append({"camera": camera, "drift_m": drift, "error": str(e)})
+    write_fixture(ORACLE_FIXTURES, "render_pair_cases", "oracle/build_fixtures.py::render_pair_cases (the "
+                  "articulation-parallax fix on the committed two-posture render pair)",
+                  ["stewie/godot/articulation_bridge.py", "dart/depth_truth.py", "dart/articulated_parallax.py",
+                   "stewie/godot/out/parallax/A_sensors.json", "stewie/godot/out/parallax/B_sensors.json",
+                   "samples/crater_boulders/heightmap.rf32"], {"cases": cases})
 
 
 def plan_lowering_cases() -> None:
@@ -7591,6 +7676,9 @@ def main() -> None:
     http_sense_structure_cases()
     godot_scene_cases()
     render_earthwork_cases()
+    choice_cases()
+    render_pair_cases()
+    http_render_pair_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()

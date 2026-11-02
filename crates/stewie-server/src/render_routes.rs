@@ -262,7 +262,7 @@ fn window_meta(bundle_meta: &Value, cs: &ColumnState) -> Value {
 }
 
 /// Decode an RGB(A) PNG to RGB rows.
-fn read_rgb(path: &Path) -> Result<(u32, u32, Vec<u8>), String> {
+pub(crate) fn read_rgb(path: &Path) -> Result<(u32, u32, Vec<u8>), String> {
     let file = std::fs::File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut reader = png::Decoder::new(std::io::BufReader::new(file))
         .read_info()

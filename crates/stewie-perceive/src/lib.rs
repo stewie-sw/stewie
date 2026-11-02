@@ -2,5 +2,6 @@
 //! perception, resync and SLAM-seam paths use (Python `dart.pose_graph_se2`).
 
 pub mod localize;
+pub mod parallax;
 pub mod pose_graph_se2;
 pub mod slam_seam;

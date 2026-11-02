@@ -1,0 +1,13 @@
+{
+ "fixture": "render_pair_cases",
+ "generator": "oracle/build_fixtures.py::render_pair_cases (the articulation-parallax fix on the committed two-posture render pair)",
+ "payload_sha256": "f4763ec3b80649764f74e798cdabf1653ff3d86f4350cd13f866748d87c9b3bd",
+ "sources": {
+  "dart/articulated_parallax.py": "8f510f4a42322b2df60554e927c27c243bf2d6a78269377d1e815932ec68d75c",
+  "dart/depth_truth.py": "faadb2484038602a54867d15547c273983b8f8f858137526aba7306ad4dc4670",
+  "samples/crater_boulders/heightmap.rf32": "6f595ee8c6800e72bfecda78ffdb1fcae468109e2a434b0a9459acb6315bfe70",
+  "stewie/godot/articulation_bridge.py": "beaa8c4cc5107029fac6b3581e40f967940f55b09bf2e7cb76be06a767980402",
+  "stewie/godot/out/parallax/A_sensors.json": "95a741302a770ba1a540cbc6923771dd564b51a6e6a0a29a8f29e145a8e3b3b1",
+  "stewie/godot/out/parallax/B_sensors.json": "35f2b13f0a658dc0b999f43d17484015cdf41c9f468342134a1f5c6c73bb836e"
+ }
+}

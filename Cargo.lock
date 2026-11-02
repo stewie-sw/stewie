@@ -2428,6 +2428,7 @@ name = "stewie-perceive"
 version = "0.1.0"
 dependencies = [
  "nalgebra",
+ "png",
  "serde_json",
  "stewie-oracle",
  "stewie-twin",

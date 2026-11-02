@@ -20,7 +20,7 @@ use crate::operators::py_repr;
 use crate::validate::{Field, Kind, Model, Ordered};
 
 /// The checkout this binary was built from (the Python's repo-relative paths).
-fn repo() -> PathBuf {
+pub(crate) fn repo() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
