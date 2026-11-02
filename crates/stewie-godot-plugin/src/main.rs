@@ -183,7 +183,12 @@ fn main() {
         };
         let op = msg.get("op").and_then(Value::as_str).unwrap_or("");
         let reply = if op == "hello" {
-            json!({"ok": true, "protocol": PROTOCOL, "name": "godot", "capabilities": ["render"]})
+            // `render` is offered only when a Godot binary is configured, so a host can tell "not available" from
+            // a render that failed
+            let configured = std::env::var("STEWIE_GODOT")
+                .is_ok_and(|g| !g.is_empty() && Path::new(&g).is_file());
+            let caps: &[&str] = if configured { &["render"] } else { &[] };
+            json!({"ok": true, "protocol": PROTOCOL, "name": "godot", "capabilities": caps})
         } else {
             let id = msg.get("id").cloned().unwrap_or(Value::Null);
             let params = msg

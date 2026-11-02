@@ -62,7 +62,16 @@ fn start() -> Session {
     let plugin = reg.require(Kind::Renderer).unwrap();
     assert_eq!(&*plugin.manifest.name, "godot");
     let s = Session::start(plugin, Duration::from_mins(5)).unwrap();
-    assert_eq!(s.capabilities, ["render"]);
+    // `render` is advertised only where a Godot binary is configured
+    let configured = std::env::var("STEWIE_GODOT").is_ok_and(|g| !g.is_empty());
+    assert_eq!(
+        s.capabilities,
+        if configured {
+            vec!["render".to_owned()]
+        } else {
+            Vec::<String>::new()
+        }
+    );
     s
 }
 

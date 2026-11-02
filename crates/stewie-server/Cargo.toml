@@ -30,6 +30,7 @@ stewie-contracts = { path = "../stewie-contracts" }
 stewie-physics = { path = "../stewie-physics" }
 stewie-perceive = { path = "../stewie-perceive" }
 stewie-plan = { path = "../stewie-plan" }
+stewie-plugins = { path = "../stewie-plugins" }
 stewie-traverse = { path = "../stewie-traverse" }
 stewie-twin = { path = "../stewie-twin" }
 subtle = "2"

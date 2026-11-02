@@ -2497,6 +2497,7 @@ dependencies = [
  "stewie-perceive",
  "stewie-physics",
  "stewie-plan",
+ "stewie-plugins",
  "stewie-traverse",
  "stewie-twin",
  "subtle",

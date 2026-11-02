@@ -36,6 +36,7 @@ pub mod point;
 pub mod raster;
 pub mod rc;
 pub mod rc_routes;
+pub mod render_routes;
 pub mod ros_routes;
 pub mod services;
 pub mod session_routes;

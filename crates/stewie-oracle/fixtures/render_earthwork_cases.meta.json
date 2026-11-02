@@ -1,0 +1,11 @@
+{
+ "fixture": "render_earthwork_cases",
+ "generator": "oracle/build_fixtures.py::render_earthwork_cases (the /render pipeline's crop and flatten on the real Haworth bundle)",
+ "payload_sha256": "da2009ac25e779dd3648ad20f9462f5ede18d5d2d4ffb30070860235481462e8",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "scripts/plan_render_pipeline.py": "4302466c9a65aeedac75465b5ce60e0973c6f703564167f0689caba5978feb64",
+  "stewie/physics/column_state.py": "eb3c84f6b087be119b75543af7db1809612476208052c7d1a62b574398cfdf35",
+  "stewie/physics/worksite.py": "edb4197977c5ad5cf237bbfc3488f11edd85c3c7c9cd437354922a795ec7b58f"
+ }
+}

@@ -97,6 +97,8 @@ pub struct Settings {
     pub plan_deadline_s: f64,
     /// The rover-command settings.
     pub rc: RcSettings,
+    /// `STEWIE_PLUGIN_PATH` (colon-separated): where the on-demand plugins are installed (D-R01).
+    pub plugin_path: Vec<std::path::PathBuf>,
     /// `STEWIE_REPORTS_TTL_S` (86400): plan reports older than this are pruned (0 or less keeps them).
     pub reports_ttl_s: f64,
     /// `STEWIE_SNAPSHOT_RPO_S` / `STEWIE_REPLICA_RPO_S` (one sol, the snapshot scheduler's trigger, when unset, not
@@ -229,6 +231,17 @@ impl RcSettings {
     }
 }
 
+/// `STEWIE_PLUGIN_PATH`: the plugin search directories (colon-separated; empty entries ignored).
+fn plugin_path(get: &dyn Fn(&str) -> Option<String>) -> Vec<std::path::PathBuf> {
+    get("STEWIE_PLUGIN_PATH")
+        .map(|v| {
+            std::env::split_paths(&v)
+                .filter(|p| !p.as_os_str().is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// An enabling environment value (`1`, `true`, `yes`, `on`; case and whitespace ignored), as the Python reads them.
 fn env_on(v: &str) -> bool {
     matches!(
@@ -308,6 +321,7 @@ impl Settings {
             max_keepouts: num("STEWIE_MAX_KEEPOUTS", "200")? as usize,
             plan_deadline_s: num("STEWIE_PLAN_DEADLINE_S", "120")?,
             rc: RcSettings::from_env(get)?,
+            plugin_path: plugin_path(get),
             reports_ttl_s: num("STEWIE_REPORTS_TTL_S", "86400")?,
             snapshot_rpo_s: rpo(&var("STEWIE_SNAPSHOT_RPO_S")),
             replica_rpo_s: rpo(&var("STEWIE_REPLICA_RPO_S")),
@@ -1305,6 +1319,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::rc_routes::routes())
         .merge(crate::executive_routes::routes())
         .merge(crate::executive_run::routes())
+        .merge(crate::render_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

@@ -6855,6 +6855,42 @@ def godot_scene_cases() -> None:
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
 
+def render_earthwork_cases() -> None:
+    """The /render pipeline's earthwork (RW-51b), without Godot: ``plan_render_pipeline.crop_window_columnstate`` (a
+    10-cell window of the real Haworth bundle at the (u, v) pick, resampled x10 by scipy's ndimage zoom, the datum
+    zero-based) and ``plan_flatten`` (the central pad flattened to its median: cut above to the drum, fill below), for
+    picks across the tile including its corners and pad fractions from 0.25 to 1. Each case records the window, the
+    target, the cut and fill masses and volumes, the drum inventory and the derived heights before and after (their
+    sums and corner cells; the default pick's after-heights in full)."""
+    import importlib
+    import sys
+
+    sys.path.insert(0, os.path.join(REPO, "scripts"))
+    PRP = importlib.import_module("plan_render_pipeline")
+    cs_full, _meta = PRP.coarse_base_from_bundle(os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m"))
+    cases = []
+    for u, v, pf in ((0.5, 0.5, 0.5), (0.2, 0.8, 0.3), (0.9, 0.1, 1.0), (0.0, 0.0, 0.5), (1.0, 1.0, 0.25),
+                     (0.37, 0.61, 0.75)):
+        cs = PRP.crop_window_columnstate(cs_full, u, v, 10, 10)
+        h0 = cs.derive_height()
+        plan = PRP.plan_flatten(cs, pad_frac=pf)
+        h1 = plan["h1"]
+        hh, ww = h1.shape
+        case = {"u": u, "v": v, "pad_frac": pf, "rows": hh, "cols": ww, "cell_m": cs.cell_m, "target": plan["target"],
+                "cut_kg": plan["cut_kg"], "fill_kg": plan["fill_kg"], "drum_kg": plan["drum_kg"],
+                "cut_vol_m3": plan["cut_vol_m3"], "fill_vol_m3": plan["fill_vol_m3"],
+                "h0_sum": float(h0.sum()), "h1_sum": float(h1.sum()),
+                "h0_corners": [float(h0[0, 0]), float(h0[0, -1]), float(h0[-1, 0]), float(h0[-1, -1])],
+                "h1_center": float(h1[hh // 2, ww // 2])}
+        if (u, v, pf) == (0.5, 0.5, 0.5):
+            case["h1"] = [float(x) for x in h1.ravel()]
+        cases.append(case)
+    write_fixture(ORACLE_FIXTURES, "render_earthwork_cases", "oracle/build_fixtures.py::render_earthwork_cases (the "
+                  "/render pipeline's crop and flatten on the real Haworth bundle)",
+                  ["scripts/plan_render_pipeline.py", "stewie/physics/column_state.py", "stewie/physics/worksite.py",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], {"cases": cases})
+
+
 def plan_lowering_cases() -> None:
     """NV-11 (RW-55b25a): ``stewie.bridge.plan_lowering.lower_plan_ir`` on the plan IR of each repository sample
     mission (``lode.planner_views.plan_ir``, as ``/rc/plan_ros`` lowers it), with the AM-01 posture machine it
@@ -7554,6 +7590,7 @@ def main() -> None:
     http_plan_ros_cases()
     http_sense_structure_cases()
     godot_scene_cases()
+    render_earthwork_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()
