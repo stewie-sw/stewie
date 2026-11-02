@@ -6419,6 +6419,149 @@ def http_rc_live_cases() -> None:
                    "stewie/contracts/live_gate.py"], payload)
 
 
+def http_executive_cases() -> None:
+    """The mission executive (RW-55c2a): POST /executive/advance (a canonical MO-01 MissionIntent driven DRAFT ->
+    RELEASED with its evidence, signed, recorded on the EG-07 chain and frozen in the release store; a re-release of
+    the same intent; every contract and compiler refusal), POST /executive/release-plan (the cockpit's build orders as
+    an intent, with the command-authority card), GET /executive/revision/{hash} and GET /executive/audit, through one
+    scripted session. The intents, orders and keep-outs are SYNTHETIC (labelled).
+
+    Applied to the Python, labelled: the lifecycle's plan IR and forward comparison plan on the Haworth DEM where the
+    Python plans flat (D-R85; D-R176), the audit chain's timestamps read the session clock, and each future's measured
+    ``wall_s`` (in the comparison and in the rehearsal evidence string) is normalised to ``<wall_s>``."""
+    import datetime as _dt
+    import re
+    import types
+
+    import lode.mission_lifecycle as LC
+    import lode.mission_planner as MP
+    import lode.resync as RES
+    import stewie.server.audit_log as AL
+    import stewie.server.state as ST
+
+    class _OnSiteDem:
+        """lode.mission_planner with ``plan`` and ``plan_ir`` on the Haworth DEM (the Rust's surface, D-R176)."""
+        def __getattr__(self, k):
+            return getattr(MP, k)
+
+        @staticmethod
+        def plan(mission, **kw):
+            dem, origin = ST.moon_dem("haworth")
+            return MP.plan(mission, dem=dem, dem_origin=origin, **kw)
+
+        @staticmethod
+        def plan_ir(mission, **kw):
+            dem, origin = ST.moon_dem("haworth")
+            return MP.plan_ir(mission, dem=dem, dem_origin=origin, **kw)
+
+    def objective(oid, *, row, col, kg, mandatory=True, prereq=(), **over):
+        return {"objective_id": oid, "revision": 1, "statement": f"level {oid}", "rationale": "SYNTHETIC (labelled)",
+                "priority": "primary", "mandatory": mandatory, "target_row": row, "target_col": col,
+                "acceptance": [{"criterion_id": f"{oid}-ac", "statement": "flat", "measurable": "RMSE <= 0.03 m",
+                                "tolerance_m": 0.03}],
+                "confidence_required": 0.8, "material_budget_kg": kg, "prerequisites": list(prereq),
+                "contingency": {"policy": "safe"}, "approver": "alice@example.org", **over}
+
+    intent = {"mission_id": "pad-east", "revision": 1, "statement": "level the east pad (SYNTHETIC)",
+              "objectives": [objective("cut-a", row=3, col=5, kg=400, energy_budget_j=1.5e6, time_window_s=[0, 9e5]),
+                             objective("cut-b", row=-4, col=8.5, kg=250, prereq=["cut-a"], energy_budget_j=1.5e6,
+                                       acceptance=[{"criterion_id": "b-ac", "statement": "flat", "measurable": "m",
+                                                    "tolerance_m": 0.02}]),
+                             objective("survey", row=0, col=0, kg=None, mandatory=False, priority="stretch")],
+              "constraints": [{"constraint_id": "c-energy", "kind": "soft", "statement": "Minimise Energy use",
+                               "weight": 0.5},
+                              {"constraint_id": "c-time", "kind": "soft", "statement": "short mission_duration",
+                               "weight": 0.3},
+                              {"constraint_id": "c-time2", "kind": "soft", "statement": "finish on time",
+                               "weight": 0.2},
+                              {"constraint_id": "c-tilt", "kind": "flight_rule", "statement": "no slopes over 15 deg"}],
+              "keep_outs": [{"region_id": "boulder", "x": 20, "y": 20, "radius_m": 3}]}
+    single = {"mission_id": "pad-west", "revision": 0, "statement": "one cut",
+              "objectives": [objective("w", row=1, col=-2, kg=300, order_kind="fill")],
+              "constraints": [{"constraint_id": "c", "kind": "soft", "statement": "the average power draw",
+                               "weight": 1}],
+              "keep_outs": [{"region_id": "p", "points": [[30, 30], [34, 30], [32, 34]]},
+                            {"region_id": "r", "x0": -30, "y0": -30, "x1": -25, "y1": -26}]}
+
+    def with_(base, **over):
+        return {**json.loads(json.dumps(base)), **over}
+
+    def obj0(**over):
+        return with_(intent, objectives=[{**intent["objectives"][0], **over}])
+
+    def script(call, key, d, clock):
+        AL.datetime = types.SimpleNamespace(
+            now=lambda tz=None: _dt.datetime.fromtimestamp(clock["t"], tz or _dt.timezone.utc))
+        bob = {"Authorization": "Bearer " + call("POST", "/auth/login", headers=key,
+                                                  json_body={"email": "bob@example.org"}).json()["token"]}
+        call("POST", "/executive/advance", json_body=intent)                               # no key
+        call("POST", "/executive/advance", headers=bob, json_body=intent)                  # an operator
+        r = call("POST", "/executive/advance", headers=key, json_body=intent)
+        h = r.json()["signed_revision"]["content_hash"]
+        clock["t"] += 3.0
+        call("POST", "/executive/advance", headers=key, json_body=intent)                  # first write wins
+        call("POST", "/executive/advance", headers=key, json_body=single)
+        for bad in (with_(intent, mission_id=None), with_(intent, extra=1), obj0(priority="urgent"),
+                    with_(intent, constraints=[{"constraint_id": "h", "kind": "hard", "statement": "x", "weight": 0.5}]),
+                    with_(intent, keep_outs=[{"region_id": "k", "x": 1, "y": 1, "radius_m": 1, "points": [[0, 0]] * 3}]),
+                    with_(intent, keep_outs=[{"region_id": "k", "points": [[0, 0], [1, 1]]}]),
+                    with_(intent, keep_outs=[{"region_id": "k", "x0": 0, "y0": 0, "x1": 0, "y1": 2}]),
+                    obj0(order_kind="dig"), obj0(acceptance=[]), obj0(mandatory="maybe"), obj0(revision=-1),
+                    obj0(contingency={"policy": "pray"}), obj0(time_window_s=[1, 2, 3]),
+                    with_(intent, objectives=[{**intent["objectives"][2]}]),
+                    with_(intent, objectives=[{**intent["objectives"][0], "material_budget_kg": None}]),
+                    with_(intent, objectives=[{**intent["objectives"][1]}]),
+                    with_(intent, objectives=[intent["objectives"][0], {**intent["objectives"][1],
+                                                                        "prerequisites": ["survey"]},
+                                              intent["objectives"][2]]),
+                    obj0(frame="MARS_ME"),
+                    with_(intent, constraints=[{"constraint_id": "s", "kind": "soft", "statement": "be nice",
+                                                "weight": 0.5}])):
+            call("POST", "/executive/advance", headers=key, json_body=bad)
+        call("POST", "/executive/advance", headers=key, json_body=[1])
+        call("POST", "/executive/advance", headers=key, raw="{not json")
+        call("GET", f"/executive/revision/{h}", headers=bob)
+        call("GET", f"/executive/revision/{'0' * 64}", headers=bob)
+        call("GET", f"/executive/revision/{h}")                                            # no key
+        call("GET", "/executive/audit", headers=bob)
+        orders = [{"action": "Level pad", "kind": "cut", "x": 4, "y": 2, "footprint_m2": 9, "depth_m": 0.1},
+                  {"action": "path", "kind": "goto", "x": 10, "y": 0},
+                  {"kind": "fill", "x": 6.5, "y": -1.25, "footprint_m2": 4, "depth_m": 0.05}]
+        call("POST", "/executive/release-plan", headers=key, json_body={"orders": orders, "mission_id": "cockpit-1"})
+        call("POST", "/executive/release-plan", headers=key, json_body={"orders": orders[1:2]})
+        call("POST", "/executive/release-plan", headers=key,
+             json_body={"orders": [dict(orders[0], footprint_m2="abc")]})
+        call("POST", "/executive/release-plan", headers=key, json_body={"orders": orders, "body": "Moon"})
+        call("POST", "/executive/release-plan", headers=key, json_body={"orders": orders, "revision": -1})
+        call("POST", "/executive/release-plan", headers=bob, json_body={"orders": orders})
+        call("GET", "/executive/audit", headers=key)
+
+    saved = (LC.MP, RES.MP, RES.time, AL.datetime)
+    try:
+        LC.MP, RES.MP = _OnSiteDem(), _OnSiteDem()
+        RES.time = types.SimpleNamespace(monotonic=lambda: 0.0)
+        payload = _http_session("stewie-http-executive-oracle", {}, script)
+    finally:
+        LC.MP, RES.MP, RES.time, AL.datetime = saved
+
+    def norm(v):
+        if isinstance(v, dict):
+            return {k: ("<wall_s>" if k == "wall_s" else norm(x)) for k, x in v.items()}
+        if isinstance(v, list):
+            return [norm(x) for x in v]
+        if isinstance(v, str):
+            return re.sub(r'"wall_s": [0-9.e+-]+', '"wall_s": "<wall_s>"', v)
+        return v
+
+    for step in payload["steps"]:
+        step["body"] = norm(step["body"])
+    write_fixture(ORACLE_FIXTURES, "http_executive_cases", "oracle/build_fixtures.py::http_executive_cases (the FastAPI "
+                  "app's mission executive: advance, release-plan, revisions, audit)",
+                  ["stewie/server/routers/executive.py", "lode/mission_lifecycle.py", "lode/mission_intent_compiler.py",
+                   "stewie/contracts/mission_ops.py", "stewie/contracts/executive.py", "stewie/contracts/audit.py",
+                   "stewie/server/audit_log.py", "lode/resync.py", "stewie/server/db.py"], payload)
+
+
 def plan_lowering_cases() -> None:
     """NV-11 (RW-55b25a): ``stewie.bridge.plan_lowering.lower_plan_ir`` on the plan IR of each repository sample
     mission (``lode.planner_views.plan_ir``, as ``/rc/plan_ros`` lowers it), with the AM-01 posture machine it
@@ -7113,6 +7256,7 @@ def main() -> None:
     http_session_cases()
     http_rc_cases()
     http_rc_live_cases()
+    http_executive_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()

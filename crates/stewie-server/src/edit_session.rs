@@ -276,6 +276,38 @@ impl Store {
 }
 
 impl Store {
+    /// Freeze one released revision keyed by its `content_hash` (Python `db.persist_release_revision`):
+    /// first write wins, so a signed revision is never mutated; true once the hash is durably present.
+    ///
+    /// # Errors
+    /// The database unreachable or refusing the row.
+    pub async fn persist_release_revision(&self, art: &Value, now: f64) -> Result<bool, ApiError> {
+        let (pool, dialect) = self.pool().await?;
+        let s = |k: &str| art.get(k).and_then(Value::as_str).unwrap_or("").to_owned();
+        let doc = |k: &str, d: Value| {
+            stewie_twin::pyjson::dumps(&art.get(k).filter(|v| !v.is_null()).cloned().unwrap_or(d))
+                .map_err(db_error)
+        };
+        sqlx::query(&sql(
+            *dialect,
+            "INSERT INTO {s}release_revision (content_hash, revision, mission_id, signed_by, signed_revision, \
+             evidence, transitions, created_at) VALUES ($1, $2, $3, $4, $5{j}, $6{j}, $7{j}, $8) ON CONFLICT \
+             (content_hash) DO NOTHING",
+        ))
+        .bind(s("content_hash"))
+        .bind(i32::try_from(art.get("revision").and_then(Value::as_i64).unwrap_or(0)).map_err(db_error)?)
+        .bind(s("mission_id"))
+        .bind(s("signed_by"))
+        .bind(doc("signed_revision", json!({}))?)
+        .bind(doc("evidence", json!({}))?)
+        .bind(doc("transitions", json!([]))?)
+        .bind(now)
+        .execute(pool)
+        .await
+        .map_err(db_error)?;
+        Ok(true)
+    }
+
     /// The frozen released revision with `content_hash` (Python `db.read_release_revision`), or `None` when none was
     /// ever released.
     ///

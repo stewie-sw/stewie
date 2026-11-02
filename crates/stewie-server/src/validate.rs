@@ -67,6 +67,18 @@ pub enum Kind {
         max: usize,
         item: &'static Model,
     },
+    /// A list of nested models, `[]` when absent (`Field(default_factory=list)`).
+    ListDefault(&'static Model),
+    /// A required `str` enum: one of its members' values.
+    Enum(&'static [&'static str]),
+    /// A required nested model.
+    Nested(&'static Model),
+    /// A required `bool`.
+    BoolReq,
+    /// A required `int` with `ge <= x`.
+    IntReq { ge: i64 },
+    /// A `list[str]`, `[]` when absent.
+    StrList,
 }
 
 /// A field of a body model.
@@ -147,7 +159,17 @@ pub(crate) fn as_int(v: &Value) -> Result<i64, &'static str> {
     }
 }
 
+/// Pydantic's enum refusal list: `'a'`, `'a' or 'b'`, `'a', 'b' or 'c'`.
+fn enum_choices(members: &[&str]) -> String {
+    let q: Vec<String> = members.iter().map(|m| format!("'{m}'")).collect();
+    match q.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{} or {last}", rest.join(", ")),
+        _ => q.join(""),
+    }
+}
+
 /// Validate one field's present value, pushing `(path, message)` errors.
+#[allow(clippy::too_many_lines)] // one arm per kind
 fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<Value> {
     let mut fail = |m: String| {
         errors.push(format!("{path}: {m}"));
@@ -248,6 +270,45 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
             _ => check(*inner, v, path, errors),
         },
         Kind::List { min, max, item } => check_list(v, min, max, item, path, errors),
+        Kind::ListDefault(item) => check_list(v, 0, usize::MAX, item, path, errors),
+        Kind::Enum(members) => match v {
+            Value::String(t) if members.contains(&t.as_str()) => Some(v.clone()),
+            _ => fail(format!("Input should be {}", enum_choices(members))),
+        },
+        Kind::Nested(model) => match v {
+            Value::Object(o) => {
+                let before = errors.len();
+                let out = fields(o, *model, path, errors);
+                (errors.len() == before).then_some(Value::Object(out))
+            }
+            _ => fail(
+                "Input should be a valid dictionary or object to extract fields from".to_owned(),
+            ),
+        },
+        Kind::BoolReq => match (v, as_bool(v)) {
+            (_, Some(b)) => Some(json!(b)),
+            (Value::String(_), None) => {
+                fail("Input should be a valid boolean, unable to interpret input".to_owned())
+            }
+            _ => fail("Input should be a valid boolean".to_owned()),
+        },
+        Kind::IntReq { ge } => match as_int(v) {
+            Err(e) => fail(e.to_owned()),
+            Ok(x) if x < ge => fail(format!("Input should be greater than or equal to {ge}")),
+            Ok(x) => Some(json!(x)),
+        },
+        Kind::StrList => match v {
+            Value::Array(items) => {
+                let before = errors.len();
+                for (i, x) in items.iter().enumerate() {
+                    if !x.is_string() {
+                        errors.push(format!("{path}.{i}: Input should be a valid string"));
+                    }
+                }
+                (errors.len() == before).then(|| v.clone())
+            }
+            _ => fail("Input should be a valid list".to_owned()),
+        },
     }
 }
 
@@ -471,7 +532,13 @@ fn fields(
             (None, Kind::Int { default, .. }) => Some(json!(default)),
             (None, Kind::FloatPairDefault(a, b)) => Some(json!([a, b])),
             (None, Kind::Dict) => Some(json!({})),
-            (None, Kind::AnyListDefault | Kind::TupleList { .. }) => Some(json!([])),
+            (
+                None,
+                Kind::AnyListDefault
+                | Kind::TupleList { .. }
+                | Kind::ListDefault(_)
+                | Kind::StrList,
+            ) => Some(json!([])),
             (None, Kind::Bool { default }) => Some(json!(default)),
             // an optional value (or an optional string) defaults to null
             (

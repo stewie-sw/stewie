@@ -36,6 +36,8 @@ pub fn journal_path(data_dir: &Path) -> PathBuf {
 pub struct Chain {
     pub records: Vec<Map<String, Value>>,
     pub load_error: Option<String>,
+    /// The anchored record count (0 without an anchor).
+    anchored: usize,
 }
 
 fn text(r: &Map<String, Value>, k: &str) -> String {
@@ -92,34 +94,35 @@ fn read_anchor(path: &Path) -> Result<Option<(usize, String)>, String> {
     Ok(Some((count as usize, head.to_owned())))
 }
 
-/// Load the chain under the journal's sidecar lock, then (as the Python's `_ensure_anchor`) advance the anchor to a
-/// valid chain's head when it lags. A malformed line stops the load and marks the chain unreadable.
-#[must_use]
-pub fn load(data_dir: &Path) -> Chain {
-    let path = journal_path(data_dir);
-    let anchor_path = PathBuf::from(format!("{}.head.json", path.display()));
-    if !path.exists() && !anchor_path.exists() {
-        return Chain::default();
+/// The journal's sidecar lock (`.lock`, `flock`), held until dropped.
+fn lock(path: &Path) -> std::io::Result<File> {
+    if let Some(d) = path.parent() {
+        std::fs::create_dir_all(d)?;
     }
-    let lock_path = PathBuf::from(format!("{}.lock", path.display()));
-    let _ = std::fs::create_dir_all(path.parent().unwrap_or(data_dir));
-    let lock = File::options()
+    let f = File::options()
         .create(true)
         .truncate(false)
         .write(true)
-        .open(&lock_path);
-    if let Ok(f) = &lock {
-        let _ = f.lock();
-    }
+        .open(PathBuf::from(format!("{}.lock", path.display())))?;
+    f.lock()?;
+    Ok(f)
+}
+
+fn anchor_path(path: &Path) -> PathBuf {
+    PathBuf::from(format!("{}.head.json", path.display()))
+}
+
+/// Read the journal and check it against its anchor (the caller holds the lock).
+fn read_chain(path: &Path) -> Chain {
     let mut chain = Chain::default();
-    let anchor = match read_anchor(&anchor_path) {
+    let anchor = match read_anchor(&anchor_path(path)) {
         Ok(a) => a,
         Err(e) => {
             chain.load_error = Some(format!("unreadable audit journal: {e}"));
             return chain;
         }
     };
-    if let Ok(t) = std::fs::read_to_string(&path) {
+    if let Ok(t) = std::fs::read_to_string(path) {
         for ln in t.lines().map(str::trim).filter(|l| !l.is_empty()) {
             // the Python builds an `AuditRecord(**line)`: exactly the nine fields and the two links
             let shaped = |r: &Map<String, Value>| {
@@ -159,34 +162,135 @@ pub fn load(data_dir: &Path) -> Chain {
             None
         };
     }
-    let anchored = anchor.as_ref().map_or(0, |a| a.0);
+    chain.anchored = anchor.map_or(0, |a| a.0);
+    chain
+}
+
+/// Atomically persist the anchor `(count, head)`, so a deleted or regressed journal is detectable.
+fn write_anchor(path: &Path, count: usize, head: &str) -> std::io::Result<()> {
+    let anchor = anchor_path(path);
+    let body = json!({"count": count, "record_hash": head, "schema": ANCHOR_SCHEMA});
+    let tmp = anchor.with_extension("json.part");
+    let mut f = File::create(&tmp)?;
+    f.write_all(
+        format!(
+            "{}\n",
+            stewie_twin::pyjson::dumps(&body).unwrap_or_default()
+        )
+        .as_bytes(),
+    )?;
+    f.sync_all()?;
+    std::fs::rename(&tmp, &anchor)?;
+    if let Some(d) = anchor.parent() {
+        File::open(d)?.sync_all()?;
+    }
+    Ok(())
+}
+
+/// The Python's `_ensure_anchor`: advance a lagging anchor to a valid chain's head.
+fn ensure_anchor(path: &Path, chain: &Chain) -> std::io::Result<()> {
     if chain.load_error.is_none()
         && verify_chain(&chain.records)
         && !chain.records.is_empty()
-        && anchored < chain.records.len()
+        && chain.anchored < chain.records.len()
     {
         let head = text(&chain.records[chain.records.len() - 1], "record_hash");
-        let body =
-            json!({"count": chain.records.len(), "record_hash": head, "schema": ANCHOR_SCHEMA});
-        let tmp = anchor_path.with_extension("json.part");
-        let wrote = File::create(&tmp).and_then(|mut f| {
-            f.write_all(
-                format!(
-                    "{}\n",
-                    stewie_twin::pyjson::dumps(&body).unwrap_or_default()
-                )
-                .as_bytes(),
-            )?;
-            f.sync_all()
-        });
-        if wrote.is_ok() {
-            let _ = std::fs::rename(&tmp, &anchor_path);
-        }
+        write_anchor(path, chain.records.len(), &head)?;
     }
-    if let Ok(f) = &lock {
-        let _ = f.unlock();
+    Ok(())
+}
+
+/// Load the chain under the journal's sidecar lock, then (as the Python's `_ensure_anchor`) advance the anchor to a
+/// valid chain's head when it lags. A malformed line stops the load and marks the chain unreadable.
+#[must_use]
+pub fn load(data_dir: &Path) -> Chain {
+    let path = journal_path(data_dir);
+    if !path.exists() && !anchor_path(&path).exists() {
+        return Chain::default();
     }
+    let _lock = lock(&path);
+    let chain = read_chain(&path);
+    let _ = ensure_anchor(&path, &chain);
     chain
+}
+
+/// Python's `datetime.fromtimestamp(t, timezone.utc).isoformat()`: microseconds only when non-zero.
+#[must_use]
+pub fn iso_utc(t: f64) -> String {
+    #[allow(clippy::cast_possible_truncation)] // microseconds since the epoch fit an i64
+    let us = (t * 1e6).round_ties_even() as i64;
+    let (secs, micro) = (us.div_euclid(1_000_000), us.rem_euclid(1_000_000));
+    let (days, sod) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
+    // civil from days (H. Hinnant)
+    let shifted = days + 719_468;
+    let era = shifted.div_euclid(146_097);
+    let doe = shifted - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    let frac = if micro == 0 {
+        String::new()
+    } else {
+        format!(".{micro:06}")
+    };
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}{frac}+00:00",
+        sod / 3600,
+        sod % 3600 / 60,
+        sod % 60
+    )
+}
+
+/// Append one authority record (Python `AuditLog.append`): under the lock, reload the chain and refuse a corrupt one,
+/// chain the record onto the tail, write and fsync its line, then advance the anchor. `fields` are the nine recorded
+/// fields in [`FIELDS`] order.
+///
+/// # Errors
+/// A corrupt journal (`AuditIntegrityError`, as the Python's message) or an I/O failure.
+pub fn append(data_dir: &Path, fields: [&str; 9]) -> Result<Map<String, Value>, String> {
+    let path = journal_path(data_dir);
+    let _lock = lock(&path).map_err(|e| e.to_string())?;
+    let chain = read_chain(&path);
+    if chain.load_error.is_some() || !verify_chain(&chain.records) {
+        let detail = chain
+            .load_error
+            .clone()
+            .unwrap_or_else(|| "audit journal hash chain is invalid".to_owned());
+        return Err(format!(
+            "refusing to append to corrupt audit journal: {detail}"
+        ));
+    }
+    ensure_anchor(&path, &chain).map_err(|e| e.to_string())?;
+    let prev = chain
+        .records
+        .last()
+        .map_or_else(|| GENESIS_HASH.to_owned(), |r| text(r, "record_hash"));
+    let mut rec: Map<String, Value> = FIELDS
+        .iter()
+        .zip(fields)
+        .map(|(k, v)| ((*k).to_owned(), json!(v)))
+        .collect();
+    let hash = digest(&rec, &prev);
+    rec.insert("prev_hash".into(), json!(prev));
+    rec.insert("record_hash".into(), json!(hash));
+    let line = format!(
+        "{}\n",
+        stewie_twin::pyjson::dumps(&Value::Object(rec.clone())).map_err(|e| format!("{e:?}"))?
+    );
+    let wrote = (|| -> std::io::Result<()> {
+        let mut f = File::options().create(true).append(true).open(&path)?;
+        f.write_all(line.as_bytes())?;
+        f.sync_all()?;
+        if let Some(d) = path.parent() {
+            File::open(d)?.sync_all()?;
+        }
+        write_anchor(&path, chain.records.len() + 1, &hash)
+    })();
+    wrote.map_err(|e| e.to_string())?;
+    Ok(rec)
 }
 
 impl Chain {
@@ -207,6 +311,19 @@ impl Chain {
 #[cfg(test)]
 mod tests {
     use serde_json::{Map, Value, json};
+
+    #[test]
+    fn utc_stamps_match_the_pythons_isoformat() {
+        // expected strings from `datetime.fromtimestamp(t, timezone.utc).isoformat()`
+        for (t, want) in [
+            (1_800_000_000.5, "2027-01-15T08:00:00.500000+00:00"),
+            (951_782_400.25, "2000-02-29T00:00:00.250000+00:00"),
+            (-86_400.0, "1969-12-31T00:00:00+00:00"),
+            (1_709_164_800.000_001, "2024-02-29T00:00:00.000001+00:00"),
+        ] {
+            assert_eq!(super::iso_utc(t), want, "{t}");
+        }
+    }
 
     use super::{GENESIS_HASH, digest, verify_chain};
 

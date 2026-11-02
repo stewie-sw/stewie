@@ -1198,7 +1198,7 @@ async fn post_plan(State(st): State<Arc<AppState>>, req: Request) -> Response {
 
 /// One candidate's future (Python `lode.resync.forward_compare`): the conserved planner's totals for the mission
 /// under that solver input, with the measured wall time.
-fn future(
+pub(crate) fn future(
     st: &AppState,
     mission: &Map<String, Value>,
     algorithm: &str,
@@ -1242,7 +1242,7 @@ fn future(
 
 /// Rank futures feasible first, then best first on the objective (time for `duration`/`time`, else energy), stably
 /// as the Python's `rank_feasible_first`; the recommendation is the head when it is feasible.
-fn rank(mut futures: Vec<Value>, objective: &str) -> (Vec<Value>, Value) {
+pub(crate) fn rank(mut futures: Vec<Value>, objective: &str) -> (Vec<Value>, Value) {
     let key = if objective == "duration" || objective == "time" {
         "time_s"
     } else {

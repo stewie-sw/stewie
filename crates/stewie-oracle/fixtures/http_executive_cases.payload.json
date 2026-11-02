@@ -1,0 +1,4663 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "auth.login",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-001",
+   "target": "bootstrap",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "executive.advance",
+   "actor": "api-key",
+   "correlation_id": "cid-004",
+   "target": "pad-east rev 1 -> released",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "executive.advance",
+   "actor": "api-key",
+   "correlation_id": "cid-005",
+   "target": "pad-east rev 1 -> released",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "executive.advance",
+   "actor": "api-key",
+   "correlation_id": "cid-006",
+   "target": "pad-west rev 0 -> released",
+   "ts": 1800000003.0
+  },
+  {
+   "action": "executive.release_plan",
+   "actor": "api-key",
+   "correlation_id": "cid-032",
+   "target": "cockpit-1: 2 objectives -> released",
+   "ts": 1800000003.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-executive-oracle",
+ "steps": [
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "bob@example.org",
+    "role": "operator",
+    "token": "eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImRlNzExYTYwZTY5OTRlMjVhZjdiNTE4NjE0MjE4M2JkIn0.rlalCoYem91OAJfll_uENyQXPq-HGanV6GtcMr_a9gU",
+    "ttl_s": 43200
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "email": "bob@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'bob@example.org')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImRlNzExYTYwZTY5OTRlMjVhZjdiNTE4NjE0MjE4M2JkIn0.rlalCoYem91OAJfll_uENyQXPq-HGanV6GtcMr_a9gU",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "evidence": {
+     "forward_compare": {
+      "futures": [
+       {
+        "algorithm": "auto",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 0,
+        "energy_MJ": 2.699,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": true,
+        "objectives_total": 2,
+        "optimality": "exact",
+        "recharges": null,
+        "resolved": "brute",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315515.6,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 164.4,
+         "return_distance_m": 9.39,
+         "return_energy_J": 137.0
+        },
+        "time_s": 55771.18927365859,
+        "wall_s": "<wall_s>"
+       },
+       {
+        "algorithm": "nearest",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 0,
+        "energy_MJ": 2.699,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": false,
+        "objectives_total": 2,
+        "optimality": "heuristic",
+        "recharges": null,
+        "resolved": "nearest",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315515.6,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 164.4,
+         "return_distance_m": 9.39,
+         "return_energy_J": 137.0
+        },
+        "time_s": 55771.18927365859,
+        "wall_s": "<wall_s>"
+       }
+      ],
+      "objective": "energy:0.5,time:0.5",
+      "recommended": "auto"
+     },
+     "objective": "energy:0.5,time:0.5",
+     "orders": 2,
+     "plan_id": "8395b7be7c841b14"
+    },
+    "label": "sim",
+    "ok": true,
+    "revision_persisted": true,
+    "signed_revision": {
+     "content_hash": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+     "intent": {
+      "constraints": [
+       {
+        "constraint_id": "c-energy",
+        "kind": "soft",
+        "schema_version": "1.0",
+        "statement": "Minimise Energy use",
+        "weight": 0.5
+       },
+       {
+        "constraint_id": "c-time",
+        "kind": "soft",
+        "schema_version": "1.0",
+        "statement": "short mission_duration",
+        "weight": 0.3
+       },
+       {
+        "constraint_id": "c-time2",
+        "kind": "soft",
+        "schema_version": "1.0",
+        "statement": "finish on time",
+        "weight": 0.2
+       },
+       {
+        "constraint_id": "c-tilt",
+        "kind": "flight_rule",
+        "schema_version": "1.0",
+        "statement": "no slopes over 15 deg",
+        "weight": null
+       }
+      ],
+      "keep_outs": [
+       {
+        "points": null,
+        "radius_m": 3.0,
+        "reason": "",
+        "region_id": "boulder",
+        "schema_version": "1.0",
+        "x": 20.0,
+        "x0": null,
+        "x1": null,
+        "y": 20.0,
+        "y0": null,
+        "y1": null
+       }
+      ],
+      "mission_id": "pad-east",
+      "objectives": [
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "cut-a-ac",
+          "measurable": "RMSE <= 0.03 m",
+          "schema_version": "1.0",
+          "sensor": "",
+          "statement": "flat",
+          "tolerance_m": 0.03
+         }
+        ],
+        "approver": "alice@example.org",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": 1500000.0,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 400.0,
+        "objective_id": "cut-a",
+        "order_kind": "cut",
+        "prerequisites": [],
+        "priority": "primary",
+        "rationale": "SYNTHETIC (labelled)",
+        "revision": 1,
+        "schema_version": "1.0",
+        "statement": "level cut-a",
+        "target_col": 5.0,
+        "target_row": 3.0,
+        "time_window_s": [
+         0.0,
+         900000.0
+        ]
+       },
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "b-ac",
+          "measurable": "m",
+          "schema_version": "1.0",
+          "sensor": "",
+          "statement": "flat",
+          "tolerance_m": 0.02
+         }
+        ],
+        "approver": "alice@example.org",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": 1500000.0,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 250.0,
+        "objective_id": "cut-b",
+        "order_kind": "cut",
+        "prerequisites": [
+         "cut-a"
+        ],
+        "priority": "primary",
+        "rationale": "SYNTHETIC (labelled)",
+        "revision": 1,
+        "schema_version": "1.0",
+        "statement": "level cut-b",
+        "target_col": 8.5,
+        "target_row": -4.0,
+        "time_window_s": null
+       },
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "survey-ac",
+          "measurable": "RMSE <= 0.03 m",
+          "schema_version": "1.0",
+          "sensor": "",
+          "statement": "flat",
+          "tolerance_m": 0.03
+         }
+        ],
+        "approver": "alice@example.org",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": null,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": false,
+        "material_budget_kg": null,
+        "objective_id": "survey",
+        "order_kind": "cut",
+        "prerequisites": [],
+        "priority": "stretch",
+        "rationale": "SYNTHETIC (labelled)",
+        "revision": 1,
+        "schema_version": "1.0",
+        "statement": "level survey",
+        "target_col": 0.0,
+        "target_row": 0.0,
+        "time_window_s": null
+       }
+      ],
+      "revision": 1,
+      "schema_version": "1.0",
+      "statement": "level the east pad (SYNTHETIC)",
+      "task_graph_ref": ""
+     },
+     "revision": 1,
+     "schema_version": "1.0",
+     "signed_by": "director"
+    },
+    "state": "released",
+    "transitions": [
+     {
+      "evidence": "ANALYZED: intent pad-east rev 1 compiled to plan_id=8395b7be7c841b14 (objective='energy:0.5,time:0.5', orders=2)",
+      "role": "planner",
+      "to": "analyzed"
+     },
+     {
+      "evidence": "REHEARSED: forward_compare ran 2 futures over candidates ['auto', 'nearest']; recommended=auto ({\"algorithm\": \"auto\", \"as_built_pass\": true, \"as_built_tol_m\": 0.02, \"blocked_legs\": 0, \"charges\": 0, \"energy_MJ\": 2.699, \"feasible\": true, \"hazard_flags\": 0, \"infeasible_reasons\": [], \"objective_exact\": true, \"objectives_total\": 2, \"optimality\": \"exact\", \"recharges\": null, \"resolved\": \"brute\", \"return_to_lander\": {\"buffer_frac\": 0.2, \"feasible\": true, \"lander_xy\": [0.0, 0.0], \"margin_J\": 4315515.6, \"remaining_J\": 4315680.0, \"reserve_with_buffer_J\": 164.4, \"return_distance_m\": 9.39, \"return_energy_J\": 137.0}, \"time_s\": 55771.18927365859, \"wall_s\": \"<wall_s>\"})",
+      "role": "operator",
+      "to": "rehearsed"
+     },
+     {
+      "evidence": "REVIEWED: analysis + rehearsal evidence accepted by the review board",
+      "role": "reviewer",
+      "to": "reviewed"
+     },
+     {
+      "evidence": "RELEASED: director release authorization",
+      "role": "director",
+      "to": "released"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "evidence": {
+     "forward_compare": {
+      "futures": [
+       {
+        "algorithm": "auto",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 0,
+        "energy_MJ": 2.699,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": true,
+        "objectives_total": 2,
+        "optimality": "exact",
+        "recharges": null,
+        "resolved": "brute",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315515.6,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 164.4,
+         "return_distance_m": 9.39,
+         "return_energy_J": 137.0
+        },
+        "time_s": 55771.18927365859,
+        "wall_s": "<wall_s>"
+       },
+       {
+        "algorithm": "nearest",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 0,
+        "energy_MJ": 2.699,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": false,
+        "objectives_total": 2,
+        "optimality": "heuristic",
+        "recharges": null,
+        "resolved": "nearest",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315515.6,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 164.4,
+         "return_distance_m": 9.39,
+         "return_energy_J": 137.0
+        },
+        "time_s": 55771.18927365859,
+        "wall_s": "<wall_s>"
+       }
+      ],
+      "objective": "energy:0.5,time:0.5",
+      "recommended": "auto"
+     },
+     "objective": "energy:0.5,time:0.5",
+     "orders": 2,
+     "plan_id": "8395b7be7c841b14"
+    },
+    "label": "sim",
+    "ok": true,
+    "revision_persisted": true,
+    "signed_revision": {
+     "content_hash": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+     "intent": {
+      "constraints": [
+       {
+        "constraint_id": "c-energy",
+        "kind": "soft",
+        "schema_version": "1.0",
+        "statement": "Minimise Energy use",
+        "weight": 0.5
+       },
+       {
+        "constraint_id": "c-time",
+        "kind": "soft",
+        "schema_version": "1.0",
+        "statement": "short mission_duration",
+        "weight": 0.3
+       },
+       {
+        "constraint_id": "c-time2",
+        "kind": "soft",
+        "schema_version": "1.0",
+        "statement": "finish on time",
+        "weight": 0.2
+       },
+       {
+        "constraint_id": "c-tilt",
+        "kind": "flight_rule",
+        "schema_version": "1.0",
+        "statement": "no slopes over 15 deg",
+        "weight": null
+       }
+      ],
+      "keep_outs": [
+       {
+        "points": null,
+        "radius_m": 3.0,
+        "reason": "",
+        "region_id": "boulder",
+        "schema_version": "1.0",
+        "x": 20.0,
+        "x0": null,
+        "x1": null,
+        "y": 20.0,
+        "y0": null,
+        "y1": null
+       }
+      ],
+      "mission_id": "pad-east",
+      "objectives": [
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "cut-a-ac",
+          "measurable": "RMSE <= 0.03 m",
+          "schema_version": "1.0",
+          "sensor": "",
+          "statement": "flat",
+          "tolerance_m": 0.03
+         }
+        ],
+        "approver": "alice@example.org",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": 1500000.0,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 400.0,
+        "objective_id": "cut-a",
+        "order_kind": "cut",
+        "prerequisites": [],
+        "priority": "primary",
+        "rationale": "SYNTHETIC (labelled)",
+        "revision": 1,
+        "schema_version": "1.0",
+        "statement": "level cut-a",
+        "target_col": 5.0,
+        "target_row": 3.0,
+        "time_window_s": [
+         0.0,
+         900000.0
+        ]
+       },
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "b-ac",
+          "measurable": "m",
+          "schema_version": "1.0",
+          "sensor": "",
+          "statement": "flat",
+          "tolerance_m": 0.02
+         }
+        ],
+        "approver": "alice@example.org",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": 1500000.0,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 250.0,
+        "objective_id": "cut-b",
+        "order_kind": "cut",
+        "prerequisites": [
+         "cut-a"
+        ],
+        "priority": "primary",
+        "rationale": "SYNTHETIC (labelled)",
+        "revision": 1,
+        "schema_version": "1.0",
+        "statement": "level cut-b",
+        "target_col": 8.5,
+        "target_row": -4.0,
+        "time_window_s": null
+       },
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "survey-ac",
+          "measurable": "RMSE <= 0.03 m",
+          "schema_version": "1.0",
+          "sensor": "",
+          "statement": "flat",
+          "tolerance_m": 0.03
+         }
+        ],
+        "approver": "alice@example.org",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": null,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": false,
+        "material_budget_kg": null,
+        "objective_id": "survey",
+        "order_kind": "cut",
+        "prerequisites": [],
+        "priority": "stretch",
+        "rationale": "SYNTHETIC (labelled)",
+        "revision": 1,
+        "schema_version": "1.0",
+        "statement": "level survey",
+        "target_col": 0.0,
+        "target_row": 0.0,
+        "time_window_s": null
+       }
+      ],
+      "revision": 1,
+      "schema_version": "1.0",
+      "statement": "level the east pad (SYNTHETIC)",
+      "task_graph_ref": ""
+     },
+     "revision": 1,
+     "schema_version": "1.0",
+     "signed_by": "director"
+    },
+    "state": "released",
+    "transitions": [
+     {
+      "evidence": "ANALYZED: intent pad-east rev 1 compiled to plan_id=8395b7be7c841b14 (objective='energy:0.5,time:0.5', orders=2)",
+      "role": "planner",
+      "to": "analyzed"
+     },
+     {
+      "evidence": "REHEARSED: forward_compare ran 2 futures over candidates ['auto', 'nearest']; recommended=auto ({\"algorithm\": \"auto\", \"as_built_pass\": true, \"as_built_tol_m\": 0.02, \"blocked_legs\": 0, \"charges\": 0, \"energy_MJ\": 2.699, \"feasible\": true, \"hazard_flags\": 0, \"infeasible_reasons\": [], \"objective_exact\": true, \"objectives_total\": 2, \"optimality\": \"exact\", \"recharges\": null, \"resolved\": \"brute\", \"return_to_lander\": {\"buffer_frac\": 0.2, \"feasible\": true, \"lander_xy\": [0.0, 0.0], \"margin_J\": 4315515.6, \"remaining_J\": 4315680.0, \"reserve_with_buffer_J\": 164.4, \"return_distance_m\": 9.39, \"return_energy_J\": 137.0}, \"time_s\": 55771.18927365859, \"wall_s\": \"<wall_s>\"})",
+      "role": "operator",
+      "to": "rehearsed"
+     },
+     {
+      "evidence": "REVIEWED: analysis + rehearsal evidence accepted by the review board",
+      "role": "reviewer",
+      "to": "reviewed"
+     },
+     {
+      "evidence": "RELEASED: director release authorization",
+      "role": "director",
+      "to": "released"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "evidence": {
+     "forward_compare": {
+      "futures": [
+       {
+        "algorithm": "auto",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.03,
+        "blocked_legs": 0,
+        "charges": 0,
+        "energy_MJ": 1.038,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": true,
+        "objectives_total": 1,
+        "optimality": "exact",
+        "recharges": null,
+        "resolved": "brute",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315640.9,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 39.1,
+         "return_distance_m": 2.24,
+         "return_energy_J": 32.6
+        },
+        "time_s": 25747.61904761905,
+        "wall_s": "<wall_s>"
+       },
+       {
+        "algorithm": "nearest",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.03,
+        "blocked_legs": 0,
+        "charges": 0,
+        "energy_MJ": 1.038,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": false,
+        "objectives_total": 1,
+        "optimality": "heuristic",
+        "recharges": null,
+        "resolved": "nearest",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315640.9,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 39.1,
+         "return_distance_m": 2.24,
+         "return_energy_J": 32.6
+        },
+        "time_s": 25747.61904761905,
+        "wall_s": "<wall_s>"
+       }
+      ],
+      "objective": "average_power",
+      "recommended": "auto"
+     },
+     "objective": "average_power",
+     "orders": 1,
+     "plan_id": "0f0515f46a84bb89"
+    },
+    "label": "sim",
+    "ok": true,
+    "revision_persisted": true,
+    "signed_revision": {
+     "content_hash": "78131a75df49ffa6343ba5bd9e9d474b4e60580aacbefc085b2374c6f33c4184",
+     "intent": {
+      "constraints": [
+       {
+        "constraint_id": "c",
+        "kind": "soft",
+        "schema_version": "1.0",
+        "statement": "the average power draw",
+        "weight": 1.0
+       }
+      ],
+      "keep_outs": [
+       {
+        "points": [
+         [
+          30.0,
+          30.0
+         ],
+         [
+          34.0,
+          30.0
+         ],
+         [
+          32.0,
+          34.0
+         ]
+        ],
+        "radius_m": null,
+        "reason": "",
+        "region_id": "p",
+        "schema_version": "1.0",
+        "x": null,
+        "x0": null,
+        "x1": null,
+        "y": null,
+        "y0": null,
+        "y1": null
+       },
+       {
+        "points": null,
+        "radius_m": null,
+        "reason": "",
+        "region_id": "r",
+        "schema_version": "1.0",
+        "x": null,
+        "x0": -30.0,
+        "x1": -25.0,
+        "y": null,
+        "y0": -30.0,
+        "y1": -26.0
+       }
+      ],
+      "mission_id": "pad-west",
+      "objectives": [
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "w-ac",
+          "measurable": "RMSE <= 0.03 m",
+          "schema_version": "1.0",
+          "sensor": "",
+          "statement": "flat",
+          "tolerance_m": 0.03
+         }
+        ],
+        "approver": "alice@example.org",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": null,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 300.0,
+        "objective_id": "w",
+        "order_kind": "fill",
+        "prerequisites": [],
+        "priority": "primary",
+        "rationale": "SYNTHETIC (labelled)",
+        "revision": 1,
+        "schema_version": "1.0",
+        "statement": "level w",
+        "target_col": -2.0,
+        "target_row": 1.0,
+        "time_window_s": null
+       }
+      ],
+      "revision": 0,
+      "schema_version": "1.0",
+      "statement": "one cut",
+      "task_graph_ref": ""
+     },
+     "revision": 0,
+     "schema_version": "1.0",
+     "signed_by": "director"
+    },
+    "state": "released",
+    "transitions": [
+     {
+      "evidence": "ANALYZED: intent pad-west rev 0 compiled to plan_id=0f0515f46a84bb89 (objective='average_power', orders=1)",
+      "role": "planner",
+      "to": "analyzed"
+     },
+     {
+      "evidence": "REHEARSED: forward_compare ran 2 futures over candidates ['auto', 'nearest']; recommended=auto ({\"algorithm\": \"auto\", \"as_built_pass\": true, \"as_built_tol_m\": 0.03, \"blocked_legs\": 0, \"charges\": 0, \"energy_MJ\": 1.038, \"feasible\": true, \"hazard_flags\": 0, \"infeasible_reasons\": [], \"objective_exact\": true, \"objectives_total\": 1, \"optimality\": \"exact\", \"recharges\": null, \"resolved\": \"brute\", \"return_to_lander\": {\"buffer_frac\": 0.2, \"feasible\": true, \"lander_xy\": [0.0, 0.0], \"margin_J\": 4315640.9, \"remaining_J\": 4315680.0, \"reserve_with_buffer_J\": 39.1, \"return_distance_m\": 2.24, \"return_energy_J\": 32.6}, \"time_s\": 25747.61904761905, \"wall_s\": \"<wall_s>\"})",
+      "role": "operator",
+      "to": "rehearsed"
+     },
+     {
+      "evidence": "REVIEWED: analysis + rehearsal evidence accepted by the review board",
+      "role": "reviewer",
+      "to": "reviewed"
+     },
+     {
+      "evidence": "RELEASED: director release authorization",
+      "role": "director",
+      "to": "released"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c",
+       "kind": "soft",
+       "statement": "the average power draw",
+       "weight": 1
+      }
+     ],
+     "keep_outs": [
+      {
+       "points": [
+        [
+         30,
+         30
+        ],
+        [
+         34,
+         30
+        ],
+        [
+         32,
+         34
+        ]
+       ],
+       "region_id": "p"
+      },
+      {
+       "region_id": "r",
+       "x0": -30,
+       "x1": -25,
+       "y0": -30,
+       "y1": -26
+      }
+     ],
+     "mission_id": "pad-west",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "w-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": true,
+       "material_budget_kg": 300,
+       "objective_id": "w",
+       "order_kind": "fill",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level w",
+       "target_col": -2,
+       "target_row": 1
+      }
+     ],
+     "revision": 0,
+     "statement": "one cut"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "mission_id: Input should be a valid string",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": null,
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "extra: Extra inputs are not permitted",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "extra": 1,
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objectives.0.priority: Input should be 'primary', 'secondary' or 'stretch'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "urgent",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "constraints.0: Value error, MO-01: a hard constraint may not carry an optimization weight (a flight rule can never become a soft preference)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "h",
+       "kind": "hard",
+       "statement": "x",
+       "weight": 0.5
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "keep_outs.0: Value error, MO-01: a KeepOutRegion must supply exactly one shape -- a circle (x,y,radius_m), a rectangle (x0,y0,x1,y1), or a polygon (points, >= 3 vertices)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "points": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         0
+        ]
+       ],
+       "radius_m": 1,
+       "region_id": "k",
+       "x": 1,
+       "y": 1
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "keep_outs.0: Value error, MO-01: a KeepOutRegion polygon needs >= 3 vertices",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "points": [
+        [
+         0,
+         0
+        ],
+        [
+         1,
+         1
+        ]
+       ],
+       "region_id": "k"
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "keep_outs.0: Value error, MO-01: a KeepOutRegion rectangle must have non-zero width and height",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "region_id": "k",
+       "x0": 0,
+       "x1": 0,
+       "y0": 0,
+       "y1": 2
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objectives.0: Value error, objective 'cut-a' order_kind must be cut|fill|sinter, got 'dig'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "order_kind": "dig",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objectives.0.acceptance: List should have at least 1 item after validation, not 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objectives.0.mandatory: Input should be a valid boolean, unable to interpret input",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": "maybe",
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objectives.0.revision: Input should be greater than or equal to 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": -1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objectives.0.contingency.policy: Input should be 'retry', 'observe', 'replan', 'skip', 'return' or 'safe'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "pray"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objectives.0.time_window_s: Tuple should have at most 2 items after validation, not 3",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        1,
+        2,
+        3
+       ]
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "MissionIntent has no mandatory objective to plan (nothing to compile into orders)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objective 'cut-a' has no material_budget_kg: MO-01 supplies no other work geometry the planner can size an order from, so a footprint cannot be derived (set material_budget_kg, or move the objective out of the mandatory set).",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": null,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objective 'cut-b' prerequisite 'cut-a' references an unknown objective",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objective 'cut-b' prerequisite 'survey' is not a mandatory objective; only mandatory objectives are compiled into orders, so its prerequisite must be too.",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "survey"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "MissionIntent objective frame(s) ['MARS_ME'] are not a known lunar planner frame; the planner is keyed by body and these do not lower to 'moon'.",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "c-energy",
+       "kind": "soft",
+       "statement": "Minimise Energy use",
+       "weight": 0.5
+      },
+      {
+       "constraint_id": "c-time",
+       "kind": "soft",
+       "statement": "short mission_duration",
+       "weight": 0.3
+      },
+      {
+       "constraint_id": "c-time2",
+       "kind": "soft",
+       "statement": "finish on time",
+       "weight": 0.2
+      },
+      {
+       "constraint_id": "c-tilt",
+       "kind": "flight_rule",
+       "statement": "no slopes over 15 deg"
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "frame": "MARS_ME",
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "soft constraint 's' statement 'be nice' names no known planner optimization metric; expected one of ['average_power', 'charges', 'distance', 'energy', 'mass', 'time'].",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": {
+     "constraints": [
+      {
+       "constraint_id": "s",
+       "kind": "soft",
+       "statement": "be nice",
+       "weight": 0.5
+      }
+     ],
+     "keep_outs": [
+      {
+       "radius_m": 3,
+       "region_id": "boulder",
+       "x": 20,
+       "y": 20
+      }
+     ],
+     "mission_id": "pad-east",
+     "objectives": [
+      {
+       "acceptance": [
+        {
+         "criterion_id": "cut-a-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 400,
+       "objective_id": "cut-a",
+       "prerequisites": [],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-a",
+       "target_col": 5,
+       "target_row": 3,
+       "time_window_s": [
+        0,
+        900000.0
+       ]
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "b-ac",
+         "measurable": "m",
+         "statement": "flat",
+         "tolerance_m": 0.02
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "energy_budget_j": 1500000.0,
+       "mandatory": true,
+       "material_budget_kg": 250,
+       "objective_id": "cut-b",
+       "prerequisites": [
+        "cut-a"
+       ],
+       "priority": "primary",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level cut-b",
+       "target_col": 8.5,
+       "target_row": -4
+      },
+      {
+       "acceptance": [
+        {
+         "criterion_id": "survey-ac",
+         "measurable": "RMSE <= 0.03 m",
+         "statement": "flat",
+         "tolerance_m": 0.03
+        }
+       ],
+       "approver": "alice@example.org",
+       "confidence_required": 0.8,
+       "contingency": {
+        "policy": "safe"
+       },
+       "mandatory": false,
+       "material_budget_kg": null,
+       "objective_id": "survey",
+       "prerequisites": [],
+       "priority": "stretch",
+       "rationale": "SYNTHETIC (labelled)",
+       "revision": 1,
+       "statement": "level survey",
+       "target_col": 0,
+       "target_row": 0
+      }
+     ],
+     "revision": 1,
+     "statement": "level the east pad (SYNTHETIC)"
+    },
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "body: Input should be a valid dictionary or object to extract fields from",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": [
+     1
+    ],
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/executive/advance",
+    "raw": "{not json"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "ok": true,
+    "revision": {
+     "content_hash": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+     "created_at": 1800000000.0,
+     "evidence": {
+      "forward_compare": {
+       "futures": [
+        {
+         "algorithm": "auto",
+         "as_built_pass": true,
+         "as_built_tol_m": 0.02,
+         "blocked_legs": 0,
+         "charges": 0,
+         "energy_MJ": 2.699,
+         "feasible": true,
+         "hazard_flags": 0,
+         "infeasible_reasons": [],
+         "objective_exact": true,
+         "objectives_total": 2,
+         "optimality": "exact",
+         "recharges": null,
+         "resolved": "brute",
+         "return_to_lander": {
+          "buffer_frac": 0.2,
+          "feasible": true,
+          "lander_xy": [
+           0.0,
+           0.0
+          ],
+          "margin_J": 4315515.6,
+          "remaining_J": 4315680.0,
+          "reserve_with_buffer_J": 164.4,
+          "return_distance_m": 9.39,
+          "return_energy_J": 137.0
+         },
+         "time_s": 55771.18927365859,
+         "wall_s": "<wall_s>"
+        },
+        {
+         "algorithm": "nearest",
+         "as_built_pass": true,
+         "as_built_tol_m": 0.02,
+         "blocked_legs": 0,
+         "charges": 0,
+         "energy_MJ": 2.699,
+         "feasible": true,
+         "hazard_flags": 0,
+         "infeasible_reasons": [],
+         "objective_exact": false,
+         "objectives_total": 2,
+         "optimality": "heuristic",
+         "recharges": null,
+         "resolved": "nearest",
+         "return_to_lander": {
+          "buffer_frac": 0.2,
+          "feasible": true,
+          "lander_xy": [
+           0.0,
+           0.0
+          ],
+          "margin_J": 4315515.6,
+          "remaining_J": 4315680.0,
+          "reserve_with_buffer_J": 164.4,
+          "return_distance_m": 9.39,
+          "return_energy_J": 137.0
+         },
+         "time_s": 55771.18927365859,
+         "wall_s": "<wall_s>"
+        }
+       ],
+       "objective": "energy:0.5,time:0.5",
+       "recommended": "auto"
+      },
+      "objective": "energy:0.5,time:0.5",
+      "orders": 2,
+      "plan_id": "8395b7be7c841b14"
+     },
+     "mission_id": "pad-east",
+     "revision": 1,
+     "signed_by": "director",
+     "signed_revision": {
+      "content_hash": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+      "intent": {
+       "constraints": [
+        {
+         "constraint_id": "c-energy",
+         "kind": "soft",
+         "schema_version": "1.0",
+         "statement": "Minimise Energy use",
+         "weight": 0.5
+        },
+        {
+         "constraint_id": "c-time",
+         "kind": "soft",
+         "schema_version": "1.0",
+         "statement": "short mission_duration",
+         "weight": 0.3
+        },
+        {
+         "constraint_id": "c-time2",
+         "kind": "soft",
+         "schema_version": "1.0",
+         "statement": "finish on time",
+         "weight": 0.2
+        },
+        {
+         "constraint_id": "c-tilt",
+         "kind": "flight_rule",
+         "schema_version": "1.0",
+         "statement": "no slopes over 15 deg",
+         "weight": null
+        }
+       ],
+       "keep_outs": [
+        {
+         "points": null,
+         "radius_m": 3.0,
+         "reason": "",
+         "region_id": "boulder",
+         "schema_version": "1.0",
+         "x": 20.0,
+         "x0": null,
+         "x1": null,
+         "y": 20.0,
+         "y0": null,
+         "y1": null
+        }
+       ],
+       "mission_id": "pad-east",
+       "objectives": [
+        {
+         "abort_threshold": "",
+         "acceptance": [
+          {
+           "criterion_id": "cut-a-ac",
+           "measurable": "RMSE <= 0.03 m",
+           "schema_version": "1.0",
+           "sensor": "",
+           "statement": "flat",
+           "tolerance_m": 0.03
+          }
+         ],
+         "approver": "alice@example.org",
+         "comms_window_s": null,
+         "confidence_required": 0.8,
+         "contingency": {
+          "detail": "",
+          "policy": "safe",
+          "schema_version": "1.0"
+         },
+         "data_budget_bytes": null,
+         "energy_budget_j": 1500000.0,
+         "evidence": "",
+         "frame": "MOON_ME",
+         "hold_threshold": "",
+         "illumination_window_s": null,
+         "mandatory": true,
+         "material_budget_kg": 400.0,
+         "objective_id": "cut-a",
+         "order_kind": "cut",
+         "prerequisites": [],
+         "priority": "primary",
+         "rationale": "SYNTHETIC (labelled)",
+         "revision": 1,
+         "schema_version": "1.0",
+         "statement": "level cut-a",
+         "target_col": 5.0,
+         "target_row": 3.0,
+         "time_window_s": [
+          0.0,
+          900000.0
+         ]
+        },
+        {
+         "abort_threshold": "",
+         "acceptance": [
+          {
+           "criterion_id": "b-ac",
+           "measurable": "m",
+           "schema_version": "1.0",
+           "sensor": "",
+           "statement": "flat",
+           "tolerance_m": 0.02
+          }
+         ],
+         "approver": "alice@example.org",
+         "comms_window_s": null,
+         "confidence_required": 0.8,
+         "contingency": {
+          "detail": "",
+          "policy": "safe",
+          "schema_version": "1.0"
+         },
+         "data_budget_bytes": null,
+         "energy_budget_j": 1500000.0,
+         "evidence": "",
+         "frame": "MOON_ME",
+         "hold_threshold": "",
+         "illumination_window_s": null,
+         "mandatory": true,
+         "material_budget_kg": 250.0,
+         "objective_id": "cut-b",
+         "order_kind": "cut",
+         "prerequisites": [
+          "cut-a"
+         ],
+         "priority": "primary",
+         "rationale": "SYNTHETIC (labelled)",
+         "revision": 1,
+         "schema_version": "1.0",
+         "statement": "level cut-b",
+         "target_col": 8.5,
+         "target_row": -4.0,
+         "time_window_s": null
+        },
+        {
+         "abort_threshold": "",
+         "acceptance": [
+          {
+           "criterion_id": "survey-ac",
+           "measurable": "RMSE <= 0.03 m",
+           "schema_version": "1.0",
+           "sensor": "",
+           "statement": "flat",
+           "tolerance_m": 0.03
+          }
+         ],
+         "approver": "alice@example.org",
+         "comms_window_s": null,
+         "confidence_required": 0.8,
+         "contingency": {
+          "detail": "",
+          "policy": "safe",
+          "schema_version": "1.0"
+         },
+         "data_budget_bytes": null,
+         "energy_budget_j": null,
+         "evidence": "",
+         "frame": "MOON_ME",
+         "hold_threshold": "",
+         "illumination_window_s": null,
+         "mandatory": false,
+         "material_budget_kg": null,
+         "objective_id": "survey",
+         "order_kind": "cut",
+         "prerequisites": [],
+         "priority": "stretch",
+         "rationale": "SYNTHETIC (labelled)",
+         "revision": 1,
+         "schema_version": "1.0",
+         "statement": "level survey",
+         "target_col": 0.0,
+         "target_row": 0.0,
+         "time_window_s": null
+        }
+       ],
+       "revision": 1,
+       "schema_version": "1.0",
+       "statement": "level the east pad (SYNTHETIC)",
+       "task_graph_ref": ""
+      },
+      "revision": 1,
+      "schema_version": "1.0",
+      "signed_by": "director"
+     },
+     "transitions": [
+      {
+       "evidence": "ANALYZED: intent pad-east rev 1 compiled to plan_id=8395b7be7c841b14 (objective='energy:0.5,time:0.5', orders=2)",
+       "role": "planner",
+       "to": "analyzed"
+      },
+      {
+       "evidence": "REHEARSED: forward_compare ran 2 futures over candidates ['auto', 'nearest']; recommended=auto ({\"algorithm\": \"auto\", \"as_built_pass\": true, \"as_built_tol_m\": 0.02, \"blocked_legs\": 0, \"charges\": 0, \"energy_MJ\": 2.699, \"feasible\": true, \"hazard_flags\": 0, \"infeasible_reasons\": [], \"objective_exact\": true, \"objectives_total\": 2, \"optimality\": \"exact\", \"recharges\": null, \"resolved\": \"brute\", \"return_to_lander\": {\"buffer_frac\": 0.2, \"feasible\": true, \"lander_xy\": [0.0, 0.0], \"margin_J\": 4315515.6, \"remaining_J\": 4315680.0, \"reserve_with_buffer_J\": 164.4, \"return_distance_m\": 9.39, \"return_energy_J\": 137.0}, \"time_s\": 55771.18927365859, \"wall_s\": \"<wall_s>\"})",
+       "role": "operator",
+       "to": "rehearsed"
+      },
+      {
+       "evidence": "REVIEWED: analysis + rehearsal evidence accepted by the review board",
+       "role": "reviewer",
+       "to": "reviewed"
+      },
+      {
+       "evidence": "RELEASED: director release authorization",
+       "role": "director",
+       "to": "released"
+      }
+     ]
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImRlNzExYTYwZTY5OTRlMjVhZjdiNTE4NjE0MjE4M2JkIn0.rlalCoYem91OAJfll_uENyQXPq-HGanV6GtcMr_a9gU",
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/revision/d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no released revision '0000000000000000000000000000000000000000000000000000000000000000'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImRlNzExYTYwZTY5OTRlMjVhZjdiNTE4NjE0MjE4M2JkIn0.rlalCoYem91OAJfll_uENyQXPq-HGanV6GtcMr_a9gU",
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/revision/0000000000000000000000000000000000000000000000000000000000000000",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-030"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/revision/d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "count": 6,
+    "ok": true,
+    "records": [
+     {
+      "action": "executive.advance.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "reviewed",
+      "evidence": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+      "location": "pad-east",
+      "mode": "sim",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reason": "prepare durable signed-revision persistence",
+      "record_hash": "f498cd3eb95d9f7bff590a8805d4be7a0fd70e28f220856d9e634947eb75df18",
+      "timestamp": "2027-01-15T08:00:00+00:00"
+     },
+     {
+      "action": "executive.advance",
+      "actor": "api-key",
+      "after_state": "released",
+      "before_state": "pending",
+      "evidence": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+      "location": "pad-east",
+      "mode": "sim",
+      "prev_hash": "f498cd3eb95d9f7bff590a8805d4be7a0fd70e28f220856d9e634947eb75df18",
+      "reason": "signed revision persistence completed",
+      "record_hash": "08892de1f2b06262e520987a6e87bb534c3589134e6b654e7b91957bfb8ecd67",
+      "timestamp": "2027-01-15T08:00:00+00:00"
+     },
+     {
+      "action": "executive.advance.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "reviewed",
+      "evidence": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+      "location": "pad-east",
+      "mode": "sim",
+      "prev_hash": "08892de1f2b06262e520987a6e87bb534c3589134e6b654e7b91957bfb8ecd67",
+      "reason": "prepare durable signed-revision persistence",
+      "record_hash": "f574484280a8d0c937e7c106c2d4aa61d3d5c4d7b05d755ae7757fdf8023cfb0",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     },
+     {
+      "action": "executive.advance",
+      "actor": "api-key",
+      "after_state": "released",
+      "before_state": "pending",
+      "evidence": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+      "location": "pad-east",
+      "mode": "sim",
+      "prev_hash": "f574484280a8d0c937e7c106c2d4aa61d3d5c4d7b05d755ae7757fdf8023cfb0",
+      "reason": "signed revision persistence completed",
+      "record_hash": "ebd0cf775735da115b62925408c4de65084c4a58988e31f2843c0fd3aecc0134",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     },
+     {
+      "action": "executive.advance.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "reviewed",
+      "evidence": "78131a75df49ffa6343ba5bd9e9d474b4e60580aacbefc085b2374c6f33c4184",
+      "location": "pad-west",
+      "mode": "sim",
+      "prev_hash": "ebd0cf775735da115b62925408c4de65084c4a58988e31f2843c0fd3aecc0134",
+      "reason": "prepare durable signed-revision persistence",
+      "record_hash": "ba89bd2283a388e83053a53a1c204e34174e818fcf624b190147a545fdd116f5",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     },
+     {
+      "action": "executive.advance",
+      "actor": "api-key",
+      "after_state": "released",
+      "before_state": "pending",
+      "evidence": "78131a75df49ffa6343ba5bd9e9d474b4e60580aacbefc085b2374c6f33c4184",
+      "location": "pad-west",
+      "mode": "sim",
+      "prev_hash": "ba89bd2283a388e83053a53a1c204e34174e818fcf624b190147a545fdd116f5",
+      "reason": "signed revision persistence completed",
+      "record_hash": "bac40c3dac24b4c37c9dc341fe520bb09c743e553f26814153233b52e1a21bf6",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     }
+    ],
+    "verified": true
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImRlNzExYTYwZTY5OTRlMjVhZjdiNTE4NjE0MjE4M2JkIn0.rlalCoYem91OAJfll_uENyQXPq-HGanV6GtcMr_a9gU",
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/audit",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "command_authority": {
+     "authorized": true,
+     "namespace": "live",
+     "plan_hash": "9c45dbdd14e23bb870cf898868028f8160d56b2312814359f91de350212e8f74",
+     "runtime_profile": "STEWIE_IPEX_V1",
+     "sensor_profile": "stereo_front",
+     "signed_by": "director",
+     "watchdog_deadline_s": 5.0
+    },
+    "evidence": {
+     "forward_compare": {
+      "futures": [
+       {
+        "algorithm": "auto",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 1,
+        "energy_MJ": 4.859,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": true,
+        "objectives_total": 2,
+        "optimality": "exact",
+        "recharges": null,
+        "resolved": "brute",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315564.2,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 115.8,
+         "return_distance_m": 6.62,
+         "return_energy_J": 96.5
+        },
+        "time_s": 106875.23549728334,
+        "wall_s": "<wall_s>"
+       },
+       {
+        "algorithm": "nearest",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 1,
+        "energy_MJ": 4.859,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": false,
+        "objectives_total": 2,
+        "optimality": "heuristic",
+        "recharges": null,
+        "resolved": "nearest",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315564.2,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 115.8,
+         "return_distance_m": 6.62,
+         "return_energy_J": 96.5
+        },
+        "time_s": 106875.23549728336,
+        "wall_s": "<wall_s>"
+       }
+      ],
+      "objective": "duration",
+      "recommended": "auto"
+     },
+     "objective": "time",
+     "orders": 2,
+     "plan_id": "f7bce69d66d3f757"
+    },
+    "label": "sim",
+    "ok": true,
+    "released_objectives": 2,
+    "revision_persisted": true,
+    "signed_revision": {
+     "content_hash": "9c45dbdd14e23bb870cf898868028f8160d56b2312814359f91de350212e8f74",
+     "intent": {
+      "constraints": [],
+      "keep_outs": [],
+      "mission_id": "cockpit-1",
+      "objectives": [
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "Level pad-ac",
+          "measurable": "as-built RMSE <= 0.02 m",
+          "schema_version": "1.0",
+          "sensor": "stereo",
+          "statement": "as-built cut within tolerance",
+          "tolerance_m": 0.02
+         }
+        ],
+        "approver": "api-key",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "loss of localization / off-nominal",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": null,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 1170.0,
+        "objective_id": "Level pad",
+        "order_kind": "cut",
+        "prerequisites": [],
+        "priority": "primary",
+        "rationale": "operator-authored build order",
+        "revision": 0,
+        "schema_version": "1.0",
+        "statement": "cut at (4, 2)",
+        "target_col": 4.0,
+        "target_row": 2.0,
+        "time_window_s": null
+       },
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "obj-2-ac",
+          "measurable": "as-built RMSE <= 0.02 m",
+          "schema_version": "1.0",
+          "sensor": "stereo",
+          "statement": "as-built fill within tolerance",
+          "tolerance_m": 0.02
+         }
+        ],
+        "approver": "api-key",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "loss of localization / off-nominal",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": null,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 260.0,
+        "objective_id": "obj-2",
+        "order_kind": "fill",
+        "prerequisites": [],
+        "priority": "primary",
+        "rationale": "operator-authored build order",
+        "revision": 0,
+        "schema_version": "1.0",
+        "statement": "fill at (6.5, -1.25)",
+        "target_col": 6.5,
+        "target_row": -1.25,
+        "time_window_s": null
+       }
+      ],
+      "revision": 0,
+      "schema_version": "1.0",
+      "statement": "release of 2 build objective(s)",
+      "task_graph_ref": ""
+     },
+     "revision": 0,
+     "schema_version": "1.0",
+     "signed_by": "director"
+    },
+    "skipped": [
+     {
+      "action": "path",
+      "kind": "goto"
+     }
+    ],
+    "state": "released",
+    "transitions": [
+     {
+      "evidence": "ANALYZED: intent cockpit-1 rev 0 compiled to plan_id=f7bce69d66d3f757 (objective='time', orders=2)",
+      "role": "planner",
+      "to": "analyzed"
+     },
+     {
+      "evidence": "REHEARSED: forward_compare ran 2 futures over candidates ['auto', 'nearest']; recommended=auto ({\"algorithm\": \"auto\", \"as_built_pass\": true, \"as_built_tol_m\": 0.02, \"blocked_legs\": 0, \"charges\": 1, \"energy_MJ\": 4.859, \"feasible\": true, \"hazard_flags\": 0, \"infeasible_reasons\": [], \"objective_exact\": true, \"objectives_total\": 2, \"optimality\": \"exact\", \"recharges\": null, \"resolved\": \"brute\", \"return_to_lander\": {\"buffer_frac\": 0.2, \"feasible\": true, \"lander_xy\": [0.0, 0.0], \"margin_J\": 4315564.2, \"remaining_J\": 4315680.0, \"reserve_with_buffer_J\": 115.8, \"return_distance_m\": 6.62, \"return_energy_J\": 96.5}, \"time_s\": 106875.23549728334, \"wall_s\": \"<wall_s>\"})",
+      "role": "operator",
+      "to": "rehearsed"
+     },
+     {
+      "evidence": "REVIEWED: analysis + rehearsal evidence accepted by the review board",
+      "role": "reviewer",
+      "to": "reviewed"
+     },
+     {
+      "evidence": "RELEASED: director release authorization",
+      "role": "director",
+      "to": "released"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": {
+     "mission_id": "cockpit-1",
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/release-plan",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no build orders to release (cut/fill/sinter): the queue has only path/other orders",
+    "ok": false,
+    "skipped": [
+     {
+      "action": "path",
+      "kind": "goto"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": {
+     "orders": [
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/release-plan",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "could not convert string to float: 'abc'",
+    "ok": false,
+    "skipped": []
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": {
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": "abc",
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/release-plan",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "'Moon'",
+    "ok": false,
+    "skipped": []
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": {
+     "body": "Moon",
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/release-plan",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "revision: Input should be greater than or equal to 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-036"
+    },
+    "json": {
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ],
+     "revision": -1
+    },
+    "method": "POST",
+    "path": "/executive/release-plan",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'bob@example.org')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImRlNzExYTYwZTY5OTRlMjVhZjdiNTE4NjE0MjE4M2JkIn0.rlalCoYem91OAJfll_uENyQXPq-HGanV6GtcMr_a9gU",
+     "X-Correlation-Id": "cid-037"
+    },
+    "json": {
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/release-plan",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "count": 8,
+    "ok": true,
+    "records": [
+     {
+      "action": "executive.advance.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "reviewed",
+      "evidence": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+      "location": "pad-east",
+      "mode": "sim",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reason": "prepare durable signed-revision persistence",
+      "record_hash": "f498cd3eb95d9f7bff590a8805d4be7a0fd70e28f220856d9e634947eb75df18",
+      "timestamp": "2027-01-15T08:00:00+00:00"
+     },
+     {
+      "action": "executive.advance",
+      "actor": "api-key",
+      "after_state": "released",
+      "before_state": "pending",
+      "evidence": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+      "location": "pad-east",
+      "mode": "sim",
+      "prev_hash": "f498cd3eb95d9f7bff590a8805d4be7a0fd70e28f220856d9e634947eb75df18",
+      "reason": "signed revision persistence completed",
+      "record_hash": "08892de1f2b06262e520987a6e87bb534c3589134e6b654e7b91957bfb8ecd67",
+      "timestamp": "2027-01-15T08:00:00+00:00"
+     },
+     {
+      "action": "executive.advance.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "reviewed",
+      "evidence": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+      "location": "pad-east",
+      "mode": "sim",
+      "prev_hash": "08892de1f2b06262e520987a6e87bb534c3589134e6b654e7b91957bfb8ecd67",
+      "reason": "prepare durable signed-revision persistence",
+      "record_hash": "f574484280a8d0c937e7c106c2d4aa61d3d5c4d7b05d755ae7757fdf8023cfb0",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     },
+     {
+      "action": "executive.advance",
+      "actor": "api-key",
+      "after_state": "released",
+      "before_state": "pending",
+      "evidence": "d170b16ff40b2d18fec6c014beb1c5ce58b3b88988c640b7800cca723558ecb5",
+      "location": "pad-east",
+      "mode": "sim",
+      "prev_hash": "f574484280a8d0c937e7c106c2d4aa61d3d5c4d7b05d755ae7757fdf8023cfb0",
+      "reason": "signed revision persistence completed",
+      "record_hash": "ebd0cf775735da115b62925408c4de65084c4a58988e31f2843c0fd3aecc0134",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     },
+     {
+      "action": "executive.advance.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "reviewed",
+      "evidence": "78131a75df49ffa6343ba5bd9e9d474b4e60580aacbefc085b2374c6f33c4184",
+      "location": "pad-west",
+      "mode": "sim",
+      "prev_hash": "ebd0cf775735da115b62925408c4de65084c4a58988e31f2843c0fd3aecc0134",
+      "reason": "prepare durable signed-revision persistence",
+      "record_hash": "ba89bd2283a388e83053a53a1c204e34174e818fcf624b190147a545fdd116f5",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     },
+     {
+      "action": "executive.advance",
+      "actor": "api-key",
+      "after_state": "released",
+      "before_state": "pending",
+      "evidence": "78131a75df49ffa6343ba5bd9e9d474b4e60580aacbefc085b2374c6f33c4184",
+      "location": "pad-west",
+      "mode": "sim",
+      "prev_hash": "ba89bd2283a388e83053a53a1c204e34174e818fcf624b190147a545fdd116f5",
+      "reason": "signed revision persistence completed",
+      "record_hash": "bac40c3dac24b4c37c9dc341fe520bb09c743e553f26814153233b52e1a21bf6",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     },
+     {
+      "action": "executive.release_plan.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "reviewed",
+      "evidence": "9c45dbdd14e23bb870cf898868028f8160d56b2312814359f91de350212e8f74",
+      "location": "cockpit-1",
+      "mode": "sim",
+      "prev_hash": "bac40c3dac24b4c37c9dc341fe520bb09c743e553f26814153233b52e1a21bf6",
+      "reason": "prepare durable signed-revision persistence",
+      "record_hash": "231e791edd1105a60f3e13046ff714951a01fd7f1df733d12656bb9f7a77780d",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     },
+     {
+      "action": "executive.release_plan",
+      "actor": "api-key",
+      "after_state": "released",
+      "before_state": "pending",
+      "evidence": "9c45dbdd14e23bb870cf898868028f8160d56b2312814359f91de350212e8f74",
+      "location": "cockpit-1",
+      "mode": "sim",
+      "prev_hash": "231e791edd1105a60f3e13046ff714951a01fd7f1df733d12656bb9f7a77780d",
+      "reason": "2 objectives released",
+      "record_hash": "261e6336a14607df1176a81988a476d884d51ec4a7064036fb48baeffb5a0e9b",
+      "timestamp": "2027-01-15T08:00:03+00:00"
+     }
+    ],
+    "verified": true
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-038"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/audit",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": null
+}

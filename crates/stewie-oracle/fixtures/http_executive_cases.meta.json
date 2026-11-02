@@ -1,0 +1,16 @@
+{
+ "fixture": "http_executive_cases",
+ "generator": "oracle/build_fixtures.py::http_executive_cases (the FastAPI app's mission executive: advance, release-plan, revisions, audit)",
+ "payload_sha256": "a9b5d0adf96442348b2ed5be001e7aa6f4a48ac0f75bdba42d972d49cd1ab72f",
+ "sources": {
+  "lode/mission_intent_compiler.py": "09e55a53c6cc40a1e802a79e1052e31550a996ed917217976726e63ecf8c66cb",
+  "lode/mission_lifecycle.py": "89df32c231b73c4f73cd6af6a548a64e39b3b504f6b330725f68a17a3598f3f9",
+  "lode/resync.py": "b02fb893aad28992f93fca7d3a6f1a69ce2ce843e3e8eab6d608095069460ed3",
+  "stewie/contracts/audit.py": "bc886063169fb9b0ee62158b2aadc7e9c0547ce3a1063d2c9ce13464e88fec7b",
+  "stewie/contracts/executive.py": "9457f06ffaf5a5e40c3b370f30349d3319d8f408735b77426366014af6fbde18",
+  "stewie/contracts/mission_ops.py": "88be7f960a336439b793a34645c0fa0d94c10321c261626a2ededa4ca54aee2d",
+  "stewie/server/audit_log.py": "043f01c92a48e83d78581a22c17cb8677ea19752d129c47a3758189f6e6af221",
+  "stewie/server/db.py": "39a5c8029fb2e9402164d4a1eca72c9dcc3b38f42ef12fc4eb2407b69e75aa81",
+  "stewie/server/routers/executive.py": "4b0fa9608fb0f13b2cd61217be11b5e90f6e78f3e8980f96f2fefdda7d9d9e1f"
+ }
+}

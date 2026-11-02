@@ -2443,6 +2443,58 @@ async fn the_python_live_profile_rover_commands_replay_exactly() {
     .await;
 }
 
+/// Each future's measured `wall_s` as the oracle normalised it (in the comparison and in the evidence strings).
+fn normalise_wall_s(v: &mut Value) {
+    match v {
+        Value::Object(m) => {
+            for (k, x) in m.iter_mut() {
+                if k == "wall_s" {
+                    *x = json!("<wall_s>");
+                } else {
+                    normalise_wall_s(x);
+                }
+            }
+        }
+        Value::Array(a) => a.iter_mut().for_each(normalise_wall_s),
+        Value::String(s) => {
+            let re = regex::Regex::new(r#""wall_s": [0-9.e+-]+"#).unwrap();
+            *s = re.replace_all(s, r#""wall_s": "<wall_s>""#).into_owned();
+        }
+        _ => {}
+    }
+}
+
+#[tokio::test]
+async fn the_python_executive_session_replays_on_postgres() {
+    // the released revisions are frozen into, and read back from, the Postgres store
+    let Some(url) = scratch_postgres("exec_replay").await else {
+        return;
+    };
+    replay_on(
+        "http_executive_cases",
+        b"stewie-http-executive-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, body| normalise_wall_s(body),
+        Some(&url),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_python_executive_session_replays_exactly() {
+    replay(
+        "http_executive_cases",
+        b"stewie-http-executive-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, body| normalise_wall_s(body),
+    )
+    .await;
+}
+
 #[tokio::test]
 async fn a_nav_run_routes_around_its_keepouts() {
     // D-R172: the Python 500s on any /nav/run keep-out (it hands route_leg tuples where it reads dicts); the Rust

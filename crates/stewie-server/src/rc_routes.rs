@@ -92,7 +92,7 @@ fn ungroup(s: &str) -> Option<String> {
 }
 
 /// Python's `float(v)`, with its error messages.
-fn py_float(v: &Value) -> Result<f64, String> {
+pub(crate) fn py_float(v: &Value) -> Result<f64, String> {
     match v {
         Value::Number(n) => Ok(n.as_f64().unwrap_or(0.0)),
         Value::Bool(b) => Ok(f64::from(u8::from(*b))),

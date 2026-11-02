@@ -14,6 +14,7 @@ pub mod contour;
 pub mod dem_routes;
 pub mod edit_session;
 pub mod evidence_routes;
+pub mod executive_routes;
 pub mod geotiff;
 pub mod gis_routes;
 pub mod globe;

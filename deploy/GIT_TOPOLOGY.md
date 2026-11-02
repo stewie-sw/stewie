@@ -49,7 +49,9 @@ git grep -InE "(api[_-]?key|secret|password|token)[\"'[:space:]]*[:=][\"'[:space
 #    Expected hits (SYNTHETIC, not deployable): in crates/stewie-oracle/fixtures/http_*_cases.payload.json,
 #    session tokens signed with the oracle's own secret `session-secret-abcdef` (oracle/build_fixtures.py;
 #    never in deploy/.env), invite tokens drawn from the oracle's seeded byte stream in a throwaway data dir,
-#    and the over-length test password. Any other hit stops the push.
+#    the over-length test password, and in oracle/build_fixtures.py the oracle's own live-execution token key
+#    `oracle-live-token-secret` (it signs only the SYNTHETIC tokens of http_rc_cases; never deployed).
+#    Any other hit stops the push.
 
 # 3. no bare 64-hex key blobs (the artemis-api-key.conf shape).
 #    Docker image digests and pip lock hashes are expected hits; anything else is not.
