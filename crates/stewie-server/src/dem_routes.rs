@@ -55,7 +55,7 @@ fn bundle_404(st: &AppState, site: &str) -> Result<PathBuf, ApiError> {
     })
 }
 
-fn metadata(dir: &std::path::Path) -> Result<Value, String> {
+pub(crate) fn metadata(dir: &std::path::Path) -> Result<Value, String> {
     let path = dir.join("metadata.json");
     let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))
@@ -98,7 +98,7 @@ fn num(raw: &Map<String, Value>, k: &str, default: f64) -> f64 {
 
 /// `numpy.linspace(start, stop, n)`: `i * step + start`, the last exactly `stop`.
 #[allow(clippy::cast_precision_loss, clippy::similar_names)] // sample counts; numpy's start, stop, step
-fn linspace(start: f64, stop: f64, n: usize) -> Vec<f64> {
+pub(crate) fn linspace(start: f64, stop: f64, n: usize) -> Vec<f64> {
     let step = (stop - start) / (n - 1) as f64;
     let mut v: Vec<f64> = (0..n).map(|i| i as f64 * step + start).collect();
     if n > 1 {

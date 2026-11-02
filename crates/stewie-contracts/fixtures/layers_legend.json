@@ -1,0 +1,141 @@
+{
+  "aspect": {
+    "ramp": "cyclic hue wheel: N red \u2192 E chartreuse \u2192 S cyan \u2192 W violet (0\u2013360\u00b0)",
+    "text": "gradient azimuth -- the compass direction the surface faces downhill (steepest descent), from the same DEM gradient the slope drape uses; 0\u00b0=grid-north, 90\u00b0=east, clockwise. Near-flat cells fade out (aspect is undefined there)."
+  },
+  "bearing": {
+    "ramp": "pale (low) -> deep blue (high pressure)",
+    "text": "ground contact pressure p = wheel normal load / contact patch -- the Bekker bearing driver (stewie.physics.sinkage.contact_pressure); highest on flat ground, easing where the normal load tilts off-normal on a grade.",
+    "unit": "Pa"
+  },
+  "blocking": {
+    "reasons": [
+      {
+        "hex": "#d62828",
+        "reason": "slope"
+      },
+      {
+        "hex": "#009e9e",
+        "reason": "sinkage"
+      },
+      {
+        "hex": "#be1ea0",
+        "reason": "tip_risk"
+      },
+      {
+        "hex": "#965218",
+        "reason": "negative_obstacle"
+      },
+      {
+        "hex": "#7c4ad6",
+        "reason": "psr"
+      },
+      {
+        "hex": "#6e6e6e",
+        "reason": "keepout"
+      },
+      {
+        "hex": "#1e80e0",
+        "reason": "reservation"
+      }
+    ],
+    "text": "impassable cells coloured by the FIRST costmap layer that vetoes them (transparent where passable): why a route bends or refuses. Sun-dependent (the psr veto follows the sun slider)."
+  },
+  "changed_terrain": {
+    "ramp": "diverging: red (cut, as-built below base) \u2192 white (no change, transparent) \u2192 blue (fill / berm, above base)",
+    "text": "signed terrain change -- the composed as-built/observed surface (compose_terrain_view) minus the pristine base DEM [m]: excavation (cut) is negative/red, deposited material (fill / berm) positive/blue, unworked ground transparent; opacity rises with |change| (robust 98th-pct scale). Per-cell depth via /world/point (as_built_delta_m). The visual producer for the catalog rows map.changed_terrain + evidence.before_after_dem; uncached (it changes as each SIM run folds terrain)."
+  },
+  "cost": {
+    "ramp": "green (low) \u2192 amber \u2192 red (high)",
+    "text": "plan-independent traversability cost -- the summed FORGE costmap (slope + roughness + sinkage + slip + illumination + shadow-confidence + energy) the planner routes on, MINUS the goal-specific distance-to-goal; redder = costlier to cross. Sun-dependent (the illumination/shadow layers follow the sun slider)."
+  },
+  "curvature": {
+    "ramp": "diverging: blue (convex-up ridge, \u2207\u00b2z<0) \u2192 white (planar) \u2192 red (concave-up hollow, \u2207\u00b2z>0)",
+    "text": "Laplacian curvature \u2207\u00b2z = \u2202\u00b2z/\u2202x\u00b2 + \u2202\u00b2z/\u2202y\u00b2 [1/m] from the DEM gradient; convex-up ridges/mounds are negative, concave-up hollows/valleys positive; near-planar ground is transparent (robustly scaled by the 98th percentile of |\u2207\u00b2z|)."
+  },
+  "dem": {
+    "text": "cartographic hillshade (315\u00b0/45\u00b0) from the raw 5 m heightmap"
+  },
+  "energy_cost": {
+    "ramp": "pale yellow (cheap) -> deep red (costly)",
+    "text": "steady drive power on the grade from the Bekker motion resistance (stewie.physics.slip.bekker_drive_power_w); rises steeply with slope and diverges at entrapment. A power (Watts) reading, not an energy total (task #53 honesty fix).",
+    "unit": "W"
+  },
+  "excavation_resistance": {
+    "ramp": "pale (easy dig) -> deep purple (high draft force)",
+    "text": "excavation draft (cutting) force from the McKyes/Reece Fundamental Earthmoving Equation F=(gamma*g*d^2*N_gamma + c*d*N_c + q*d*N_q)*w over the bucket-drum cut (stewie.physics.excavation.draft_force); the first-principles dig difficulty of the in-situ regolith (rake/soil-tool-friction defaults [CALIB-PENDING]).",
+    "unit": "N"
+  },
+  "hazard": {
+    "nogo_deg": 20.0,
+    "obstacle_m": 0.075,
+    "penalty_deg": 15.0,
+    "text": "red = no-go (> tested slope limit or rock above the obstacle envelope); amber = penalty (> nominal slope)"
+  },
+  "illumination": {
+    "sun": "horizon-clipped shadow at the mission-time sun (SPICE)",
+    "text": "blue = shadowed at the selected time"
+  },
+  "incidence": {
+    "sun": "solar incidence angle (DEM normal vs sun direction) at the selected geometry",
+    "text": "amber = grazing / facet-away light (0\u00b0 normal-on faint \u2192 90\u00b0+ grazing opaque); washed-out cameras + poor solar flux even where geometrically lit"
+  },
+  "ok": true,
+  "psr": {
+    "sweep": "never lit across a 0\u2013330\u00b0 azimuth sweep at 3\u00b0 elevation",
+    "text": "violet = permanently shadowed region (PSR) candidate -- never sunlit; the cold traps where water ice survives"
+  },
+  "roughness": {
+    "ramp": "sequential: pale (smooth) \u2192 deep (rough)",
+    "text": "local RMS-slope roughness -- the 3\u00d73-window standard deviation of the slope field, the same definition as the FORGE costmap roughness layer (lode.costmap_layers._roughness, one source of truth); higher = rougher terrain / mobility risk below the slope cap."
+  },
+  "sinkage": {
+    "ramp": "pale (firm) -> dark brown (deep burial)",
+    "text": "slip-coupled wheel sinkage z the rover would settle to per cell (Bekker static solve stewie.physics.sinkage.bekker_sinkage deepened by the slip.slip_sinkage equilibrium); grows on steep/loose ground toward burial.",
+    "unit": "m"
+  },
+  "slip_risk": {
+    "ramp": "green (grip) -> amber -> red (entrapment)",
+    "text": "wheel slip ratio for the demanded thrust (stewie.physics.slip.slip_for_demand at the per-cell slip-sinkage equilibrium); red = the traction budget is exceeded and the wheel digs in (Spirit-mode entrapment).",
+    "unit": "slip ratio"
+  },
+  "slope": {
+    "max_deg": 30.0,
+    "ramp": "green 0\u00b0 \u2192 red 30\u00b0 (opacity rises with steepness)"
+  },
+  "traction_margin": {
+    "ramp": "green (ample) -> amber -> red (no margin)",
+    "text": "traction headroom (H_max - demand) / H_max from the Coulomb-Mohr budget (stewie.physics.slip.traction_budget) vs the along-slope demand; red = little margin left before slip runaway.",
+    "unit": "fraction"
+  },
+  "traffic": {
+    "bands": [
+      {
+        "dr": "0.0-0.2",
+        "hex": "#f7f7f7",
+        "label": "pristine / lightly trafficked"
+      },
+      {
+        "dr": "0.2-0.4",
+        "hex": "#cccccc",
+        "label": "compacted"
+      },
+      {
+        "dr": "0.4-0.6",
+        "hex": "#969696",
+        "label": "firm road"
+      },
+      {
+        "dr": "0.6-0.8",
+        "hex": "#636363",
+        "label": "firm road"
+      },
+      {
+        "dr": "0.8-1.0",
+        "hex": "#252525",
+        "label": "paved (RHO_DEEP)"
+      }
+    ],
+    "text": "traversal hardening (relative density Dr) accumulated from repeated traffic (TW-11); color = Dr band, opacity = normalized traversal intensity; Sigma_c characteristic cumulative load is [CALIB]"
+  }
+}

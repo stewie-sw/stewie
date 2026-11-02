@@ -2,7 +2,7 @@
 //! windows, and on the oracle's SYNTHETIC seeded grids, every polygon's points (exact), ring offsets and order.
 
 use serde_json::Value;
-use stewie_server::contour::filled;
+use stewie_server::contour::{filled, lines};
 
 fn floats(v: &Value) -> Vec<f64> {
     v.as_array()
@@ -50,5 +50,43 @@ fn filled_contours_are_contourpys() {
     assert!(
         polys > 300 && holes > 100,
         "vacuity: {polys} polygons, {holes} holes"
+    );
+}
+
+#[test]
+fn contour_lines_are_contourpys() {
+    let fx = stewie_oracle::load("contour_lines_cases").unwrap().payload;
+    let (mut n_lines, mut n_points) = (0, 0);
+    for c in fx["cases"].as_array().unwrap() {
+        let name = c["name"].as_str().unwrap();
+        let got = lines(
+            &floats(&c["xs"]),
+            &floats(&c["ys"]),
+            &floats(&c["z"]),
+            c["level"].as_f64().unwrap(),
+        )
+        .unwrap();
+        let want: Vec<Vec<[f64; 2]>> = c["lines"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|l| {
+                l.as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|p| [p[0].as_f64().unwrap(), p[1].as_f64().unwrap()])
+                    .collect()
+            })
+            .collect();
+        assert_eq!(got.len(), want.len(), "{name}: line count");
+        for (k, (g, w)) in got.iter().zip(&want).enumerate() {
+            assert_eq!(g, w, "{name} line {k}");
+            n_points += g.len();
+        }
+        n_lines += got.len();
+    }
+    assert!(
+        n_lines > 100 && n_points > 2000,
+        "vacuity: {n_lines} lines, {n_points} points"
     );
 }

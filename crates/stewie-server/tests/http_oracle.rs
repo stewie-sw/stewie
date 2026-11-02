@@ -1798,6 +1798,54 @@ async fn the_cockpit_pages_and_the_api_docs_are_served_as_the_python() {
 }
 
 #[tokio::test]
+async fn the_python_layers_vector_session_replays_exactly() {
+    replay(
+        "http_layers_vector_cases",
+        b"stewie-http-layers-vector-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_globe_quota_limits_each_client_ip() {
+    // SYNTHETIC: a quota of one; the Python builds its limiter at import, so the oracle cannot vary it
+    let dir = std::env::temp_dir().join(format!("stewie-globe-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+        ("STEWIE_GLOBE_QUOTA_MAX", "1".to_owned()),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"globe").into(),
+        n: Mutex::new(0),
+    }));
+    let app = router(Arc::new(
+        AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap(),
+    ));
+    let (s1, _) = call(&app, "GET", "/layers/contours.geojson?site=atlantis", None).await;
+    let (s2, b2) = call(&app, "GET", "/layers/contours.geojson?site=atlantis", None).await;
+    assert_eq!(
+        (s1, s2, b2),
+        (
+            404,
+            429,
+            json!({"ok": false, "error": "globe-layer render quota exceeded; slow down"})
+        )
+    );
+    // the legend is not rate-limited
+    assert_eq!(call(&app, "GET", "/layers/legend", None).await.0, 200);
+}
+
+#[tokio::test]
 async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts
     let dir = std::env::temp_dir().join(format!("stewie-heavy-{}", std::process::id()));

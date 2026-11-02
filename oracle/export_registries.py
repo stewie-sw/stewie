@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,autonomy,plan_report,openapi,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json and swagger.html
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,autonomy,plan_report,openapi,layers_legend,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json and swagger.html
 """
 from __future__ import annotations
 
@@ -144,6 +144,13 @@ def swagger_page() -> str:
     with open(path, "wb") as fh:
         fh.write(page.body)
     return path
+
+
+def layers_legend() -> dict:
+    """The map legend GET /layers/legend serves (``routers.layers.layers_legend``): every value is read from the
+    physics, the hazard-map defaults and the renderers' colour specs, so it is a pure function of the code."""
+    from stewie.server.routers.layers import layers_legend as legend
+    return legend()
 
 
 def autonomy() -> dict:
@@ -339,6 +346,7 @@ def main() -> None:
     print(_write("autonomy.json", autonomy()))
     print(_write("plan_report.json", plan_report()))
     print(_write("openapi.json", openapi()))
+    print(_write("layers_legend.json", layers_legend()))
     print(swagger_page())
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))

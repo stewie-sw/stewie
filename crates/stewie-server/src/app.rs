@@ -83,6 +83,9 @@ pub struct Settings {
     pub world_window_s: f64,
     /// The public 3D viewer's per-IP quota: `STEWIE_VIZ_QUOTA_MAX` (240) per `STEWIE_VIZ_QUOTA_WINDOW_S` (60 s).
     pub viz_quota_max: i64,
+    /// The public globe drapes' per-IP quota: `STEWIE_GLOBE_QUOTA_MAX` (180) per `STEWIE_GLOBE_QUOTA_WINDOW_S` (60 s).
+    pub globe_quota_max: i64,
+    pub globe_window_s: f64,
     pub viz_window_s: f64,
     /// The heavy planning routes' per-identity quota: `STEWIE_HEAVY_QUOTA_MAX` (30) per
     /// `STEWIE_HEAVY_QUOTA_WINDOW_S` (60 s).
@@ -176,6 +179,8 @@ impl Settings {
             world_point_budget: num("STEWIE_WORLD_POINT_BUDGET", "512")? as i64,
             world_window_s: num("STEWIE_WORLD_QUOTA_WINDOW_S", "60")?,
             viz_quota_max: num("STEWIE_VIZ_QUOTA_MAX", "240")? as i64,
+            globe_quota_max: num("STEWIE_GLOBE_QUOTA_MAX", "180")? as i64,
+            globe_window_s: num("STEWIE_GLOBE_QUOTA_WINDOW_S", "60")?,
             viz_window_s: num("STEWIE_VIZ_QUOTA_WINDOW_S", "60")?,
             heavy_quota_max: num("STEWIE_HEAVY_QUOTA_MAX", "30")? as i64,
             heavy_window_s: num("STEWIE_HEAVY_QUOTA_WINDOW_S", "60")?,
@@ -247,6 +252,7 @@ pub struct AppState {
     world_quota: RateLimiter,
     world_points: RateLimiter,
     viz_quota: RateLimiter,
+    globe_quota: RateLimiter,
     draft_quota: RateLimiter,
     heavy_quota: RateLimiter,
     /// The mission-feature edit sessions (`data_dir/edit_session.db`, opened on first use).
@@ -324,6 +330,7 @@ impl AppState {
             world_quota: RateLimiter::new(settings.world_quota_max, settings.world_window_s),
             world_points: RateLimiter::new(settings.world_point_budget, settings.world_window_s),
             viz_quota: RateLimiter::new(settings.viz_quota_max, settings.viz_window_s),
+            globe_quota: RateLimiter::new(settings.globe_quota_max, settings.globe_window_s),
             draft_quota: RateLimiter::new(120, 60.0),
             heavy_quota: RateLimiter::new(settings.heavy_quota_max, settings.heavy_window_s),
             edit_sessions: crate::edit_session::Store::new(&cfg.data_dir),
@@ -384,6 +391,18 @@ impl AppState {
             Err(err(
                 StatusCode::TOO_MANY_REQUESTS,
                 "viz terrain render quota exceeded; slow down",
+            ))
+        }
+    }
+
+    /// The public globe drapes' per-IP render quota (Python `routers.layers.globe_quota`, GIS-03).
+    pub(crate) fn globe_quota(&self, h: &Head) -> Result<(), ApiError> {
+        if self.globe_quota.allow(&h.client_ip(self), self.mono(), 1) {
+            Ok(())
+        } else {
+            Err(err(
+                StatusCode::TOO_MANY_REQUESTS,
+                "globe-layer render quota exceeded; slow down",
             ))
         }
     }

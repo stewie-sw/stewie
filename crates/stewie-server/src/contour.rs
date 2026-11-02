@@ -1,6 +1,7 @@
-//! Filled contours (RW-55b5c-3): a port of contourpy 1.3.3's serial algorithm (`base_impl.h`) for the case the
-//! server uses, an unmasked grid in one chunk with linear interpolation and no quad subdivision, filled between two
-//! levels with the `OuterOffset` output (each outer ring with its holes). Every start flag, the boundary and
+//! Contours (RW-55b5c-3, RW-55b17a): a port of contourpy 1.3.3's serial algorithm (`base_impl.h`) for the case the
+//! server uses, an unmasked grid in one chunk with linear interpolation and no quad subdivision: filled between two
+//! levels with the `OuterOffset` output (each outer ring with its holes), and lines at one level with the
+//! `Separate` output (each line its own points). Every start flag, the boundary and
 //! interior walks, the start clearing of the counting pass and the `LOOK_N` / `LOOK_S` hole pairing follow the C++, so
 //! the polygons, their order, their start points and their direction are contourpy's. Without a mask, the corner
 //! and N-boundary hole starts cannot arise, so their branches are absent.
@@ -13,9 +14,12 @@ const BOUNDARY_N: u32 = 1 << 5;
 const EXISTS_QUAD: u32 = 1 << 6;
 const START_E: u32 = 1 << 11;
 const START_N: u32 = 1 << 12;
+const START_BOUNDARY_E: u32 = 1 << 13;
+const START_BOUNDARY_N: u32 = 1 << 14;
 const START_BOUNDARY_S: u32 = 1 << 15;
 const START_BOUNDARY_W: u32 = 1 << 16;
-const ANY_START: u32 = START_E | START_N | START_BOUNDARY_S | START_BOUNDARY_W;
+const ANY_START: u32 =
+    START_E | START_N | START_BOUNDARY_E | START_BOUNDARY_N | START_BOUNDARY_S | START_BOUNDARY_W;
 const LOOK_N: u32 = 1 << 19;
 const LOOK_S: u32 = 1 << 20;
 
@@ -46,6 +50,8 @@ struct Gen<'a> {
     z: &'a [f64],
     nx: i64,
     cache: Vec<u32>,
+    /// Filled contours (two levels) or lines (one).
+    filled: bool,
     lower: f64,
     upper: f64,
     pass: u8,
@@ -89,7 +95,7 @@ impl Gen<'_> {
         self.c(q - 1) & BOUNDARY_E != 0
     }
     fn zlevel(&self, v: f64) -> u32 {
-        if v > self.upper {
+        if self.filled && v > self.upper {
             2
         } else {
             u32::from(v > self.lower)
@@ -149,7 +155,9 @@ impl Gen<'_> {
                 let z_se = if j == 0 { 0 } else { self.zl(quad - nx) };
                 let z_ne = self.zlevel(self.zv(quad));
                 self.set(quad, z_ne);
-                if self.c(quad) & EXISTS_QUAD != 0 {
+                if self.c(quad) & EXISTS_QUAD != 0 && !self.filled {
+                    self.line_starts(quad, [z_nw, z_ne, z_sw, z_se]);
+                } else if self.c(quad) & EXISTS_QUAD != 0 {
                     let (bs, bw) = (self.boundary_s(quad), self.boundary_w(quad));
                     let mut f = 0;
                     let sides = |f: &mut u32| {
@@ -263,6 +271,58 @@ impl Gen<'_> {
                 z_sw = z_se;
             }
         }
+    }
+
+    /// contourpy `init_cache_levels_and_starts`' line starts of one quad from its corners' levels (0 or 1).
+    fn line_starts(&mut self, quad: i64, [z_nw, z_ne, z_sw, z_se]: [u32; 4]) {
+        let c = self.c(quad);
+        let (be, bn) = (c & BOUNDARY_E != 0, c & BOUNDARY_N != 0);
+        let (bs, bw) = (self.boundary_s(quad), self.boundary_w(quad));
+        let mut f = 0;
+        match (z_nw << 3) | (z_ne << 2) | (z_sw << 1) | z_se {
+            1 | 3 if be => f |= START_BOUNDARY_E,
+            2 | 10 | 14 if bs => f |= START_BOUNDARY_S,
+            4 => {
+                if bn {
+                    f |= START_BOUNDARY_N;
+                } else if !be {
+                    f |= START_N;
+                }
+            }
+            5 | 7 if bn => f |= START_BOUNDARY_N,
+            6 => {
+                let m = self.set_middle(quad);
+                if bn {
+                    f |= START_BOUNDARY_N;
+                } else if !be && m == 0 {
+                    f |= START_N;
+                }
+                if bs {
+                    f |= START_BOUNDARY_S;
+                }
+            }
+            8 | 12 | 13 if bw => f |= START_BOUNDARY_W,
+            9 => {
+                let m = self.set_middle(quad);
+                if be {
+                    f |= START_BOUNDARY_E;
+                } else if !bn && m == 1 {
+                    f |= START_E;
+                }
+                if bw {
+                    f |= START_BOUNDARY_W;
+                }
+            }
+            11 => {
+                if be {
+                    f |= START_BOUNDARY_E;
+                } else if !bn {
+                    f |= START_E;
+                }
+            }
+            _ => {}
+        }
+        self.set(quad, f);
     }
 
     /// contourpy `set_look_flags`: mark the hole start, then walk S to where the outer that encloses it passes.
@@ -445,6 +505,10 @@ impl Gen<'_> {
                     && (if is_upper { z_ne > 0 } else { z_ne < 2 })
                 {
                     self.clear(quad, START_E);
+                    if !self.filled && quad < start.quad {
+                        // a line: contourpy stops counting where an earlier start already walked this strip
+                        break;
+                    }
                 } else if cq & START_N != 0
                     && forward == -nx
                     && left == 1
@@ -452,6 +516,9 @@ impl Gen<'_> {
                     && (if is_upper { z_nw > 0 } else { z_nw < 2 })
                 {
                     self.clear(quad, START_N);
+                    if !self.filled && quad < start.quad {
+                        break;
+                    }
                 }
             }
             match turn {
@@ -484,12 +551,31 @@ impl Gen<'_> {
             };
             if reached {
                 (forward, left) = (left, -forward);
+                if !self.filled {
+                    // a line ends on the boundary edge it reaches
+                    *count += 1;
+                    if self.pass > 0 {
+                        let p = self.interp(left_point, right_point, false);
+                        self.points.push(p);
+                    }
+                }
                 break;
             }
             quad += forward;
         }
         (loc.quad, loc.forward, loc.left, loc.is_upper) = (quad, forward, left, is_upper);
         finished
+    }
+
+    /// contourpy `line`: one line from a start. The counting pass only clears the interior starts a strip passes
+    /// (contourpy's counts size its buffers, which a `Vec` does not need), so the output pass draws each line once.
+    fn line(&mut self, start: Loc) {
+        let mut loc = start;
+        let first = self.points.len();
+        self.follow_interior(&mut loc, &start, &mut 0);
+        if self.pass > 0 {
+            self.line_offsets.push(first);
+        }
     }
 
     /// contourpy `closed_line`: alternate boundary and interior walks until back at the start.
@@ -581,6 +667,7 @@ pub fn filled(
         z,
         nx: nx as i64,
         cache: Vec::with_capacity(nx * ny),
+        filled: true,
         lower,
         upper,
         pass: 0,
@@ -667,4 +754,73 @@ pub fn filled(
         out.push((g.points[p0..p1].to_vec(), offsets));
     }
     Ok(out)
+}
+
+/// Contour lines of `z` (`ys.len()` rows of `xs.len()` points, row-major) at `level`, as contourpy's `lines(level)`
+/// with `line_type="Separate"`: each line its own points, in contourpy's order and direction; a closed loop ends on
+/// its first point.
+///
+/// # Errors
+/// A grid smaller than 2 x 2 or a `z` of another size.
+#[allow(clippy::cast_possible_wrap)] // grid sizes
+pub fn lines(xs: &[f64], ys: &[f64], z: &[f64], level: f64) -> Result<Vec<Vec<[f64; 2]>>, String> {
+    let (nx, ny) = (xs.len(), ys.len());
+    if nx < 2 || ny < 2 || z.len() != nx * ny {
+        return Err(format!(
+            "contour: a {ny} x {nx} grid needs at least 2 x 2 points and {} z values (got {})",
+            nx * ny,
+            z.len()
+        ));
+    }
+    let mut g = Gen {
+        xs,
+        ys,
+        z,
+        nx: nx as i64,
+        cache: Vec::with_capacity(nx * ny),
+        filled: false,
+        lower: level,
+        upper: level,
+        pass: 0,
+        points: Vec::new(),
+        line_offsets: Vec::new(),
+        outer_offsets: Vec::new(),
+        line_count: 0,
+        look_up: Vec::new(),
+    };
+    g.init(ny as i64);
+    let n = g.nx;
+    let at = |quad, forward, left, on_boundary| Loc {
+        quad,
+        forward,
+        left,
+        is_upper: false,
+        on_boundary,
+    };
+    for pass in 0..2 {
+        g.pass = pass;
+        for quad in 0..(nx * ny) as i64 {
+            if g.c(quad) & ANY_START == 0 {
+                continue;
+            }
+            // each flag is re-read: a walk from an earlier start may have cleared it
+            for (flag, forward, left, on_boundary) in [
+                (START_BOUNDARY_S, n, -1, true),
+                (START_BOUNDARY_W, 1, n, true),
+                (START_BOUNDARY_E, -1, -n, true),
+                (START_BOUNDARY_N, -n, 1, true),
+                (START_E, -1, -n, false),
+                (START_N, -n, 1, false),
+            ] {
+                if g.c(quad) & flag != 0 {
+                    g.line(at(quad, forward, left, on_boundary));
+                }
+            }
+        }
+    }
+    g.line_offsets.push(g.points.len());
+    Ok(g.line_offsets
+        .windows(2)
+        .map(|w| g.points[w[0]..w[1]].to_vec())
+        .collect())
 }

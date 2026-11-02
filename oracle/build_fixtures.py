@@ -5605,6 +5605,26 @@ def http_layers_cases() -> None:
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
 
+def http_layers_vector_cases() -> None:
+    """The map legend and the elevation contours (RW-55b17a): GET /layers/legend and /layers/contours.geojson on the
+    real Haworth tile at the default and a coarse interval, with the interval clamps and the missing-site refusals,
+    through one scripted session (_http_session)."""
+
+    def script(call, key, d, clock):
+        call("GET", "/layers/legend")
+        call("GET", "/layers/contours.geojson")
+        call("GET", "/layers/contours.geojson?interval=1000")
+        call("GET", "/layers/contours.geojson?interval=5000")           # clamped to 1000
+        call("GET", "/layers/contours.geojson?interval=abc")
+        call("GET", "/layers/contours.geojson?site=atlantis")
+        call("GET", "/layers/contours.geojson?site=amundsen_rim")
+
+    payload = _http_session("stewie-http-layers-vector-oracle", {}, script)
+    write_fixture(ORACLE_FIXTURES, "http_layers_vector_cases", "oracle/build_fixtures.py::http_layers_vector_cases "
+                  "(the FastAPI app's /layers/legend and /layers/contours.geojson on the real Haworth tile)",
+                  ["stewie/server/routers/layers.py", "stewie/server/gis_layers.py",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
+
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
     real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
@@ -5819,6 +5839,51 @@ def contour_cases() -> None:
                   "seeded grids, labelled)", ["stewie/server/gis_layers.py"], {"cases": cases})
 
 
+
+def contour_lines_cases() -> None:
+    """The contourpy line port (RW-55b17a): contourpy's serial ``lines(level)`` with ``line_type="Separate"`` on (1)
+    a real Haworth work-area height window at five of its quantiles (boundary strips, closed loops, saddles); (2)
+    the whole real Haworth tile strided as ``gis_layers.contour_geojson`` traces it, at three elevations; and (3)
+    SYNTHETIC seeded random grids (labelled), which reach start configurations the real terrain may not."""
+    from contourpy import contour_generator
+
+    from lode import mission_planner as mp
+    from stewie.server import gis_layers as GL
+
+    def run(name, xs, ys, z, level):
+        gen = contour_generator(np.asarray(xs, float), np.asarray(ys, float), np.asarray(z, float),
+                                line_type="Separate")
+        return {"name": name, "xs": [float(v) for v in xs], "ys": [float(v) for v in ys],
+                "z": [float(v) for v in np.asarray(z, float).ravel()], "level": level,
+                "lines": [np.asarray(ln, float).tolist() for ln in gen.lines(level)]}
+
+    cases = []
+    bundle_dir = mp.bundle_for_site("haworth")
+    dem, (r0, c0), cell_m = GL._work_area(mp, bundle_dir)
+    win = np.asarray(dem, dtype=float)[:48, :48]
+    xs, ys = np.arange(48) * cell_m, 1000.0 - np.arange(48) * cell_m
+    for q in (0.1, 0.3, 0.5, 0.7, 0.9):
+        cases.append(run(f"haworth_window_q{q:g}", xs, ys, win, float(np.quantile(win, q))))
+    dem_full, _c, b, _f, _crs = GL._tile_geo(mp, bundle_dir)
+    z = np.asarray(dem_full, dtype=float)[::16, ::16]
+    hd, wd = z.shape
+    xs, ys = np.linspace(b["x0"], b["x1"], wd), np.linspace(b["y1"], b["y0"], hd)
+    for q in (0.25, 0.5, 0.75):
+        cases.append(run(f"haworth_tile_q{q:g}", xs, ys, z, round(float(np.quantile(z, q)), 3)))
+    rng = np.random.default_rng(20261102)                              # SYNTHETIC seeded grids (labelled)
+    for k in range(8):
+        ny, nx = int(rng.integers(2, 24)), int(rng.integers(2, 24))
+        z = rng.random((ny, nx))
+        cases.append(run(f"synthetic_random_{k}", np.arange(nx) * 2.0, 100.0 - np.arange(ny) * 3.0, z, 0.5))
+    for k in range(4):
+        ny, nx = int(rng.integers(3, 20)), int(rng.integers(3, 20))
+        z = (rng.random((ny, nx)) < 0.4).astype(float)
+        cases.append(run(f"synthetic_binary_{k}", np.arange(nx) * 1.0, np.arange(ny) * 1.0, z, 0.5))
+    write_fixture(ORACLE_FIXTURES, "contour_lines_cases", "oracle/build_fixtures.py::contour_lines_cases "
+                  "(contourpy 1.3.3 serial lines, Separate; real Haworth heights, plus SYNTHETIC seeded grids, "
+                  "labelled)", ["stewie/server/gis_layers.py", "samples/lunar_dem/haworth_10km_5m/metadata.json"],
+                  {"cases": cases})
+
 def main() -> None:
     export_registries.main()
     dem_samples()
@@ -5887,6 +5952,8 @@ def main() -> None:
     http_plan_cases()
     http_resync_cases()
     http_layers_cases()
+    http_layers_vector_cases()
+    contour_lines_cases()
     endurance_cases()
     timeline_cases()
     autonomy_cases()

@@ -251,9 +251,165 @@ async fn raster(
     .await
 }
 
+/// The map legend (public): every threshold, ramp and band read from the physics and the renderers, exported from
+/// the Python's `layers_legend` (`layers_legend.json`).
+async fn legend() -> Response {
+    (
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        )],
+        include_str!("../../stewie-contracts/fixtures/layers_legend.json"),
+    )
+        .into_response()
+}
+
+/// The elevation contours of a site's tile (Python `gis_layers.contour_geojson`, LY-05): isolines every `interval`
+/// metres traced on the DEM strided to about `target_px` (contourpy, `stewie_server::contour::lines`), reprojected
+/// to selenographic lon/lat; at most 400 levels and 200 000 vertices (`truncated` when hit).
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)] // grid sizes
+fn contour_geojson(
+    st: &AppState,
+    site: &str,
+    iv: f64,
+    bundle: &std::path::Path,
+) -> Result<Value, ApiError> {
+    const MAX_LEVELS: usize = 400;
+    const TARGET_PX: usize = 512;
+    const MAX_VERTICES: usize = 200_000;
+    let internal = |e: String| err(StatusCode::INTERNAL_SERVER_ERROR, e);
+    let (dem, _) = st.terrain.moon_dem(site).ok_or_else(|| {
+        err(
+            StatusCode::NOT_FOUND,
+            format!("DEM absent: no DEM for site {}", py_repr(site)),
+        )
+    })?;
+    let meta = crate::dem_routes::metadata(bundle).map_err(internal)?;
+    let bounds = &meta["world_bounds_m"];
+    let bound = |k: &str| bounds[k].as_f64().unwrap_or(f64::NAN);
+    let (x0, y0, x1, y1) = (bound("x0"), bound("y0"), bound("x1"), bound("y1"));
+    let (h, w) = (dem.rows, dem.cols);
+    let stride = ((h.max(w) as f64 / TARGET_PX.max(2) as f64).round_ties_even() as usize).max(1);
+    let (rows, cols): (Vec<usize>, Vec<usize>) = (
+        (0..h).step_by(stride).collect(),
+        (0..w).step_by(stride).collect(),
+    );
+    let z = &dem.z;
+    let zd: Vec<f64> = rows
+        .iter()
+        .flat_map(|&r| cols.iter().map(move |&c| z[r * w + c]))
+        .collect();
+    let xs = crate::dem_routes::linspace(x0, x1, cols.len());
+    let ys = crate::dem_routes::linspace(y1, y0, rows.len());
+    // numpy nanmin / nanmax
+    let finite = zd.iter().copied().filter(|v| !v.is_nan());
+    let zmin = finite.clone().fold(f64::INFINITY, f64::min);
+    let zmax = finite.fold(f64::NEG_INFINITY, f64::max);
+    let round = stewie_twin::numpy::round;
+    let mut levels = Vec::new();
+    let mut v = (zmin / iv).ceil() * iv;
+    while v <= zmax && levels.len() < MAX_LEVELS {
+        levels.push(round(v, 3));
+        v += iv;
+    }
+    let proj = st.terrain.projection();
+    let (mut features, mut n_vertices, mut truncated) = (Vec::new(), 0, false);
+    for lev in levels {
+        let mut coords = Vec::new();
+        for pl in crate::contour::lines(&xs, &ys, &zd, lev).map_err(internal)? {
+            if pl.len() < 2 {
+                continue;
+            }
+            let line: Vec<Value> = pl
+                .iter()
+                .map(|&[x, y]| {
+                    let ll = proj.inverse(x, y);
+                    json!([round(ll.lon_deg, 6), round(ll.lat_deg, 6)])
+                })
+                .collect();
+            n_vertices += line.len();
+            coords.push(Value::Array(line));
+            if n_vertices >= MAX_VERTICES {
+                truncated = true;
+                break;
+            }
+        }
+        if !coords.is_empty() {
+            features.push(
+                json!({"type": "Feature", "properties": {"elevation_m": lev},
+                                 "geometry": {"type": "MultiLineString", "coordinates": coords}}),
+            );
+        }
+        if truncated {
+            break;
+        }
+    }
+    Ok(json!({
+        "type": "FeatureCollection",
+        "properties": {"site": site, "interval_m": iv, "levels": features.len(), "z_min_m": round(zmin, 2),
+                       "z_max_m": round(zmax, 2), "vertices": n_vertices, "truncated": truncated, "crs": "OGC:CRS84",
+                       "source": "LOLA DEM elevation isolines (contourpy on the real heightfield)",
+                       "eligibility": "display-only (base.contours, LY-01 catalog)"},
+        "features": features,
+    }))
+}
+
+const CONTOURS_Q: Model = Model {
+    fields: &[Field(
+        "interval",
+        Kind::Float {
+            gt: None,
+            ge: None,
+            le: None,
+            default: Some(50.0),
+        },
+    )],
+    forbid_extra: false,
+};
+
+/// The site's elevation contours as `GeoJSON` (public, per-IP rate-limited like the globe drapes; display only).
+async fn contours(
+    State(st): State<Arc<AppState>>,
+    Query(q): Query<Vec<(String, String)>>,
+    req: Request,
+) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        st.globe_quota(&h)?;
+        let raw = crate::spec_routes::query(&q, CONTOURS_Q)?;
+        let site = site_of(&q);
+        let iv = raw
+            .get("interval")
+            .and_then(|v| validate::as_float(v).ok())
+            .unwrap_or(50.0);
+        // a tiny interval cannot explode the trace
+        let iv = if iv.is_finite() { iv } else { 50.0 }.clamp(1.0, 1000.0);
+        let dir = bundle(st, &site).map_err(|m| match m {
+            Missing::Unknown(e) => err(StatusCode::NOT_FOUND, e),
+            Missing::NotImported(e) => err(StatusCode::NOT_FOUND, format!("DEM absent: {e}")),
+        })?;
+        let fc = contour_geojson(st, &site, iv, &dir)?;
+        Ok((
+            [(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/geo+json"),
+            )],
+            axum::Json(fc),
+        )
+            .into_response())
+    })
+    .await
+}
+
 /// The layer routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/layers", get(layers))
         .route("/layers/raster/{file}", get(raster))
+        .route("/layers/legend", get(legend))
+        .route("/layers/contours.geojson", get(contours))
 }

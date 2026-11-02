@@ -1,0 +1,9 @@
+{
+ "fixture": "contour_lines_cases",
+ "generator": "oracle/build_fixtures.py::contour_lines_cases (contourpy 1.3.3 serial lines, Separate; real Haworth heights, plus SYNTHETIC seeded grids, labelled)",
+ "payload_sha256": "2fba3f60c8aa1a27d0e6a32e80d30dde58d76cdf1221b0ee2c3bf929424f2fbc",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/server/gis_layers.py": "a10252b63ce66a11dccf9ac82686f9768b137a1aa90a640d54a035bdc4bbc2d3"
+ }
+}

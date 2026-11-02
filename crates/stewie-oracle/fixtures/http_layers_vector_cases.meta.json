@@ -1,0 +1,10 @@
+{
+ "fixture": "http_layers_vector_cases",
+ "generator": "oracle/build_fixtures.py::http_layers_vector_cases (the FastAPI app's /layers/legend and /layers/contours.geojson on the real Haworth tile)",
+ "payload_sha256": "f50d6f570fc24dbe6e3032f49ed2d659e40f37411aca3f6526c58b8070a3b8b6",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/server/gis_layers.py": "a10252b63ce66a11dccf9ac82686f9768b137a1aa90a640d54a035bdc4bbc2d3",
+  "stewie/server/routers/layers.py": "b0064cda9694ae878648bc1568209e4b7be3029f880a72740641e77b84d8fa0b"
+ }
+}
