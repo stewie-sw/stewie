@@ -919,10 +919,124 @@ async fn ros_odom(State(st): State<Arc<AppState>>, req: Request) -> Response {
     .await
 }
 
-/// The remote-control routes (the plan lowering, `/rc/plan_ros`, comes with the executive port).
+/// NV-11 + NV-12 + AG-08: lower a live mission's plan (or a released revision's frozen intent) to the ROS2-shaped
+/// commands, framed on a versioned stream session sized to the whole batch (Python `rc_plan_ros`).
+async fn plan_ros(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (head, bytes) = split(req, st.settings.max_body).await;
+    plan_ros_on(&st, &head, bytes)
+        .await
+        .unwrap_or_else(IntoResponse::into_response)
+}
+
+async fn plan_ros_on(
+    st: &AppState,
+    head: &Head,
+    bytes: Result<axum::body::Bytes, ApiError>,
+) -> Result<Response, ApiError> {
+    let body = parse_body(&bytes?)?;
+    let identity = require_role(st, head, "operator")?;
+    let body = match body {
+        Some(Value::Object(o)) => o,
+        Some(_) => {
+            return Err(err(
+                StatusCode::BAD_REQUEST,
+                "body: Input should be a valid dictionary",
+            ));
+        }
+        None => return Err(err(StatusCode::BAD_REQUEST, "body: Field required")),
+    };
+    let name = body.get("mission").filter(|v| !v.is_null());
+    let rev = body
+        .get("revision_hash")
+        .filter(|v| crate::objects::truthy(v));
+    let bad = |e: String| err(StatusCode::BAD_REQUEST, e);
+    let (mission, content_hash) = if let Some(rev) = rev {
+        // bind the frozen released revision, so release, run and lowering report one immutable identity
+        let h = py_str(rev);
+        let Some(art) = st.edit_sessions.read_release_revision(&h).await? else {
+            return Err(bad(format!(
+                "revision_hash {} is not a released revision (release the plan first)",
+                stewie_twin::pyjson::repr(rev)
+            )));
+        };
+        let intent =
+            crate::executive_routes::parse_intent(Some(&art["signed_revision"]["intent"]))?;
+        let (m, _) = crate::executive_routes::compile_intent(st, &intent).map_err(bad)?;
+        (m, art["content_hash"].clone())
+    } else if let Some(n) = name {
+        let path = ns_dir(&st.cfg.data_dir, "missions", Namespace::Live)
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?
+            .join(format!("{}.json", slug(&py_str(n))));
+        let Some(Value::Object(saved)) =
+            crate::objects::load(&path).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?
+        else {
+            return Err(forbidden(format!(
+                "mission {} is not published (live); only a live mission can be lowered to rover ROS commands",
+                stewie_twin::pyjson::repr(n)
+            )));
+        };
+        (saved, Value::Null)
+    } else {
+        return Err(bad(
+            "plan_ros requires a 'mission' (a published live mission) or a 'revision_hash' (a \
+                        released immutable revision)"
+                .to_owned(),
+        ));
+    };
+    // the plan on the site's as-built surface (the Python plans the IR flat, which D-R85 refuses; D-R178)
+    let p = crate::plan_routes::plan_with(st, &mission, &crate::plan_routes::DEFAULTS)?;
+    let ir = stewie_plan::ir::plan_ir(
+        &p.mission,
+        &p.plan,
+        &p.ctx,
+        p.dem(),
+        crate::plan_routes::DEFAULTS.max_traverse_slope_deg,
+    )
+    .map_err(bad)?;
+    let lowered = stewie_plan::lowering::lower_plan_ir(&ir, "map");
+    let groups = [
+        "paths",
+        "motion_goals",
+        "work_goals",
+        "observation_goals",
+        "replan_events",
+    ];
+    let now = st.clock.monotonic();
+    // one batch, no live consumer acking within the request: the window holds the whole plan, so no goal is refused
+    let total: usize = groups
+        .iter()
+        .map(|g| lowered[*g].as_array().map_or(0, Vec::len))
+        .sum();
+    let mut frames = Vec::with_capacity(total);
+    for g in groups {
+        for m in lowered[g].as_array().into_iter().flatten() {
+            frames.push(json!({"v": "1.0", "seq": frames.len(), "t": now, "payload": {"topic": g, "msg": m}}));
+        }
+    }
+    let target = rev.map_or_else(|| name.map(py_str).unwrap_or_default(), py_str);
+    audit(st, head, &identity, "rc.plan_ros", &target, &[]);
+    let counts: Map<String, Value> = groups
+        .iter()
+        .map(|g| {
+            (
+                (*g).to_owned(),
+                json!(lowered[*g].as_array().map_or(0, Vec::len)),
+            )
+        })
+        .collect();
+    Ok(axum::Json(json!({"ok": true, "plan_id": lowered["plan_id"], "ir_version": lowered["ir_version"],
+                         "content_hash": content_hash, "frames": frames,
+                         "stream": {"version": "1.0", "seq": total, "last_ack": -1, "outstanding": total,
+                                    "window": total.max(64), "refused": 0, "tripped": false},
+                         "counts": counts}))
+    .into_response())
+}
+
+/// The remote-control routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/rc/command", post(command))
+        .route("/rc/plan_ros", post(plan_ros))
         .route("/rc/telemetry", get(telemetry))
         .route("/rc/telemetry/stream", get(telemetry_stream))
         .route("/rc/eligibility", get(eligibility))

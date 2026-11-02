@@ -6698,6 +6698,94 @@ def http_executive_run_cases() -> None:
                    "lode/planner_acceptance.py"], payload)
 
 
+def http_plan_ros_cases() -> None:
+    """The ROS plan lowering (RW-55c3): POST /rc/plan_ros for a published live mission and for a released revision's
+    frozen intent (the NV-11 lowering framed on the NV-12 stream session sized to the batch), and its refusals (no
+    key, an unpublished mission, an unknown revision, neither given, a non-dict body, bad JSON). The mission, orders
+    and live-token key are SYNTHETIC (labelled).
+
+    Applied to the Python, labelled: the plan IR (and the release's lifecycle) plan on Haworth's as-built surface
+    where the Python plans flat (D-R85; D-R176, D-R178), the audit chain's timestamps read the session clock, and each
+    ``wall_s`` is normalised to ``<wall_s>``."""
+    import datetime as _dt
+    import re
+    import types
+
+    import lode.mission_lifecycle as LC
+    import lode.mission_planner as MP
+    import lode.planner_views as PV
+    import lode.resync as RES
+    import stewie.server.audit_log as AL
+    import stewie.server.state as ST
+
+    def on_site(fn):
+        def wrapped(mission, **kw):
+            dem, origin = ST.moon_dem("haworth")
+            return fn(mission, dem=ST.as_built_dem("haworth", dem, origin), dem_origin=origin, **kw)
+        return wrapped
+
+    class _OnSiteDem:
+        """lode.mission_planner with ``plan`` and ``plan_ir`` on Haworth's as-built surface (D-R176)."""
+        def __getattr__(self, k):
+            return getattr(MP, k)
+
+        plan = staticmethod(on_site(MP.plan))
+        plan_ir = staticmethod(on_site(MP.plan_ir))
+
+    # every action fits one charge, so the IR needs no D-R96 per-charge split (that split has its own oracle)
+    pad = {"body": "moon", "keepouts": [],
+           "orders": [{"action": "cut high spot", "kind": "cut", "x": 10, "y": 10, "footprint_m2": 9, "depth_m": 0.1},
+                      {"action": "fill pad", "kind": "fill", "x": 18, "y": 10, "footprint_m2": 6, "depth_m": 0.1}]}
+    orders = [{"action": "Level pad", "kind": "cut", "x": 4, "y": 2, "footprint_m2": 9, "depth_m": 0.05},
+              {"action": "path", "kind": "goto", "x": 10, "y": 0}]                    # one charge: no D-R96 split
+
+    def script(call, key, d, clock):
+        AL.datetime = types.SimpleNamespace(
+            now=lambda tz=None: _dt.datetime.fromtimestamp(clock["t"], tz or _dt.timezone.utc))
+        bob = {"Authorization": "Bearer " + call("POST", "/auth/login", headers=key,
+                                                  json_body={"email": "bob@example.org"}).json()["token"]}
+        call("POST", "/missions/pad-ring", headers=key, json_body=pad)
+        call("POST", "/rc/plan_ros", json_body={"mission": "pad-ring"})                    # no key
+        clock["t"] += 2.0
+        call("POST", "/rc/plan_ros", headers=bob, json_body={"mission": "pad-ring"})
+        call("POST", "/rc/plan_ros", headers=key, json_body={"mission": "nowhere"})
+        call("POST", "/rc/plan_ros", headers=key, json_body={"mission": 5})
+        h = call("POST", "/executive/release-plan", headers=key,
+                 json_body={"orders": orders, "mission_id": "pad-ros"}).json()["signed_revision"]["content_hash"]
+        clock["t"] += 2.0
+        call("POST", "/rc/plan_ros", headers=key, json_body={"revision_hash": h, "mission": "ignored"})
+        call("POST", "/rc/plan_ros", headers=key, json_body={"revision_hash": "ab" * 32})
+        call("POST", "/rc/plan_ros", headers=key, json_body={"revision_hash": "", "mission": "pad-ring"})
+        call("POST", "/rc/plan_ros", headers=key, json_body={})
+        call("POST", "/rc/plan_ros", headers=key, json_body=[1])
+        call("POST", "/rc/plan_ros", headers=key, raw="{not json")
+
+    saved = (LC.MP, RES.MP, RES.time, AL.datetime, PV.plan_ir)
+    try:
+        LC.MP, RES.MP, PV.plan_ir = _OnSiteDem(), _OnSiteDem(), on_site(PV.plan_ir)
+        RES.time = types.SimpleNamespace(monotonic=lambda: 0.0)
+        payload = _rc_session("stewie-http-plan-ros-oracle", {"STEWIE_LIVE_TOKEN_SECRET": "oracle-live-token-secret"},
+                              script)
+    finally:
+        LC.MP, RES.MP, RES.time, AL.datetime, PV.plan_ir = saved
+
+    def norm(v):
+        if isinstance(v, dict):
+            return {k: ("<wall_s>" if k == "wall_s" else norm(x)) for k, x in v.items()}
+        if isinstance(v, list):
+            return [norm(x) for x in v]
+        if isinstance(v, str):
+            return re.sub(r'"wall_s": [0-9.e+-]+', '"wall_s": "<wall_s>"', v)
+        return v
+
+    for step in payload["steps"]:
+        step["body"] = norm(step["body"])
+    write_fixture(ORACLE_FIXTURES, "http_plan_ros_cases", "oracle/build_fixtures.py::http_plan_ros_cases (the FastAPI "
+                  "app's ROS plan lowering)",
+                  ["stewie/server/routers/rc.py", "stewie/bridge/plan_lowering.py", "stewie/bridge/stream.py",
+                   "lode/planner_views.py"], payload)
+
+
 def plan_lowering_cases() -> None:
     """NV-11 (RW-55b25a): ``stewie.bridge.plan_lowering.lower_plan_ir`` on the plan IR of each repository sample
     mission (``lode.planner_views.plan_ir``, as ``/rc/plan_ros`` lowers it), with the AM-01 posture machine it
@@ -7394,6 +7482,7 @@ def main() -> None:
     http_rc_live_cases()
     http_executive_cases()
     http_executive_run_cases()
+    http_plan_ros_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()

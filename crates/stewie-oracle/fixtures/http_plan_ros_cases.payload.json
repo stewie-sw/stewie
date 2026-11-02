@@ -1,0 +1,1183 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_LIVE_TOKEN_SECRET": "oracle-live-token-secret",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "auth.login",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-001",
+   "target": "bootstrap",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "mission.save",
+   "actor": "api-key",
+   "correlation_id": "cid-002",
+   "target": "pad-ring",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "rc.plan_ros",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-004",
+   "target": "pad-ring",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "executive.release_plan",
+   "actor": "api-key",
+   "correlation_id": "cid-007",
+   "target": "pad-ros: 1 objectives -> released",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "rc.plan_ros",
+   "actor": "api-key",
+   "correlation_id": "cid-008",
+   "target": "36b57824d92863911fc5d506e8582a154e357f7ef7084b1f0566edfc98c0ca5a",
+   "ts": 1800000004.0
+  },
+  {
+   "action": "rc.plan_ros",
+   "actor": "api-key",
+   "correlation_id": "cid-010",
+   "target": "pad-ring",
+   "ts": 1800000004.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-plan-ros-oracle",
+ "steps": [
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "bob@example.org",
+    "role": "operator",
+    "token": "eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImQ3NTMxNjRjNjQ3MjQxODQ5ZDRhOTNkZTI3ZGU1ZGIzIn0.z0waMJ_ZpycpDYNcDNdbwI2EJLDcBGeOxzF5Zq8RBKo",
+    "ttl_s": 43200
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "email": "bob@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created_by": "api-key",
+    "name": "pad-ring",
+    "namespace": "live",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "body": "moon",
+     "keepouts": [],
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.1,
+       "footprint_m2": 6,
+       "kind": "fill",
+       "x": 18,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/missions/pad-ring",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "mission": "pad-ring"
+    },
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "content_hash": null,
+    "counts": {
+     "motion_goals": 2,
+     "observation_goals": 0,
+     "paths": 2,
+     "replan_events": 0,
+     "work_goals": 2
+    },
+    "frames": [
+     {
+      "payload": {
+       "msg": {
+        "action_id": 0,
+        "header": {
+         "frame_id": "map"
+        },
+        "poses": [
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 0.0,
+            "y": -0.0,
+            "z": 0.0
+           }
+          }
+         },
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 5.0,
+            "y": -5.0,
+            "z": 0.0
+           }
+          }
+         },
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 10.0,
+            "y": -10.0,
+            "z": 0.0
+           }
+          }
+         }
+        ],
+        "vehicle": 0
+       },
+       "topic": "paths"
+      },
+      "seq": 0,
+      "t": 1800000002.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 2,
+        "header": {
+         "frame_id": "map"
+        },
+        "poses": [
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 15.0,
+            "y": -10.0,
+            "z": 0.0
+           }
+          }
+         },
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 10.0,
+            "y": -10.0,
+            "z": 0.0
+           }
+          }
+         }
+        ],
+        "vehicle": 0
+       },
+       "topic": "paths"
+      },
+      "seq": 1,
+      "t": 1800000002.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 0,
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 10.0,
+          "y": -10.0,
+          "z": 0.0
+         }
+        },
+        "posture": "TRANSIT",
+        "vehicle": 0
+       },
+       "topic": "motion_goals"
+      },
+      "seq": 2,
+      "t": 1800000002.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 2,
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 10.0,
+          "y": -10.0,
+          "z": 0.0
+         }
+        },
+        "posture": "TRANSIT",
+        "vehicle": 0
+       },
+       "topic": "motion_goals"
+      },
+      "seq": 3,
+      "t": 1800000002.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 1,
+        "dest": [
+         18.0,
+         10.0
+        ],
+        "expect": {
+         "duration_s": 67757.1,
+         "energy_J": 3242170.1
+        },
+        "haul_m": 270.0,
+        "mass_kg": 780.0,
+        "op": "CutHaulFill",
+        "posture": "DIG",
+        "site": [
+         10.0,
+         10.0
+        ],
+        "vehicle": 0
+       },
+       "topic": "work_goals"
+      },
+      "seq": 4,
+      "t": 1800000002.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 3,
+        "dest": [
+         10.0,
+         10.0
+        ],
+        "expect": {
+         "duration_s": 33428.6,
+         "energy_J": 1619042.2
+        },
+        "haul_m": 0.0,
+        "mass_kg": 390.0,
+        "op": "Excavate",
+        "posture": "DIG",
+        "site": [
+         10.0,
+         10.0
+        ],
+        "vehicle": 0
+       },
+       "topic": "work_goals"
+      },
+      "seq": 5,
+      "t": 1800000002.0,
+      "v": "1.0"
+     }
+    ],
+    "ir_version": "1.0",
+    "ok": true,
+    "plan_id": "22b1c2ca495e8fe1",
+    "stream": {
+     "last_ack": -1,
+     "outstanding": 6,
+     "refused": 0,
+     "seq": 6,
+     "tripped": false,
+     "version": "1.0",
+     "window": 64
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6ImQ3NTMxNjRjNjQ3MjQxODQ5ZDRhOTNkZTI3ZGU1ZGIzIn0.z0waMJ_ZpycpDYNcDNdbwI2EJLDcBGeOxzF5Zq8RBKo",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "mission": "pad-ring"
+    },
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "mission 'nowhere' is not published (live); only a live mission can be lowered to rover ROS commands",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "mission": "nowhere"
+    },
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "mission 5 is not published (live); only a live mission can be lowered to rover ROS commands",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "mission": 5
+    },
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "command_authority": {
+     "authorized": true,
+     "namespace": "live",
+     "plan_hash": "36b57824d92863911fc5d506e8582a154e357f7ef7084b1f0566edfc98c0ca5a",
+     "runtime_profile": "STEWIE_IPEX_V1",
+     "sensor_profile": "stereo_front",
+     "signed_by": "director",
+     "watchdog_deadline_s": 5.0
+    },
+    "evidence": {
+     "forward_compare": {
+      "futures": [
+       {
+        "algorithm": "auto",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 0,
+        "energy_MJ": 2.429,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": true,
+        "objectives_total": 1,
+        "optimality": "exact",
+        "recharges": null,
+        "resolved": "brute",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315601.8,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 78.2,
+         "return_distance_m": 4.47,
+         "return_energy_J": 65.2
+        },
+        "time_s": 50142.85714285714,
+        "wall_s": "<wall_s>"
+       },
+       {
+        "algorithm": "nearest",
+        "as_built_pass": true,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 0,
+        "energy_MJ": 2.429,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": false,
+        "objectives_total": 1,
+        "optimality": "heuristic",
+        "recharges": null,
+        "resolved": "nearest",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315601.8,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 78.2,
+         "return_distance_m": 4.47,
+         "return_energy_J": 65.2
+        },
+        "time_s": 50142.85714285714,
+        "wall_s": "<wall_s>"
+       }
+      ],
+      "objective": "duration",
+      "recommended": "auto"
+     },
+     "objective": "time",
+     "orders": 1,
+     "plan_id": "b729efbab36f5830"
+    },
+    "label": "sim",
+    "ok": true,
+    "released_objectives": 1,
+    "revision_persisted": true,
+    "signed_revision": {
+     "content_hash": "36b57824d92863911fc5d506e8582a154e357f7ef7084b1f0566edfc98c0ca5a",
+     "intent": {
+      "constraints": [],
+      "keep_outs": [],
+      "mission_id": "pad-ros",
+      "objectives": [
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "Level pad-ac",
+          "measurable": "as-built RMSE <= 0.02 m",
+          "schema_version": "1.0",
+          "sensor": "stereo",
+          "statement": "as-built cut within tolerance",
+          "tolerance_m": 0.02
+         }
+        ],
+        "approver": "api-key",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "loss of localization / off-nominal",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": null,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 585.0,
+        "objective_id": "Level pad",
+        "order_kind": "cut",
+        "prerequisites": [],
+        "priority": "primary",
+        "rationale": "operator-authored build order",
+        "revision": 0,
+        "schema_version": "1.0",
+        "statement": "cut at (4, 2)",
+        "target_col": 4.0,
+        "target_row": 2.0,
+        "time_window_s": null
+       }
+      ],
+      "revision": 0,
+      "schema_version": "1.0",
+      "statement": "release of 1 build objective(s)",
+      "task_graph_ref": ""
+     },
+     "revision": 0,
+     "schema_version": "1.0",
+     "signed_by": "director"
+    },
+    "skipped": [
+     {
+      "action": "path",
+      "kind": "goto"
+     }
+    ],
+    "state": "released",
+    "transitions": [
+     {
+      "evidence": "ANALYZED: intent pad-ros rev 0 compiled to plan_id=b729efbab36f5830 (objective='time', orders=1)",
+      "role": "planner",
+      "to": "analyzed"
+     },
+     {
+      "evidence": "REHEARSED: forward_compare ran 2 futures over candidates ['auto', 'nearest']; recommended=auto ({\"algorithm\": \"auto\", \"as_built_pass\": true, \"as_built_tol_m\": 0.02, \"blocked_legs\": 0, \"charges\": 0, \"energy_MJ\": 2.429, \"feasible\": true, \"hazard_flags\": 0, \"infeasible_reasons\": [], \"objective_exact\": true, \"objectives_total\": 1, \"optimality\": \"exact\", \"recharges\": null, \"resolved\": \"brute\", \"return_to_lander\": {\"buffer_frac\": 0.2, \"feasible\": true, \"lander_xy\": [0.0, 0.0], \"margin_J\": 4315601.8, \"remaining_J\": 4315680.0, \"reserve_with_buffer_J\": 78.2, \"return_distance_m\": 4.47, \"return_energy_J\": 65.2}, \"time_s\": 50142.85714285714, \"wall_s\": \"<wall_s>\"})",
+      "role": "operator",
+      "to": "rehearsed"
+     },
+     {
+      "evidence": "REVIEWED: analysis + rehearsal evidence accepted by the review board",
+      "role": "reviewer",
+      "to": "reviewed"
+     },
+     {
+      "evidence": "RELEASED: director release authorization",
+      "role": "director",
+      "to": "released"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "mission_id": "pad-ros",
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.05,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/release-plan",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "content_hash": "36b57824d92863911fc5d506e8582a154e357f7ef7084b1f0566edfc98c0ca5a",
+    "counts": {
+     "motion_goals": 1,
+     "observation_goals": 0,
+     "paths": 1,
+     "replan_events": 0,
+     "work_goals": 1
+    },
+    "frames": [
+     {
+      "payload": {
+       "msg": {
+        "action_id": 0,
+        "header": {
+         "frame_id": "map"
+        },
+        "poses": [
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 0.0,
+            "y": -0.0,
+            "z": 0.0
+           }
+          }
+         }
+        ],
+        "vehicle": 0
+       },
+       "topic": "paths"
+      },
+      "seq": 0,
+      "t": 1800000004.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 0,
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 4.0,
+          "y": -2.0,
+          "z": 0.0
+         }
+        },
+        "posture": "TRANSIT",
+        "vehicle": 0
+       },
+       "topic": "motion_goals"
+      },
+      "seq": 1,
+      "t": 1800000004.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 1,
+        "dest": [
+         4.0,
+         2.0
+        ],
+        "expect": {
+         "duration_s": 50142.9,
+         "energy_J": 2428563.3
+        },
+        "haul_m": 0.0,
+        "mass_kg": 585.0,
+        "op": "Excavate",
+        "posture": "DIG",
+        "site": [
+         4.0,
+         2.0
+        ],
+        "vehicle": 0
+       },
+       "topic": "work_goals"
+      },
+      "seq": 2,
+      "t": 1800000004.0,
+      "v": "1.0"
+     }
+    ],
+    "ir_version": "1.0",
+    "ok": true,
+    "plan_id": "b729efbab36f5830",
+    "stream": {
+     "last_ack": -1,
+     "outstanding": 3,
+     "refused": 0,
+     "seq": 3,
+     "tripped": false,
+     "version": "1.0",
+     "window": 64
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "mission": "ignored",
+     "revision_hash": "36b57824d92863911fc5d506e8582a154e357f7ef7084b1f0566edfc98c0ca5a"
+    },
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "revision_hash 'abababababababababababababababababababababababababababababababab' is not a released revision (release the plan first)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "revision_hash": "abababababababababababababababababababababababababababababababab"
+    },
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "content_hash": null,
+    "counts": {
+     "motion_goals": 2,
+     "observation_goals": 0,
+     "paths": 2,
+     "replan_events": 0,
+     "work_goals": 2
+    },
+    "frames": [
+     {
+      "payload": {
+       "msg": {
+        "action_id": 0,
+        "header": {
+         "frame_id": "map"
+        },
+        "poses": [
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 0.0,
+            "y": -0.0,
+            "z": 0.0
+           }
+          }
+         },
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 5.0,
+            "y": -5.0,
+            "z": 0.0
+           }
+          }
+         },
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 10.0,
+            "y": -10.0,
+            "z": 0.0
+           }
+          }
+         }
+        ],
+        "vehicle": 0
+       },
+       "topic": "paths"
+      },
+      "seq": 0,
+      "t": 1800000004.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 2,
+        "header": {
+         "frame_id": "map"
+        },
+        "poses": [
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 15.0,
+            "y": -10.0,
+            "z": 0.0
+           }
+          }
+         },
+         {
+          "header": {
+           "frame_id": "map"
+          },
+          "pose": {
+           "orientation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+           },
+           "position": {
+            "x": 10.0,
+            "y": -10.0,
+            "z": 0.0
+           }
+          }
+         }
+        ],
+        "vehicle": 0
+       },
+       "topic": "paths"
+      },
+      "seq": 1,
+      "t": 1800000004.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 0,
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 10.0,
+          "y": -10.0,
+          "z": 0.0
+         }
+        },
+        "posture": "TRANSIT",
+        "vehicle": 0
+       },
+       "topic": "motion_goals"
+      },
+      "seq": 2,
+      "t": 1800000004.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 2,
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 10.0,
+          "y": -10.0,
+          "z": 0.0
+         }
+        },
+        "posture": "TRANSIT",
+        "vehicle": 0
+       },
+       "topic": "motion_goals"
+      },
+      "seq": 3,
+      "t": 1800000004.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 1,
+        "dest": [
+         18.0,
+         10.0
+        ],
+        "expect": {
+         "duration_s": 67757.1,
+         "energy_J": 3242170.1
+        },
+        "haul_m": 270.0,
+        "mass_kg": 780.0,
+        "op": "CutHaulFill",
+        "posture": "DIG",
+        "site": [
+         10.0,
+         10.0
+        ],
+        "vehicle": 0
+       },
+       "topic": "work_goals"
+      },
+      "seq": 4,
+      "t": 1800000004.0,
+      "v": "1.0"
+     },
+     {
+      "payload": {
+       "msg": {
+        "action_id": 3,
+        "dest": [
+         10.0,
+         10.0
+        ],
+        "expect": {
+         "duration_s": 33428.6,
+         "energy_J": 1619042.2
+        },
+        "haul_m": 0.0,
+        "mass_kg": 390.0,
+        "op": "Excavate",
+        "posture": "DIG",
+        "site": [
+         10.0,
+         10.0
+        ],
+        "vehicle": 0
+       },
+       "topic": "work_goals"
+      },
+      "seq": 5,
+      "t": 1800000004.0,
+      "v": "1.0"
+     }
+    ],
+    "ir_version": "1.0",
+    "ok": true,
+    "plan_id": "22b1c2ca495e8fe1",
+    "stream": {
+     "last_ack": -1,
+     "outstanding": 6,
+     "refused": 0,
+     "seq": 6,
+     "tripped": false,
+     "version": "1.0",
+     "window": 64
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "mission": "pad-ring",
+     "revision_hash": ""
+    },
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "plan_ros requires a 'mission' (a published live mission) or a 'revision_hash' (a released immutable revision)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {},
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "body: Input should be a valid dictionary",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": [
+     1
+    ],
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/rc/plan_ros",
+    "raw": "{not json"
+   },
+   "status": 400
+  }
+ ],
+ "store": null
+}

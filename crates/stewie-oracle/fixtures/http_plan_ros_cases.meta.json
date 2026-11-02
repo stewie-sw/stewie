@@ -1,0 +1,11 @@
+{
+ "fixture": "http_plan_ros_cases",
+ "generator": "oracle/build_fixtures.py::http_plan_ros_cases (the FastAPI app's ROS plan lowering)",
+ "payload_sha256": "f8f95c4c59175c4e52fb1231557073844c3aa5cceb1702c1b9da38e5924074d2",
+ "sources": {
+  "lode/planner_views.py": "0e711d6668713f629e555040cefbc8f59863a5a63114f0f377da3c938aed24d4",
+  "stewie/bridge/plan_lowering.py": "614941f3a13025bc99feec7b3f29308f590f8eb215357df7bc5d5ddcadad58db",
+  "stewie/bridge/stream.py": "6b6e411a15d59357da34c1b20f0a659668e45f9f1852666fbc0a3aadba6d94fe",
+  "stewie/server/routers/rc.py": "940ae1a604cfad2242700058717556a92c749b775637633b4b37cb4ec955e883"
+ }
+}
