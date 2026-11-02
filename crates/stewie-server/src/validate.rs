@@ -44,6 +44,8 @@ pub enum Kind {
     FloatPairList { max: usize },
     /// A `list[float]` of at most `max` numbers; required; the length checked first, as above.
     FloatList { max: usize },
+    /// A `list[tuple[float, float, float]]` of at most `max` triples, `[]` when absent; the length checked first.
+    FloatTripleList { max: usize },
     /// A `tuple[float, float]` with a default.
     FloatPairDefault(f64, f64),
     /// A number with `ge <= x < lt`; required.
@@ -208,26 +210,31 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
             Ok(x) => Some(json!(x)),
             Err(e) => fail(e),
         },
-        Kind::FloatPairList { max } | Kind::FloatList { max } => match v {
-            Value::Array(items) if items.len() > max => fail(format!(
-                "List should have at most {max} item{} after validation, not {}",
-                if max == 1 { "" } else { "s" },
-                items.len()
-            )),
-            Value::Array(items) if matches!(kind, Kind::FloatList { .. }) => {
-                check_floats(items, path, errors)
+        Kind::FloatPairList { max } | Kind::FloatList { max } | Kind::FloatTripleList { max } => {
+            match v {
+                Value::Array(items) if items.len() > max => fail(format!(
+                    "List should have at most {max} item{} after validation, not {}",
+                    if max == 1 { "" } else { "s" },
+                    items.len()
+                )),
+                Value::Array(items) if matches!(kind, Kind::FloatList { .. }) => {
+                    check_floats(items, path, errors)
+                }
+                Value::Array(items) if matches!(kind, Kind::FloatTripleList { .. }) => {
+                    check_tuples(items, path, errors, 3)
+                }
+                Value::Array(items) => {
+                    let before = errors.len();
+                    let out: Vec<Value> = items
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, x)| check_pair(x, &format!("{path}.{i}"), errors, true))
+                        .collect();
+                    (errors.len() == before).then_some(Value::Array(out))
+                }
+                _ => fail("Input should be a valid list".to_owned()),
             }
-            Value::Array(items) => {
-                let before = errors.len();
-                let out: Vec<Value> = items
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, x)| check_pair(x, &format!("{path}.{i}"), errors, true))
-                    .collect();
-                (errors.len() == before).then_some(Value::Array(out))
-            }
-            _ => fail("Input should be a valid list".to_owned()),
-        },
+        }
         Kind::DictList { min, max } => check_dict_list(v, min, max, path, errors),
         Kind::Opt(inner) => match v {
             Value::Null => Some(Value::Null),
@@ -313,20 +320,42 @@ fn check_dict_list(
 
 /// A `tuple[int, int]` (or of floats): two values, each reported at its index.
 fn check_pair(v: &Value, path: &str, errors: &mut Vec<String>, floats: bool) -> Option<Value> {
+    check_tuple(v, path, errors, 2, floats)
+}
+
+/// A list of `n`-tuples of numbers, each reported at its index.
+fn check_tuples(items: &[Value], path: &str, errors: &mut Vec<String>, n: usize) -> Option<Value> {
+    let before = errors.len();
+    let out: Vec<Value> = items
+        .iter()
+        .enumerate()
+        .filter_map(|(i, x)| check_tuple(x, &format!("{path}.{i}"), errors, n, true))
+        .collect();
+    (errors.len() == before).then_some(Value::Array(out))
+}
+
+/// A fixed `n`-tuple of numbers, each item reported at its index.
+fn check_tuple(
+    v: &Value,
+    path: &str,
+    errors: &mut Vec<String>,
+    n: usize,
+    floats: bool,
+) -> Option<Value> {
     let Value::Array(items) = v else {
         errors.push(format!("{path}: Input should be a valid tuple"));
         return None;
     };
-    if items.len() > 2 {
+    if items.len() > n {
         errors.push(format!(
-            "{path}: Tuple should have at most 2 items after validation, not {}",
+            "{path}: Tuple should have at most {n} items after validation, not {}",
             items.len()
         ));
         return None;
     }
     let before = errors.len();
     let mut out = Vec::new();
-    for i in 0..2 {
+    for i in 0..n {
         let at = format!("{path}.{i}");
         let item = items.get(i).map(|x| {
             if floats {
@@ -426,7 +455,7 @@ fn fields(
             (None, Kind::Int { default, .. }) => Some(json!(default)),
             (None, Kind::FloatPairDefault(a, b)) => Some(json!([a, b])),
             (None, Kind::Dict) => Some(json!({})),
-            (None, Kind::AnyListDefault) => Some(json!([])),
+            (None, Kind::AnyListDefault | Kind::FloatTripleList { .. }) => Some(json!([])),
             (None, Kind::Bool { default }) => Some(json!(default)),
             // an optional value (or an optional string) defaults to null
             (

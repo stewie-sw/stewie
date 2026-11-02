@@ -144,22 +144,40 @@ pub fn slope_rgba(z: &[f64], w: usize, h: usize, cell: f64, vmax: f64, classes: 
         .collect()
 }
 
-/// The surveyed work-area hazard: the navigation cost the routing detours on (Python `dart.hazard_map.
-/// build_hazard_map` with no rocks or zones, over `dem_cross.dem_layers`) drawn red, graded from benign
-/// (transparent) to costly, opaque where no-go (slope at the 20 deg tested limit, or no data).
+/// The hazard map's geometric layers (Python `dart.dem_cross.dem_layers`): the slope [deg] from numpy's gradient,
+/// and the roughness, the 5-cell windowed height std (scipy `uniform_filter`, reflect edges), NaN kept as numpy's
+/// `clip` keeps it so nodata stays unknown.
 #[must_use]
-pub fn hazard_cost_rgba(z: &[f64], w: usize, h: usize, cell: f64) -> Vec<u8> {
+pub fn hazard_layers(z: &[f64], w: usize, h: usize, cell: f64) -> (Vec<f64>, Vec<f64>) {
     let (gy, gx) = gradient(z, w, h, cell);
     let slope = slope_of(&gy, &gx);
-    // roughness: the 5-cell windowed height std (scipy uniform_filter, reflect edges)
     let sq: Vec<f64> = z.iter().map(|v| v * v).collect();
     let (mean, mean_sq) = (
         uniform_filter_reflect(z, w, h, 5),
         uniform_filter_reflect(&sq, w, h, 5),
     );
+    let rough = (0..z.len())
+        .map(|i| {
+            let var = mean_sq[i] - mean[i] * mean[i];
+            if var.is_nan() {
+                f64::NAN
+            } else {
+                var.max(0.0).sqrt()
+            }
+        })
+        .collect();
+    (slope, rough)
+}
+
+/// The surveyed work-area hazard: the navigation cost the routing detours on (Python `dart.hazard_map.
+/// build_hazard_map` with no rocks or zones, over `dem_cross.dem_layers`) drawn red, graded from benign
+/// (transparent) to costly, opaque where no-go (slope at the 20 deg tested limit, or no data).
+#[must_use]
+pub fn hazard_cost_rgba(z: &[f64], w: usize, h: usize, cell: f64) -> Vec<u8> {
+    let (slope, roughness) = hazard_layers(z, w, h, cell);
     (0..z.len())
         .flat_map(|i| {
-            let rough = (mean_sq[i] - mean[i] * mean[i]).max(0.0).sqrt();
+            let rough = roughness[i];
             let s = slope[i];
             let mut cost = 1.0;
             cost += ((s - 15.0) / 10.0).max(0.0);

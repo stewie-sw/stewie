@@ -1,0 +1,12 @@
+{
+ "fixture": "http_ros_cases",
+ "generator": "oracle/build_fixtures.py::http_ros_cases (the FastAPI app's ROS egress export)",
+ "payload_sha256": "183cb97e209f2fb21b2ff4db9519bc80801ea813a29e8784596b311bdd47196a",
+ "sources": {
+  "dart/dem_cross.py": "3460f9d04ba4f493181114bdd2b003c4f59fbcd1185212d90b16a01e4166abc2",
+  "dart/hazard_map.py": "3839341374e5a28d152e37ecf993824591c90f83fa2855201307240a7140be68",
+  "lode/costmap_layers.py": "804913287c818848c5a433a7faed4507d887f331c167b38f0992a0db6f66dbde",
+  "stewie/bridge/ros_export.py": "9f87abceb60e75e24b55427098cfccdbc00726755f55a308c23f981805fd1653",
+  "stewie/server/routers/nav.py": "66c31c2c28e50c57d7047988bcf267650528584b3567b3fb9ddcacc17e74535c"
+ }
+}

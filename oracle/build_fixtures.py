@@ -5989,6 +5989,37 @@ def http_compare_cases() -> None:
                    "stewie/specs/profiles.py", "stewie/specs/profile_data/stewie_ipex_v1.json"], payload)
 
 
+def http_ros_cases() -> None:
+    """The ROS egress export (RW-55b23): POST /ros/export/occupancy, /ros/export/costmap and /ros/export/path over the
+    real Haworth DEM and a repository sample mission, each with its latched MapMeta anchor, and their refusals (an
+    unknown site, the validation answers, a non-lunar body, a bad mission, no key). The keep-outs are SYNTHETIC
+    (labelled)."""
+    with open(os.path.join(REPO, "stewie", "server", "sample_missions", "01_flatten_pad.json")) as fh:
+        mission = json.load(fh)
+
+    def script(call, key, d, clock):
+        call("POST", "/ros/export/occupancy", json_body={})                                          # no key
+        call("POST", "/ros/export/occupancy", headers=key, json_body={"window_m": 150.0})
+        call("POST", "/ros/export/occupancy", headers=key,
+             json_body={"window_m": 80.0, "max_slope_deg": 12.0, "keepouts": [[20.0, 30.0, 8.0], [60.0, 10.0, 4.5]]})
+        call("POST", "/ros/export/costmap", headers=key,
+             json_body={"window_m": 80.0, "keepouts": [[40.0, 40.0, 10.0]]})
+        call("POST", "/ros/export/path", headers=key, json_body={"mission": mission})
+        call("POST", "/ros/export/occupancy", headers=key, json_body={"site": "atlantis"})
+        call("POST", "/ros/export/occupancy", headers=key,
+             json_body={"window_m": 0, "keepouts": [[1, 2]], "extra": 1})
+        call("POST", "/ros/export/costmap", headers=key, json_body={"keepouts": [[1, 2, 3, 4]] * 513})
+        call("POST", "/ros/export/path", headers=key, json_body={"mission": dict(mission, body="mars")})
+        call("POST", "/ros/export/path", headers=key, json_body={"mission": {"orders": [{"kind": "goto"}]}})
+        call("POST", "/ros/export/path", headers=key, json_body={"site": "haworth"})
+
+    payload = _http_session("stewie-http-ros-oracle", {}, script)
+    write_fixture(ORACLE_FIXTURES, "http_ros_cases", "oracle/build_fixtures.py::http_ros_cases (the FastAPI app's ROS "
+                  "egress export)",
+                  ["stewie/server/routers/nav.py", "stewie/bridge/ros_export.py", "dart/hazard_map.py",
+                   "dart/dem_cross.py", "lode/costmap_layers.py"], payload)
+
+
 def cog_cases() -> None:
     """The value-raster GeoTIFF (RW-55b20b): ``lode.gis_export.value_raster_cog`` of the real Haworth slope, and of
     its classes at three breaks, written by rasterio/GDAL. Recorded as every directory's tags (the tile offsets and
@@ -6598,6 +6629,7 @@ def main() -> None:
     pose_graph_se2_s3li()
     http_localize_cases()
     http_compare_cases()
+    http_ros_cases()
 
 
 if __name__ == "__main__":

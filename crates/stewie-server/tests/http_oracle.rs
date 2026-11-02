@@ -2238,6 +2238,19 @@ async fn the_python_compare_session_replays_exactly() {
 }
 
 #[tokio::test]
+async fn the_python_ros_export_session_replays() {
+    replay(
+        "http_ros_cases",
+        b"stewie-http-ros-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn the_python_globe_session_replays_exactly() {
     replay(
         "http_globe_cases",
