@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,autonomy,plan_report,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,autonomy,plan_report,openapi,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json and swagger.html
 """
 from __future__ import annotations
 
@@ -126,6 +126,24 @@ def plan_report() -> dict:
     from stewie.physics import rassor_mass_model as RM
     return {"assumptions_register": assumptions_register(), "fdc_mpe_half_full": RM.FDC_MPE_HALF_FULL,
             "fdc_mpe_all": RM.FDC_MPE_ALL}
+
+
+def openapi() -> dict:
+    """The FastAPI app's OpenAPI document, as GET /openapi.json serves it (the Swagger UI at /docs reads it)."""
+    from stewie.server.server import app
+    return app.openapi()
+
+
+def swagger_page() -> str:
+    """The self-hosted Swagger UI page GET /docs serves (server.py's `get_swagger_ui_html` call), written as is."""
+    from fastapi.openapi.docs import get_swagger_ui_html
+    page = get_swagger_ui_html(openapi_url="/openapi.json", title="STEWIE API — docs",
+                               swagger_js_url="/assets/vendor/swagger/swagger-ui-bundle.js",
+                               swagger_css_url="/assets/vendor/swagger/swagger-ui.css")
+    path = os.path.join(_OUT, "swagger.html")
+    with open(path, "wb") as fh:
+        fh.write(page.body)
+    return path
 
 
 def autonomy() -> dict:
@@ -320,6 +338,8 @@ def main() -> None:
     print(_write("plan_provenance.json", plan_provenance()))
     print(_write("autonomy.json", autonomy()))
     print(_write("plan_report.json", plan_report()))
+    print(_write("openapi.json", openapi()))
+    print(swagger_page())
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))
     print(_write("eva_crew.json", eva_crew()))

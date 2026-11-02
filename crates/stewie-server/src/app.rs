@@ -99,6 +99,9 @@ pub struct Settings {
     /// `STEWIE_VALIDATION_DIR`: the validation figures `/figures` lists (default the checkout's `validation/`; the
     /// Python always reads the checkout's, so the variable is this server's packaging hook, D-R133).
     pub validation_dir: std::path::PathBuf,
+    /// `STEWIE_APP_DIST`: the React cockpit build `/app` serves (default the checkout's `frontend/dist`; the Python
+    /// always reads the checkout's, so the variable is this server's packaging hook).
+    pub app_dist: std::path::PathBuf,
     /// `STEWIE_BACKUP_DIR` as set (`/config/full` reports it).
     pub backup_dir: Option<String>,
     /// `STEWIE_SITE_VECTORS` and `STEWIE_GIS_DATA_DIR`: where the visible-pin site vectors are found.
@@ -194,6 +197,15 @@ impl Settings {
                     || {
                         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                             .join("../../validation")
+                    },
+                    std::path::PathBuf::from,
+                ),
+            app_dist: get("STEWIE_APP_DIST")
+                .filter(|v| !v.is_empty())
+                .map_or_else(
+                    || {
+                        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .join("../../frontend/dist")
                     },
                     std::path::PathBuf::from,
                 ),

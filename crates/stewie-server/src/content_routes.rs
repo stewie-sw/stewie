@@ -99,6 +99,78 @@ fn page(file: &str, what: &str) -> Response {
     }
 }
 
+/// The vanilla cockpit (`/`, `/index.html`; public): `stewie/server/index.html`. The Python's dev-open CSRF seed
+/// cookie is not set: this server has no dev-open mode (D-R106).
+async fn index_page() -> Response {
+    match std::fs::read(repo().join("stewie/server/index.html")) {
+        Ok(b) => {
+            let mut r = b.into_response();
+            r.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("text/html; charset=utf-8"),
+            );
+            r
+        }
+        Err(_) => err(
+            StatusCode::NOT_FOUND,
+            "cockpit page missing from this build",
+        )
+        .into_response(),
+    }
+}
+
+/// The React cockpit shell (`/app`, `/app/{path}`; public, RF-01): a built asset under `assets/` as itself, every
+/// other path the SPA's `index.html` so the client router owns it; 404 when the build is absent.
+async fn cockpit_app(State(st): State<Arc<AppState>>, path: Option<Path<String>>) -> Response {
+    let dist = &st.settings.app_dist;
+    let idx = dist.join("index.html");
+    if !idx.is_file() {
+        return err(StatusCode::NOT_FOUND, "cockpit app build not present").into_response();
+    }
+    let path = path.map(|Path(p)| p).unwrap_or_default();
+    // an asset inside the build (no `..` climbing out of it), else the SPA shell
+    let asset = path
+        .starts_with("assets/")
+        .then(|| std::path::Path::new(&path))
+        .filter(|p| {
+            p.components()
+                .all(|c| matches!(c, std::path::Component::Normal(_)))
+        })
+        .map(|p| dist.join(p))
+        .filter(|p| p.is_file());
+    match asset {
+        Some(a) => file_response(&a, media_type(&path), format!("not found: {path}")),
+        None => file_response(
+            &idx,
+            "text/html; charset=utf-8",
+            "cockpit app build not present".to_owned(),
+        ),
+    }
+}
+
+/// The `FastAPI` schema of this API (`/openapi.json`; public), exported from the Python app (D-R152).
+async fn openapi() -> Response {
+    (
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        )],
+        include_str!("../../stewie-contracts/fixtures/openapi.json"),
+    )
+        .into_response()
+}
+
+/// The self-hosted Swagger UI over `/openapi.json` (`/docs`; public, #176), the page the Python renders.
+async fn docs() -> Response {
+    const PAGE: &str = include_str!("../../stewie-contracts/fixtures/swagger.html");
+    let mut r = PAGE.into_response();
+    r.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/html; charset=utf-8"),
+    );
+    r
+}
+
 /// The program board page.
 async fn program_page() -> Response {
     page("program.html", "program board page")
@@ -470,6 +542,13 @@ async fn report(
 /// The content routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
+        .route("/", get(index_page))
+        .route("/index.html", get(index_page))
+        .route("/app", get(cockpit_app))
+        .route("/app/", get(cockpit_app))
+        .route("/app/{*path}", get(cockpit_app))
+        .route("/docs", get(docs))
+        .route("/openapi.json", get(openapi))
         .route("/sample_missions", get(list_sample_missions))
         .route("/sample_mission/{name}", get(get_sample_mission))
         .route("/program", get(program_page))

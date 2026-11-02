@@ -1696,6 +1696,107 @@ async fn the_python_layers_session_replays_exactly() {
     .await;
 }
 
+/// A GET's status, content type and raw body.
+async fn get_raw(app: &axum::Router, path: &str) -> (u16, String, Vec<u8>) {
+    let mut req = Request::builder().uri(path).body(Body::empty()).unwrap();
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+    let r = app.clone().oneshot(req).await.unwrap();
+    let ctype = r
+        .headers()
+        .get("content-type")
+        .map_or_else(String::new, |v| v.to_str().unwrap().to_owned());
+    (
+        r.status().as_u16(),
+        ctype,
+        r.into_body().collect().await.unwrap().to_bytes().to_vec(),
+    )
+}
+
+#[tokio::test]
+async fn the_cockpit_pages_and_the_api_docs_are_served_as_the_python() {
+    // SYNTHETIC: a stand-in React build (labelled), so the test does not depend on a local `npm run build`
+    let dir = std::env::temp_dir().join(format!("stewie-pages-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let dist = dir.join("dist");
+    std::fs::create_dir_all(dist.join("assets")).unwrap();
+    std::fs::write(dist.join("index.html"), "<!doctype html>SYNTHETIC shell").unwrap();
+    std::fs::write(dist.join("assets/app.js"), "/* SYNTHETIC bundle */").unwrap();
+    std::fs::write(dir.join("secret.txt"), "outside the build").unwrap();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+        ("STEWIE_APP_DIST", dist.display().to_string()),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"pages").into(),
+        n: Mutex::new(0),
+    }));
+    let app = router(Arc::new(
+        AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap(),
+    ));
+    let cockpit = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../stewie/server/index.html"),
+    )
+    .unwrap();
+    for p in ["/", "/index.html"] {
+        assert_eq!(
+            get_raw(&app, p).await,
+            (200, "text/html; charset=utf-8".to_owned(), cockpit.clone()),
+            "{p}"
+        );
+    }
+    let shell = (
+        200,
+        "text/html; charset=utf-8".to_owned(),
+        b"<!doctype html>SYNTHETIC shell".to_vec(),
+    );
+    for p in [
+        "/app",
+        "/app/",
+        "/app/missions/7",
+        "/app/assets/missing.js",
+        "/app/assets/../../secret.txt",
+    ] {
+        assert_eq!(get_raw(&app, p).await, shell, "{p}");
+    }
+    let (s, ct, b) = get_raw(&app, "/app/assets/app.js").await;
+    assert_eq!(
+        (s, b.as_slice()),
+        (200, b"/* SYNTHETIC bundle */".as_slice())
+    );
+    assert!(ct.starts_with("text/javascript"), "{ct}");
+    // the docs page reads the schema, which names the API's routes
+    let (s, _, page) = get_raw(&app, "/docs").await;
+    assert!(
+        s == 200
+            && String::from_utf8(page)
+                .unwrap()
+                .contains("url: '/openapi.json'")
+    );
+    let (s, ct, schema) = get_raw(&app, "/openapi.json").await;
+    let schema: Value = serde_json::from_slice(&schema).unwrap();
+    assert_eq!((s, ct.as_str()), (200, "application/json"));
+    assert!(
+        schema["paths"]["/plan"]["post"].is_object()
+            && schema["paths"].as_object().unwrap().len() > 150
+    );
+    // no build: the Python's 404
+    std::fs::remove_dir_all(&dist).unwrap();
+    let (s, _, b) = get_raw(&app, "/app").await;
+    let b: Value = serde_json::from_slice(&b).unwrap();
+    assert_eq!(
+        (s, b),
+        (
+            404,
+            json!({"ok": false, "error": "cockpit app build not present"})
+        )
+    );
+}
+
 #[tokio::test]
 async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts
