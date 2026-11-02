@@ -7117,6 +7117,162 @@ def viz2_parts_cases() -> None:
                    "spawns": spawns, "uniform": uniform})
 
 
+def viz2_runtime_cases() -> None:
+    """The viz2 session runtime stepped on a pinned clock (RW-51e1b): ``Viz2Runtime._actor_once`` over the real
+    1 m SfS bundle from its flattest-interior spawn, every ``time.monotonic`` of the module reading one clock that
+    advances a tick (1/15 s) per iteration. The command script is SYNTHETIC (labelled): the connect keyframe, arm
+    clamps and refusals, dig and dump refused at ingest (the native cell does not resolve the drum), twist bounds,
+    odd-typed acks, a command received too long ago, a drive through the 90-generation keyframe and a recenter, a
+    command-expiry trip, a reconnect with stale-epoch frames, a deadman link-stall trip, and a third session past
+    the 256-generation prune. Recorded per tick: the frames, the counters, each generation's manifest (its digests
+    left out; the crops of a few generations as values), and the session directory's generations at the end. Two
+    short SYNTHETIC scripts follow: a prune that reaches the connect keyframe (kept), and a drive on the 5 m Haworth
+    tile from an operator section whose pitch changes sign."""
+    import tempfile
+    import types
+
+    import numpy as np
+
+    from stewie.runtime import viz2_runtime as VR
+
+    clock = [1000.0]
+    saved_time = VR.time
+    VR.time = types.SimpleNamespace(monotonic=lambda: clock[0], sleep=lambda s: None)
+    ticks = []
+    manifests = {}
+    crops = {}
+    keep = {1, 2, 3, 90, 91, 127, 128}
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            rt = VR.Viz2Runtime(os.path.join(REPO, "samples", "lunar_dem", "haworth_sfs_2km_1m"), session_dir=d)
+            dt = rt.dt
+            state = {"epoch": None, "out": None, "ack": True}
+
+            def connect():
+                state["epoch"], state["out"] = rt._register_session()
+
+            def put(msg, *, epoch=None, age=0.0):
+                rt._inbound.put((state["epoch"] if epoch is None else epoch, clock[0] - age, msg))
+
+            def tick(note):
+                ok = rt._actor_once(clock[0])
+                frames = []
+                out = state["out"]
+                while out is not None and not out.empty():
+                    frames.append(out.get())
+                for f in frames:
+                    if "payload" in f and state["ack"]:
+                        put({"cmd": "ack", "seq": f["seq"]})
+                gen = rt._generation
+                if gen not in manifests and gen > 0:
+                    with open(os.path.join(rt.generations_dir, f"gen_{gen:08d}", "manifest.json")) as fh:
+                        m = json.load(fh)
+                    if gen in keep:
+                        gdir = os.path.join(rt.generations_dir, f"gen_{gen:08d}")
+                        crops[str(gen)] = {
+                            name: np.fromfile(os.path.join(gdir, fm["file"]), dtype=fm["dtype"]).astype(float).tolist()
+                            for name, fm in m["fields"].items()}
+                    for fm in m["fields"].values():
+                        fm.pop("digest")
+                    manifests[str(gen)] = m
+                ticks.append({"note": note, "t": clock[0], "ok": ok, "frames": frames,
+                              "rejected_stale": rt._rejected_stale, "rejected_bounds": rt._rejected_bounds,
+                              "safe_stopped": rt._safe_stopped, "generation": gen,
+                              "last_acked_gen": rt._last_acked_gen, "epoch": rt._current_epoch})
+                clock[0] += dt
+
+            connect()
+            tick("connect")
+            put({"cmd": "arm", "front": 0.3, "back": "x"})
+            put({"cmd": "dig"})
+            put({"cmd": "dump"})
+            put({"cmd": "twist", "v": True, "omega": 0.0})
+            put({"cmd": "twist", "v": False, "omega": 0})
+            put({"cmd": "warp"})
+            tick("arm, refused dig and dump, bounds")
+            for k in range(2, 202):
+                put({"cmd": "twist", "v": 0.3, "omega": 0.05})
+                if k == 5:
+                    put({"cmd": "ack", "seq": 5.0})
+                    put({"cmd": "ack", "seq": "6"})
+                    put({"cmd": "ack", "seq": None})
+                    put({"cmd": "ack", "seq": "x"})
+                if k == 10:
+                    put({"cmd": "arm", "front": 5, "back": -3})
+                if k == 20:
+                    put({"cmd": "twist", "v": 0.1, "omega": 0.0}, age=2.5)
+                    put({"cmd": "ack", "seq": 17}, age=2.5)
+                if k == 30:
+                    put({"cmd": "twist", "v": 0.31, "omega": 0.0})
+                    put({"cmd": "twist", "v": 0.0, "omega": 1.06})
+                    put({"cmd": "twist", "v": "0.2", "omega": 0.0})
+                if k == 40:
+                    put({"cmd": "arm", "front": -0.1})
+                tick("drive")
+            for _ in range(40):
+                tick("twist held, no fresh command")
+            put({"cmd": "dig"})
+            for _ in range(3):
+                tick("no session")
+            stale_epoch = state["epoch"]
+            connect()
+            put({"cmd": "twist", "v": 0.3, "omega": 0.0}, epoch=stale_epoch)
+            for _ in range(20):
+                put({"cmd": "twist", "v": -0.2, "omega": -0.1})
+                tick("reconnected")
+            state["ack"] = False
+            for _ in range(40):
+                put({"cmd": "twist", "v": -0.2, "omega": -0.1})
+                tick("acks stopped")
+            state["ack"] = True
+            connect()
+            for _ in range(5):
+                tick("third session")
+            gens = sorted(os.listdir(rt.generations_dir))
+            with open(os.path.join(d, "clasts.json")) as fh:
+                clasts = json.load(fh)
+            spawn = list(rt.start_xy)
+
+        def scripted(bundle, kw, script):
+            """A short session: each tick's commands, the frames acked as they arrive."""
+            with tempfile.TemporaryDirectory() as d2:
+                r2 = VR.Viz2Runtime(os.path.join(REPO, bundle), session_dir=d2, **kw)
+                ep, out = r2._register_session()
+                t0 = clock[0]
+                rows = []
+                for msgs in script:
+                    for m in msgs:
+                        r2._inbound.put((ep, clock[0], m))
+                    ok = r2._actor_once(clock[0])
+                    frames = []
+                    while not out.empty():
+                        frames.append(out.get())
+                    for f in frames:
+                        if "payload" in f:
+                            r2._inbound.put((ep, clock[0], {"cmd": "ack", "seq": f["seq"]}))
+                    rows.append({"ok": ok, "frames": frames})
+                    clock[0] += r2.dt
+                return {"bundle": bundle, "kw": kw, "spawn": list(r2.start_xy), "script": script, "t0": t0, "ticks": rows,
+                        "generation_dirs": sorted(os.listdir(r2.generations_dir))}
+
+        clock[0] = 5000.0
+        sfs = "samples/lunar_dem/haworth_sfs_2km_1m"
+        prune = scripted(sfs, {"retain_generations": 3, "keyframe_interval": 1000}, [[]] * 8)
+        tw = lambda v, w: [{"cmd": "twist", "v": v, "omega": w}]            # noqa: E731
+        slope = scripted("samples/lunar_dem/haworth_10km_5m",
+                         {"start_xy": [-47900.0, 100400.0], "start_yaw": 2.0},
+                         [tw(0.3, 0.0)] * 15 + [tw(-0.3, 0.0)] * 15 + [tw(0.2, 1.0)] * 10 + [tw(-0.3, -0.5)] * 10)
+    finally:
+        VR.time = saved_time
+    write_fixture(ORACLE_FIXTURES, "viz2_runtime_cases", "oracle/build_fixtures.py::viz2_runtime_cases (the viz2 "
+                  "runtime stepped on a pinned clock over the real 1 m SfS bundle; SYNTHETIC command script, labelled)",
+                  ["stewie/runtime/viz2_runtime.py", "stewie/physics/worksite.py", "stewie/physics/drive.py",
+                   "stewie/bridge/stream.py", "samples/lunar_dem/haworth_sfs_2km_1m/metadata.json"],
+                  {"bundle": "samples/lunar_dem/haworth_sfs_2km_1m", "t0": 1000.0, "dt": dt, "spawn": spawn,
+                   "ticks": ticks, "manifests": manifests, "crops": crops, "generation_dirs": gens,
+                   "clasts": clasts, "scenarios": {"prune": prune, "slope": slope}})
+
+
 def godot_scene_cases() -> None:
     """The Godot renderer plugin's scene (RW-51a): the Python /render pipeline's own BEFORE bundle -- a window of the
     real Haworth DEM bundle cropped at its centre (u = v = 0.5, 10 cells resampled x5) by
@@ -7933,6 +8089,7 @@ def main() -> None:
     stream_http_cases()
     stream_protocol_cases()
     viz2_parts_cases()
+    viz2_runtime_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()

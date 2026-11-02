@@ -9,11 +9,14 @@ publish.workspace = true
 
 [dependencies]
 serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
 stewie-contracts = { path = "../stewie-contracts" }
 stewie-physics = { path = "../stewie-physics" }
+stewie-twin = { path = "../stewie-twin" }
 
 [dev-dependencies]
 stewie-oracle = { path = "../stewie-oracle" }
+sha2 = "0.10"
 
 [lints]
 workspace = true

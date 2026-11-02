@@ -2553,9 +2553,11 @@ name = "stewie-viz2"
 version = "0.1.0"
 dependencies = [
  "serde_json",
+ "sha2",
  "stewie-contracts",
  "stewie-oracle",
  "stewie-physics",
+ "stewie-twin",
 ]
 
 [[package]]

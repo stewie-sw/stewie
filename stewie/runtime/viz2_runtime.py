@@ -553,32 +553,40 @@ class Viz2Runtime:
     def _actor_loop(self) -> None:
         while not self._stop.is_set():
             t0 = time.monotonic()
-            self._drain_inbound()
-            with self._lock:
-                sess = self._current_session
-                outbound = self._current_outbound
-                epoch = self._current_epoch
-                force_kf = self._force_keyframe
-                self._force_keyframe = False
-                do_dig = self._pending_dig and not self._safe_stopped
-                self._pending_dig = False
-                do_dump = self._pending_dump and not self._safe_stopped
-                self._pending_dump = False
-                v, omega = (0.0, 0.0) if self._safe_stopped else self._latest_twist
-            if sess is not None:
-                if sess.tick(now=t0):
-                    self._on_trip(epoch, outbound)
-                    continue
-                if (v or omega) and self._last_twist_at is not None:
-                    if t0 - self._last_twist_at >= self.ack_deadline_s:
-                        self._make_safe_stop(epoch)()
-                        self._on_trip(epoch, outbound, reason="command_expired")
-                        continue
-                self._step_and_publish(sess, outbound, epoch, v, omega, force_kf, do_dig, do_dump)
+            if not self._actor_once(t0):
+                continue
             # maintain the fixed rate (real timing, no faking)
             rest = self._period - (time.monotonic() - t0)
             if rest > 0:
                 time.sleep(rest)
+
+    def _actor_once(self, t0: float) -> bool:
+        """ONE actor iteration at ``t0`` (drain, deadman, step, publish), extracted so a pinned clock can step it
+        (the RW-51e oracle). False when a deadman or command-expiry trip ended it, as the loop's ``continue`` did:
+        the loop then skips its rate sleep."""
+        self._drain_inbound()
+        with self._lock:
+            sess = self._current_session
+            outbound = self._current_outbound
+            epoch = self._current_epoch
+            force_kf = self._force_keyframe
+            self._force_keyframe = False
+            do_dig = self._pending_dig and not self._safe_stopped
+            self._pending_dig = False
+            do_dump = self._pending_dump and not self._safe_stopped
+            self._pending_dump = False
+            v, omega = (0.0, 0.0) if self._safe_stopped else self._latest_twist
+        if sess is not None:
+            if sess.tick(now=t0):
+                self._on_trip(epoch, outbound)
+                return False
+            if (v or omega) and self._last_twist_at is not None:
+                if t0 - self._last_twist_at >= self.ack_deadline_s:
+                    self._make_safe_stop(epoch)()
+                    self._on_trip(epoch, outbound, reason="command_expired")
+                    return False
+            self._step_and_publish(sess, outbound, epoch, v, omega, force_kf, do_dig, do_dump)
+        return True
 
     def _step_and_publish(self, sess: StreamSession, outbound: queue.Queue | None,
                           epoch: int, v: float, omega: float, force_kf: bool,

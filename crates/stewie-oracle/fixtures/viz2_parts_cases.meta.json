@@ -6,7 +6,7 @@
   "stewie/bridge/stream.py": "6b6e411a15d59357da34c1b20f0a659668e45f9f1852666fbc0a3aadba6d94fe",
   "stewie/contracts/physics_model_control.py": "ac0aa373cd640884282459a1cf31cacfb450c4ee71983e7401b70d3e7856ab36",
   "stewie/physics/rassor_mass_model.py": "8f74ac186210ac6c52023ff213861e7db5a410182c9c6441b1978b71fc7fdc56",
-  "stewie/runtime/viz2_runtime.py": "7f7f2ddc331a724e7ea976737bd4f4ddca821058b70d1068afe8981a27e9f2ab",
+  "stewie/runtime/viz2_runtime.py": "6d0e455fc775f2b8c241ba1bd29cad1d488798dc4d459878b402bfef6764013c",
   "stewie/specs/arm_state.py": "0bd877cf06d300518831054d680edd594d043d215abd512c051540939967beb4"
  }
 }

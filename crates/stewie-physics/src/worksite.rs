@@ -533,6 +533,34 @@ impl WorkSite {
         self.world
     }
 
+    /// The committed coarse base (the bundle's own grid).
+    #[must_use]
+    pub fn base(&self) -> &ColumnState {
+        &self.base
+    }
+
+    #[must_use]
+    pub fn base_cell_m(&self) -> f64 {
+        self.base_cell_m
+    }
+
+    #[must_use]
+    pub fn fine_cell_m(&self) -> f64 {
+        self.fine_cell_m
+    }
+
+    /// The seated drive pose, once set.
+    #[must_use]
+    pub fn pose_xy(&self) -> Option<(f64, f64)> {
+        self.pose_xy
+    }
+
+    /// The streaming conservation baseline: the virgin mass of every tile that has entered the worked domain.
+    #[must_use]
+    pub fn baseline_virgin_kg(&self) -> f64 {
+        self.baseline_virgin_kg
+    }
+
     /// Paged-out tiles with their grid mass [kg/m^2 summed], in tile order.
     #[must_use]
     pub fn worked_tiles(&self) -> Vec<(TileKey, f64)> {

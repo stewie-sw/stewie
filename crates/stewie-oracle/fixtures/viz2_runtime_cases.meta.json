@@ -1,0 +1,12 @@
+{
+ "fixture": "viz2_runtime_cases",
+ "generator": "oracle/build_fixtures.py::viz2_runtime_cases (the viz2 runtime stepped on a pinned clock over the real 1 m SfS bundle; SYNTHETIC command script, labelled)",
+ "payload_sha256": "99b92ded7b87fd490af9c8a5026446b50d952927ca353bf1c020b5dfefdc0ed9",
+ "sources": {
+  "samples/lunar_dem/haworth_sfs_2km_1m/metadata.json": "f0c6ef1492212be12639e910f8ce2fe44e618a6a4230632235efe1083edf6b5f",
+  "stewie/bridge/stream.py": "6b6e411a15d59357da34c1b20f0a659668e45f9f1852666fbc0a3aadba6d94fe",
+  "stewie/physics/drive.py": "a4cba2b9227e4e3b7add1b4913bcc4120d2fbd67c100928b1d3cca4d9854f885",
+  "stewie/physics/worksite.py": "edb4197977c5ad5cf237bbfc3488f11edd85c3c7c9cd437354922a795ec7b58f",
+  "stewie/runtime/viz2_runtime.py": "6d0e455fc775f2b8c241ba1bd29cad1d488798dc4d459878b402bfef6764013c"
+ }
+}
