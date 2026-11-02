@@ -5957,6 +5957,38 @@ def http_localize_cases() -> None:
                    "dart/ablation.py"], payload)
 
 
+def http_compare_cases() -> None:
+    """The planner comparison and the depth-source registry (RW-55b22): POST /compare (every concrete sequencer on the
+    Haworth DEM, ranked by a single, a maximized and a weighted objective, with the Pareto flags; a refused objective;
+    the validation and auth answers) and GET /perception/depth-sources (the default system profile), through one
+    scripted session (_http_session). The missions are the repository's sample missions."""
+    samples = {}
+    for n in ("01_flatten_pad", "02_haul_around_hazard"):
+        with open(os.path.join(REPO, "stewie", "server", "sample_missions", n + ".json")) as fh:
+            samples[n] = json.load(fh)
+
+    def script(call, key, d, clock):
+        call("GET", "/perception/depth-sources")                                   # no key
+        call("GET", "/perception/depth-sources", headers=key)
+        m = samples["01_flatten_pad"]
+        call("POST", "/compare", json_body=m)                                      # no key
+        call("POST", "/compare", headers=key, json_body=m)
+        call("POST", "/compare", headers=key, json_body=dict(samples["02_haul_around_hazard"], objective="energy"))
+        call("POST", "/compare", headers=key, json_body=dict(m, objective="mass"))
+        call("POST", "/compare", headers=key, json_body=dict(m, objective="time:0.6,energy:0.3,charges:0.1"))
+        call("POST", "/compare", headers=key, json_body=dict(m, objective="speed"))
+        call("POST", "/compare", headers=key, json_body=dict(m, objective="time:-1,energy:2"))
+        call("POST", "/compare", headers=key, json_body=dict(m, name="x" * 201))
+        call("POST", "/compare", headers=key, json_body=dict(m, orders=[{"action": "a", "kind": "goto", "y": 1.0}]))
+        call("POST", "/compare", headers=key, json_body={"name": "empty"})
+
+    payload = _http_session("stewie-http-compare-oracle", {}, script)
+    write_fixture(ORACLE_FIXTURES, "http_compare_cases", "oracle/build_fixtures.py::http_compare_cases (the FastAPI "
+                  "app's planner comparison and depth-source registry)",
+                  ["stewie/server/routers/perception.py", "lode/mission_planner.py", "lode/planner_optimize.py",
+                   "stewie/specs/profiles.py", "stewie/specs/profile_data/stewie_ipex_v1.json"], payload)
+
+
 def cog_cases() -> None:
     """The value-raster GeoTIFF (RW-55b20b): ``lode.gis_export.value_raster_cog`` of the real Haworth slope, and of
     its classes at three breaks, written by rasterio/GDAL. Recorded as every directory's tags (the tile offsets and
@@ -6565,6 +6597,7 @@ def main() -> None:
     pose_graph_se2_cases()
     pose_graph_se2_s3li()
     http_localize_cases()
+    http_compare_cases()
 
 
 if __name__ == "__main__":

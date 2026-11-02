@@ -1,0 +1,927 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "compare",
+   "actor": "api",
+   "correlation_id": "cid-004",
+   "target": "objective=time",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "compare",
+   "actor": "api",
+   "correlation_id": "cid-005",
+   "target": "objective=energy",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "compare",
+   "actor": "api",
+   "correlation_id": "cid-006",
+   "target": "objective=mass",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "compare",
+   "actor": "api",
+   "correlation_id": "cid-007",
+   "target": "objective=time:0.6,energy:0.3,charges:0.1",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-compare-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/perception/depth-sources",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true,
+    "selected": "stereo_front",
+    "sources": [
+     {
+      "kind": "stereo",
+      "name": "stereo_front",
+      "output_topic": "/stewie/perception/points",
+      "status": "flight"
+     },
+     {
+      "kind": "stereo",
+      "name": "stereo_rear",
+      "output_topic": "/stewie/perception/points",
+      "status": "simulated"
+     },
+     {
+      "kind": "lidar",
+      "name": "lidar_front",
+      "output_topic": "/stewie/perception/points",
+      "status": "absent"
+     },
+     {
+      "kind": "rgbd",
+      "name": "rgbd_front",
+      "output_topic": "/stewie/perception/points",
+      "status": "bench"
+     },
+     {
+      "kind": "stereo",
+      "name": "legacy_shoulder_stereo",
+      "output_topic": null,
+      "status": "legacy"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/perception/depth-sources",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "direction": "min",
+    "objective": "time",
+    "ok": true,
+    "rows": [
+     {
+      "algorithm": "nearest",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 749821.680585211,
+      "pareto": true,
+      "resolved_algorithm": "nearest",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "two_opt",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 749821.680585211,
+      "pareto": true,
+      "resolved_algorithm": "two_opt",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "or_opt",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 749821.680585211,
+      "pareto": true,
+      "resolved_algorithm": "or_opt",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "lk",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 749821.680585211,
+      "pareto": true,
+      "resolved_algorithm": "lk",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "brute",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 749821.680585211,
+      "pareto": true,
+      "resolved_algorithm": "brute",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "greedy",
+      "avg_power_w": 42.86342677354524,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.69898083,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 749821.6805852111,
+      "pareto": false,
+      "resolved_algorithm": "greedy",
+      "time_s": 749821.6805852111
+     },
+     {
+      "algorithm": "held_karp",
+      "avg_power_w": 42.86342677354524,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.69898083,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 749821.6805852111,
+      "pareto": false,
+      "resolved_algorithm": "held_karp",
+      "time_s": 749821.6805852111
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "direction": "min",
+    "objective": "energy",
+    "ok": true,
+    "rows": [
+     {
+      "algorithm": "nearest",
+      "avg_power_w": 40.856392851177795,
+      "charges": 10,
+      "distance_m": 38954.07788762434,
+      "energy_J": 46855608.3235714,
+      "lift_energy_J": 12510.750585937501,
+      "mass_kg": 11145.6,
+      "objective_value": 46855608.3235714,
+      "pareto": true,
+      "resolved_algorithm": "nearest",
+      "time_s": 1146836.6405777954
+     },
+     {
+      "algorithm": "greedy",
+      "avg_power_w": 40.856392851177795,
+      "charges": 10,
+      "distance_m": 38954.07788762434,
+      "energy_J": 46855608.3235714,
+      "lift_energy_J": 12510.750585937501,
+      "mass_kg": 11145.6,
+      "objective_value": 46855608.3235714,
+      "pareto": true,
+      "resolved_algorithm": "greedy",
+      "time_s": 1146836.6405777954
+     },
+     {
+      "algorithm": "two_opt",
+      "avg_power_w": 40.856392851177795,
+      "charges": 10,
+      "distance_m": 38954.07788762434,
+      "energy_J": 46855608.3235714,
+      "lift_energy_J": 12510.750585937501,
+      "mass_kg": 11145.6,
+      "objective_value": 46855608.3235714,
+      "pareto": true,
+      "resolved_algorithm": "two_opt",
+      "time_s": 1146836.6405777954
+     },
+     {
+      "algorithm": "or_opt",
+      "avg_power_w": 40.856392851177795,
+      "charges": 10,
+      "distance_m": 38954.07788762434,
+      "energy_J": 46855608.3235714,
+      "lift_energy_J": 12510.750585937501,
+      "mass_kg": 11145.6,
+      "objective_value": 46855608.3235714,
+      "pareto": true,
+      "resolved_algorithm": "or_opt",
+      "time_s": 1146836.6405777954
+     },
+     {
+      "algorithm": "lk",
+      "avg_power_w": 40.856392851177795,
+      "charges": 10,
+      "distance_m": 38954.07788762434,
+      "energy_J": 46855608.3235714,
+      "lift_energy_J": 12510.750585937501,
+      "mass_kg": 11145.6,
+      "objective_value": 46855608.3235714,
+      "pareto": true,
+      "resolved_algorithm": "lk",
+      "time_s": 1146836.6405777954
+     },
+     {
+      "algorithm": "brute",
+      "avg_power_w": 40.856392851177795,
+      "charges": 10,
+      "distance_m": 38954.07788762434,
+      "energy_J": 46855608.3235714,
+      "lift_energy_J": 12510.750585937501,
+      "mass_kg": 11145.6,
+      "objective_value": 46855608.3235714,
+      "pareto": true,
+      "resolved_algorithm": "brute",
+      "time_s": 1146836.6405777954
+     },
+     {
+      "algorithm": "held_karp",
+      "avg_power_w": 40.856392851177795,
+      "charges": 10,
+      "distance_m": 38954.07788762434,
+      "energy_J": 46855608.3235714,
+      "lift_energy_J": 12510.750585937501,
+      "mass_kg": 11145.6,
+      "objective_value": 46855608.3235714,
+      "pareto": true,
+      "resolved_algorithm": "held_karp",
+      "time_s": 1146836.6405777954
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [
+      {
+       "r": 10,
+       "x": 25,
+       "y": 0
+      }
+     ],
+     "name": "Tutorial 2 — haul around a crater keep-out",
+     "objective": "energy",
+     "orders": [
+      {
+       "action": "borrow pit",
+       "depth_m": 0.2,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "action": "build berm",
+       "depth_m": 0.2,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 50,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "direction": "max",
+    "objective": "mass",
+    "ok": true,
+    "rows": [
+     {
+      "algorithm": "nearest",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 7689.599999999999,
+      "pareto": true,
+      "resolved_algorithm": "nearest",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "greedy",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 7689.599999999999,
+      "pareto": true,
+      "resolved_algorithm": "greedy",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "two_opt",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 7689.599999999999,
+      "pareto": true,
+      "resolved_algorithm": "two_opt",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "or_opt",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 7689.599999999999,
+      "pareto": true,
+      "resolved_algorithm": "or_opt",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "lk",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 7689.599999999999,
+      "pareto": true,
+      "resolved_algorithm": "lk",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "brute",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 7689.599999999999,
+      "pareto": true,
+      "resolved_algorithm": "brute",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "held_karp",
+      "avg_power_w": 42.86342677354524,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.69898083,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 7689.599999999999,
+      "pareto": false,
+      "resolved_algorithm": "held_karp",
+      "time_s": 749821.6805852111
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "objective": "mass",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "direction": "min",
+    "objective": "time:0.6,energy:0.3,charges:0.1",
+    "ok": true,
+    "rows": [
+     {
+      "algorithm": "nearest",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 1.0000000000000002,
+      "pareto": true,
+      "resolved_algorithm": "nearest",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "two_opt",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 1.0000000000000002,
+      "pareto": true,
+      "resolved_algorithm": "two_opt",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "or_opt",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 1.0000000000000002,
+      "pareto": true,
+      "resolved_algorithm": "or_opt",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "lk",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 1.0000000000000002,
+      "pareto": true,
+      "resolved_algorithm": "lk",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "brute",
+      "avg_power_w": 42.86342677354525,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.698980827,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 1.0000000000000002,
+      "pareto": true,
+      "resolved_algorithm": "brute",
+      "time_s": 749821.680585211
+     },
+     {
+      "algorithm": "greedy",
+      "avg_power_w": 42.86342677354524,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.69898083,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 1.0000000000000004,
+      "pareto": false,
+      "resolved_algorithm": "greedy",
+      "time_s": 749821.6805852111
+     },
+     {
+      "algorithm": "held_karp",
+      "avg_power_w": 42.86342677354524,
+      "charges": 7,
+      "distance_m": 14266.274169979763,
+      "energy_J": 32139926.69898083,
+      "lift_energy_J": 7073.044189453125,
+      "mass_kg": 7689.599999999999,
+      "objective_value": 1.0000000000000004,
+      "pareto": false,
+      "resolved_algorithm": "held_karp",
+      "time_s": 749821.6805852111
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "objective": "time:0.6,energy:0.3,charges:0.1",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown objective 'speed'; known: ['average_power', 'charges', 'distance', 'duration', 'energy', 'mass', 'power', 'time']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "objective": "speed",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "objective weight for 'time' must be finite and >= 0 (got -1.0)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "objective": "time:-1,energy:2",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "name: String should have at most 200 characters",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "order 0 missing field(s): ['x']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "a",
+       "kind": "goto",
+       "y": 1.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "unknown body None; known: ['bennu', 'bp1_testbed', 'ceres', 'earth', 'mars', 'moon', 'phobos']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "name": "empty"
+    },
+    "method": "POST",
+    "path": "/compare",
+    "raw": null
+   },
+   "status": 400
+  }
+ ],
+ "store": null
+}

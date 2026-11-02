@@ -22,7 +22,7 @@ use stewie_traverse::route::Dem;
 use stewie_twin::terrain_view::TerrainView;
 
 use crate::admin::require_director;
-use crate::app::{ApiError, AppState, Head, blocking, err, log, parse_body, split};
+use crate::app::{ApiError, AppState, Head, blocking, err, log, parse_body, require_auth, split};
 use crate::planning::Inputs;
 use crate::validate::{self, Field, Kind, Model};
 
@@ -329,6 +329,8 @@ pub(crate) struct Opts<'a> {
     pub(crate) lonlat: Option<(f64, f64)>,
     /// Plan on the site's raw DEM, not its composed as-built surface (the GIS export's terrain).
     pub(crate) raw_terrain: bool,
+    /// Plan on this site whatever the payload names (the comparison always plans on Haworth, as the Python's).
+    pub(crate) site: Option<&'a str>,
 }
 
 /// The planner's defaults (Python `MP.plan(mission, dem=, dem_origin=)`): nearest, time, one rover, 25 deg.
@@ -339,6 +341,7 @@ pub(crate) const DEFAULTS: Opts<'static> = Opts {
     max_traverse_slope_deg: 25.0,
     lonlat: None,
     raw_terrain: false,
+    site: None,
 };
 
 /// Plan `payload` with the planner's defaults on the site's composed as-built surface (#242).
@@ -365,9 +368,9 @@ pub(crate) fn plan_with(
             bad(e)
         }
     })?;
-    let site = payload
-        .get("site")
-        .and_then(Value::as_str)
+    let site = opts
+        .site
+        .or_else(|| payload.get("site").and_then(Value::as_str))
         .unwrap_or("haworth")
         .to_owned();
     if m.body != "moon" {
@@ -799,6 +802,7 @@ fn compose(
         max_traverse_slope_deg: num("max_traverse_slope_deg").unwrap_or(25.0),
         lonlat: num("lon").zip(num("lat")),
         raw_terrain: false,
+        site: None,
     };
     let p = plan_with(st, payload, &opts)?;
     let dem = p.dem();
@@ -910,6 +914,256 @@ fn compose(
 /// Plan a mission and report every view of the one plan (any authenticated caller, under the heavy quota and the
 /// `STEWIE_PLAN_DEADLINE_S` wall clock). The Markdown report is written to the reports dir; the PDF is not rendered
 /// (D-R148).
+/// Python `CompareRequest` (`extra="allow"`): the mission and the objective to rank by.
+const COMPARE_REQUEST: Model = Model {
+    fields: &[
+        Field(
+            "name",
+            Kind::Str {
+                min: 0,
+                max: 200,
+                nullable: false,
+                default: Some("mission"),
+            },
+        ),
+        Field(
+            "body",
+            Kind::Str {
+                min: 0,
+                max: 40,
+                nullable: false,
+                default: Some("moon"),
+            },
+        ),
+        Field(
+            "orders",
+            Kind::List {
+                min: 0,
+                max: 1000,
+                item: &ORDER,
+            },
+        ),
+        Field(
+            "objective",
+            Kind::Str {
+                min: 0,
+                max: 40,
+                nullable: false,
+                default: Some("time"),
+            },
+        ),
+    ],
+    forbid_extra: false,
+};
+
+/// The concrete sequencers a comparison runs (Python `SEQUENCERS` without `auto`).
+const COMPARED: [&str; 7] = [
+    "nearest",
+    "greedy",
+    "two_opt",
+    "or_opt",
+    "lk",
+    "brute",
+    "held_karp",
+];
+/// The metrics a plan must not lose on to stay on the Pareto front (Python `_PARETO_METRICS`).
+const PARETO_METRICS: [&str; 4] = ["time_s", "energy_J", "distance_m", "charges"];
+
+/// An objective's row metric and whether it is minimized (Python `OBJECTIVES`).
+fn objective_metric(name: &str) -> (&'static str, bool) {
+    match name {
+        "energy" => ("energy_J", true),
+        "average_power" | "power" => ("avg_power_w", true),
+        "distance" => ("distance_m", true),
+        "charges" => ("charges", true),
+        "mass" => ("mass_kg", false),
+        _ => ("time_s", true),
+    }
+}
+
+/// One sequencer's comparison row: its plan's core figures, or why it refused the mission.
+fn compare_row(
+    st: &AppState,
+    payload: &Map<String, Value>,
+    a: &str,
+    objective: &str,
+) -> Map<String, Value> {
+    let opts = Opts {
+        algorithm: a,
+        objective,
+        raw_terrain: true,
+        site: Some("haworth"),
+        ..DEFAULTS
+    };
+    let mut row = Map::new();
+    row.insert("algorithm".into(), json!(a));
+    match plan_with(st, payload, &opts) {
+        Ok(p) => {
+            let t = &p.plan.totals;
+            let lift: f64 = p
+                .plan
+                .trips
+                .iter()
+                .map(|t| t.lift_e)
+                .fold(0.0, |x, y| x + y);
+            row.insert("resolved_algorithm".into(), json!(t.resolved_algorithm));
+            for (k, v) in [
+                ("time_s", json!(t.time_s)),
+                ("energy_J", json!(t.energy_j)),
+                ("avg_power_w", json!(t.avg_power_w)),
+                ("distance_m", json!(t.distance_m)),
+                ("charges", json!(t.charges)),
+                ("mass_kg", json!(t.mass_kg)),
+                ("lift_energy_J", json!(lift)),
+            ] {
+                row.insert(k.into(), v);
+            }
+        }
+        Err(e) => {
+            row.insert("error".into(), json!(e.1));
+        }
+    }
+    row
+}
+
+/// Every concrete sequencer's plan of one mission on the Haworth DEM, ranked by the objective (a single metric, or
+/// a weighted sum normalized to the best in the set, its denominators floored, P-09), each row flagged when it is
+/// on the time/energy/distance/charges Pareto front (Python `compare_algorithms`). A sequencer that refuses the
+/// mission reports its reason in its row.
+fn compare_algorithms(
+    st: &AppState,
+    payload: &Map<String, Value>,
+    objective: &str,
+) -> Result<Value, ApiError> {
+    let bad = |e: String| err(StatusCode::BAD_REQUEST, e);
+    let weights = stewie_plan::optimize::parse_objective(objective).map_err(bad)?;
+    let mut rows: Vec<Map<String, Value>> = COMPARED
+        .iter()
+        .map(|a| compare_row(st, payload, a, objective))
+        .collect();
+    let metric = |r: &Map<String, Value>, k: &str| r.get(k).and_then(Value::as_f64).unwrap_or(0.0);
+    let ok: Vec<usize> = (0..rows.len())
+        .filter(|i| !rows[*i].contains_key("error"))
+        .collect();
+    let best = |k: &str, max: bool| {
+        let vals = ok.iter().map(|i| metric(&rows[*i], k));
+        let v = if max {
+            vals.fold(None, |m: Option<f64>, v| Some(m.map_or(v, |m| m.max(v))))
+        } else {
+            vals.fold(None, |m: Option<f64>, v| Some(m.map_or(v, |m| m.min(v))))
+        };
+        v.unwrap_or(1.0)
+    };
+    let bounds: Vec<(f64, f64)> = weights
+        .iter()
+        .map(|(n, _)| {
+            let (k, _) = objective_metric(n);
+            (best(k, false), best(k, true))
+        })
+        .collect();
+    for i in &ok {
+        let value = if weights.len() == 1 {
+            rows[*i][objective_metric(&weights[0].0).0].clone()
+        } else {
+            let mut s = 0.0;
+            for ((n, w), (lo, hi)) in weights.iter().zip(&bounds) {
+                let (k, minimize) = objective_metric(n);
+                let v = metric(&rows[*i], k);
+                s += w * if minimize {
+                    if v.abs() <= 1e-9 && lo.abs() <= 1e-9 {
+                        1.0
+                    } else {
+                        v / lo.max(1e-9)
+                    }
+                } else if v.abs() <= 1e-9 && hi.abs() <= 1e-9 {
+                    1.0
+                } else {
+                    hi.max(0.0) / v.max(1e-9)
+                };
+            }
+            json!(s)
+        };
+        rows[*i].insert("objective_value".into(), value);
+    }
+    for i in &ok {
+        let dominated = ok.iter().any(|j| {
+            j != i
+                && PARETO_METRICS
+                    .iter()
+                    .all(|m| metric(&rows[*j], m) <= metric(&rows[*i], m) + 1e-9)
+                && PARETO_METRICS
+                    .iter()
+                    .any(|m| metric(&rows[*j], m) < metric(&rows[*i], m) - 1e-9)
+        });
+        rows[*i].insert("pareto".into(), json!(!dominated));
+    }
+    let minimize = weights.len() > 1 || objective_metric(&weights[0].0).1;
+    let key = |r: &Map<String, Value>| {
+        r.get("objective_value")
+            .and_then(Value::as_f64)
+            .map_or(f64::INFINITY, |v| if minimize { v } else { -v })
+    };
+    rows.sort_by(|a, b| key(a).total_cmp(&key(b)));
+    Ok(
+        json!({"ok": true, "objective": objective, "direction": if minimize { "min" } else { "max" }, "rows": rows}),
+    )
+}
+
+/// `POST /compare`: the sequencers side by side (FS-19: the comparison is audited).
+async fn post_compare(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (h, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let mut body = parse_body(&bytes?)?;
+        require_auth(st, &h)?;
+        let raw = body
+            .as_ref()
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        if let Some(Value::Object(o)) = body.as_mut() {
+            o.entry("orders").or_insert_with(|| json!([]));
+        }
+        let mut valid = validate::model(body.as_ref(), COMPARE_REQUEST)
+            .map_err(|e| err(StatusCode::BAD_REQUEST, e))?;
+        let objective = valid
+            .get("objective")
+            .and_then(Value::as_str)
+            .unwrap_or("time")
+            .to_owned();
+        set_only(&mut valid, &raw);
+        let payload = dump(&raw, valid);
+        let m = st
+            .planning
+            .mission(&Value::Object(payload.clone()))
+            .map_err(|e| err(StatusCode::BAD_REQUEST, e))?;
+        // what every sequencer would refuse alike is refused once: an unconfigured planner (D-R116), a body with no
+        // terrain to plan on (D-R85; the Python plans that flat)
+        st.planning.inputs(&m).map_err(|(unconfigured, e)| {
+            err(
+                if unconfigured {
+                    StatusCode::SERVICE_UNAVAILABLE
+                } else {
+                    StatusCode::BAD_REQUEST
+                },
+                e,
+            )
+        })?;
+        if m.body != "moon" {
+            return Err(err(
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "body {} has no terrain model to plan on; the planner needs a real DEM (D-R85)",
+                    m.body
+                ),
+            ));
+        }
+        let out = compare_algorithms(st, &payload, &objective)?;
+        log(st, &h, "api", "compare", &format!("objective={objective}"));
+        Ok(axum::Json(out).into_response())
+    })
+    .await
+}
+
 async fn post_plan(State(st): State<Arc<AppState>>, req: Request) -> Response {
     let (h, bytes) = split(req, st.settings.max_body).await;
     let checked = match bytes {
@@ -1058,6 +1312,7 @@ async fn resync_compare(State(st): State<Arc<AppState>>, req: Request) -> Respon
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/plan", post(post_plan))
+        .route("/compare", post(post_compare))
         .route("/plan/math", post(plan_math))
         .route("/resync/compare", post(resync_compare))
         .route("/plan/commands", post(plan_commands))

@@ -1,0 +1,12 @@
+{
+ "fixture": "http_compare_cases",
+ "generator": "oracle/build_fixtures.py::http_compare_cases (the FastAPI app's planner comparison and depth-source registry)",
+ "payload_sha256": "7fb4428e4228bdf23d8ae440dce198f0f4008c52a6d7d9e9598c9c89f0f8d423",
+ "sources": {
+  "lode/mission_planner.py": "7e1b478c380d588bb3eeddcd93e66e31fcddd994ff89328f85035a93ad3036fd",
+  "lode/planner_optimize.py": "d348ac11a1e3bf86adbaca4d6ec891bf81f9d1cabfc9f79ae97a3649fcd7ff60",
+  "stewie/server/routers/perception.py": "06f756bd9539a0fbde360dfbcadcf2ecb5ea0ad9ef84b24d7e78fbae7c466237",
+  "stewie/specs/profile_data/stewie_ipex_v1.json": "f59b07c430f70eb8c922478f7e0deb30c78a1eb3458e8d13fefef336758501df",
+  "stewie/specs/profiles.py": "57b764642cc78b0c167595319d78b663f92a4bdaab9fd9c64cabb82d5f065814"
+ }
+}

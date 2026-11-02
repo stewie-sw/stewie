@@ -78,15 +78,23 @@ pub fn parse_objective(spec: &str) -> Result<Vec<(String, f64)>, String> {
         let name = name.trim();
         if pairs.iter().any(|(n, _)| n == name) {
             return Err(format!(
-                "duplicate objective component {name:?} in {spec:?}"
+                "duplicate objective component {} in {}",
+                py_str(name),
+                py_str(spec)
             ));
         }
         let w = w.trim();
         let weight = if w.is_empty() {
             1.0
         } else {
-            w.parse::<f64>()
-                .map_err(|_| format!("malformed objective weight {w:?} for {name:?} in {spec:?}"))?
+            w.parse::<f64>().map_err(|_| {
+                format!(
+                    "malformed objective weight {} for {} in {}",
+                    py_str(w),
+                    py_str(name),
+                    py_str(spec)
+                )
+            })?
         };
         pairs.push((name.to_owned(), weight));
     }
@@ -103,21 +111,46 @@ pub fn normalise(pairs: Vec<(String, f64)>) -> Result<Vec<(String, f64)>, String
     }
     for (k, v) in &pairs {
         if !OBJECTIVES.contains(&k.as_str()) {
-            return Err(format!("unknown objective {k:?}; known: {OBJECTIVES:?}"));
+            let mut known = OBJECTIVES.map(py_str);
+            known.sort();
+            return Err(format!(
+                "unknown objective {}; known: [{}]",
+                py_str(k),
+                known.join(", ")
+            ));
         }
         if !v.is_finite() || *v < 0.0 {
             return Err(format!(
-                "objective weight for {k:?} must be finite and >= 0 (got {v})"
+                "objective weight for {} must be finite and >= 0 (got {})",
+                py_str(k),
+                py_float(*v)
             ));
         }
     }
     let total: f64 = pairs.iter().map(|(_, v)| v).sum();
     if !(total.is_finite() && total > 0.0) {
         return Err(format!(
-            "objective weights must sum to a finite positive value (got {total})"
+            "objective weights must sum to a finite positive value (got {})",
+            py_float(total)
         ));
     }
     Ok(pairs.into_iter().map(|(k, v)| (k, v / total)).collect())
+}
+
+/// Python `repr` of a string.
+fn py_str(s: &str) -> String {
+    stewie_twin::pyjson::repr(&serde_json::Value::String(s.to_owned()))
+}
+
+/// Python `repr` of a float, `nan` and `inf` included.
+fn py_float(x: f64) -> String {
+    if x.is_nan() {
+        "nan".to_owned()
+    } else if x.is_infinite() {
+        if x > 0.0 { "inf" } else { "-inf" }.to_owned()
+    } else {
+        stewie_twin::pyjson::float_repr(x).unwrap_or_else(|_| x.to_string())
+    }
 }
 
 fn is_only(weights: &[(String, f64)], target: &[&str]) -> bool {

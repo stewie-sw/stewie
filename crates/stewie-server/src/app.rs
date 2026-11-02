@@ -114,6 +114,9 @@ pub struct Settings {
     /// `STEWIE_SITE_VECTORS` and `STEWIE_GIS_DATA_DIR`: where the visible-pin site vectors are found.
     pub site_vectors: Option<String>,
     pub gis_data_dir: Option<String>,
+    /// The system profile `STEWIE_PROFILE` (else `SOLNAV_PROFILE`) names, one of the packaged ones (D-R167): its
+    /// exact JSON text.
+    pub system_profile: &'static str,
     /// `STEWIE_DATABASE_URL`, normalised for sqlx: the Postgres store of the edit sessions and the world-transaction
     /// projection (D-R161). Unset keeps the `SQLite` store in the data directory and mirrors nothing.
     pub database_url: Option<String>,
@@ -122,6 +125,43 @@ pub struct Settings {
 /// The constants the Python's N15 overlay can override (`oracle/export_registries.py`).
 const OVERLAY_CONSTANTS: &str =
     include_str!("../../stewie-contracts/fixtures/overlay_constants.json");
+
+/// The packaged system profiles (Python `specs/profiles.py` `_FILES`), by id, as their exact bytes.
+const SYSTEM_PROFILES: [(&str, &str); 2] = [
+    (
+        "STEWIE_IPEX_V1",
+        include_str!("../../../stewie/specs/profile_data/stewie_ipex_v1.json"),
+    ),
+    (
+        "OFFICIAL_LAC_2025_UNVERIFIED",
+        include_str!("../../../stewie/specs/profile_data/official_lac_2025_unverified.json"),
+    ),
+];
+
+/// The system profile the Python's `_resolve` would load: `STEWIE_PROFILE`, else `SOLNAV_PROFILE`, else the default,
+/// through its aliases. A profile given as a JSON file path is refused: the Python's migration and validation of an
+/// arbitrary profile are not ported (D-R167).
+fn system_profile(env: &str, legacy: &str) -> Result<&'static str, String> {
+    let requested = if !env.is_empty() {
+        env
+    } else if !legacy.is_empty() {
+        legacy
+    } else {
+        "STEWIE_IPEX_V1"
+    };
+    let key = match requested.to_lowercase().as_str() {
+        "stewie" => "STEWIE_IPEX_V1",
+        "official" => "OFFICIAL_LAC_2025_UNVERIFIED",
+        _ => requested,
+    };
+    SYSTEM_PROFILES.iter().find(|(id, _)| *id == key).map(|(_, text)| *text).ok_or_else(|| {
+        format!(
+            "STEWIE_PROFILE={requested:?} is not a packaged system profile (STEWIE_IPEX_V1, \
+             OFFICIAL_LAC_2025_UNVERIFIED, or the aliases stewie and official); the Rust server does not load a profile \
+             from a file (D-R167)"
+        )
+    })
+}
 
 /// A recovery-point objective [s] (Python `ops_governance._env_float`): a positive number, else one sol, the
 /// snapshot scheduler's trigger.
@@ -149,6 +189,7 @@ impl Settings {
                 .parse::<f64>()
                 .map_err(|e| format!("{k}={v:?}: {e}"))
         };
+        let system_profile = system_profile(&var("STEWIE_PROFILE"), &var("SOLNAV_PROFILE"))?;
         let database_url = Some(var("STEWIE_DATABASE_URL"))
             .filter(|u| !u.trim().is_empty())
             .map(|u| crate::edit_session::postgres_url(&u))
@@ -206,6 +247,7 @@ impl Settings {
             snapshot_rpo_s: rpo(&var("STEWIE_SNAPSHOT_RPO_S")),
             replica_rpo_s: rpo(&var("STEWIE_REPLICA_RPO_S")),
             database_url,
+            system_profile,
             tiles_dir: get("STEWIE_TILES_DIR")
                 .filter(|v| !v.is_empty())
                 .map_or_else(

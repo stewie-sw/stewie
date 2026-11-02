@@ -582,6 +582,43 @@ fn startup_refuses_a_configured_cross_origin_allowlist() {
 }
 
 #[test]
+fn the_system_profile_is_a_packaged_one_by_id_or_alias() {
+    // D-R167: STEWIE_PROFILE, else the legacy SOLNAV_PROFILE, through the Python's aliases; a file path is refused
+    let settings = |env: &[(&str, &str)]| {
+        stewie_server::app::Settings::from_env(&|k| {
+            env.iter()
+                .find(|(n, _)| *n == k)
+                .map(|(_, v)| (*v).to_owned())
+        })
+    };
+    let id = |p: &str| serde_json::from_str::<Value>(p).unwrap()["profile_id"].clone();
+    let default = settings(&[]).unwrap().system_profile;
+    assert_eq!(id(default), json!("STEWIE_IPEX_V1"));
+    assert_eq!(
+        settings(&[("STEWIE_PROFILE", "Official")])
+            .unwrap()
+            .system_profile,
+        settings(&[("SOLNAV_PROFILE", "OFFICIAL_LAC_2025_UNVERIFIED")])
+            .unwrap()
+            .system_profile
+    );
+    assert_ne!(
+        settings(&[("STEWIE_PROFILE", "official")])
+            .unwrap()
+            .system_profile,
+        default
+    );
+    assert_eq!(
+        settings(&[("STEWIE_PROFILE", ""), ("SOLNAV_PROFILE", "stewie")])
+            .unwrap()
+            .system_profile,
+        default
+    );
+    let e = settings(&[("STEWIE_PROFILE", "/etc/profile.json")]).unwrap_err();
+    assert!(e.contains("D-R167"), "{e}");
+}
+
+#[test]
 fn the_database_url_is_normalised_and_only_postgres_is_taken() {
     // SYNTHETIC URLs (D-R161: the SQLAlchemy driver suffix is dropped; anything but Postgres is refused)
     let settings = |url: &str| {
@@ -2183,6 +2220,19 @@ async fn the_python_localize_session_replays() {
                 }
             }
         },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_python_compare_session_replays_exactly() {
+    replay(
+        "http_compare_cases",
+        b"stewie-http-compare-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
     )
     .await;
 }

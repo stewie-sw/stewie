@@ -222,9 +222,36 @@ async fn localize_traverse(State(st): State<Arc<AppState>>, req: Request) -> Res
     .await
 }
 
+/// FR-02: the depth sources the active system profile declares, each with its kind, its declared health status and
+/// its output topic, and the selected one (read-only; no health is inferred).
+async fn depth_sources(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        require_auth(st, &h)?;
+        let profile: Value = serde_json::from_str(st.settings.system_profile)
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        let sensors = &profile["sensors"];
+        let sources: Vec<Value> = sensors["depth_sources"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .map(|s| {
+                        json!({"name": s["name"], "kind": s["kind"], "status": s["status"],
+                               "output_topic": s.get("output_topic").cloned().unwrap_or(Value::Null)})
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let selected = sensors.get("selected_depth_source").cloned().unwrap_or(Value::Null);
+        Ok(axum::Json(json!({"ok": true, "selected": selected, "sources": sources})).into_response())
+    })
+    .await
+}
+
 /// The perception routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/localize", post(localize))
         .route("/localize/traverse", get(localize_traverse))
+        .route("/perception/depth-sources", get(depth_sources))
 }
