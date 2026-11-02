@@ -23,7 +23,7 @@ static REGISTRIES: LazyLock<Value> = LazyLock::new(|| {
     .unwrap_or(Value::Null)
 });
 
-fn reg(key: &str) -> Value {
+pub(crate) fn reg(key: &str) -> Value {
     REGISTRIES.get(key).cloned().unwrap_or(Value::Null)
 }
 

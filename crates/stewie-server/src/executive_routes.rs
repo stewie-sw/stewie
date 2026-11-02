@@ -221,7 +221,7 @@ fn model_errors(intent: &Value) -> Vec<String> {
 }
 
 /// Validate a `MissionIntent` body into its full dump (every default filled, every number its field's type).
-fn parse_intent(body: Option<&Value>) -> Result<Value, ApiError> {
+pub(crate) fn parse_intent(body: Option<&Value>) -> Result<Value, ApiError> {
     let v = Value::Object(body_model(body, INTENT)?);
     let errors = model_errors(&v);
     if errors.is_empty() {
@@ -327,7 +327,10 @@ fn body_density(st: &AppState, body: &str) -> Result<f64, String> {
 /// mandatory objectives as orders sized to their material budget, their prerequisites as precedence, the
 /// structured hard budgets and the tightest acceptance tolerance, the keep-outs, and the soft constraints.
 #[allow(clippy::too_many_lines)] // the Python's lowering, step by step
-fn compile_intent(st: &AppState, intent: &Value) -> Result<(Map<String, Value>, String), String> {
+pub(crate) fn compile_intent(
+    st: &AppState,
+    intent: &Value,
+) -> Result<(Map<String, Value>, String), String> {
     let objectives = items(intent, "objectives");
     let mandatory_ids: Vec<&str> = objectives
         .iter()
@@ -476,7 +479,7 @@ fn fmt_g(x: f64) -> String {
 /// The cockpit's build orders as a canonical intent (Python `intent_from_orders`): each cut, fill or sinter order is
 /// one mandatory primary objective sized by its excavated mass, with a 0.02 m as-built acceptance; any other order is
 /// skipped and reported.
-fn intent_from_orders(
+pub(crate) fn intent_from_orders(
     st: &AppState,
     orders: &[Value],
     mission_id: &str,
@@ -537,16 +540,16 @@ fn intent_from_orders(
 }
 
 /// A lifecycle run: the signed revision, the evidence and the ordered transitions.
-struct Released {
-    signed: Value,
-    evidence: Value,
-    transitions: Vec<Value>,
+pub(crate) struct Released {
+    pub(crate) signed: Value,
+    pub(crate) evidence: Value,
+    pub(crate) transitions: Vec<Value>,
 }
 
 /// Drive a fresh executive through DRAFT -> RELEASED (Python `run_lifecycle`) with each edge's real evidence: the
 /// compiled plan's `plan_id`, then the forward comparison of `auto` and `nearest` on the site's real surface (the
 /// Python plans them flat, which D-R85 refuses), then the review and the director's signature.
-fn run_lifecycle(st: &AppState, intent: &Value) -> Result<Released, ApiError> {
+pub(crate) fn run_lifecycle(st: &AppState, intent: &Value) -> Result<Released, ApiError> {
     let bad = |e: String| err(StatusCode::BAD_REQUEST, e);
     let (mission, objective) = compile_intent(st, intent).map_err(bad)?;
     let p = plan_with(
@@ -612,7 +615,7 @@ fn run_lifecycle(st: &AppState, intent: &Value) -> Result<Released, ApiError> {
 }
 
 /// One EG-07 authority record, stamped with the server clock's UTC time.
-fn record_action(
+pub(crate) fn record_action(
     st: &AppState,
     actor: &str,
     action: &str,

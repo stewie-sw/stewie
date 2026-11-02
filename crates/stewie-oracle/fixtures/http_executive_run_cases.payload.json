@@ -1,0 +1,2645 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_LIVE_TOKEN_SECRET": "oracle-live-token-secret",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "auth.login",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-001",
+   "target": "bootstrap",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "executive.run",
+   "actor": "api-key",
+   "correlation_id": "cid-004",
+   "target": "04ab99b80978 pad-run: completed (3 legs)",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "executive.run",
+   "actor": "api-key",
+   "correlation_id": "cid-013",
+   "target": "f6bc52fe624d pad-run: completed (3 legs)",
+   "ts": 1800000010.0
+  },
+  {
+   "action": "executive.release_plan",
+   "actor": "api-key",
+   "correlation_id": "cid-014",
+   "target": "pad-bound: 2 objectives -> released",
+   "ts": 1800000010.0
+  },
+  {
+   "action": "executive.run",
+   "actor": "api-key",
+   "correlation_id": "cid-015",
+   "target": "cad5fd45bfc5 pad-bound: completed (2 legs)",
+   "ts": 1800000015.0
+  },
+  {
+   "action": "executive.run",
+   "actor": "api-key",
+   "correlation_id": "cid-017",
+   "target": "7115cde1c6b3 pad-bound: completed (2 legs)",
+   "ts": 1800000015.0
+  },
+  {
+   "action": "executive.run",
+   "actor": "api-key",
+   "correlation_id": "cid-024",
+   "target": "240862e3c6c4 far-run: safed (1 legs)",
+   "ts": 1800000015.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-executive-run-oracle",
+ "steps": [
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "bob@example.org",
+    "role": "operator",
+    "token": "eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6Ijk5MTI4OTM0ZDliMDQyZGI4MWRmMDUxZjk4OGU1MjBkIn0.rp47_y2M8p-tgZDtGKC6e5R9q-Y-DFaA9j5fzrjE90Y",
+    "ttl_s": 43200
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "email": "bob@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'bob@example.org')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6Ijk5MTI4OTM0ZDliMDQyZGI4MWRmMDUxZjk4OGU1MjBkIn0.rp47_y2M8p-tgZDtGKC6e5R9q-Y-DFaA9j5fzrjE90Y",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "bound_revision": null,
+    "executability": {
+     "executable": true,
+     "preconditions": {
+      "approval_record": true,
+      "assigned_assets": true,
+      "physics_score": true,
+      "rehearsal_result": true,
+      "required_capabilities": true,
+      "resource_budget": true,
+      "rollback_abort_rule": true,
+      "safety_check": true
+     },
+     "unmet": []
+    },
+    "executed_legs": [
+     {
+      "action": "continue",
+      "leg": 0
+     },
+     {
+      "action": "continue",
+      "leg": 1
+     },
+     {
+      "action": "continue",
+      "leg": 2
+     }
+    ],
+    "final_state": "completed",
+    "label": "sim",
+    "live_token": {
+     "expires_at": 1800000120.0,
+     "issued": true,
+     "issued_at": 1800000000.0,
+     "mission_id": "pad-run",
+     "revision_id": "c7b0cd73f1c8db41a4e98dd04e40094e96fcae59f0f7f10120b3ef0a62162779",
+     "signature": "cd0a8be426dea03cc6a461e77ca3e2c74bb8f4f5e089f551fa28f5e7ecf41e66",
+     "ttl_s": 120.0
+    },
+    "mission_id": "pad-run",
+    "n_legs_total": 3,
+    "nonnominal_legs": 0,
+    "ok": true,
+    "physics_attribution": {
+     "attributed_quantities": [
+      "energy_J",
+      "conserved_terrain_delta_m3",
+      "as_built_acceptance"
+     ],
+     "authority_scope": [
+      "terrain",
+      "terramechanics"
+     ],
+     "backend": "tier2_numpy",
+     "calibration": {
+      "calibration": "sourced-analog",
+      "frozen": true,
+      "live_eligible": true,
+      "model_id": "tier2_numpy@1.0",
+      "validated": true
+     },
+     "conserves_mass": true,
+     "release_eligible": true
+    },
+    "physics_backend": "tier2_numpy",
+    "reconciliation": {
+     "implicates_model": false,
+     "observed": 4859244.52154658,
+     "predicted": 4859238.044712513,
+     "proposals": [
+      {
+       "change": "set world belief energy_J = 4859244.52154658 (predicted 4859238.044712513, residual 6.4768340671435)",
+       "confidence": 8.859482980896882e-06,
+       "model_error": false,
+       "proposal_id": "run:04ab99b80978:world:energy_J",
+       "state": "proposed"
+      }
+     ],
+     "quantity": "energy_J",
+     "residual": 6.4768340671435
+    },
+    "run_id": "04ab99b80978",
+    "safed": false,
+    "site": "haworth",
+    "skipped": [
+     {
+      "action": "path",
+      "kind": "goto"
+     }
+    ],
+    "terramechanics_comparison": {
+     "backend": "tier2_numpy",
+     "n_legs": 3,
+     "terms": [
+      {
+       "available": true,
+       "backend": "tier2_numpy",
+       "observed": 4859244.52154658,
+       "predicted": 4859238.044712513,
+       "residual": 6.4768340671435,
+       "term": "energy_J",
+       "within_tolerance": true
+      },
+      {
+       "available": "observed_only",
+       "backend": "tier2_numpy",
+       "note": "SIM slip is the slip-truth model output; no separate nominal-slip prediction is logged per leg",
+       "observed": 0.005605432683582994,
+       "predicted": null,
+       "term": "slip"
+      },
+      {
+       "available": false,
+       "backend": "tier2_numpy",
+       "note": "not telemetered per leg in the current SIM; TM-02 exposes sinkage as an inspectable term",
+       "observed": null,
+       "predicted": null,
+       "term": "sinkage"
+      }
+     ]
+    },
+    "trajectory_kind": "forecast",
+    "transitions": [
+     "armed",
+     "executing",
+     "completed"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "mission_id": "pad-run",
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cells_changed": 58,
+    "chain_valid": true,
+    "max_cut_m": 0.1,
+    "max_fill_m": 0.05,
+    "missions": [
+     "pad-run"
+    ],
+    "net_volume_m3": -0.85,
+    "ok": true,
+    "recorded": true,
+    "site": "haworth",
+    "version": 1
+   },
+   "cache_control": null,
+   "clock": 1800000005.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/twin/terrain/haworth",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "bound_revision": null,
+    "created_at": 1800000000.0,
+    "created_by": "api-key",
+    "executed_legs": [
+     {
+      "action": "continue",
+      "leg": 0
+     },
+     {
+      "action": "continue",
+      "leg": 1
+     },
+     {
+      "action": "continue",
+      "leg": 2
+     }
+    ],
+    "final_state": "completed",
+    "label": "sim",
+    "mission_id": "pad-run",
+    "n_legs_total": 3,
+    "nonnominal_legs": 0,
+    "ok": true,
+    "physics_backend": "tier2_numpy",
+    "run_id": "04ab99b80978",
+    "safed": false,
+    "site": "haworth",
+    "trajectory_kind": "forecast",
+    "transitions": [
+     "armed",
+     "executing",
+     "completed"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000005.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/run/04ab99b80978",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no run '04ab99b80978'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000005.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMC4wLCJpYXQiOjE4MDAwMDAwMDAuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6Ijk5MTI4OTM0ZDliMDQyZGI4MWRmMDUxZjk4OGU1MjBkIn0.rp47_y2M8p-tgZDtGKC6e5R9q-Y-DFaA9j5fzrjE90Y",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/run/04ab99b80978",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "no run 'nope'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000005.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/run/nope",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": "id: 0\ndata: {\"kind\": \"leg\", \"detail\": \"sim leg 0: continue\", \"outcome\": \"ok\", \"t_s\": 0.0, \"vehicle_id\": \"ipex\", \"leg\": 0}\n\nid: 1\ndata: {\"kind\": \"leg\", \"detail\": \"sim leg 1: continue\", \"outcome\": \"ok\", \"t_s\": 1.0, \"vehicle_id\": \"ipex\", \"leg\": 1}\n\nid: 2\ndata: {\"kind\": \"leg\", \"detail\": \"sim leg 2: continue\", \"outcome\": \"ok\", \"t_s\": 2.0, \"vehicle_id\": \"ipex\", \"leg\": 2}\n\nid: 3\ndata: {\"kind\": \"acceptance\", \"detail\": \"SIM run completed\", \"outcome\": \"ok\", \"t_s\": 3.0, \"vehicle_id\": \"ipex\", \"leg\": 3}\n\nid: 4\ndata: {\"done\": true, \"final_state\": \"completed\", \"n_legs_total\": 3, \"trajectory_kind\": \"forecast\", \"safed\": false}\n\n",
+   "cache_control": "no-cache",
+   "clock": 1800000005.0,
+   "content_type": "text/event-stream; charset=utf-8",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/run/04ab99b80978/stream?interval_s=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": "id: 1\ndata: {\"kind\": \"leg\", \"detail\": \"sim leg 1: continue\", \"outcome\": \"ok\", \"t_s\": 1.0, \"vehicle_id\": \"ipex\", \"leg\": 1}\n\nid: 2\ndata: {\"kind\": \"leg\", \"detail\": \"sim leg 2: continue\", \"outcome\": \"ok\", \"t_s\": 2.0, \"vehicle_id\": \"ipex\", \"leg\": 2}\n\nid: 3\ndata: {\"kind\": \"acceptance\", \"detail\": \"SIM run completed\", \"outcome\": \"ok\", \"t_s\": 3.0, \"vehicle_id\": \"ipex\", \"leg\": 3}\n\nid: 4\ndata: {\"done\": true, \"final_state\": \"completed\", \"n_legs_total\": 3, \"trajectory_kind\": \"forecast\", \"safed\": false}\n\n",
+   "cache_control": "no-cache",
+   "clock": 1800000005.0,
+   "content_type": "text/event-stream; charset=utf-8",
+   "request": {
+    "headers": {
+     "Last-Event-ID": "0",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/run/04ab99b80978/stream?interval_s=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "interval_s: Input should be a valid number, unable to parse string as a number",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000005.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/run/04ab99b80978/stream?interval_s=fast",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "no run 'nope'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000005.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/run/nope/stream",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "bound_revision": null,
+    "executability": {
+     "executable": true,
+     "preconditions": {
+      "approval_record": true,
+      "assigned_assets": true,
+      "physics_score": true,
+      "rehearsal_result": true,
+      "required_capabilities": true,
+      "resource_budget": true,
+      "rollback_abort_rule": true,
+      "safety_check": true
+     },
+     "unmet": []
+    },
+    "executed_legs": [
+     {
+      "action": "continue",
+      "leg": 0
+     },
+     {
+      "action": "continue",
+      "leg": 1
+     },
+     {
+      "action": "continue",
+      "leg": 2
+     }
+    ],
+    "final_state": "completed",
+    "label": "sim",
+    "live_token": {
+     "expires_at": 1800000130.0,
+     "issued": true,
+     "issued_at": 1800000010.0,
+     "mission_id": "pad-run",
+     "revision_id": "c7b0cd73f1c8db41a4e98dd04e40094e96fcae59f0f7f10120b3ef0a62162779",
+     "signature": "043aeb0a5f42a13e31cf4477aed6af29dc4e9355e62b71a47e36462dd18a0af9",
+     "ttl_s": 120.0
+    },
+    "mission_id": "pad-run",
+    "n_legs_total": 3,
+    "nonnominal_legs": 0,
+    "ok": true,
+    "physics_attribution": {
+     "attributed_quantities": [
+      "energy_J",
+      "conserved_terrain_delta_m3",
+      "as_built_acceptance"
+     ],
+     "authority_scope": [
+      "terrain",
+      "terramechanics"
+     ],
+     "backend": "tier2_numpy",
+     "calibration": {
+      "calibration": "sourced-analog",
+      "frozen": true,
+      "live_eligible": true,
+      "model_id": "tier2_numpy@1.0",
+      "validated": true
+     },
+     "conserves_mass": true,
+     "release_eligible": true
+    },
+    "physics_backend": "tier2_numpy",
+    "reconciliation": {
+     "implicates_model": false,
+     "observed": 4859178.70280413,
+     "predicted": 4859169.509823113,
+     "proposals": [
+      {
+       "change": "set world belief energy_J = 4859178.70280413 (predicted 4859169.509823113, residual 9.19298101682216)",
+       "confidence": 6.583189330313883e-06,
+       "model_error": false,
+       "proposal_id": "run:f6bc52fe624d:world:energy_J",
+       "state": "proposed"
+      }
+     ],
+     "quantity": "energy_J",
+     "residual": 9.19298101682216
+    },
+    "run_id": "f6bc52fe624d",
+    "safed": false,
+    "site": "haworth",
+    "skipped": [
+     {
+      "action": "path",
+      "kind": "goto"
+     }
+    ],
+    "terramechanics_comparison": {
+     "backend": "tier2_numpy",
+     "n_legs": 3,
+     "terms": [
+      {
+       "available": true,
+       "backend": "tier2_numpy",
+       "observed": 4859178.70280413,
+       "predicted": 4859169.509823113,
+       "residual": 9.19298101682216,
+       "term": "energy_J",
+       "within_tolerance": true
+      },
+      {
+       "available": "observed_only",
+       "backend": "tier2_numpy",
+       "note": "SIM slip is the slip-truth model output; no separate nominal-slip prediction is logged per leg",
+       "observed": 0.005820008674208428,
+       "predicted": null,
+       "term": "slip"
+      },
+      {
+       "available": false,
+       "backend": "tier2_numpy",
+       "note": "not telemetered per leg in the current SIM; TM-02 exposes sinkage as an inspectable term",
+       "observed": null,
+       "predicted": null,
+       "term": "sinkage"
+      }
+     ]
+    },
+    "trajectory_kind": "forecast",
+    "transitions": [
+     "armed",
+     "executing",
+     "completed"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000010.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {
+     "mission_id": "pad-run",
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "command_authority": {
+     "authorized": true,
+     "namespace": "live",
+     "plan_hash": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+     "runtime_profile": "STEWIE_IPEX_V1",
+     "sensor_profile": "stereo_front",
+     "signed_by": "director",
+     "watchdog_deadline_s": 5.0
+    },
+    "evidence": {
+     "forward_compare": {
+      "futures": [
+       {
+        "algorithm": "auto",
+        "as_built_pass": false,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 1,
+        "energy_MJ": 4.859,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": true,
+        "objectives_total": 2,
+        "optimality": "exact",
+        "recharges": null,
+        "resolved": "brute",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315564.2,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 115.8,
+         "return_distance_m": 6.62,
+         "return_energy_J": 96.5
+        },
+        "time_s": 106875.23549728334,
+        "wall_s": "<wall_s>"
+       },
+       {
+        "algorithm": "nearest",
+        "as_built_pass": false,
+        "as_built_tol_m": 0.02,
+        "blocked_legs": 0,
+        "charges": 1,
+        "energy_MJ": 4.859,
+        "feasible": true,
+        "hazard_flags": 0,
+        "infeasible_reasons": [],
+        "objective_exact": false,
+        "objectives_total": 2,
+        "optimality": "heuristic",
+        "recharges": null,
+        "resolved": "nearest",
+        "return_to_lander": {
+         "buffer_frac": 0.2,
+         "feasible": true,
+         "lander_xy": [
+          0.0,
+          0.0
+         ],
+         "margin_J": 4315564.2,
+         "remaining_J": 4315680.0,
+         "reserve_with_buffer_J": 115.8,
+         "return_distance_m": 6.62,
+         "return_energy_J": 96.5
+        },
+        "time_s": 106875.23549728337,
+        "wall_s": "<wall_s>"
+       }
+      ],
+      "objective": "duration",
+      "recommended": "auto"
+     },
+     "objective": "time",
+     "orders": 2,
+     "plan_id": "80c8a3523fcc5f0a"
+    },
+    "label": "sim",
+    "ok": true,
+    "released_objectives": 2,
+    "revision_persisted": true,
+    "signed_revision": {
+     "content_hash": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+     "intent": {
+      "constraints": [],
+      "keep_outs": [],
+      "mission_id": "pad-bound",
+      "objectives": [
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "Level pad-ac",
+          "measurable": "as-built RMSE <= 0.02 m",
+          "schema_version": "1.0",
+          "sensor": "stereo",
+          "statement": "as-built cut within tolerance",
+          "tolerance_m": 0.02
+         }
+        ],
+        "approver": "api-key",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "loss of localization / off-nominal",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": null,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 1170.0,
+        "objective_id": "Level pad",
+        "order_kind": "cut",
+        "prerequisites": [],
+        "priority": "primary",
+        "rationale": "operator-authored build order",
+        "revision": 0,
+        "schema_version": "1.0",
+        "statement": "cut at (4, 2)",
+        "target_col": 4.0,
+        "target_row": 2.0,
+        "time_window_s": null
+       },
+       {
+        "abort_threshold": "",
+        "acceptance": [
+         {
+          "criterion_id": "Berm-ac",
+          "measurable": "as-built RMSE <= 0.02 m",
+          "schema_version": "1.0",
+          "sensor": "stereo",
+          "statement": "as-built fill within tolerance",
+          "tolerance_m": 0.02
+         }
+        ],
+        "approver": "api-key",
+        "comms_window_s": null,
+        "confidence_required": 0.8,
+        "contingency": {
+         "detail": "loss of localization / off-nominal",
+         "policy": "safe",
+         "schema_version": "1.0"
+        },
+        "data_budget_bytes": null,
+        "energy_budget_j": null,
+        "evidence": "",
+        "frame": "MOON_ME",
+        "hold_threshold": "",
+        "illumination_window_s": null,
+        "mandatory": true,
+        "material_budget_kg": 260.0,
+        "objective_id": "Berm",
+        "order_kind": "fill",
+        "prerequisites": [],
+        "priority": "primary",
+        "rationale": "operator-authored build order",
+        "revision": 0,
+        "schema_version": "1.0",
+        "statement": "fill at (6.5, -1.25)",
+        "target_col": 6.5,
+        "target_row": -1.25,
+        "time_window_s": null
+       }
+      ],
+      "revision": 0,
+      "schema_version": "1.0",
+      "statement": "release of 2 build objective(s)",
+      "task_graph_ref": ""
+     },
+     "revision": 0,
+     "schema_version": "1.0",
+     "signed_by": "director"
+    },
+    "skipped": [
+     {
+      "action": "path",
+      "kind": "goto"
+     }
+    ],
+    "state": "released",
+    "transitions": [
+     {
+      "evidence": "ANALYZED: intent pad-bound rev 0 compiled to plan_id=80c8a3523fcc5f0a (objective='time', orders=2)",
+      "role": "planner",
+      "to": "analyzed"
+     },
+     {
+      "evidence": "REHEARSED: forward_compare ran 2 futures over candidates ['auto', 'nearest']; recommended=auto ({\"algorithm\": \"auto\", \"as_built_pass\": false, \"as_built_tol_m\": 0.02, \"blocked_legs\": 0, \"charges\": 1, \"energy_MJ\": 4.859, \"feasible\": true, \"hazard_flags\": 0, \"infeasible_reasons\": [], \"objective_exact\": true, \"objectives_total\": 2, \"optimality\": \"exact\", \"recharges\": null, \"resolved\": \"brute\", \"return_to_lander\": {\"buffer_frac\": 0.2, \"feasible\": true, \"lander_xy\": [0.0, 0.0], \"margin_J\": 4315564.2, \"remaining_J\": 4315680.0, \"reserve_with_buffer_J\": 115.8, \"return_distance_m\": 6.62, \"return_energy_J\": 96.5}, \"time_s\": 106875.23549728334, \"wall_s\": \"<wall_s>\"})",
+      "role": "operator",
+      "to": "rehearsed"
+     },
+     {
+      "evidence": "REVIEWED: analysis + rehearsal evidence accepted by the review board",
+      "role": "reviewer",
+      "to": "reviewed"
+     },
+     {
+      "evidence": "RELEASED: director release authorization",
+      "role": "director",
+      "to": "released"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000010.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "mission_id": "pad-bound",
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/release-plan",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "bound_revision": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+    "executability": {
+     "executable": true,
+     "preconditions": {
+      "approval_record": true,
+      "assigned_assets": true,
+      "physics_score": true,
+      "rehearsal_result": true,
+      "required_capabilities": true,
+      "resource_budget": true,
+      "rollback_abort_rule": true,
+      "safety_check": true
+     },
+     "unmet": []
+    },
+    "executed_legs": [
+     {
+      "action": "continue",
+      "leg": 0
+     },
+     {
+      "action": "continue",
+      "leg": 1
+     }
+    ],
+    "final_state": "completed",
+    "label": "sim",
+    "live_token": {
+     "expires_at": 1800000135.0,
+     "issued": true,
+     "issued_at": 1800000015.0,
+     "mission_id": "pad-bound",
+     "revision_id": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+     "signature": "6b320e97c0add9c442f6ab0e6120f458aca9b984973b4326ed037ac466ac897e",
+     "ttl_s": 120.0
+    },
+    "mission_id": "pad-bound",
+    "n_legs_total": 2,
+    "nonnominal_legs": 0,
+    "ok": true,
+    "physics_attribution": {
+     "attributed_quantities": [
+      "energy_J",
+      "conserved_terrain_delta_m3",
+      "as_built_acceptance"
+     ],
+     "authority_scope": [
+      "terrain",
+      "terramechanics"
+     ],
+     "backend": "tier2_numpy",
+     "calibration": {
+      "calibration": "sourced-analog",
+      "frozen": true,
+      "live_eligible": true,
+      "model_id": "tier2_numpy@1.0",
+      "validated": true
+     },
+     "conserves_mass": true,
+     "release_eligible": true
+    },
+    "physics_backend": "tier2_numpy",
+    "reconciliation": {
+     "implicates_model": false,
+     "observed": 4859109.881005838,
+     "predicted": 4859100.334620866,
+     "proposals": [
+      {
+       "change": "set world belief energy_J = 4859109.881005838 (predicted 4859100.334620866, residual 9.54638497158885)",
+       "confidence": 1.0321622530387874e-05,
+       "model_error": false,
+       "proposal_id": "run:cad5fd45bfc5:world:energy_J",
+       "state": "proposed"
+      }
+     ],
+     "quantity": "energy_J",
+     "residual": 9.54638497158885
+    },
+    "run_id": "cad5fd45bfc5",
+    "safed": false,
+    "site": "haworth",
+    "skipped": [],
+    "terramechanics_comparison": {
+     "backend": "tier2_numpy",
+     "n_legs": 2,
+     "terms": [
+      {
+       "available": true,
+       "backend": "tier2_numpy",
+       "observed": 4859109.881005838,
+       "predicted": 4859100.334620866,
+       "residual": 9.54638497158885,
+       "term": "energy_J",
+       "within_tolerance": true
+      },
+      {
+       "available": "observed_only",
+       "backend": "tier2_numpy",
+       "note": "SIM slip is the slip-truth model output; no separate nominal-slip prediction is logged per leg",
+       "observed": 0.008041584781539159,
+       "predicted": null,
+       "term": "slip"
+      },
+      {
+       "available": false,
+       "backend": "tier2_numpy",
+       "note": "not telemetered per leg in the current SIM; TM-02 exposes sinkage as an inspectable term",
+       "observed": null,
+       "predicted": null,
+       "term": "sinkage"
+      }
+     ]
+    },
+    "trajectory_kind": "forecast",
+    "transitions": [
+     "armed",
+     "executing",
+     "completed"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": {
+     "revision_hash": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626"
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "revision was released for mission 'pad-bound', not 'other'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "mission_id": "other",
+     "revision_hash": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626"
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 409
+  },
+  {
+   "body": {
+    "bound_revision": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+    "executability": {
+     "executable": true,
+     "preconditions": {
+      "approval_record": true,
+      "assigned_assets": true,
+      "physics_score": true,
+      "rehearsal_result": true,
+      "required_capabilities": true,
+      "resource_budget": true,
+      "rollback_abort_rule": true,
+      "safety_check": true
+     },
+     "unmet": []
+    },
+    "executed_legs": [
+     {
+      "action": "continue",
+      "leg": 0
+     },
+     {
+      "action": "continue",
+      "leg": 1
+     }
+    ],
+    "final_state": "completed",
+    "label": "sim",
+    "live_token": {
+     "expires_at": 1800000135.0,
+     "issued": true,
+     "issued_at": 1800000015.0,
+     "mission_id": "pad-bound",
+     "revision_id": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+     "signature": "6b320e97c0add9c442f6ab0e6120f458aca9b984973b4326ed037ac466ac897e",
+     "ttl_s": 120.0
+    },
+    "mission_id": "pad-bound",
+    "n_legs_total": 2,
+    "nonnominal_legs": 0,
+    "ok": true,
+    "physics_attribution": {
+     "attributed_quantities": [
+      "energy_J",
+      "conserved_terrain_delta_m3",
+      "as_built_acceptance"
+     ],
+     "authority_scope": [
+      "terrain",
+      "terramechanics"
+     ],
+     "backend": "tier2_numpy",
+     "calibration": {
+      "calibration": "sourced-analog",
+      "frozen": true,
+      "live_eligible": true,
+      "model_id": "tier2_numpy@1.0",
+      "validated": true
+     },
+     "conserves_mass": true,
+     "release_eligible": true
+    },
+    "physics_backend": "tier2_numpy",
+    "reconciliation": {
+     "implicates_model": false,
+     "observed": 4859131.5902744755,
+     "predicted": 4859119.545673059,
+     "proposals": [
+      {
+       "change": "set world belief energy_J = 4859131.5902744755 (predicted 4859119.545673059, residual 12.0446014162153)",
+       "confidence": 2.003052186733119e-05,
+       "model_error": false,
+       "proposal_id": "run:7115cde1c6b3:world:energy_J",
+       "state": "proposed"
+      }
+     ],
+     "quantity": "energy_J",
+     "residual": 12.0446014162153
+    },
+    "run_id": "7115cde1c6b3",
+    "safed": false,
+    "site": "haworth",
+    "skipped": [],
+    "terramechanics_comparison": {
+     "backend": "tier2_numpy",
+     "n_legs": 2,
+     "terms": [
+      {
+       "available": true,
+       "backend": "tier2_numpy",
+       "observed": 4859131.5902744755,
+       "predicted": 4859119.545673059,
+       "residual": 12.0446014162153,
+       "term": "energy_J",
+       "within_tolerance": true
+      },
+      {
+       "available": "observed_only",
+       "backend": "tier2_numpy",
+       "note": "SIM slip is the slip-truth model output; no separate nominal-slip prediction is logged per leg",
+       "observed": 0.009275314734133837,
+       "predicted": null,
+       "term": "slip"
+      },
+      {
+       "available": false,
+       "backend": "tier2_numpy",
+       "note": "not telemetered per leg in the current SIM; TM-02 exposes sinkage as an inspectable term",
+       "observed": null,
+       "predicted": null,
+       "term": "sinkage"
+      }
+     ]
+    },
+    "trajectory_kind": "forecast",
+    "transitions": [
+     "armed",
+     "executing",
+     "completed"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": {
+     "mission_id": "pad-bound",
+     "revision_hash": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626"
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "revision_hash 'abababababababababababababababababababababababababababababababab' is not a released revision (release the plan first)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": {
+     "revision_hash": "abababababababababababababababababababababababababababababababab"
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "revision_hash: String should have at most 64 characters",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": {
+     "revision_hash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "no build orders to run (cut/fill/sinter)",
+    "ok": false,
+    "skipped": [
+     {
+      "action": "path",
+      "kind": "goto"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": {
+     "orders": [
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "could not convert string to float: 'abc'",
+    "ok": false,
+    "skipped": []
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": {
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": "abc",
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "'Moon'",
+    "ok": false,
+    "skipped": []
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": {
+     "body": "Moon",
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "site: String should have at most 40 characters",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": {
+     "orders": [
+      {
+       "action": "Level pad",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 4,
+       "y": 2
+      },
+      {
+       "action": "path",
+       "kind": "goto",
+       "x": 10,
+       "y": 0
+      },
+      {
+       "action": "Berm",
+       "depth_m": 0.05,
+       "footprint_m2": 4,
+       "kind": "fill",
+       "x": 6.5,
+       "y": -1.25
+      }
+     ],
+     "site": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "bound_revision": null,
+    "executability": {
+     "executable": false,
+     "preconditions": {
+      "approval_record": true,
+      "assigned_assets": true,
+      "physics_score": true,
+      "rehearsal_result": true,
+      "required_capabilities": true,
+      "resource_budget": false,
+      "rollback_abort_rule": true,
+      "safety_check": false
+     },
+     "unmet": [
+      "resource_budget",
+      "safety_check"
+     ]
+    },
+    "executed_legs": [],
+    "final_state": "safed",
+    "label": "sim",
+    "live_token": {
+     "issued": false,
+     "reason": "training-to-live gate not passed for 'far-run': unmet steps ['safety_passed']"
+    },
+    "mission_id": "far-run",
+    "n_legs_total": 1,
+    "nonnominal_legs": 0,
+    "ok": true,
+    "physics_attribution": {
+     "attributed_quantities": [
+      "energy_J",
+      "conserved_terrain_delta_m3",
+      "as_built_acceptance"
+     ],
+     "authority_scope": [
+      "terrain",
+      "terramechanics"
+     ],
+     "backend": "tier2_numpy",
+     "calibration": {
+      "calibration": "sourced-analog",
+      "frozen": true,
+      "live_eligible": true,
+      "model_id": "tier2_numpy@1.0",
+      "validated": true
+     },
+     "conserves_mass": true,
+     "release_eligible": true
+    },
+    "physics_backend": "tier2_numpy",
+    "reconciliation": {
+     "implicates_model": false,
+     "observed": 4883870.481128886,
+     "predicted": 4865384.638602238,
+     "proposals": [
+      {
+       "change": "set world belief energy_J = 4883870.481128886 (predicted 4865384.638602238, residual 18485.842526648194)",
+       "confidence": 0.030690454022800417,
+       "model_error": false,
+       "proposal_id": "run:240862e3c6c4:world:energy_J",
+       "state": "proposed"
+      }
+     ],
+     "quantity": "energy_J",
+     "residual": 18485.842526648194
+    },
+    "run_id": "240862e3c6c4",
+    "safed": true,
+    "site": "haworth",
+    "skipped": [],
+    "terramechanics_comparison": {
+     "backend": "tier2_numpy",
+     "n_legs": 1,
+     "terms": [
+      {
+       "available": true,
+       "backend": "tier2_numpy",
+       "observed": 4883870.481128886,
+       "predicted": 4865384.638602238,
+       "residual": 18485.842526648194,
+       "term": "energy_J",
+       "within_tolerance": true
+      },
+      {
+       "available": "observed_only",
+       "backend": "tier2_numpy",
+       "note": "SIM slip is the slip-truth model output; no separate nominal-slip prediction is logged per leg",
+       "observed": 0.1843342842673623,
+       "predicted": null,
+       "term": "slip"
+      },
+      {
+       "available": false,
+       "backend": "tier2_numpy",
+       "note": "not telemetered per leg in the current SIM; TM-02 exposes sinkage as an inspectable term",
+       "observed": null,
+       "predicted": null,
+       "term": "sinkage"
+      }
+     ]
+    },
+    "trajectory_kind": "forecast",
+    "transitions": [
+     "armed",
+     "executing",
+     "safed"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": {
+     "mission_id": "far-run",
+     "orders": [
+      {
+       "action": "far cut",
+       "depth_m": 0.1,
+       "footprint_m2": 9,
+       "kind": "cut",
+       "x": 420,
+       "y": -380
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/executive/run",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "enrichment": {
+     "as_built_version": 4,
+     "complete": true,
+     "mutated": true,
+     "observed": true,
+     "twin_version": 0,
+     "world_committed": true
+    },
+    "layer_manifest": {
+     "layers": [
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "dem",
+       "layer_type": "elevation",
+       "planning": true,
+       "provenance": "prior",
+       "release": true,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "haworth_10km_5m",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "imagery",
+       "layer_type": "imagery",
+       "planning": false,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "imagery",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "material",
+       "layer_type": "material",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "material",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "traversability",
+       "layer_type": "traversability",
+       "planning": true,
+       "provenance": "prior",
+       "release": true,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "traversability",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "observed_mask",
+       "layer_type": "mask",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "observed_mask",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "uncertainty",
+       "layer_type": "uncertainty",
+       "planning": true,
+       "provenance": "prior",
+       "release": true,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "uncertainty",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "observed-band",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": true,
+       "freshness_s": 0.0,
+       "layer_id": "hazard",
+       "layer_type": "hazard",
+       "planning": true,
+       "provenance": "prior",
+       "release": true,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "hazard",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": true,
+       "freshness_s": 0.0,
+       "layer_id": "comms",
+       "layer_type": "comms",
+       "planning": false,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "comms",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "slope",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:slope",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "roughness",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:roughness",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "sinkage",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:sinkage",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "slip",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:slip",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "tip_risk",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:tip_risk",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "negative_obstacle",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:negative_obstacle",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "illumination",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:illumination",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "psr",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:psr",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "shadow_confidence",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:shadow_confidence",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "energy",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:energy",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "keepout",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:keepout",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      },
+      {
+       "body": "moon",
+       "bounds_cols": 2000,
+       "bounds_rows": 2000,
+       "crs": "MOON_ME",
+       "display": true,
+       "execute": false,
+       "freshness_s": 0.0,
+       "layer_id": "reservation",
+       "layer_type": "cost",
+       "planning": true,
+       "provenance": "prior",
+       "release": false,
+       "resolution_m": 5.0,
+       "schema_version": "1.0",
+       "source": "costmap:reservation",
+       "timestamp_s": 0.0,
+       "transaction_id": "world:haworth:30",
+       "uncertainty_model": "none",
+       "validity": true
+      }
+     ],
+     "schema_version": "1.0"
+    },
+    "ok": true,
+    "world": {
+     "body": "moon",
+     "cell_m": 5.0,
+     "cols": 2000,
+     "datum_radius_m": 1737400,
+     "dem_source": "haworth_10km_5m",
+     "frame": "MOON_ME",
+     "mutated": true,
+     "observed_fraction": 0.0,
+     "rows": 2000,
+     "schema_version": "1.0"
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "committed": true,
+    "grid": {
+     "cell_m": 5.0,
+     "cols": 128,
+     "origin": [
+      3795.0,
+      6595.0
+     ],
+     "rows": 128
+    },
+    "ok": true,
+    "provenance": {
+     "calibration": {
+      "road_layer_mass_areal": "[CALIB]",
+      "sigma_c_n": "[CALIB]"
+     },
+     "chain_head": "ab7c8dc0d7d65bf155b6cb238fa4ad4b12a62fc5a6e5e7eb4f2aa900a26c9ad9",
+     "mass_areal_kg_m2": 130.0,
+     "sigma_c_n": 60.0,
+     "verified": true,
+     "version": 5
+    },
+    "site": "haworth",
+    "summary": {
+     "cells_firm_dr_gt_0p5": 0,
+     "cells_trafficked": 3,
+     "max_load_cycles_n": 60.75,
+     "max_passes": 5,
+     "missions": [
+      "pad-run",
+      "pad-run",
+      "pad-run",
+      "pad-bound",
+      "pad-bound"
+     ],
+     "peak_bearing_uplift_pa": 339.614,
+     "peak_relative_density": 0.0109,
+     "site": "haworth",
+     "version": 5
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/traffic-layer?site=haworth",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "count": 30,
+    "ok": true,
+    "transactions": [
+     {
+      "authority_sha": "genesis",
+      "mission": "pad-run",
+      "mission_t_s": 0.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM run: released plan pad-run",
+      "seq": 0,
+      "twin_version": 0,
+      "world_sha": "82f95d1ac2d9f0040aee0a292c6fea795b2a3afa7da489b3c69096bf84647e16"
+     },
+     {
+      "authority_sha": "genesis",
+      "mission": "pad-run",
+      "mission_t_s": 0.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM leg: sim leg 0: continue [ok]",
+      "seq": 1,
+      "twin_version": 0,
+      "world_sha": "423362b93eaa08054ed94af5de541615df4f902f2c94042a77226b23cf725ffa"
+     },
+     {
+      "authority_sha": "genesis",
+      "mission": "pad-run",
+      "mission_t_s": 1.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM leg: sim leg 1: continue [ok]",
+      "seq": 2,
+      "twin_version": 0,
+      "world_sha": "b43367e5cb4e531d018d9eb74d193be958beed8918a6c43e0925a6039154f061"
+     },
+     {
+      "authority_sha": "genesis",
+      "mission": "pad-run",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM leg: sim leg 2: continue [ok]",
+      "seq": 3,
+      "twin_version": 0,
+      "world_sha": "91416d40107186b96fdb05056434612fb51c639cd07fa6659c4e44246e56beb1"
+     },
+     {
+      "authority_sha": "genesis",
+      "mission": "pad-run",
+      "mission_t_s": 3.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM acceptance: SIM run completed [ok]",
+      "seq": 4,
+      "twin_version": 0,
+      "world_sha": "07c9fd526de425c16f4d9af51645aeb48eb4a3b1a37cfd48d8f6a909889a5d12"
+     },
+     {
+      "authority_sha": "631b1421b861034599281078b3a83a8aae2df26a022d499db013fcba40ea19e0",
+      "mission": "pad-run",
+      "mission_t_s": 3.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM as-built: pad-run",
+      "seq": 5,
+      "twin_version": 0,
+      "world_sha": "93a43f479e73f7d6d9a19cce0d6d00258376d8cd7980e4bf2ff4f3871391044d"
+     },
+     {
+      "authority_sha": "631b1421b861034599281078b3a83a8aae2df26a022d499db013fcba40ea19e0",
+      "mission": "pad-run",
+      "mission_t_s": 3.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM run belief: pad-run",
+      "seq": 6,
+      "twin_version": 0,
+      "world_sha": "f968cfc7a84e764543e8a602dfa35f56eb08882346a8afd63a9b84dee871d4d3"
+     },
+     {
+      "authority_sha": "631b1421b861034599281078b3a83a8aae2df26a022d499db013fcba40ea19e0",
+      "mission": "pad-run",
+      "mission_t_s": 3.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM traffic hardening: pad-run",
+      "seq": 7,
+      "twin_version": 0,
+      "world_sha": "41aa5d6933ff794013abec0d5f4d1413c327c4dff6a9c666a483beb69e68a1a5"
+     },
+     {
+      "authority_sha": "631b1421b861034599281078b3a83a8aae2df26a022d499db013fcba40ea19e0",
+      "mission": "pad-run",
+      "mission_t_s": 3.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM run: released plan pad-run",
+      "seq": 8,
+      "twin_version": 0,
+      "world_sha": "bf75d411314abd2dee73873a4f7d4aacf949653bfae98b3cad3c9f55d7a3fc52"
+     },
+     {
+      "authority_sha": "631b1421b861034599281078b3a83a8aae2df26a022d499db013fcba40ea19e0",
+      "mission": "pad-run",
+      "mission_t_s": 0.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM leg: sim leg 0: continue [ok]",
+      "seq": 9,
+      "twin_version": 0,
+      "world_sha": "12518b3f5eb8303a184e5d7e424d19c68ab65042c521347c9625940a67298320"
+     },
+     {
+      "authority_sha": "631b1421b861034599281078b3a83a8aae2df26a022d499db013fcba40ea19e0",
+      "mission": "pad-run",
+      "mission_t_s": 1.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM leg: sim leg 1: continue [ok]",
+      "seq": 10,
+      "twin_version": 0,
+      "world_sha": "ee1ffbb9642fdcd47079b8b3e866ebf4cae9f8e62426dc834b5959608b5ead6a"
+     },
+     {
+      "authority_sha": "631b1421b861034599281078b3a83a8aae2df26a022d499db013fcba40ea19e0",
+      "mission": "pad-run",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM leg: sim leg 2: continue [ok]",
+      "seq": 11,
+      "twin_version": 0,
+      "world_sha": "60e18551f24ee91481540d5d3cb35c78501330bf952d0ff68f98d82048cbd201"
+     },
+     {
+      "authority_sha": "631b1421b861034599281078b3a83a8aae2df26a022d499db013fcba40ea19e0",
+      "mission": "pad-run",
+      "mission_t_s": 3.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM acceptance: SIM run completed [ok]",
+      "seq": 12,
+      "twin_version": 0,
+      "world_sha": "ab2bd2bfc38e218fe2bfc9f1a327ca73ed5c9f0f9db8b7ccb80db846fa752c05"
+     },
+     {
+      "authority_sha": "a10d0d2da8c89a6c363c180a3a5cd56ad2160845ebf1222e2dec0967a9c28874",
+      "mission": "pad-run",
+      "mission_t_s": 3.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM as-built: pad-run",
+      "seq": 13,
+      "twin_version": 0,
+      "world_sha": "eae9a8883ea7d12ce478d383076c696d75a9f9328c7daff3b6b44e90bcfe4a13"
+     },
+     {
+      "authority_sha": "a10d0d2da8c89a6c363c180a3a5cd56ad2160845ebf1222e2dec0967a9c28874",
+      "mission": "pad-run",
+      "mission_t_s": 3.0,
+      "plan_id": "pad-run",
+      "provenance": "SIM run belief: pad-run",
+      "seq": 14,
+      "twin_version": 0,
+      "world_sha": "9bf4c18cc893e096865891960a61168b8bb8390452b2609b34b07dd1179247fb"
+     },
+     {
+      "authority_sha": "a10d0d2da8c89a6c363c180a3a5cd56ad2160845ebf1222e2dec0967a9c28874",
+      "mission": "pad-bound",
+      "mission_t_s": 3.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM run: released plan pad-bound",
+      "seq": 15,
+      "twin_version": 0,
+      "world_sha": "c672134e7fd6dc6250de6782c90c9e876f3b5248434d7639505f500bdd86d505"
+     },
+     {
+      "authority_sha": "a10d0d2da8c89a6c363c180a3a5cd56ad2160845ebf1222e2dec0967a9c28874",
+      "mission": "pad-bound",
+      "mission_t_s": 0.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM leg: sim leg 0: continue [ok]",
+      "seq": 16,
+      "twin_version": 0,
+      "world_sha": "2e156dd69c3cfb8f9e2d5bb73c57e15e145d6378e52dd138e7a296bb993423a2"
+     },
+     {
+      "authority_sha": "a10d0d2da8c89a6c363c180a3a5cd56ad2160845ebf1222e2dec0967a9c28874",
+      "mission": "pad-bound",
+      "mission_t_s": 1.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM leg: sim leg 1: continue [ok]",
+      "seq": 17,
+      "twin_version": 0,
+      "world_sha": "e07f5410678f4008db0741d78efada2e3d6e41d0ddbc7e87c82fdcb609ecca08"
+     },
+     {
+      "authority_sha": "a10d0d2da8c89a6c363c180a3a5cd56ad2160845ebf1222e2dec0967a9c28874",
+      "mission": "pad-bound",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM acceptance: SIM run completed [ok]",
+      "seq": 18,
+      "twin_version": 0,
+      "world_sha": "f97a031224dc9f5a9f492aa252db7a0a52e5eb6429d8446966e57547908d6363"
+     },
+     {
+      "authority_sha": "7e882c0985c7317224af0d28511326edd79837667bc4deb0c49bb61ac6dbd471",
+      "mission": "pad-bound",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM as-built: pad-bound",
+      "seq": 19,
+      "twin_version": 0,
+      "world_sha": "6d709b2dcfc9471505d1a7abe8645abdcfcddf372149e70933e97235fee1d8d3"
+     },
+     {
+      "authority_sha": "7e882c0985c7317224af0d28511326edd79837667bc4deb0c49bb61ac6dbd471",
+      "mission": "pad-bound",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM run belief: pad-bound",
+      "seq": 20,
+      "twin_version": 0,
+      "world_sha": "e112cd35c97172edaeac8472bc1f1e258f8857030e9b2bc927492df35055e1f9"
+     },
+     {
+      "authority_sha": "7e882c0985c7317224af0d28511326edd79837667bc4deb0c49bb61ac6dbd471",
+      "mission": "pad-bound",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM traffic hardening: pad-bound",
+      "seq": 21,
+      "twin_version": 0,
+      "world_sha": "768b92ed5f77d9cf0ec871c831277a388b218337debe9223e680d427ef115e0a"
+     },
+     {
+      "authority_sha": "7e882c0985c7317224af0d28511326edd79837667bc4deb0c49bb61ac6dbd471",
+      "mission": "pad-bound",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM run: released plan pad-bound",
+      "seq": 22,
+      "twin_version": 0,
+      "world_sha": "227bce5cc1bb5e715255ae53eee3ce5b9700bc3570e95a037169addba5848b3d"
+     },
+     {
+      "authority_sha": "7e882c0985c7317224af0d28511326edd79837667bc4deb0c49bb61ac6dbd471",
+      "mission": "pad-bound",
+      "mission_t_s": 0.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM leg: sim leg 0: continue [ok]",
+      "seq": 23,
+      "twin_version": 0,
+      "world_sha": "ff53d14cabcfd2bd212a7f06673a2b16ffbff867321dc64589666b62b30ba6d6"
+     },
+     {
+      "authority_sha": "7e882c0985c7317224af0d28511326edd79837667bc4deb0c49bb61ac6dbd471",
+      "mission": "pad-bound",
+      "mission_t_s": 1.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM leg: sim leg 1: continue [ok]",
+      "seq": 24,
+      "twin_version": 0,
+      "world_sha": "b571caafc2108d6914c0a14f3d32fd237382ab9f0f0fdd2520ea8135f0bf40d0"
+     },
+     {
+      "authority_sha": "7e882c0985c7317224af0d28511326edd79837667bc4deb0c49bb61ac6dbd471",
+      "mission": "pad-bound",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM acceptance: SIM run completed [ok]",
+      "seq": 25,
+      "twin_version": 0,
+      "world_sha": "f9c05e3b0d61dcf21d7df892502970d8ffdc520ae159043ef8be2601ffc9ba05"
+     },
+     {
+      "authority_sha": "21d68dfcb24a8ca05cf3757ee5c735c2b0334bc69da9a7b3bbf4b3f7eff312b5",
+      "mission": "pad-bound",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM as-built: pad-bound",
+      "seq": 26,
+      "twin_version": 0,
+      "world_sha": "2c1df2b4dd4fe13c17269cb1c51b6005ad7946885eec8bfffe23bd4b6a6622e2"
+     },
+     {
+      "authority_sha": "21d68dfcb24a8ca05cf3757ee5c735c2b0334bc69da9a7b3bbf4b3f7eff312b5",
+      "mission": "pad-bound",
+      "mission_t_s": 2.0,
+      "plan_id": "pad-bound",
+      "provenance": "SIM run belief: pad-bound",
+      "seq": 27,
+      "twin_version": 0,
+      "world_sha": "ada6370bd1af6012c448b99a25515d22b33db27c07879850bf98ab2af28cfc54"
+     },
+     {
+      "authority_sha": "21d68dfcb24a8ca05cf3757ee5c735c2b0334bc69da9a7b3bbf4b3f7eff312b5",
+      "mission": "far-run",
+      "mission_t_s": 2.0,
+      "plan_id": "far-run",
+      "provenance": "SIM run: released plan far-run",
+      "seq": 28,
+      "twin_version": 0,
+      "world_sha": "d6b47b14961ab0b4adfe04c8841700a3721ba3fbd7ceb6ce7d2abdce3be9d1b9"
+     },
+     {
+      "authority_sha": "21d68dfcb24a8ca05cf3757ee5c735c2b0334bc69da9a7b3bbf4b3f7eff312b5",
+      "mission": "far-run",
+      "mission_t_s": 0.0,
+      "plan_id": "far-run",
+      "provenance": "SIM safe: SIM watchdog: run safed [safed]",
+      "seq": 29,
+      "twin_version": 0,
+      "world_sha": "1ac0159a2d52166a24abf791b7f2419e639e2c5cc269f37ec3be5f1770da4933"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/world/transactions",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "count": 12,
+    "ok": true,
+    "records": [
+     {
+      "action": "executive.run.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "released",
+      "evidence": "run_id=04ab99b80978;revision=legacy-unbound",
+      "location": "pad-run@haworth",
+      "mode": "sim",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reason": "prepare SIM run 04ab99b80978",
+      "record_hash": "5adca79c7a5e8c3905630dbde55cde243f19201cdf7ba1ebff2fa24ccb9bb1bb",
+      "timestamp": "2027-01-15T08:00:00+00:00"
+     },
+     {
+      "action": "executive.run",
+      "actor": "api-key",
+      "after_state": "completed",
+      "before_state": "pending",
+      "evidence": "run_id=04ab99b80978;legs=3;safed=False",
+      "location": "pad-run@haworth",
+      "mode": "sim",
+      "prev_hash": "5adca79c7a5e8c3905630dbde55cde243f19201cdf7ba1ebff2fa24ccb9bb1bb",
+      "reason": "SIM run 04ab99b80978",
+      "record_hash": "5a301500a5f36ae16cc3bd3924b150b38e94e8b857128046ae9541f68255575d",
+      "timestamp": "2027-01-15T08:00:00+00:00"
+     },
+     {
+      "action": "executive.run.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "released",
+      "evidence": "run_id=f6bc52fe624d;revision=legacy-unbound",
+      "location": "pad-run@haworth",
+      "mode": "sim",
+      "prev_hash": "5a301500a5f36ae16cc3bd3924b150b38e94e8b857128046ae9541f68255575d",
+      "reason": "prepare SIM run f6bc52fe624d",
+      "record_hash": "fb719f7ea39831fa484a18f2bf944f255b191391a3138052667257ec9f18801c",
+      "timestamp": "2027-01-15T08:00:10+00:00"
+     },
+     {
+      "action": "executive.run",
+      "actor": "api-key",
+      "after_state": "completed",
+      "before_state": "pending",
+      "evidence": "run_id=f6bc52fe624d;legs=3;safed=False",
+      "location": "pad-run@haworth",
+      "mode": "sim",
+      "prev_hash": "fb719f7ea39831fa484a18f2bf944f255b191391a3138052667257ec9f18801c",
+      "reason": "SIM run f6bc52fe624d",
+      "record_hash": "d69e6ee93173d2149bc40e0c9ebf99f54266097024d0e36f29b6cde9c9a05c87",
+      "timestamp": "2027-01-15T08:00:10+00:00"
+     },
+     {
+      "action": "executive.release_plan.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "reviewed",
+      "evidence": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+      "location": "pad-bound",
+      "mode": "sim",
+      "prev_hash": "d69e6ee93173d2149bc40e0c9ebf99f54266097024d0e36f29b6cde9c9a05c87",
+      "reason": "prepare durable signed-revision persistence",
+      "record_hash": "28a87a95a266c38fae0eef572574f408c771d77e4223d2add80f3b13403aea67",
+      "timestamp": "2027-01-15T08:00:10+00:00"
+     },
+     {
+      "action": "executive.release_plan",
+      "actor": "api-key",
+      "after_state": "released",
+      "before_state": "pending",
+      "evidence": "e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+      "location": "pad-bound",
+      "mode": "sim",
+      "prev_hash": "28a87a95a266c38fae0eef572574f408c771d77e4223d2add80f3b13403aea67",
+      "reason": "2 objectives released",
+      "record_hash": "e3070f9053fe8c5d8872739dbc9a54423b74a3f6d03a5111c75b835dd3767b68",
+      "timestamp": "2027-01-15T08:00:10+00:00"
+     },
+     {
+      "action": "executive.run.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "released",
+      "evidence": "run_id=cad5fd45bfc5;revision=e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+      "location": "pad-bound@haworth",
+      "mode": "sim",
+      "prev_hash": "e3070f9053fe8c5d8872739dbc9a54423b74a3f6d03a5111c75b835dd3767b68",
+      "reason": "prepare SIM run cad5fd45bfc5",
+      "record_hash": "e8aa25a88ec333c3371c07c6eb5765bac1664b22250b1bb370fa208b7a1abdbc",
+      "timestamp": "2027-01-15T08:00:15+00:00"
+     },
+     {
+      "action": "executive.run",
+      "actor": "api-key",
+      "after_state": "completed",
+      "before_state": "pending",
+      "evidence": "run_id=cad5fd45bfc5;legs=2;safed=False",
+      "location": "pad-bound@haworth",
+      "mode": "sim",
+      "prev_hash": "e8aa25a88ec333c3371c07c6eb5765bac1664b22250b1bb370fa208b7a1abdbc",
+      "reason": "SIM run cad5fd45bfc5",
+      "record_hash": "7a85ea4d2d6b938e19a5cbd3863900a6df4b728f3317c9cb2a75099a007517ad",
+      "timestamp": "2027-01-15T08:00:15+00:00"
+     },
+     {
+      "action": "executive.run.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "released",
+      "evidence": "run_id=7115cde1c6b3;revision=e1b1343d6832a334a7fe3ebbcbd4708694c9ca213199384d7742674fd02d7626",
+      "location": "pad-bound@haworth",
+      "mode": "sim",
+      "prev_hash": "7a85ea4d2d6b938e19a5cbd3863900a6df4b728f3317c9cb2a75099a007517ad",
+      "reason": "prepare SIM run 7115cde1c6b3",
+      "record_hash": "455d0df36765bcadd1eef60b331149423ce279cdc1fd7d29dd59800da3cb9e59",
+      "timestamp": "2027-01-15T08:00:15+00:00"
+     },
+     {
+      "action": "executive.run",
+      "actor": "api-key",
+      "after_state": "completed",
+      "before_state": "pending",
+      "evidence": "run_id=7115cde1c6b3;legs=2;safed=False",
+      "location": "pad-bound@haworth",
+      "mode": "sim",
+      "prev_hash": "455d0df36765bcadd1eef60b331149423ce279cdc1fd7d29dd59800da3cb9e59",
+      "reason": "SIM run 7115cde1c6b3",
+      "record_hash": "c34a1a8be5a4960da0517bc993f485968db278b2204bff6a1b0e92230872c473",
+      "timestamp": "2027-01-15T08:00:15+00:00"
+     },
+     {
+      "action": "executive.run.intent",
+      "actor": "api-key",
+      "after_state": "pending",
+      "before_state": "released",
+      "evidence": "run_id=240862e3c6c4;revision=legacy-unbound",
+      "location": "far-run@haworth",
+      "mode": "sim",
+      "prev_hash": "c34a1a8be5a4960da0517bc993f485968db278b2204bff6a1b0e92230872c473",
+      "reason": "prepare SIM run 240862e3c6c4",
+      "record_hash": "a5f976149d2e0b00d4af1377d56891e6f76c75b971364993110334399c83efbd",
+      "timestamp": "2027-01-15T08:00:15+00:00"
+     },
+     {
+      "action": "executive.run",
+      "actor": "api-key",
+      "after_state": "safed",
+      "before_state": "pending",
+      "evidence": "run_id=240862e3c6c4;legs=1;safed=True",
+      "location": "far-run@haworth",
+      "mode": "sim",
+      "prev_hash": "a5f976149d2e0b00d4af1377d56891e6f76c75b971364993110334399c83efbd",
+      "reason": "SIM run 240862e3c6c4",
+      "record_hash": "fa164ad9dc081d7bc9c879cc387623a1c466f6816055b02f8af05560eac7be24",
+      "timestamp": "2027-01-15T08:00:15+00:00"
+     }
+    ],
+    "verified": true
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/executive/audit",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": null
+}

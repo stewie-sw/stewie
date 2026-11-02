@@ -100,5 +100,17 @@
  "slip_alpha": {
   "value": 2.0,
   "source": "lode/planner_constants.py SLIP_ALPHA [CALIB] (slip energy multiplier vs tan(slope); the endurance reach field and the I10 costmap)"
+ },
+ "traffic_mass_areal": {
+  "value": 130.0,
+  "source": "stewie/twin/traffic_memory.py _NOMINAL_MASS_AREAL = K.RHO_SURFACE 1300 kg/m^3 x _ROAD_LAYER_M 0.10 m [CALIB] (D-R83)"
+ },
+ "traffic_sigma_c_n": {
+  "value": 60.0,
+  "source": "stewie/twin/traffic_memory.py _SIGMA_C_N [CALIB] (D-R83)"
+ },
+ "traffic_contact_width_m": {
+  "value": 0.18,
+  "source": "stewie/twin/traffic_memory.py TrafficMemory.contact_width_m = the IPEx wheel contact width (rover_ipex.json contact_width_m) [ASSUMPTION]"
  }
 }

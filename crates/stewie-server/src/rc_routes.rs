@@ -41,7 +41,7 @@ pub struct Rc {
     watchdog: Mutex<SafingWatchdog>,
     odom: Mutex<Option<RosOdom>>,
     /// The key live-execution tokens are signed under (`STEWIE_LIVE_TOKEN_SECRET`, else per-process random).
-    token_secret: Vec<u8>,
+    pub(crate) token_secret: Vec<u8>,
 }
 
 impl Rc {
@@ -153,6 +153,33 @@ fn float_repr(x: f64) -> String {
     })
 }
 
+/// EG-05: the token's keyed HMAC-SHA256 over its identity and validity window (Python `live_gate._sign`).
+pub(crate) fn sign_live(
+    secret: &[u8],
+    mission: &str,
+    revision: &str,
+    issued: f64,
+    ttl: f64,
+) -> String {
+    let payload = format!(
+        "live-exec:{mission}:{revision}:{}:{}",
+        float_repr(issued),
+        float_repr(ttl)
+    );
+    let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(secret) else {
+        return String::new();
+    };
+    mac.update(payload.as_bytes());
+    mac.finalize()
+        .into_bytes()
+        .iter()
+        .fold(String::new(), |mut out, b| {
+            use std::fmt::Write as _;
+            let _ = write!(out, "{b:02x}");
+            out
+        })
+}
+
 /// EG-05 step 8 (Python `require_live_token`): a token for exactly this mission and revision, its keyed HMAC over
 /// the identity and validity window intact, and not expired.
 fn require_live_token(
@@ -171,22 +198,7 @@ fn require_live_token(
             "live-execution token does not match the mission/revision being executed".to_owned(),
         );
     }
-    let payload = format!(
-        "live-exec:{m}:{r}:{}:{}",
-        float_repr(issued),
-        float_repr(ttl)
-    );
-    let mut mac = Hmac::<Sha256>::new_from_slice(secret).map_err(|e| e.to_string())?;
-    mac.update(payload.as_bytes());
-    let expected = mac
-        .finalize()
-        .into_bytes()
-        .iter()
-        .fold(String::new(), |mut out, b| {
-            use std::fmt::Write as _;
-            let _ = write!(out, "{b:02x}");
-            out
-        });
+    let expected = sign_live(secret, &m, &r, issued, ttl);
     // constant-time, as `hmac.compare_digest`
     let same = expected.len() == signature.len()
         && expected
@@ -207,7 +219,7 @@ fn require_live_token(
 
 /// The mission a frozen release carries (Python `db.release_revision_mission_id`), failing closed on a missing or
 /// contradictory identity.
-fn release_mission_id(art: &Value) -> Result<String, String> {
+pub(crate) fn release_mission_id(art: &Value) -> Result<String, String> {
     let text = |v: &Value| match v {
         Value::Null | Value::Bool(false) => String::new(),
         Value::String(s) => s.trim().to_owned(),
@@ -533,7 +545,7 @@ fn submit(
 }
 
 /// Python `json.dumps` of an object in the given key order (its default separators).
-fn ordered(pairs: &[(&str, String)]) -> String {
+pub(crate) fn ordered(pairs: &[(&str, String)]) -> String {
     let items: Vec<String> = pairs
         .iter()
         .map(|(k, v)| {
@@ -546,7 +558,7 @@ fn ordered(pairs: &[(&str, String)]) -> String {
     format!("{{{}}}", items.join(", "))
 }
 
-fn dumps(v: &Value) -> String {
+pub(crate) fn dumps(v: &Value) -> String {
     stewie_twin::pyjson::dumps(v).unwrap_or_else(|_| "null".to_owned())
 }
 

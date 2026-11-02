@@ -410,6 +410,10 @@ pub struct ClosedLoop {
     pub map_channel: MapScore,
     /// The final believed pose sigma [m].
     pub pos_sigma_m: f64,
+    /// The final believed pose (home at the charger, with the drive home's odometry drift).
+    pub final_xy: (f64, f64),
+    /// The final energy sigma [J].
+    pub energy_sigma_j: f64,
 }
 
 impl ClosedLoop {
@@ -561,6 +565,8 @@ pub fn run_closed_loop(
         map_observe_more,
         survey_time_s: survey_s,
         pos_sigma_m: b.pos_sigma_m,
+        final_xy: (b.x, b.y),
+        energy_sigma_j: b.energy_sigma_j,
     })
 }
 

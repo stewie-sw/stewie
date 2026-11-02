@@ -2496,6 +2496,37 @@ async fn the_python_executive_session_replays_exactly() {
 }
 
 #[tokio::test]
+async fn the_python_executive_run_session_replays_on_postgres() {
+    // the bound run reads its frozen revision from the Postgres store
+    let Some(url) = scratch_postgres("exec_run_replay").await else {
+        return;
+    };
+    replay_on(
+        "http_executive_run_cases",
+        b"stewie-http-executive-run-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, body| normalise_wall_s(body),
+        Some(&url),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_python_executive_run_session_replays_exactly() {
+    replay(
+        "http_executive_run_cases",
+        b"stewie-http-executive-run-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, body| normalise_wall_s(body),
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn a_nav_run_routes_around_its_keepouts() {
     // D-R172: the Python 500s on any /nav/run keep-out (it hands route_leg tuples where it reads dicts); the Rust
     // routes the circles. SYNTHETIC keep-out across the straight line from the anchor to the goal.

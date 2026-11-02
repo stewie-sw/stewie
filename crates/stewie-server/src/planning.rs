@@ -38,6 +38,8 @@ pub struct PlannerConfig {
     pub ipex_drive_j_per_m: f64,
     /// Slip energy multiplier versus tan(slope) [CALIB] (the endurance reach field).
     pub slip_alpha: f64,
+    /// The traffic-hardening model's parameters (D-R83: no compiled default).
+    pub traffic: stewie_twin::traffic_memory::TrafficParams,
 }
 
 impl PlannerConfig {
@@ -97,6 +99,11 @@ impl PlannerConfig {
             ipex_dig_j_per_kg: get("ipex_dig_j_per_kg")?,
             ipex_drive_j_per_m: get("ipex_drive_j_per_m")?,
             slip_alpha: get("slip_alpha")?,
+            traffic: stewie_twin::traffic_memory::TrafficParams {
+                mass_areal: get("traffic_mass_areal")?,
+                sigma_c_n: get("traffic_sigma_c_n")?,
+                contact_width_m: get("traffic_contact_width_m")?,
+            },
         })
     }
 }

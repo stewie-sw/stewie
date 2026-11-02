@@ -6440,19 +6440,19 @@ def http_executive_cases() -> None:
     import stewie.server.state as ST
 
     class _OnSiteDem:
-        """lode.mission_planner with ``plan`` and ``plan_ir`` on the Haworth DEM (the Rust's surface, D-R176)."""
+        """lode.mission_planner with ``plan`` and ``plan_ir`` on Haworth's as-built surface (the Rust's, D-R176)."""
         def __getattr__(self, k):
             return getattr(MP, k)
 
         @staticmethod
         def plan(mission, **kw):
             dem, origin = ST.moon_dem("haworth")
-            return MP.plan(mission, dem=dem, dem_origin=origin, **kw)
+            return MP.plan(mission, dem=ST.as_built_dem("haworth", dem, origin), dem_origin=origin, **kw)
 
         @staticmethod
         def plan_ir(mission, **kw):
             dem, origin = ST.moon_dem("haworth")
-            return MP.plan_ir(mission, dem=dem, dem_origin=origin, **kw)
+            return MP.plan_ir(mission, dem=ST.as_built_dem("haworth", dem, origin), dem_origin=origin, **kw)
 
     def objective(oid, *, row, col, kg, mandatory=True, prereq=(), **over):
         return {"objective_id": oid, "revision": 1, "statement": f"level {oid}", "rationale": "SYNTHETIC (labelled)",
@@ -6560,6 +6560,142 @@ def http_executive_cases() -> None:
                   ["stewie/server/routers/executive.py", "lode/mission_lifecycle.py", "lode/mission_intent_compiler.py",
                    "stewie/contracts/mission_ops.py", "stewie/contracts/executive.py", "stewie/contracts/audit.py",
                    "stewie/server/audit_log.py", "lode/resync.py", "stewie/server/db.py"], payload)
+
+
+def http_executive_run_cases() -> None:
+    """The executive's SIM run (RW-55c2b): POST /executive/run over the cockpit's build orders (released, run on the
+    Haworth as-built surface, stepped through the live chain, committed to the world log with its terrain and
+    traffic, reported with its executability, reconciliation, live-execution token, physics attribution and
+    terramechanics comparison), a re-run (the traffic fold idempotent), a run bound to a released revision and its
+    refusals, a far run, GET /executive/run/{id} and its SSE stream (with a Last-Event-ID resume), the world
+    transaction and the audit chain afterwards. The orders and the live-token key are SYNTHETIC (labelled).
+
+    Applied to the Python, labelled, as http_executive_cases does: the lifecycle plans on the Haworth DEM (D-R176),
+    the audit chain's timestamps read the session clock, and each ``wall_s`` is normalised to ``<wall_s>``; and, as
+    every acceptance oracle, the conserved column of the run's terrain fold is at bank density (D-R98); and the traffic
+    fold places the run's order-frame poses at the site anchor before rasterising them onto the DEM-cell crop (the
+    stock fold reads them as DEM metres, so every pose falls off the crop and no road ever hardens; D-R177)."""
+    import datetime as _dt
+    import re
+    import types
+
+    import lode.mission_lifecycle as LC
+    import lode.mission_planner as MP
+    import lode.planner_acceptance as PA
+    import lode.resync as RES
+    import stewie.contracts.live_gate as LG
+    import stewie.server.audit_log as AL
+    import numpy as np
+
+    import stewie.server.state as ST
+    import stewie.server.traffic_fold as TF
+
+    class _OnSiteDem:
+        def __getattr__(self, k):
+            return getattr(MP, k)
+
+        @staticmethod
+        def plan(mission, **kw):
+            dem, origin = ST.moon_dem("haworth")
+            return MP.plan(mission, dem=ST.as_built_dem("haworth", dem, origin), dem_origin=origin, **kw)
+
+        @staticmethod
+        def plan_ir(mission, **kw):
+            dem, origin = ST.moon_dem("haworth")
+            return MP.plan_ir(mission, dem=ST.as_built_dem("haworth", dem, origin), dem_origin=origin, **kw)
+
+    secret = "oracle-live-token-secret"
+    orders = [{"action": "Level pad", "kind": "cut", "x": 4, "y": 2, "footprint_m2": 9, "depth_m": 0.1},
+              {"action": "path", "kind": "goto", "x": 10, "y": 0},
+              {"action": "Berm", "kind": "fill", "x": 6.5, "y": -1.25, "footprint_m2": 4, "depth_m": 0.05}]
+
+    def script(call, key, d, clock):
+        AL.datetime = types.SimpleNamespace(
+            now=lambda tz=None: _dt.datetime.fromtimestamp(clock["t"], tz or _dt.timezone.utc))
+        bob = {"Authorization": "Bearer " + call("POST", "/auth/login", headers=key,
+                                                  json_body={"email": "bob@example.org"}).json()["token"]}
+        call("POST", "/executive/run", json_body={"orders": orders})                         # no key
+        call("POST", "/executive/run", headers=bob, json_body={"orders": orders})            # an operator
+        run_id = call("POST", "/executive/run", headers=key,
+                      json_body={"orders": orders, "mission_id": "pad-run"}).json()["run_id"]
+        clock["t"] += 5.0
+        call("GET", "/twin/terrain/haworth", headers=key)                                    # the remembered terrain
+        call("GET", f"/executive/run/{run_id}", headers=key)
+        call("GET", f"/executive/run/{run_id}", headers=bob)                                 # another's run
+        call("GET", "/executive/run/nope", headers=key)
+        call("GET", f"/executive/run/{run_id}/stream?interval_s=0", headers=key)
+        call("GET", f"/executive/run/{run_id}/stream?interval_s=0", headers={**key, "Last-Event-ID": "0"})
+        call("GET", f"/executive/run/{run_id}/stream?interval_s=fast", headers=key)
+        call("GET", "/executive/run/nope/stream", headers=key)
+        clock["t"] += 5.0
+        call("POST", "/executive/run", headers=key, json_body={"orders": orders, "mission_id": "pad-run"})
+        rel = call("POST", "/executive/release-plan", headers=key,
+                   json_body={"orders": orders, "mission_id": "pad-bound"}).json()["signed_revision"]["content_hash"]
+        clock["t"] += 5.0
+        call("POST", "/executive/run", headers=key, json_body={"revision_hash": rel})
+        call("POST", "/executive/run", headers=key, json_body={"revision_hash": rel, "mission_id": "other"})
+        call("POST", "/executive/run", headers=key, json_body={"revision_hash": rel, "mission_id": "pad-bound"})
+        call("POST", "/executive/run", headers=key, json_body={"revision_hash": "ab" * 32})
+        call("POST", "/executive/run", headers=key, json_body={"revision_hash": "x" * 65})
+        call("POST", "/executive/run", headers=key, json_body={"orders": orders[1:2]})
+        call("POST", "/executive/run", headers=key, json_body={"orders": [dict(orders[0], footprint_m2="abc")]})
+        call("POST", "/executive/run", headers=key, json_body={"orders": orders, "body": "Moon"})
+        call("POST", "/executive/run", headers=key, json_body={"orders": orders, "site": "x" * 41})
+        call("POST", "/executive/run", headers=key,
+             json_body={"orders": [{"action": "far cut", "kind": "cut", "x": 420, "y": -380, "footprint_m2": 9,
+                                    "depth_m": 0.1}], "mission_id": "far-run"})
+        call("GET", "/world", headers=key)
+        # D-R72: the loose-end friction is the body registry's 35 deg, not the Python constant's 37
+        from stewie.physics import material as _MAT
+        _phi, _MAT.PHI_LOOSE_DEG = _MAT.PHI_LOOSE_DEG, 35.0
+        try:
+            call("GET", "/world/traffic-layer?site=haworth", headers=key)                    # the hardened road
+        finally:
+            _MAT.PHI_LOOSE_DEG = _phi
+        call("GET", "/world/transactions", headers=key)
+        call("GET", "/executive/audit", headers=key)
+
+    stock_cs = PA.ColumnState
+    stock_traffic = TF.traffic_from_run
+
+    def traffic_at_anchor(out, *, charger, dem, **kw):           # D-R177: order frame -> DEM metres at the anchor
+        ax, ay = MP.flattest_anchor((np.asarray(dem[0]), float(dem[1])))
+        legs = [dict(lg, tx=lg["tx"] + ax, ty=lg["ty"] + ay) for lg in out.get("legs", [])]
+        return stock_traffic(dict(out, legs=legs), charger=(charger[0] + ax, charger[1] + ay), dem=dem, **kw)
+
+    def bank_density_column(**kw):                              # D-R98: the column at its mass's density
+        kw.setdefault("density", kw["mass_areal"] / 10.0)
+        return stock_cs(**kw)
+
+    saved = (LC.MP, RES.MP, RES.time, AL.datetime, LG._SECRET, PA.ColumnState, TF.traffic_from_run)
+    try:
+        LC.MP, RES.MP, PA.ColumnState = _OnSiteDem(), _OnSiteDem(), bank_density_column
+        TF.traffic_from_run = traffic_at_anchor
+        RES.time = types.SimpleNamespace(monotonic=lambda: 0.0)
+        LG._SECRET = secret.encode()
+        payload = _http_session("stewie-http-executive-run-oracle", {"STEWIE_LIVE_TOKEN_SECRET": secret}, script)
+    finally:
+        LC.MP, RES.MP, RES.time, AL.datetime, LG._SECRET, PA.ColumnState, TF.traffic_from_run = saved
+
+    def norm(v):
+        if isinstance(v, dict):
+            return {k: ("<wall_s>" if k == "wall_s" else norm(x)) for k, x in v.items()}
+        if isinstance(v, list):
+            return [norm(x) for x in v]
+        if isinstance(v, str):
+            return re.sub(r'"wall_s": [0-9.e+-]+', '"wall_s": "<wall_s>"', v)
+        return v
+
+    for step in payload["steps"]:
+        step["body"] = norm(step["body"])
+    write_fixture(ORACLE_FIXTURES, "http_executive_run_cases", "oracle/build_fixtures.py::http_executive_run_cases "
+                  "(the FastAPI app's executive SIM run, its record and stream)",
+                  ["stewie/server/routers/executive.py", "lode/sim_execution.py", "lode/executive.py",
+                   "stewie/contracts/plan_gate.py", "stewie/contracts/reconciliation_step.py",
+                   "stewie/contracts/physics_model_control.py", "stewie/runtime/replay_loop.py",
+                   "stewie/server/traffic_fold.py", "stewie/twin/traffic_memory.py", "stewie/server/world_state.py",
+                   "lode/autonomy.py", "stewie/contracts/live_gate.py", "stewie/server/objects.py",
+                   "lode/planner_acceptance.py"], payload)
 
 
 def plan_lowering_cases() -> None:
@@ -7257,6 +7393,7 @@ def main() -> None:
     http_rc_cases()
     http_rc_live_cases()
     http_executive_cases()
+    http_executive_run_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()

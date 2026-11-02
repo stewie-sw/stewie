@@ -203,18 +203,25 @@ pub struct RcSettings {
     pub allow_teleop: bool,
     /// `STEWIE_ALLOW_LIVE_EXEC`: a mission-bound rover command then needs a live-execution token (EG-05).
     pub allow_live_exec: bool,
+    /// `STEWIE_LIVE_TOKEN_TTL_S` (120): how long a minted live-execution token is valid [s].
+    pub live_token_ttl_s: f64,
 }
 
 impl RcSettings {
     fn from_env(get: &dyn Fn(&str) -> Option<String>) -> Result<Self, String> {
         let var = |k: &str| get(k).unwrap_or_default();
-        let deadline = Some(var("STEWIE_RC_DEADLINE_S")).filter(|v| !v.trim().is_empty());
+        let num = |k: &str, d: f64| {
+            Some(var(k))
+                .filter(|v| !v.trim().is_empty())
+                .map_or(Ok(d), |v| {
+                    v.trim()
+                        .parse::<f64>()
+                        .map_err(|e| format!("{k}={v:?}: {e}"))
+                })
+        };
         Ok(Self {
-            deadline_s: deadline.map_or(Ok(5.0), |v| {
-                v.trim()
-                    .parse::<f64>()
-                    .map_err(|e| format!("STEWIE_RC_DEADLINE_S={v:?}: {e}"))
-            })?,
+            deadline_s: num("STEWIE_RC_DEADLINE_S", 5.0)?,
+            live_token_ttl_s: num("STEWIE_LIVE_TOKEN_TTL_S", 120.0)?,
             runnable_profile: get("STEWIE_RUNNABLE_PROFILE").unwrap_or_else(|| "live".to_owned()),
             allow_teleop: env_on(&var("STEWIE_ALLOW_TELEOP")),
             allow_live_exec: env_on(&var("STEWIE_ALLOW_LIVE_EXEC")),
@@ -1297,6 +1304,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::session_routes::routes())
         .merge(crate::rc_routes::routes())
         .merge(crate::executive_routes::routes())
+        .merge(crate::executive_run::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())
