@@ -32,6 +32,8 @@ pub mod plan_routes;
 pub mod planning;
 pub mod point;
 pub mod raster;
+pub mod rc;
+pub mod rc_routes;
 pub mod ros_routes;
 pub mod services;
 pub mod session_routes;
@@ -47,6 +49,12 @@ pub mod world_routes;
 /// Wall-clock seconds since the Unix epoch.
 pub trait Clock: Send + Sync {
     fn now(&self) -> f64;
+
+    /// Seconds on a clock that never steps backwards (the Python's `time.monotonic`), for elapsed-time
+    /// interlocks; a pinned clock serves its pinned time.
+    fn monotonic(&self) -> f64 {
+        self.now()
+    }
 }
 
 /// Cryptographic randomness.
@@ -63,6 +71,14 @@ impl Clock for SystemClock {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0.0, |d| d.as_secs_f64())
+    }
+
+    fn monotonic(&self) -> f64 {
+        static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+        START
+            .get_or_init(std::time::Instant::now)
+            .elapsed()
+            .as_secs_f64()
     }
 }
 

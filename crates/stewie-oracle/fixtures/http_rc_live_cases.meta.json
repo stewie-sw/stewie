@@ -1,0 +1,10 @@
+{
+ "fixture": "http_rc_live_cases",
+ "generator": "oracle/build_fixtures.py::http_rc_live_cases (the FastAPI app's rover-command routes on a live profile with live execution enabled)",
+ "payload_sha256": "eed1c72e5fe6f6bd639b93577ffb83ceba8382ef6f038e62e00f8065bff0011b",
+ "sources": {
+  "stewie/bridge/autonomy_contract.py": "b38d23addb5e9b0ce66d16cc1b9cd61a0e7f5398442186aa63c1580763d66b66",
+  "stewie/contracts/live_gate.py": "0aafa1ba8bf2e0286e88951c5fced09deeefb262326dc64d3f32231d39f1ffa1",
+  "stewie/server/routers/rc.py": "940ae1a604cfad2242700058717556a92c749b775637633b4b37cb4ec955e883"
+ }
+}

@@ -1,0 +1,2465 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_ALLOW_TELEOP": "1",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_LIVE_TOKEN_SECRET": "oracle-live-token-secret",
+  "STEWIE_RUNNABLE_PROFILE": "dev",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "mission.save",
+   "actor": "api-key",
+   "correlation_id": "cid-004",
+   "target": "pad-ring",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "mission.save",
+   "actor": "api-key",
+   "correlation_id": "cid-005",
+   "target": "haul",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "rc.teleop_grant",
+   "actor": "api-key",
+   "correlation_id": "cid-009",
+   "target": "dev",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "rc.goto",
+   "actor": "api-key",
+   "correlation_id": "cid-009",
+   "critical": true,
+   "goal_col": 4,
+   "goal_row": 3,
+   "mission": "",
+   "target": "",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "rc.setsim",
+   "actor": "api-key",
+   "correlation_id": "cid-011",
+   "critical": true,
+   "goal_col": null,
+   "goal_row": null,
+   "mission": "",
+   "target": "",
+   "ts": 1800000001.0
+  },
+  {
+   "action": "auth.login",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-013",
+   "target": "bootstrap",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "rc.teleop_grant",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-016",
+   "target": "dev",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "rc.goto",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-016",
+   "critical": true,
+   "goal_col": 8.5,
+   "goal_row": "6",
+   "mission": "",
+   "target": "7",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "rc.teleop_grant",
+   "actor": "api-key",
+   "correlation_id": "cid-023",
+   "target": "dev",
+   "ts": 1800000009.0
+  },
+  {
+   "action": "rc.ineligible",
+   "actor": "api-key",
+   "correlation_id": "cid-023",
+   "target": "unsafe_safed",
+   "ts": 1800000009.0
+  },
+  {
+   "action": "rc.rearm",
+   "actor": "api-key",
+   "correlation_id": "cid-024",
+   "target": "",
+   "ts": 1800000009.0
+  },
+  {
+   "action": "rc.safe",
+   "actor": "api-key",
+   "correlation_id": "cid-026",
+   "critical": true,
+   "goal_col": null,
+   "goal_row": null,
+   "mission": "",
+   "target": "2",
+   "ts": 1800000010.0
+  },
+  {
+   "action": "rc.setsim",
+   "actor": "api-key",
+   "correlation_id": "cid-027",
+   "critical": true,
+   "goal_col": null,
+   "goal_row": null,
+   "mission": "",
+   "target": "",
+   "ts": 1800000010.0
+  },
+  {
+   "action": "rc.teleop_grant",
+   "actor": "api-key",
+   "correlation_id": "cid-028",
+   "target": "dev",
+   "ts": 1800000010.0
+  },
+  {
+   "action": "rc.goto",
+   "actor": "api-key",
+   "correlation_id": "cid-028",
+   "critical": true,
+   "goal_col": 7.0,
+   "goal_row": 4.6,
+   "mission": "",
+   "target": "2.9",
+   "ts": 1800000010.0
+  },
+  {
+   "action": "rc.setsim",
+   "actor": "api-key",
+   "correlation_id": "cid-030",
+   "critical": true,
+   "goal_col": null,
+   "goal_row": null,
+   "mission": "",
+   "target": "",
+   "ts": 1800000011.0
+  },
+  {
+   "action": "rc.teleop_grant",
+   "actor": "api-key",
+   "correlation_id": "cid-033",
+   "target": "dev",
+   "ts": 1800000013.0
+  },
+  {
+   "action": "rc.goto",
+   "actor": "api-key",
+   "correlation_id": "cid-033",
+   "critical": true,
+   "goal_col": 8.0,
+   "goal_row": 4.6,
+   "mission": "",
+   "target": "",
+   "ts": 1800000013.0
+  },
+  {
+   "action": "rc.setsim",
+   "actor": "api-key",
+   "correlation_id": "cid-035",
+   "critical": true,
+   "goal_col": null,
+   "goal_row": null,
+   "mission": "",
+   "target": "",
+   "ts": 1800000014.0
+  },
+  {
+   "action": "rc.teleop_grant",
+   "actor": "api-key",
+   "correlation_id": "cid-036",
+   "target": "dev",
+   "ts": 1800000014.0
+  },
+  {
+   "action": "rc.goto",
+   "actor": "api-key",
+   "correlation_id": "cid-036",
+   "critical": true,
+   "goal_col": 0,
+   "goal_row": 0,
+   "mission": "",
+   "target": "",
+   "ts": 1800000014.0
+  },
+  {
+   "action": "rc.goto",
+   "actor": "api-key",
+   "correlation_id": "cid-047",
+   "critical": true,
+   "goal_col": 2,
+   "goal_row": 2,
+   "mission": "pad-ring",
+   "target": "",
+   "ts": 1800000015.0
+  },
+  {
+   "action": "rc.goto",
+   "actor": "api-key",
+   "correlation_id": "cid-050",
+   "critical": true,
+   "goal_col": 2,
+   "goal_row": 2,
+   "mission": "pad-ring",
+   "target": "",
+   "ts": 1800000015.0
+  },
+  {
+   "action": "rc.ros_odom",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-061",
+   "target": "12.2,-3.5",
+   "ts": 1800000015.0
+  },
+  {
+   "action": "rc.ros_odom",
+   "actor": "api-key",
+   "correlation_id": "cid-063",
+   "target": "1.0,2.0",
+   "ts": 1800000017.5
+  },
+  {
+   "action": "rc.safe",
+   "actor": "api-key",
+   "correlation_id": "cid-076",
+   "critical": true,
+   "goal_col": null,
+   "goal_row": null,
+   "mission": "",
+   "target": "",
+   "ts": 1800000024.0
+  }
+ ],
+ "release_rows": [
+  {
+   "content_hash": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc",
+   "created_at": 1800000000.0,
+   "evidence": {
+    "note": "SYNTHETIC (labelled)"
+   },
+   "mission_id": "pad-ring",
+   "revision": 3,
+   "signed_by": "alice@example.org",
+   "signed_revision": {
+    "intent": {
+     "mission_id": "pad-ring"
+    }
+   },
+   "transitions": []
+  }
+ ],
+ "seed_sha256_of": "stewie-http-rc-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "covariance_ok": true,
+    "eligible": false,
+    "link_ack": true,
+    "map_fresh": true,
+    "mode_ok": true,
+    "profile": "dev",
+    "reason": "unauthorized_sandbox",
+    "released": false,
+    "safe_inactive": true,
+    "schema_version": "1.0",
+    "sensor_fresh": true,
+    "watchdog_alive": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/eligibility",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created_by": "api-key",
+    "name": "pad-ring",
+    "namespace": "live",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "body": "moon",
+     "keepouts": [],
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/missions/pad-ring",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "created_by": "api-key",
+    "name": "haul",
+    "namespace": "live",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "body": "moon",
+     "keepouts": [],
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/missions/haul",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "covariance_ok": true,
+    "eligible": true,
+    "link_ack": true,
+    "map_fresh": true,
+    "mode_ok": true,
+    "profile": "dev",
+    "reason": "eligible",
+    "released": true,
+    "safe_inactive": true,
+    "schema_version": "1.0",
+    "sensor_fresh": true,
+    "watchdog_alive": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/eligibility?mission=pad-ring",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "covariance_ok": true,
+    "eligible": false,
+    "link_ack": true,
+    "map_fresh": true,
+    "mode_ok": true,
+    "profile": "dev",
+    "reason": "unauthorized_sandbox",
+    "released": false,
+    "safe_inactive": true,
+    "schema_version": "1.0",
+    "sensor_fresh": true,
+    "watchdog_alive": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/eligibility?mission=nowhere",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "kind": "safe"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "accepted": "goto",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "goal_col": 4,
+     "goal_row": 3,
+     "kind": "goto"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "col": 0.24,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 0,
+      "row": 0.18,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 0.3,
+      "yaw_rad": 0.6435011087932844
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "setsim",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000001.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "kind": "SetSim",
+     "time_factor": 4
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "col": 1.2000000000000002,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 0,
+      "row": 0.9000000000000001,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 1.2,
+      "yaw_rad": 0.6435011087932844
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "bob@example.org",
+    "role": "operator",
+    "token": "eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMi4wLCJpYXQiOjE4MDAwMDAwMDIuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjM0ZWRkYjRlMzcxNTRjNDc4ZWY2YmMzMGUxMDBiMjAyIn0.W4DsOds6N4T2uKIS-OFzPn4sbM-0aArW4JD4b9XSrBo",
+    "ttl_s": 43200
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": {
+     "email": "bob@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "SetSim (time-warp) is director-only",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMi4wLCJpYXQiOjE4MDAwMDAwMDIuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjM0ZWRkYjRlMzcxNTRjNDc4ZWY2YmMzMGUxMDBiMjAyIn0.W4DsOds6N4T2uKIS-OFzPn4sbM-0aArW4JD4b9XSrBo",
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": {
+     "kind": "setsim",
+     "time_factor": 2
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "covariance_ok": true,
+    "eligible": true,
+    "link_ack": true,
+    "map_fresh": true,
+    "mode_ok": true,
+    "profile": "dev",
+    "reason": "eligible",
+    "released": true,
+    "safe_inactive": true,
+    "schema_version": "1.0",
+    "sensor_fresh": true,
+    "watchdog_alive": true
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMi4wLCJpYXQiOjE4MDAwMDAwMDIuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjM0ZWRkYjRlMzcxNTRjNDc4ZWY2YmMzMGUxMDBiMjAyIn0.W4DsOds6N4T2uKIS-OFzPn4sbM-0aArW4JD4b9XSrBo",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/eligibility?mission=pad-ring",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "goto",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMi4wLCJpYXQiOjE4MDAwMDAwMDIuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjM0ZWRkYjRlMzcxNTRjNDc4ZWY2YmMzMGUxMDBiMjAyIn0.W4DsOds6N4T2uKIS-OFzPn4sbM-0aArW4JD4b9XSrBo",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": {
+     "goal_col": 8.5,
+     "goal_row": "6",
+     "kind": "goto",
+     "leg_id": "7",
+     "v_max_mps": 0.5
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "col": 2.8395182757580857,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 7,
+      "row": 2.045416877584416,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 2.0,
+      "yaw_rad": 0.609806001447268
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000003.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "col": 4.479036551516172,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 7,
+      "row": 3.190833755168832,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 2.0,
+      "yaw_rad": 0.609806001447268
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "col": 6.118554827274258,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 7,
+      "row": 4.336250632753249,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 2.0,
+      "yaw_rad": 0.6098060014472682
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000005.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "col": 7.758073103032343,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 7,
+      "row": 5.481667510337664,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 2.0,
+      "yaw_rad": 0.609806001447268
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000006.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": true
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000009.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "covariance_ok": true,
+    "eligible": false,
+    "link_ack": false,
+    "map_fresh": true,
+    "mode_ok": true,
+    "profile": "dev",
+    "reason": "unsafe_safed",
+    "released": true,
+    "safe_inactive": false,
+    "schema_version": "1.0",
+    "sensor_fresh": true,
+    "watchdog_alive": false
+   },
+   "cache_control": null,
+   "clock": 1800000009.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/eligibility?mission=pad-ring",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "command ineligible: unsafe_safed; an operator re-arm is required",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000009.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": 1,
+     "kind": "goto"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 409
+  },
+  {
+   "body": {
+    "accepted": "rearm",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000009.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": {
+     "kind": "rearm"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000010.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "safe",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000010.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": {
+     "kind": "safe",
+     "leg_id": 2
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "setsim",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000010.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": {
+     "kind": "setsim",
+     "time_factor": 0.5
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "goto",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000010.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": {
+     "goal_col": 7.0,
+     "goal_radius_cells": 0.25,
+     "goal_row": 4.6,
+     "kind": "goto",
+     "leg_id": 2.9
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "col": 7.660279149232939,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 2,
+      "row": 5.367929466569188,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 0.15,
+      "yaw_rad": -2.2809623820331715
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000011.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "setsim",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000011.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-030"
+    },
+    "json": {
+     "kind": "setsim",
+     "time_factor": 40
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "col": 7.0,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 2,
+      "row": 4.6,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 12.0,
+      "yaw_rad": -2.2809623820331715
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000012.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "achieved_dist_m": 0.0,
+      "commanded_dist_m": 0.0,
+      "energy_J": 0.0,
+      "final_col": 7.0,
+      "final_row": 4.6,
+      "kind": "leg",
+      "leg_id": 2,
+      "mass_kg": 0.0,
+      "status": 0
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000013.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "goto",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000013.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": {
+     "goal_col": 8.0,
+     "goal_radius_cells": 1.0,
+     "goal_row": 4.6,
+     "kind": "goto"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "achieved_dist_m": 0.0,
+      "commanded_dist_m": 0.0,
+      "energy_J": 0.0,
+      "final_col": 7.0,
+      "final_row": 4.6,
+      "kind": "leg",
+      "leg_id": 0,
+      "mass_kg": 0.0,
+      "status": 0
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "setsim",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": {
+     "kind": "setsim",
+     "time_factor": 0
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "goto",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-036"
+    },
+    "json": {
+     "goal_col": 0,
+     "goal_row": 0,
+     "kind": "goto"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [
+     {
+      "col": 6.999999749288356,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 0,
+      "row": 4.599999835246634,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 3e-07,
+      "yaw_rad": -2.5602124697848936
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-037"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "malformed 'goto' command: 'goal_row'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-038"
+    },
+    "json": {
+     "goal_col": 1,
+     "kind": "goto"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "malformed 'goto' command: could not convert string to float: 'x'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-039"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": "x",
+     "kind": "goto"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "malformed 'goto' command: invalid literal for int() with base 10: '2.5'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-040"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": 1,
+     "kind": "goto",
+     "leg_id": "2.5"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "malformed 'goto' command: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-041"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": 1,
+     "kind": "goto",
+     "leg_id": null
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "malformed 'goto' command: float() argument must be a string or a real number, not 'list'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-042"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": [
+      1
+     ],
+     "kind": "goto"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "unknown RC command kind 'warp'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-043"
+    },
+    "json": {
+     "kind": "warp"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "unknown RC command kind ''",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-044"
+    },
+    "json": {
+     "goal_row": 1
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "mission 'nowhere' is not published (live); only a live mission can be commanded to the rover",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-045"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": 1,
+     "kind": "goto",
+     "mission": "nowhere"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "mission 5 is not published (live); only a live mission can be commanded to the rover",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-046"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": 1,
+     "kind": "goto",
+     "mission": 5
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "accepted": "goto",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-047"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "mission": "pad-ring"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "live_token requires a revision_hash of a released revision",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-048"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "live_token": {
+      "issued_at": 1800000015.0,
+      "mission_id": "pad-ring",
+      "revision_id": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc",
+      "signature": "2a46e57a519613e68e3f392db23ddf64b855a401c599a2aca80a821a91cbe677",
+      "ttl_s": 120.0
+     },
+     "mission": "pad-ring"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "live_token requires a revision_hash of a released revision",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-049"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "live_token": {
+      "issued_at": 1800000015.0,
+      "mission_id": "pad-ring",
+      "revision_id": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc",
+      "signature": "2a46e57a519613e68e3f392db23ddf64b855a401c599a2aca80a821a91cbe677",
+      "ttl_s": 120.0
+     },
+     "mission": "pad-ring",
+     "revision_hash": "abababababababababababababababababababababababababababababababab"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "accepted": "goto",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-050"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "live_token": {
+      "issued_at": 1800000015.0,
+      "mission_id": "pad-ring",
+      "revision_id": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc",
+      "signature": "2a46e57a519613e68e3f392db23ddf64b855a401c599a2aca80a821a91cbe677",
+      "ttl_s": 120.0
+     },
+     "mission": "pad-ring",
+     "revision_hash": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "live-execution token rejected: revision f51a8c3769d0 was released for mission 'pad-ring', not the commanded mission 'haul'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-051"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "live_token": {
+      "issued_at": 1800000015.0,
+      "mission_id": "pad-ring",
+      "revision_id": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc",
+      "signature": "2a46e57a519613e68e3f392db23ddf64b855a401c599a2aca80a821a91cbe677",
+      "ttl_s": 120.0
+     },
+     "mission": "haul",
+     "revision_hash": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "live-execution token rejected: live-execution token signature invalid (forged, retargeted, or tampered)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-052"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "live_token": {
+      "issued_at": 1800000015.0,
+      "mission_id": "pad-ring",
+      "revision_id": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc",
+      "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+      "ttl_s": 120.0
+     },
+     "mission": "pad-ring",
+     "revision_hash": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "live-execution token rejected: live-execution token expired (re-run the training-to-live gate)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-053"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "live_token": {
+      "issued_at": 1799999865.0,
+      "mission_id": "pad-ring",
+      "revision_id": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc",
+      "signature": "70801d9b9ebb27879e09c1c90eadd97c7ef197532b9e395f421f79e9b7b6acbd",
+      "ttl_s": 120.0
+     },
+     "mission": "pad-ring",
+     "revision_hash": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "live-execution token rejected: live-execution token does not match the mission/revision being executed",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-054"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "live_token": {
+      "issued_at": 1800000015.0,
+      "mission_id": "pad-ring",
+      "revision_id": "abababababababababababababababababababababababababababababababab",
+      "signature": "2a46e57a519613e68e3f392db23ddf64b855a401c599a2aca80a821a91cbe677",
+      "ttl_s": 120.0
+     },
+     "mission": "pad-ring",
+     "revision_hash": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "live-execution token rejected: could not convert string to float: 'abc'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-055"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "live_token": {
+      "issued_at": "abc",
+      "mission_id": "pad-ring",
+      "revision_id": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc",
+      "signature": "2a46e57a519613e68e3f392db23ddf64b855a401c599a2aca80a821a91cbe677",
+      "ttl_s": 120.0
+     },
+     "mission": "pad-ring",
+     "revision_hash": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "live-execution token rejected: float() argument must be a string or a real number, not 'NoneType'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-056"
+    },
+    "json": {
+     "goal_col": 2,
+     "goal_row": 2,
+     "kind": "goto",
+     "live_token": {
+      "issued_at": 1800000015.0,
+      "mission_id": "pad-ring",
+      "revision_id": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc",
+      "signature": "2a46e57a519613e68e3f392db23ddf64b855a401c599a2aca80a821a91cbe677",
+      "ttl_s": null
+     },
+     "mission": "pad-ring",
+     "revision_hash": "f51a8c3769d045be24516576924d58c6be17b30dcba342bc9c1b392843fd67bc"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "body: Input should be a valid dictionary",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-057"
+    },
+    "json": [
+     1
+    ],
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "body: Field required",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-058"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-059"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": "{not json"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-060"
+    },
+    "json": {
+     "frame": {
+      "cell_m": 5,
+      "dem": "haworth",
+      "dem_origin": [
+       100,
+       200.5
+      ]
+     },
+     "mode": "goal",
+     "soc": 0.8,
+     "x_m": 12.25,
+     "y_m": -3.5,
+     "yaw_rad": 0.4
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000015.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwMi4wLCJpYXQiOjE4MDAwMDAwMDIuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjM0ZWRkYjRlMzcxNTRjNDc4ZWY2YmMzMGUxMDBiMjAyIn0.W4DsOds6N4T2uKIS-OFzPn4sbM-0aArW4JD4b9XSrBo",
+     "X-Correlation-Id": "cid-061"
+    },
+    "json": {
+     "frame": {
+      "cell_m": 5,
+      "dem": "haworth",
+      "dem_origin": [
+       100,
+       200.5
+      ]
+     },
+     "mode": "goal",
+     "soc": 0.8,
+     "x_m": 12.25,
+     "y_m": -3.5,
+     "yaw_rad": 0.4
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": {
+     "age_s": 2.5,
+     "frame": {
+      "cell_m": 5.0,
+      "dem": "haworth",
+      "dem_origin": [
+       100.0,
+       200.5
+      ]
+     },
+     "mode": "goal",
+     "slip": null,
+     "soc": 0.8,
+     "stamp_s": null,
+     "x_m": 12.25,
+     "y_m": -3.5,
+     "yaw_rad": 0.4
+    },
+    "telemetry": [
+     {
+      "col": 6.9999994831233145,
+      "entrapped": false,
+      "kind": "pose",
+      "leg_id": 0,
+      "row": 4.599999696840815,
+      "sinkage_m": 0.0,
+      "slip": 0.0,
+      "slope_rad": 0.0,
+      "soc": null,
+      "v_achieved_mps": 3e-07,
+      "yaw_rad": -2.662073367010187
+     }
+    ],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000017.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-062"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000017.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-063"
+    },
+    "json": {
+     "x_m": 1,
+     "y_m": 2
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "x_m: Input should be less than or equal to 10000000",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000017.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-064"
+    },
+    "json": {
+     "x_m": 20000000.0,
+     "y_m": 0
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "x_m: Field required",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000017.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-065"
+    },
+    "json": {
+     "y_m": 0
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "slip: Input should be less than or equal to 1",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000017.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-066"
+    },
+    "json": {
+     "slip": 1.5,
+     "x_m": 0,
+     "y_m": 0
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "mode: String should have at most 16 characters",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000017.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-067"
+    },
+    "json": {
+     "mode": "xxxxxxxxxxxxxxxxx",
+     "x_m": 0,
+     "y_m": 0
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "frame.cell_m: Input should be greater than 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000017.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-068"
+    },
+    "json": {
+     "frame": {
+      "cell_m": 0,
+      "dem": "h",
+      "dem_origin": [
+       0,
+       0
+      ]
+     },
+     "x_m": 0,
+     "y_m": 0
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "frame.dem: Field required; frame.dem_origin.1: Field required",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000017.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-069"
+    },
+    "json": {
+     "frame": {
+      "cell_m": 1,
+      "dem_origin": [
+       0
+      ]
+     },
+     "x_m": 0,
+     "y_m": 0
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "frame: Input should be a valid dictionary or object to extract fields from",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000017.5,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-070"
+    },
+    "json": {
+     "frame": 3,
+     "x_m": 0,
+     "y_m": 0
+    },
+    "method": "POST",
+    "path": "/rc/ros_odom",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": "data: {\"ok\": true, \"telemetry\": [{\"leg_id\": 0, \"row\": 4.5999995584349955, \"col\": 6.999999216958273, \"yaw_rad\": -2.662073367010187, \"v_achieved_mps\": 3e-07, \"slip\": 0.0, \"sinkage_m\": 0.0, \"slope_rad\": 0.0, \"soc\": null, \"entrapped\": false, \"kind\": \"pose\"}], \"cell_m\": 1.0, \"ros_odom\": {\"x_m\": 1.0, \"y_m\": 2.0, \"yaw_rad\": 0.0, \"slip\": null, \"soc\": null, \"stamp_s\": null, \"mode\": null, \"frame\": null, \"age_s\": 0.5}, \"watchdog\": {\"tripped\": false, \"deadline_s\": 5.0}}\n\ndata: {\"ok\": true, \"telemetry\": [{\"leg_id\": 0, \"row\": 4.599999420029176, \"col\": 6.999998950793232, \"yaw_rad\": -2.662073367010187, \"v_achieved_mps\": 3e-07, \"slip\": 0.0, \"sinkage_m\": 0.0, \"slope_rad\": 0.0, \"soc\": null, \"entrapped\": false, \"kind\": \"pose\"}], \"cell_m\": 1.0, \"ros_odom\": {\"x_m\": 1.0, \"y_m\": 2.0, \"yaw_rad\": 0.0, \"slip\": null, \"soc\": null, \"stamp_s\": null, \"mode\": null, \"frame\": null, \"age_s\": 0.5}, \"watchdog\": {\"tripped\": false, \"deadline_s\": 5.0}}\n\n",
+   "cache_control": "no-cache",
+   "clock": 1800000018.0,
+   "content_type": "text/event-stream; charset=utf-8",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-071"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry/stream?interval_s=0.01&max_frames=2",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": "",
+   "cache_control": "no-cache",
+   "clock": 1800000018.0,
+   "content_type": "text/event-stream; charset=utf-8",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-072"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry/stream?max_frames=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "interval_s: Input should be a valid number, unable to parse string as a number",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000018.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-073"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry/stream?interval_s=fast",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000018.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-074"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry/stream?max_frames=2",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": {
+     "age_s": 6.5,
+     "frame": null,
+     "mode": null,
+     "slip": null,
+     "soc": null,
+     "stamp_s": null,
+     "x_m": 1.0,
+     "y_m": 2.0,
+     "yaw_rad": 0.0
+    },
+    "telemetry": [],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": true
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000024.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-075"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "safe",
+    "ok": true,
+    "watchdog_tripped": true
+   },
+   "cache_control": null,
+   "clock": 1800000024.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-076"
+    },
+    "json": {
+     "kind": "safe"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": null
+}

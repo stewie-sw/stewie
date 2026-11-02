@@ -6233,6 +6233,192 @@ def http_session_cases() -> None:
                    "stewie/specs/solar.py"], payload)
 
 
+def _rc_session(seed_text: str, env_extra: dict, script) -> dict:
+    """One _http_session over the rover-command router with its process state fresh: the sim backend at the
+    origin behind a 5 s watchdog, no live ROS odometry, the router's clocks pinned to the session clock (its
+    monotonic one included), and the live-execution token key set to the SYNTHETIC ``env_extra`` secret (the
+    Python reads it at import). Restored afterwards."""
+    import types
+
+    import stewie.bridge.rc_contract as RC
+    import stewie.contracts.live_gate as LG
+    import stewie.server.routers.rc as RCR
+
+    saved = (RCR.time, RCR._RC_BACKEND, RCR._RC_WATCHDOG, RCR._ROS_ODOM, RCR._ROS_ODOM_RECV, LG._SECRET)
+
+    def wrapped(call, key, d, clock):
+        RCR.time = types.SimpleNamespace(monotonic=lambda: clock["t"], time=lambda: clock["t"])
+        RCR._RC_BACKEND = RC.SimBackend(start_rc=(0.0, 0.0))
+        RCR._RC_WATCHDOG = RC.SafingWatchdog(RCR._RC_BACKEND, deadline_s=5.0)
+        RCR._ROS_ODOM, RCR._ROS_ODOM_RECV = None, 0.0
+        LG._SECRET = env_extra["STEWIE_LIVE_TOKEN_SECRET"].encode()
+        script(call, key, d, clock)
+
+    try:
+        return _http_session(seed_text, env_extra, wrapped)
+    finally:
+        (RCR.time, RCR._RC_BACKEND, RCR._RC_WATCHDOG, RCR._ROS_ODOM, RCR._ROS_ODOM_RECV, LG._SECRET) = saved
+
+
+def http_rc_cases() -> None:
+    """The rover-command routes (RW-55c1) on a dev runnable profile with the teleop grant: POST /rc/command (teleop
+    GoTo, SetSim, Safe, the SF-01 watchdog trip and re-arm, the malformed and unknown commands, the AG-08 live
+    mission gate and the EG-05 live-execution token against a released revision: valid, absent revision, wrong
+    mission, forged, expired, retargeted, malformed), GET /rc/telemetry and its SSE stream (the kinematic sim
+    stepping to its goal), GET /rc/eligibility and POST /rc/ros_odom, through one scripted session. The released
+    revision row, its mission and the tokens are SYNTHETIC (labelled): the row is laid into the session's SQLite
+    store before the first request and shipped as its row (``release_rows``), not as database bytes."""
+    import hashlib
+
+    import stewie.contracts.live_gate as LG
+    from stewie.server import db as DB
+
+    secret = "oracle-live-token-secret"
+    env = {"STEWIE_RUNNABLE_PROFILE": "dev", "STEWIE_ALLOW_TELEOP": "1", "STEWIE_LIVE_TOKEN_SECRET": secret}
+    with open(os.path.join(REPO, "stewie", "server", "sample_missions", "01_flatten_pad.json")) as fh:
+        pad = {k: v for k, v in json.load(fh).items() if k not in ("charger", "name")}   # the store's mission fields
+    rev = hashlib.sha256(b"SYNTHETIC released revision of pad-ring (labelled)").hexdigest()
+    seed = {}
+
+    def script(call, key, d, clock):
+        DB.persist_release_revision({"content_hash": rev, "revision": 3, "mission_id": "pad-ring",
+                                     "signed_by": "alice@example.org",
+                                     "signed_revision": {"intent": {"mission_id": "pad-ring"}},
+                                     "evidence": {"note": "SYNTHETIC (labelled)"}, "transitions": []})
+        seed["release_rows"] = [DB.read_release_revision(rev)]
+
+        def token(at=None, **over):
+            t = LG.issue_live_token("pad-ring", rev, LG.LivePreconditions(*([True] * 6)),
+                                    now=clock["t"] if at is None else at, ttl_s=120.0)
+            return {"mission_id": t.mission_id, "revision_id": t.revision_id, "issued_at": t.issued_at,
+                    "ttl_s": t.ttl_s, "signature": t.signature, **over}
+
+        def tick(dt=1.0):
+            clock["t"] += dt
+            return call("GET", "/rc/telemetry", headers=key)
+
+        call("GET", "/rc/telemetry")                                                       # no key
+        call("GET", "/rc/telemetry", headers=key)
+        call("GET", "/rc/eligibility", headers=key)
+        call("POST", "/missions/pad-ring", headers=key, json_body=pad)
+        call("POST", "/missions/haul", headers=key, json_body=pad)
+        call("GET", "/rc/eligibility?mission=pad-ring", headers=key)
+        call("GET", "/rc/eligibility?mission=nowhere", headers=key)
+        call("POST", "/rc/command", json_body={"kind": "safe"})                            # no key
+        call("POST", "/rc/command", headers=key, json_body={"kind": "goto", "goal_row": 3, "goal_col": 4})
+        tick()
+        call("POST", "/rc/command", headers=key, json_body={"kind": "SetSim", "time_factor": 4})
+        tick()
+        bob = {"Authorization": "Bearer " + call("POST", "/auth/login", headers=key,
+                                                  json_body={"email": "bob@example.org"}).json()["token"]}
+        call("POST", "/rc/command", headers=bob, json_body={"kind": "setsim", "time_factor": 2})
+        call("GET", "/rc/eligibility?mission=pad-ring", headers=bob)
+        call("POST", "/rc/command", headers=bob, json_body={"kind": "goto", "goal_row": "6", "goal_col": 8.5,
+                                                             "leg_id": "7", "v_max_mps": 0.5})
+        for _ in range(4):
+            tick()
+        tick(3.0)                                                                          # 7 s idle > 5 s: SAFE
+        call("GET", "/rc/eligibility?mission=pad-ring", headers=key)
+        call("POST", "/rc/command", headers=key, json_body={"kind": "goto", "goal_row": 1, "goal_col": 1})
+        call("POST", "/rc/command", headers=key, json_body={"kind": "rearm"})
+        tick()                                                                             # re-armed: the timer restarts
+        call("POST", "/rc/command", headers=key, json_body={"kind": "safe", "leg_id": 2})
+        call("POST", "/rc/command", headers=key, json_body={"kind": "setsim", "time_factor": 0.5})
+        call("POST", "/rc/command", headers=key, json_body={"kind": "goto", "goal_row": 4.6, "goal_col": 7.0,
+                                                             "leg_id": 2.9, "goal_radius_cells": 0.25})
+        tick()                                                                             # 0.15 cells per tick
+        call("POST", "/rc/command", headers=key, json_body={"kind": "setsim", "time_factor": 40})
+        tick()                                                                             # clamped onto the goal
+        tick()                                                                             # inside the radius: Leg
+        call("POST", "/rc/command", headers=key, json_body={"kind": "goto", "goal_row": 4.6, "goal_col": 8.0,
+                                                             "goal_radius_cells": 1.0})
+        tick()                                                                             # exactly on the radius
+        call("POST", "/rc/command", headers=key, json_body={"kind": "setsim", "time_factor": 0})
+        call("POST", "/rc/command", headers=key, json_body={"kind": "goto", "goal_row": 0, "goal_col": 0})
+        tick()                                                                             # the factor floor
+        for bad in ({"kind": "goto", "goal_col": 1}, {"kind": "goto", "goal_row": "x", "goal_col": 1},
+                    {"kind": "goto", "goal_row": 1, "goal_col": 1, "leg_id": "2.5"},
+                    {"kind": "goto", "goal_row": 1, "goal_col": 1, "leg_id": None},
+                    {"kind": "goto", "goal_row": [1], "goal_col": 1}, {"kind": "warp"}, {"goal_row": 1},
+                    {"kind": "goto", "goal_row": 1, "goal_col": 1, "mission": "nowhere"},
+                    {"kind": "goto", "goal_row": 1, "goal_col": 1, "mission": 5}):
+            call("POST", "/rc/command", headers=key, json_body=bad)
+        go = {"kind": "goto", "goal_row": 2, "goal_col": 2, "mission": "pad-ring"}
+        call("POST", "/rc/command", headers=key, json_body=go)                             # no token: live exec off
+        call("POST", "/rc/command", headers=key, json_body=dict(go, live_token=token()))   # no revision_hash
+        call("POST", "/rc/command", headers=key, json_body=dict(go, live_token=token(), revision_hash="ab" * 32))
+        call("POST", "/rc/command", headers=key, json_body=dict(go, live_token=token(), revision_hash=rev))
+        call("POST", "/rc/command", headers=key, json_body=dict(go, mission="haul", live_token=token(),
+                                                                 revision_hash=rev))
+        call("POST", "/rc/command", headers=key, json_body=dict(go, live_token=token(signature="0" * 64),
+                                                                 revision_hash=rev))
+        call("POST", "/rc/command", headers=key, json_body=dict(go, live_token=token(at=clock["t"] - 150.0),
+                                                                 revision_hash=rev))
+        call("POST", "/rc/command", headers=key, json_body=dict(go, live_token=token(revision_id="ab" * 32),
+                                                                 revision_hash=rev))
+        call("POST", "/rc/command", headers=key, json_body=dict(go, live_token=token(issued_at="abc"),
+                                                                 revision_hash=rev))
+        call("POST", "/rc/command", headers=key, json_body=dict(go, live_token=token(ttl_s=None),
+                                                                 revision_hash=rev))
+        call("POST", "/rc/command", headers=key, json_body=[1])
+        call("POST", "/rc/command", headers=key)
+        call("POST", "/rc/command", headers=key, raw="{not json")
+        odom = {"x_m": 12.25, "y_m": -3.5, "yaw_rad": 0.4, "soc": 0.8, "mode": "goal",
+                "frame": {"dem": "haworth", "cell_m": 5, "dem_origin": [100, 200.5]}}
+        call("POST", "/rc/ros_odom", json_body=odom)                                       # no key
+        call("POST", "/rc/ros_odom", headers=bob, json_body=odom)
+        tick(2.5)
+        call("POST", "/rc/ros_odom", headers=key, json_body={"x_m": 1, "y_m": 2})
+        for bad in ({"x_m": 2e7, "y_m": 0}, {"y_m": 0}, {"x_m": 0, "y_m": 0, "slip": 1.5},
+                    {"x_m": 0, "y_m": 0, "mode": "x" * 17}, {"x_m": 0, "y_m": 0, "frame": {"dem": "h", "cell_m": 0,
+                                                                                         "dem_origin": [0, 0]}},
+                    {"x_m": 0, "y_m": 0, "frame": {"cell_m": 1, "dem_origin": [0]}}, {"x_m": 0, "y_m": 0, "frame": 3}):
+            call("POST", "/rc/ros_odom", headers=key, json_body=bad)
+        clock["t"] += 0.5
+        call("GET", "/rc/telemetry/stream?interval_s=0.01&max_frames=2", headers=key)
+        call("GET", "/rc/telemetry/stream?max_frames=0", headers=key)
+        call("GET", "/rc/telemetry/stream?interval_s=fast", headers=key)
+        call("GET", "/rc/telemetry/stream?max_frames=2")                                  # no key
+        tick(6.0)                                                                          # idle past the deadline
+        call("POST", "/rc/command", headers=key, json_body={"kind": "safe"})              # tripped: a Safe still lands
+
+    payload = _rc_session("stewie-http-rc-oracle", env, script)
+    payload["release_rows"] = seed["release_rows"]           # laid into the replay's store before its first request
+    write_fixture(ORACLE_FIXTURES, "http_rc_cases", "oracle/build_fixtures.py::http_rc_cases (the FastAPI app's "
+                  "rover-command routes on a dev profile with the teleop grant)",
+                  ["stewie/server/routers/rc.py", "stewie/bridge/rc_contract.py", "stewie/bridge/command_eligibility.py",
+                   "stewie/bridge/autonomy_contract.py", "stewie/contracts/live_gate.py", "stewie/contracts/governance.py",
+                   "stewie/server/db.py"], payload)
+
+
+def http_rc_live_cases() -> None:
+    """The rover-command routes (RW-55c1) on the default LIVE runnable profile with live execution enabled: a
+    mission-less GoTo refused as teleop (no grant can apply on a live profile), a mission-bound GoTo refused without
+    its live-execution token, a Safe and a re-arm still accepted, and the eligibility verdict naming the profile."""
+    with open(os.path.join(REPO, "stewie", "server", "sample_missions", "01_flatten_pad.json")) as fh:
+        pad = {k: v for k, v in json.load(fh).items() if k not in ("charger", "name")}
+    env = {"STEWIE_ALLOW_LIVE_EXEC": "1", "STEWIE_ALLOW_TELEOP": "1",
+           "STEWIE_LIVE_TOKEN_SECRET": "oracle-live-token-secret"}
+
+    def script(call, key, d, clock):
+        call("POST", "/missions/pad-ring", headers=key, json_body=pad)
+        call("POST", "/rc/command", headers=key, json_body={"kind": "goto", "goal_row": 1, "goal_col": 1})
+        call("POST", "/rc/command", headers=key, json_body={"kind": "goto", "goal_row": 1, "goal_col": 1,
+                                                             "mission": "pad-ring"})
+        call("POST", "/rc/command", headers=key, json_body={"kind": "goto", "goal_row": 1, "goal_col": 1,
+                                                             "mission": "pad-ring", "live_token": {"a": 1}})
+        call("POST", "/rc/command", headers=key, json_body={"kind": "safe"})
+        call("POST", "/rc/command", headers=key, json_body={"kind": "rearm"})
+        call("GET", "/rc/eligibility?mission=pad-ring", headers=key)
+        call("GET", "/rc/telemetry", headers=key)
+
+    payload = _rc_session("stewie-http-rc-live-oracle", env, script)
+    write_fixture(ORACLE_FIXTURES, "http_rc_live_cases", "oracle/build_fixtures.py::http_rc_live_cases (the FastAPI "
+                  "app's rover-command routes on a live profile with live execution enabled)",
+                  ["stewie/server/routers/rc.py", "stewie/bridge/autonomy_contract.py",
+                   "stewie/contracts/live_gate.py"], payload)
+
+
 def plan_lowering_cases() -> None:
     """NV-11 (RW-55b25a): ``stewie.bridge.plan_lowering.lower_plan_ir`` on the plan IR of each repository sample
     mission (``lode.planner_views.plan_ir``, as ``/rc/plan_ros`` lowers it), with the AM-01 posture machine it
@@ -6925,6 +7111,8 @@ def main() -> None:
     http_ros_cases()
     http_nav_cases()
     http_session_cases()
+    http_rc_cases()
+    http_rc_live_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()

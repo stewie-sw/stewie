@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "json", "query", "matched-path"] }
 base64 = "0.22"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 getrandom = "0.3"
 hmac = "0.12"
@@ -32,7 +33,7 @@ stewie-plan = { path = "../stewie-plan" }
 stewie-traverse = { path = "../stewie-traverse" }
 stewie-twin = { path = "../stewie-twin" }
 subtle = "2"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "any"] }
 
 [dev-dependencies]

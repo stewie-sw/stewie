@@ -195,6 +195,58 @@ fn close(got: &Value, want: &Value, at: &str) -> Result<(), String> {
     }
 }
 
+/// Lay `rows` into the store the replay will open (the Postgres database `postgres`, else `SQLite` at
+/// `dir/edit_session.db`), in the table the Python's `SQLAlchemy` creates.
+async fn seed_release_rows(dir: &std::path::Path, rows: &[Value], postgres: Option<&str>) {
+    use sqlx::{ConnectOptions as _, Connection as _};
+    sqlx::any::install_default_drivers();
+    let (url, schema, jsonb) = match postgres {
+        Some(u) => (u.to_owned(), "stewie.", "JSONB"),
+        None => (
+            sqlx::sqlite::SqliteConnectOptions::new()
+                .filename(dir.join("edit_session.db"))
+                .create_if_missing(true)
+                .to_url_lossy()
+                .to_string(),
+            "",
+            "JSON",
+        ),
+    };
+    let mut db = sqlx::AnyConnection::connect(&url).await.unwrap();
+    if postgres.is_some() {
+        sqlx::query("CREATE SCHEMA IF NOT EXISTS stewie")
+            .execute(&mut db)
+            .await
+            .unwrap();
+    }
+    sqlx::query(&format!(
+        "CREATE TABLE IF NOT EXISTS {schema}release_revision (content_hash VARCHAR(64) NOT NULL, revision INTEGER NOT \
+         NULL, mission_id VARCHAR(160) NOT NULL, signed_by VARCHAR(64) NOT NULL, signed_revision {jsonb} NOT NULL, \
+         evidence {jsonb} NOT NULL, transitions {jsonb} NOT NULL, created_at FLOAT NOT NULL, PRIMARY KEY (content_hash))"
+    ))
+    .execute(&mut db)
+    .await
+    .unwrap();
+    let cast = if postgres.is_some() { "::jsonb" } else { "" };
+    for r in rows {
+        sqlx::query(&format!(
+            "INSERT INTO {schema}release_revision VALUES ($1, $2, $3, $4, $5{cast}, $6{cast}, $7{cast}, $8)"
+        ))
+        .bind(r["content_hash"].as_str().unwrap().to_owned())
+        .bind(i32::try_from(r["revision"].as_i64().unwrap()).unwrap())
+        .bind(r["mission_id"].as_str().unwrap().to_owned())
+        .bind(r["signed_by"].as_str().unwrap().to_owned())
+        .bind(r["signed_revision"].to_string())
+        .bind(r["evidence"].to_string())
+        .bind(r["transitions"].to_string())
+        .bind(r["created_at"].as_f64().unwrap())
+        .execute(&mut db)
+        .await
+        .unwrap();
+    }
+    db.close().await.unwrap();
+}
+
 /// Replay the fixture `name` (seeded from `seed`) through a fresh app; `before(i, step, clock, dir)` reproduces
 /// what the oracle did between requests. Headers and cookies are compared where the fixture recorded them.
 async fn replay(
@@ -236,6 +288,10 @@ async fn replay_on(
                 .unwrap();
             std::fs::write(p, bytes).unwrap();
         }
+    }
+    // released revisions the oracle froze into its store before its first request (SYNTHETIC rows, labelled there)
+    if let Some(rows) = fx.get("release_rows").and_then(Value::as_array) {
+        seed_release_rows(&dir, rows, postgres).await;
     }
     let mut env: HashMap<String, String> = fx["env"]
         .as_object()
@@ -850,6 +906,23 @@ async fn a_terrain_record_whose_world_commit_fails_restores_the_prior_memory() {
     assert!(
         !stewie_twin::terrain_memory::terrain_path(&dir, "haworth").exists(),
         "the fresh site's memory was rolled back to nothing"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn a_rover_command_whose_audit_record_cannot_land_is_never_submitted() {
+    // AR-004: a directory where the audit ledger belongs makes the durable record fail, so the command is refused
+    let (app, dir) = bare_app("rc-audit-refused", false);
+    std::fs::create_dir(dir.join("events.jsonl")).unwrap();
+    let (status, body) = post(&app, "/rc/command", json!({"kind": "safe"})).await;
+    assert_eq!(status, 503, "{body}");
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap()
+            .starts_with("critical action \"rc.safe\" refused"),
+        "{body}"
     );
     std::fs::remove_dir_all(&dir).unwrap();
 }
@@ -2322,6 +2395,50 @@ async fn the_python_training_session_replays_exactly() {
                 body["error"] = json!(want);
             }
         },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_python_rover_command_session_replays_exactly() {
+    replay(
+        "http_rc_cases",
+        b"stewie-http-rc-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_python_rover_command_session_replays_on_postgres() {
+    // the live-execution token is checked against the release row the Postgres store holds
+    let Some(url) = scratch_postgres("rc_replay").await else {
+        return;
+    };
+    replay_on(
+        "http_rc_cases",
+        b"stewie-http-rc-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+        Some(&url),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_python_live_profile_rover_commands_replay_exactly() {
+    replay(
+        "http_rc_live_cases",
+        b"stewie-http-rc-live-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
     )
     .await;
 }

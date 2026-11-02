@@ -1,0 +1,275 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_ALLOW_LIVE_EXEC": "1",
+  "STEWIE_ALLOW_TELEOP": "1",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_LIVE_TOKEN_SECRET": "oracle-live-token-secret",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "mission.save",
+   "actor": "api-key",
+   "correlation_id": "cid-001",
+   "target": "pad-ring",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "rc.teleop_refused",
+   "actor": "api-key",
+   "correlation_id": "cid-002",
+   "profile": "live",
+   "target": "live_profile_teleop_refused",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "rc.safe",
+   "actor": "api-key",
+   "correlation_id": "cid-005",
+   "critical": true,
+   "goal_col": null,
+   "goal_row": null,
+   "mission": "",
+   "target": "",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "rc.rearm",
+   "actor": "api-key",
+   "correlation_id": "cid-006",
+   "target": "",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-rc-live-oracle",
+ "steps": [
+  {
+   "body": {
+    "created_by": "api-key",
+    "name": "pad-ring",
+    "namespace": "live",
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "body": "moon",
+     "keepouts": [],
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/missions/pad-ring",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "mission-less teleop refused (live_profile_teleop_refused): a low-level rover command requires a released (live) mission, or an explicit dev/bench teleop grant (STEWIE_ALLOW_TELEOP) on a non-LIVE/OPERATE runnable profile",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": 1,
+     "kind": "goto"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "live execution enabled: a mission-bound rover command requires a live-execution token bound to a released revision (POST /executive/run to obtain one)",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": 1,
+     "kind": "goto",
+     "mission": "pad-ring"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "live_token requires a revision_hash of a released revision",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "goal_col": 1,
+     "goal_row": 1,
+     "kind": "goto",
+     "live_token": {
+      "a": 1
+     },
+     "mission": "pad-ring"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "accepted": "safe",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "kind": "safe"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "accepted": "rearm",
+    "ok": true,
+    "watchdog_tripped": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "kind": "rearm"
+    },
+    "method": "POST",
+    "path": "/rc/command",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "covariance_ok": true,
+    "eligible": true,
+    "link_ack": true,
+    "map_fresh": true,
+    "mode_ok": true,
+    "profile": "live",
+    "reason": "eligible",
+    "released": true,
+    "safe_inactive": true,
+    "schema_version": "1.0",
+    "sensor_fresh": true,
+    "watchdog_alive": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/eligibility?mission=pad-ring",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "ok": true,
+    "ros_odom": null,
+    "telemetry": [],
+    "watchdog": {
+     "deadline_s": 5.0,
+     "tripped": false
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/rc/telemetry",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": null
+}

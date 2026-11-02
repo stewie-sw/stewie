@@ -95,6 +95,8 @@ pub struct Settings {
     pub max_keepouts: usize,
     /// `STEWIE_PLAN_DEADLINE_S` (120): the wall clock a `/plan` may take before it is answered 503 (ARCH-01/04).
     pub plan_deadline_s: f64,
+    /// The rover-command settings.
+    pub rc: RcSettings,
     /// `STEWIE_REPORTS_TTL_S` (86400): plan reports older than this are pruned (0 or less keeps them).
     pub reports_ttl_s: f64,
     /// `STEWIE_SNAPSHOT_RPO_S` / `STEWIE_REPLICA_RPO_S` (one sol, the snapshot scheduler's trigger, when unset, not
@@ -173,6 +175,61 @@ fn rpo(raw: &str) -> f64 {
         .unwrap_or(86400.0 * 29.53)
 }
 
+/// The key live-execution tokens are signed under: `STEWIE_LIVE_TOKEN_SECRET` when set, else 32 random bytes as hex
+/// (the Python's per-process `secrets.token_hex(32)`), drawn from the OS so the request entropy stream is untouched.
+fn live_token_secret(get: &dyn Fn(&str) -> Option<String>) -> Vec<u8> {
+    get("STEWIE_LIVE_TOKEN_SECRET")
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            let mut b = [0_u8; 32];
+            crate::Entropy::fill(&crate::OsEntropy, &mut b);
+            b.iter().fold(String::new(), |mut out, x| {
+                use std::fmt::Write as _;
+                let _ = write!(out, "{x:02x}");
+                out
+            })
+        })
+        .into_bytes()
+}
+
+/// The rover-command settings, read once at startup.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RcSettings {
+    /// `STEWIE_RC_DEADLINE_S` (5): the SF-01 watchdog's command-timeout deadline [s].
+    pub deadline_s: f64,
+    /// `STEWIE_RUNNABLE_PROFILE` (`live`): the runnable profile mission-less teleop is judged against (SF-02).
+    pub runnable_profile: String,
+    /// `STEWIE_ALLOW_TELEOP`: the explicit dev/bench teleop grant (SF-02).
+    pub allow_teleop: bool,
+    /// `STEWIE_ALLOW_LIVE_EXEC`: a mission-bound rover command then needs a live-execution token (EG-05).
+    pub allow_live_exec: bool,
+}
+
+impl RcSettings {
+    fn from_env(get: &dyn Fn(&str) -> Option<String>) -> Result<Self, String> {
+        let var = |k: &str| get(k).unwrap_or_default();
+        let deadline = Some(var("STEWIE_RC_DEADLINE_S")).filter(|v| !v.trim().is_empty());
+        Ok(Self {
+            deadline_s: deadline.map_or(Ok(5.0), |v| {
+                v.trim()
+                    .parse::<f64>()
+                    .map_err(|e| format!("STEWIE_RC_DEADLINE_S={v:?}: {e}"))
+            })?,
+            runnable_profile: get("STEWIE_RUNNABLE_PROFILE").unwrap_or_else(|| "live".to_owned()),
+            allow_teleop: env_on(&var("STEWIE_ALLOW_TELEOP")),
+            allow_live_exec: env_on(&var("STEWIE_ALLOW_LIVE_EXEC")),
+        })
+    }
+}
+
+/// An enabling environment value (`1`, `true`, `yes`, `on`; case and whitespace ignored), as the Python reads them.
+fn env_on(v: &str) -> bool {
+    matches!(
+        v.trim().to_lowercase().as_str(),
+        "1" | "true" | "yes" | "on"
+    )
+}
+
 impl Settings {
     /// # Errors
     /// A malformed number, a `STEWIE_DATABASE_URL` that is not Postgres, or
@@ -243,6 +300,7 @@ impl Settings {
             heavy_window_s: num("STEWIE_HEAVY_QUOTA_WINDOW_S", "60")?,
             max_keepouts: num("STEWIE_MAX_KEEPOUTS", "200")? as usize,
             plan_deadline_s: num("STEWIE_PLAN_DEADLINE_S", "120")?,
+            rc: RcSettings::from_env(get)?,
             reports_ttl_s: num("STEWIE_REPORTS_TTL_S", "86400")?,
             snapshot_rpo_s: rpo(&var("STEWIE_SNAPSHOT_RPO_S")),
             replica_rpo_s: rpo(&var("STEWIE_REPLICA_RPO_S")),
@@ -320,6 +378,8 @@ pub struct AppState {
     pub edit_sessions: crate::edit_session::Store,
     /// The live operator/director training sessions.
     pub training: crate::session_routes::Sessions,
+    /// The rover-command backend, its watchdog and the live ROS odometry.
+    pub rc: crate::rc_routes::Rc,
     /// The rendered static globe drapes.
     pub globe_cache: crate::globe::Cache,
     /// The request counters and budgets `/metrics` reports.
@@ -426,6 +486,7 @@ impl AppState {
             heavy_quota: RateLimiter::new(settings.heavy_quota_max, settings.heavy_window_s),
             edit_sessions,
             training: crate::session_routes::Sessions::default(),
+            rc: crate::rc_routes::Rc::new(settings.rc.deadline_s, live_token_secret(get)),
             globe_cache: crate::globe::Cache::default(),
             metrics: crate::metrics::Metrics::default(),
             cfg,
@@ -1234,6 +1295,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::ros_routes::routes())
         .merge(crate::nav_routes::routes())
         .merge(crate::session_routes::routes())
+        .merge(crate::rc_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

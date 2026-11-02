@@ -36,7 +36,7 @@ const AUDIT_TAIL: usize = 50;
 const WRITE_LOCK: i64 = 0x5354_4557_4945; // "STEWIE"
 
 /// The Python's tables, as `SQLAlchemy` creates them on `SQLite`.
-const SQLITE_DDL: [&str; 4] = [
+const SQLITE_DDL: [&str; 6] = [
     "CREATE TABLE IF NOT EXISTS edit_session (\n\topaque_id VARCHAR(64) NOT NULL, \n\tplan_id VARCHAR(64), \n\t\
      version INTEGER NOT NULL, \n\tcreated_at FLOAT NOT NULL, \n\tfid_seq INTEGER NOT NULL, \n\tmarker_seq INTEGER NOT \
      NULL, \n\tfeatures JSON NOT NULL, \n\tmarkers JSON NOT NULL, \n\tPRIMARY KEY (opaque_id)\n)",
@@ -50,11 +50,15 @@ const SQLITE_DDL: [&str; 4] = [
      NULL, \n\tsite VARCHAR(64) NOT NULL, \n\tbody VARCHAR(32) NOT NULL, \n\tmission_t_s FLOAT NOT NULL, \n\tprovenance \
      VARCHAR(240) NOT NULL, \n\tuncertainty_m FLOAT NOT NULL, \n\tlinked JSON NOT NULL, \n\tcreated_at FLOAT NOT NULL, \n\t\
      PRIMARY KEY (seq)\n)",
+    "CREATE TABLE IF NOT EXISTS release_revision (\n\tcontent_hash VARCHAR(64) NOT NULL, \n\trevision INTEGER NOT NULL, \
+     \n\tmission_id VARCHAR(160) NOT NULL, \n\tsigned_by VARCHAR(64) NOT NULL, \n\tsigned_revision JSON NOT NULL, \n\t\
+     evidence JSON NOT NULL, \n\ttransitions JSON NOT NULL, \n\tcreated_at FLOAT NOT NULL, \n\tPRIMARY KEY \
+     (content_hash)\n)",
+    "CREATE INDEX IF NOT EXISTS ix_release_revision_created ON release_revision (created_at)",
 ];
 
-/// The Python's tables, as `SQLAlchemy` creates them on Postgres (the release-revision store comes with the
-/// executive port).
-const POSTGRES_DDL: [&str; 5] = [
+/// The Python's tables, as `SQLAlchemy` creates them on Postgres.
+const POSTGRES_DDL: [&str; 7] = [
     "CREATE SCHEMA IF NOT EXISTS stewie",
     "CREATE TABLE IF NOT EXISTS stewie.edit_session (\n\topaque_id VARCHAR(64) NOT NULL, \n\tplan_id VARCHAR(64), \n\t\
      version INTEGER NOT NULL, \n\tcreated_at FLOAT NOT NULL, \n\tfid_seq INTEGER NOT NULL, \n\tmarker_seq INTEGER NOT \
@@ -69,6 +73,11 @@ const POSTGRES_DDL: [&str; 5] = [
      VARCHAR(160) NOT NULL, \n\tsite VARCHAR(64) NOT NULL, \n\tbody VARCHAR(32) NOT NULL, \n\tmission_t_s FLOAT NOT NULL, \
      \n\tprovenance VARCHAR(240) NOT NULL, \n\tuncertainty_m FLOAT NOT NULL, \n\tlinked JSONB NOT NULL, \n\tcreated_at \
      FLOAT NOT NULL, \n\tPRIMARY KEY (seq)\n)",
+    "CREATE TABLE IF NOT EXISTS stewie.release_revision (\n\tcontent_hash VARCHAR(64) NOT NULL, \n\trevision INTEGER \
+     NOT NULL, \n\tmission_id VARCHAR(160) NOT NULL, \n\tsigned_by VARCHAR(64) NOT NULL, \n\tsigned_revision JSONB NOT \
+     NULL, \n\tevidence JSONB NOT NULL, \n\ttransitions JSONB NOT NULL, \n\tcreated_at FLOAT NOT NULL, \n\tPRIMARY KEY \
+     (content_hash)\n)",
+    "CREATE INDEX IF NOT EXISTS ix_release_revision_created ON stewie.release_revision (created_at)",
 ];
 
 /// Which database the store talks to; the statements differ only by the schema prefix and the `JSONB` casts.
@@ -263,6 +272,46 @@ impl Store {
         .await
         .map_err(db_error)?;
         Ok(())
+    }
+}
+
+impl Store {
+    /// The frozen released revision with `content_hash` (Python `db.read_release_revision`), or `None` when none was
+    /// ever released.
+    ///
+    /// # Errors
+    /// The database unreachable, or a stored JSON column that does not parse.
+    pub async fn read_release_revision(
+        &self,
+        content_hash: &str,
+    ) -> Result<Option<Value>, ApiError> {
+        let (pool, dialect) = self.pool().await?;
+        let row = sqlx::query(&sql(
+            *dialect,
+            "SELECT content_hash, revision, mission_id, signed_by, CAST(signed_revision AS TEXT) AS signed_revision, \
+             CAST(evidence AS TEXT) AS evidence, CAST(transitions AS TEXT) AS transitions, created_at FROM \
+             {s}release_revision WHERE content_hash = $1",
+        ))
+        .bind(content_hash.to_owned())
+        .fetch_optional(pool)
+        .await
+        .map_err(db_error)?;
+        let Some(r) = row else {
+            return Ok(None);
+        };
+        let doc = |k: &str| -> Result<Value, ApiError> {
+            let text: String = r.try_get(k).map_err(db_error)?;
+            serde_json::from_str(&text).map_err(db_error)
+        };
+        Ok(Some(json!({
+            "content_hash": r.try_get::<String, _>("content_hash").map_err(db_error)?,
+            "revision": r.try_get::<i32, _>("revision").map_err(db_error)?,
+            "mission_id": r.try_get::<String, _>("mission_id").map_err(db_error)?,
+            "signed_by": r.try_get::<String, _>("signed_by").map_err(db_error)?,
+            "signed_revision": doc("signed_revision")?, "evidence": doc("evidence")?,
+            "transitions": doc("transitions")?,
+            "created_at": r.try_get::<f64, _>("created_at").map_err(db_error)?,
+        })))
     }
 }
 
