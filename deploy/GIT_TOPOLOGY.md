@@ -51,6 +51,8 @@ git grep -InE "(api[_-]?key|secret|password|token)[\"'[:space:]]*[:=][\"'[:space
 #    never in deploy/.env), invite tokens drawn from the oracle's seeded byte stream in a throwaway data dir,
 #    the over-length test password, and in oracle/build_fixtures.py the oracle's own live-execution token key
 #    `oracle-live-token-secret` (it signs only the SYNTHETIC tokens of http_rc_cases; never deployed).
+#    In stream_http_cases.payload.json and oracle/build_fixtures.py, `token=SYNTHETIC-stream-token-0123`: the
+#    viz2 stream's token-gate test value in request URLs (stream_http_cases; never in deploy/.env).
 #    Any other hit stops the push.
 
 # 3. no bare 64-hex key blobs (the artemis-api-key.conf shape).
