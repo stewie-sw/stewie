@@ -1959,6 +1959,19 @@ async fn metrics_count_each_response_by_status_and_route_template() {
 }
 
 #[tokio::test]
+async fn the_python_evidence_session_replays_exactly() {
+    replay(
+        "http_evidence_cases",
+        b"stewie-http-evidence-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts
     let dir = std::env::temp_dir().join(format!("stewie-heavy-{}", std::process::id()));

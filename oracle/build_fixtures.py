@@ -5729,6 +5729,57 @@ def http_wms_cases() -> None:
                   ["stewie/server/routers/ogc.py", "stewie/server/gis_layers.py",
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
+def http_evidence_cases() -> None:
+    """The evidence surfaces (RW-55b19): GET /evidence, /ros/evidence and the EV-01 /evidence/bundle over a seeded
+    executive audit chain (journal only, so the first read bootstraps its anchor), an observed-twin resync committed
+    to the world log, and an edit session's audit, with the mission/session/limit filters, through one scripted
+    session (_http_session). The audit records, the resync patch and the keep-out are SYNTHETIC (labelled)."""
+    import base64
+    import tempfile as _tf
+
+    from stewie.contracts.audit import AuditLog
+
+    with _tf.TemporaryDirectory() as t:                # SYNTHETIC authority records (labelled)
+        jp = os.path.join(t, "executive_chain.jsonl")
+        lg = AuditLog(journal_path=jp)
+        lg.append(actor="director:alice@example.org", action="release_plan", timestamp="2027-01-01T00:00:00+00:00",
+                  location="site:haworth mission:m1", mode="sim", reason="SYNTHETIC release",
+                  before_state="draft", after_state="released", evidence="sha:synthetic-1")
+        lg.append(actor="director:alice@example.org", action="sim_run", timestamp="2027-01-01T00:05:00+00:00",
+                  location="site:haworth mission:m2", mode="sim", reason="SYNTHETIC run",
+                  before_state="released", after_state="ran", evidence="sha:synthetic-2")
+        chain = open(jp, "rb").read()
+    seed_files = {"audit/executive_chain.jsonl": chain}
+
+    def script(call, key, d, clock):
+        for rel, data in seed_files.items():
+            os.makedirs(os.path.dirname(os.path.join(d, rel)), exist_ok=True)
+            with open(os.path.join(d, rel), "wb") as fh:
+                fh.write(data)
+        call("GET", "/evidence")
+        call("GET", "/ros/evidence")                                       # no key
+        call("GET", "/ros/evidence", headers=key)
+        call("GET", "/evidence/bundle")
+        patch = [[1100.25, 1100.5, 1100.75], [1101.0, 1101.25, 1101.5]]
+        call("POST", "/twin/resync", headers=key,
+             json_body={"heights_m": patch, "origin_rc": [1382, 823], "provenance": "SYNTHETIC observation"})
+        r = call("POST", "/edit/session")
+        sid = r.json()["session"]
+        call("POST", f"/edit/session/{sid}/keepout", json_body={"kind": "circle", "cx": 1000.25, "cy": 2000.75, "r": 6})
+        call("GET", f"/evidence/bundle?session={sid}")
+        call("GET", "/evidence/bundle?mission=m1&limit=0&session=nope")
+        call("GET", "/evidence/bundle?limit=0")                            # the window's floor is one
+        call("GET", "/evidence/bundle?site=shackleton_rim&limit=900")
+        call("GET", "/evidence/bundle?site=atlantis")
+        call("GET", "/evidence/bundle?limit=abc")
+
+    payload = _http_session("stewie-http-evidence-oracle", {}, script)
+    payload["seed_files"] = {k: base64.b64encode(v).decode() for k, v in seed_files.items()}
+    write_fixture(ORACLE_FIXTURES, "http_evidence_cases", "oracle/build_fixtures.py::http_evidence_cases (the FastAPI "
+                  "app's /evidence, /ros/evidence and /evidence/bundle)",
+                  ["stewie/server/routers/evidence.py", "stewie/server/ros_evidence.py", "stewie/contracts/audit.py",
+                   "stewie/server/layer_catalog.json"], payload)
+
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
     real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
@@ -6059,6 +6110,7 @@ def main() -> None:
     http_layers_vector_cases()
     http_globe_cases()
     http_wms_cases()
+    http_evidence_cases()
     contour_lines_cases()
     endurance_cases()
     timeline_cases()

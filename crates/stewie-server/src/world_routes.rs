@@ -27,7 +27,7 @@ use crate::point::{
 use crate::validate::{self, Field, Kind, Model};
 
 /// The LY-01 layer catalog, the committed source of truth.
-const CATALOG: &str = include_str!("../../../stewie/server/layer_catalog.json");
+pub(crate) const CATALOG: &str = include_str!("../../../stewie/server/layer_catalog.json");
 
 /// Provenance token to (confidence class, tier) (GW-03), and the tokens' grounding strength, strongest first.
 const CONF_TOKEN: [(&str, &str, &str); 16] = [
@@ -64,7 +64,7 @@ fn tokens(source_class: &str) -> Vec<&str> {
 
 /// A layer's confidence from its declared `source_class`: the class of its strongest grounding token, and whether
 /// a measured class is conditional on a baseline token also present.
-fn layer_confidence(source_class: &str) -> Value {
+pub(crate) fn layer_confidence(source_class: &str) -> Value {
     let toks = tokens(source_class);
     let best = CONF_TOKEN.iter().position(|(t, ..)| toks.contains(t));
     match best {
@@ -577,20 +577,20 @@ const BASE_WORLD_LAYERS: [(&str, &str, [bool; 4]); 8] = [
 
 /// A site's measured freshness and provenance (DT-05): its grid, its DEM bundle, the observed twin's coverage
 /// and version, and the as-built memory's version. `None` without a DEM.
-struct Enrichment {
+pub(crate) struct Enrichment {
     rows: usize,
     cols: usize,
     cell_m: f64,
-    dem_source: String,
-    observed: bool,
-    observed_fraction: f64,
-    twin_version: u64,
-    as_built_version: u64,
-    mutated: bool,
+    pub(crate) dem_source: String,
+    pub(crate) observed: bool,
+    pub(crate) observed_fraction: f64,
+    pub(crate) twin_version: u64,
+    pub(crate) as_built_version: u64,
+    pub(crate) mutated: bool,
 }
 
 #[allow(clippy::cast_precision_loss)] // a cell count
-fn enrichment(st: &AppState, site: &str) -> Option<Enrichment> {
+pub(crate) fn enrichment(st: &AppState, site: &str) -> Option<Enrichment> {
     let (dem, _) = st.terrain.moon_dem(site)?;
     let (mut observed, mut observed_fraction, mut twin_version) = (false, 0.0, 0);
     if let Ok(tw) = st.terrain.twin(site, crate::state::DEFAULT_TWIN_SOURCE) {

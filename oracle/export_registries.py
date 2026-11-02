@@ -3,7 +3,7 @@
 Source of truth today is the Python registry (stewie_bodies.BODIES, stewie.specs.sites.SITES); the Rust
 contracts are tested against exactly these values. Output is byte-stable (sorted keys, fixed indent).
 
-    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,autonomy,plan_report,openapi,layers_legend,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json and swagger.html
+    python oracle/export_registries.py   # writes crates/stewie-contracts/fixtures/{bodies,sites,site_order,overlay_constants,model_registries,endurance,plan_provenance,autonomy,plan_report,openapi,layers_legend,evidence,soil_baseline,rover_ipex,eva_crew,fleet,dem_sources,contract_schemas,raster_defs}.json and swagger.html
 """
 from __future__ import annotations
 
@@ -151,6 +151,21 @@ def layers_legend() -> dict:
     physics, the hazard-map defaults and the renderers' colour specs, so it is a pure function of the code."""
     from stewie.server.routers.layers import layers_legend as legend
     return legend()
+
+
+def evidence() -> dict:
+    """The code-defined parts of the evidence surfaces (``routers.evidence``): the navigation evidence GET /evidence
+    serves (``dart.comparison``), the bundle's assumptions and runtime profile (the committed regolith constants,
+    the terramechanics spine, the physics authority, the runtime-profile registry), the ROS/Gazebo/RViz evidence
+    read from the committed contract and configs (``ros_evidence.collect_ros_evidence``) and the host-gated
+    capture kinds. Each is a pure function of the code."""
+    from stewie.server.ros_evidence import collect_ros_evidence
+    from stewie.server.routers import evidence as EV
+    nav = EV.get_evidence()
+    nav.pop("ok")
+    return {"evidence": nav, "assumptions": EV._assumptions(), "runtime_profile": EV._runtime_profile(),
+            "ros_evidence": collect_ros_evidence(),
+            "capture_kinds": [{"kind": k, "what": w, "reason": r} for k, w, r in EV._CAPTURE_KINDS]}
 
 
 def autonomy() -> dict:
@@ -347,6 +362,7 @@ def main() -> None:
     print(_write("plan_report.json", plan_report()))
     print(_write("openapi.json", openapi()))
     print(_write("layers_legend.json", layers_legend()))
+    print(_write("evidence.json", evidence()))
     print(swagger_page())
     print(_write("soil_baseline.json", soil_baseline()))
     print(_write("rover_ipex.json", rover_ipex()))

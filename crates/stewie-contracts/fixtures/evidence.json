@@ -1,0 +1,663 @@
+{
+  "assumptions": {
+    "gravity": {
+      "body": "moon",
+      "g_m_s2": 1.62,
+      "provenance": "stewie.specs.constants.g"
+    },
+    "material": {
+      "assumption": "conserved Apollo-profile bank(cut)/loose(fill) regolith density; mass = volume x density",
+      "cut_density_kg_m3": 1920.0,
+      "fill_density_kg_m3": 1300.0,
+      "provenance": "stewie.specs.constants RHO_DEEP / RHO_SPOIL",
+      "swell_factor": 1.4769
+    },
+    "note": "the assumptions a plan runs under, reproduced from the committed regolith constants + the terramechanics spine + the physics-authority registry; no fabricated value.",
+    "physics_authority": {
+      "backend_id": "tier2_numpy",
+      "conserves_mass": true,
+      "provenance": "stewie.specs.physics_authority (PH-01)",
+      "refusal_reason": null,
+      "valid_for_release": true
+    },
+    "terramechanics_calibration": {
+      "counts": {
+        "calibrated": 8,
+        "measured": 2
+      },
+      "note": "each spine term's honest calibration class (measured | calibrated | unknown), read live from stewie.specs.terramechanics_spine so it cannot drift from the solver.",
+      "terms": {
+        "compaction_resistance": "calibrated",
+        "contact_pressure": "calibrated",
+        "drive_energy": "calibrated",
+        "excavation_draft": "calibrated",
+        "regolith_density": "calibrated",
+        "roughness": "measured",
+        "sinkage": "calibrated",
+        "slip": "calibrated",
+        "slope": "measured",
+        "traction": "calibrated"
+      }
+    }
+  },
+  "capture_kinds": [
+    {
+      "kind": "ros_bag",
+      "reason": "host-gated: requires a live ROS2 run (container/pit); not persisted in the backend data_dir",
+      "what": "rosbag2 MCAP of the run's /clock+/tf+sensor topics"
+    },
+    {
+      "kind": "gazebo_recording",
+      "reason": "host-gated: requires a live Gazebo sim on a container host; not persisted in the backend data_dir",
+      "what": "Gazebo world state recording"
+    },
+    {
+      "kind": "rviz_capture",
+      "reason": "host-gated: requires a live RViz session (X/GPU); not persisted in the backend data_dir",
+      "what": "RViz display screengrab of the run"
+    },
+    {
+      "kind": "godot_frames",
+      "reason": "host-gated: requires a GPU Godot render; the dev render track writes out/cam/, not the per-run data_dir",
+      "what": "Godot sensor-rig camera PNGs (LAC 8-cam + AprilTag)"
+    }
+  ],
+  "evidence": {
+    "accuracy_precision": {
+      "Navigation": {
+        "accuracy_m": 0.159,
+        "conditions": "low sun; near shadow-tip landmarks (~6 m); standstill",
+        "frame": "local (map-free)",
+        "heading": "shadow azimuth (direct)",
+        "precision_m": 0.159,
+        "source": "this work (parallax covariance, measured)"
+      },
+      "ShadowNav (JPL)": {
+        "accuracy_m": [
+          2.0,
+          4.3
+        ],
+        "conditions": "darkness + own light; craters ~300 m apart",
+        "frame": "global (orbital map)",
+        "heading": "from global match",
+        "precision_m": [
+          0.9,
+          2.1
+        ],
+        "source": "arXiv:2405.01673 (reported)"
+      },
+      "Stanford NAV Lab (LAC)": {
+        "accuracy_m": [
+          0.038,
+          0.067
+        ],
+        "conditions": "sunlit; spiral + loop-closure pattern; 27x27 m",
+        "frame": "relative (SLAM)",
+        "heading": "from VO + pose graph",
+        "precision_m": 0.015,
+        "source": "arXiv:2603.17232 (reported)"
+      },
+      "_note": "different problem scales (relative / global / local); a shared-testbed head-to-head is the \u00a76 protocol, not yet run -- these are each system's reported/measured regime"
+    },
+    "capability_matrix": {
+      "Navigation": {
+        "active_reconfiguration": true,
+        "builds_map_online": true,
+        "heading_source": "shadow azimuth (direct, SN-03)",
+        "illumination": "low-sun grazing shadows",
+        "motion": "standstill maneuver",
+        "needs_orbital_prior": false,
+        "paper": "this work",
+        "scope": "drift-bounded nav + shadow as instrument",
+        "shadow_role": "GEOMETRIC measurement (azimuth/length/parallax)"
+      },
+      "ShadowNav (JPL)": {
+        "active_reconfiguration": false,
+        "builds_map_online": false,
+        "heading_source": "from global map-match",
+        "illumination": "darkness + own light",
+        "motion": "driving",
+        "needs_orbital_prior": true,
+        "paper": "arXiv:2405.01673",
+        "scope": "global localization in darkness",
+        "shadow_role": "crater-edge appearance feature for matching"
+      },
+      "Stanford NAV Lab (LAC)": {
+        "active_reconfiguration": false,
+        "builds_map_online": true,
+        "heading_source": "stereo VO + pose-graph",
+        "illumination": "passive sunlit",
+        "motion": "driving",
+        "needs_orbital_prior": false,
+        "paper": "arXiv:2603.17232",
+        "scope": "local map + relative nav (27x27 m)",
+        "shadow_role": "none (semantic rocks)"
+      }
+    },
+    "modality_sigma": {
+      "articulation_advantage_x": 3.49,
+      "articulation_parallax_sigma_m": 0.0646,
+      "baseline_ratio_dh_over_b": 3.49,
+      "range_m": 6.0,
+      "stereo_sigma_m": 0.2252
+    },
+    "operational_cost": {
+      "Navigation": {
+        "equiv_drive_m": 1.162,
+        "extra_mission_energy_J": 169.4,
+        "extra_mission_time_s": 80.0,
+        "note": "[ASSUMPTION] arm-maneuver time; GROUNDED lift energy (m*g*dh/eff). Zero distance; ambient shadows -> no own illumination",
+        "per_fix_distance_m": 0.0,
+        "per_fix_energy_J": 16.94,
+        "per_fix_time_s": 8.0,
+        "regime": "low sun"
+      },
+      "ShadowNav (JPL)": {
+        "extra_mission_energy_J": 6666.7,
+        "note": "[ASSUMPTION] 20.0 W own illumination over the dark drive (333 s); needs the orbital prior",
+        "per_fix_distance_m": 0.0,
+        "per_fix_energy_J": 666.7,
+        "per_fix_time_s": 0.0,
+        "regime": "darkness"
+      },
+      "Stanford NAV Lab (LAC)": {
+        "extra_mission_energy_J": 2444.6,
+        "note": "accuracy via a spiral coverage + loop-closure pattern (revisits bound the VO drift); the pattern also builds the LAC map. Sunlit-only. [ASSUMPTION] swath",
+        "pattern_distance_m": 167.7,
+        "pattern_energy_J": 2444.6,
+        "pattern_time_s": 558.9,
+        "per_fix_distance_m": null,
+        "per_fix_energy_J": null,
+        "per_fix_time_s": null,
+        "regime": "sunlit only"
+      },
+      "_context": {
+        "drive_energy_J_for_traverse": 1458.0,
+        "drive_energy_per_m": 14.58,
+        "n_fixes": 10,
+        "pack_Wh": 1332,
+        "traverse_m": 100.0
+      }
+    }
+  },
+  "ros_evidence": {
+    "bridge_topics": [
+      {
+        "name": "/clock",
+        "qos": "sensor",
+        "type": "rosgraph_msgs/Clock"
+      },
+      {
+        "name": "/tf",
+        "qos": "default",
+        "type": "tf2_msgs/TFMessage"
+      },
+      {
+        "name": "/tf_static",
+        "qos": "state",
+        "type": "tf2_msgs/TFMessage"
+      },
+      {
+        "name": "/joint_states",
+        "qos": "sensor",
+        "type": "sensor_msgs/JointState"
+      },
+      {
+        "name": "/stewie/imu",
+        "qos": "sensor",
+        "type": "sensor_msgs/Imu"
+      },
+      {
+        "name": "/stewie/wheel_odom",
+        "qos": "sensor",
+        "type": "nav_msgs/Odometry"
+      },
+      {
+        "name": "/stewie/contact",
+        "qos": "sensor",
+        "type": "ros_gz_interfaces/Contacts"
+      },
+      {
+        "name": "/stewie/camera/front_left/image",
+        "qos": "sensor",
+        "type": "sensor_msgs/Image"
+      },
+      {
+        "name": "/stewie/camera/front_right/image",
+        "qos": "sensor",
+        "type": "sensor_msgs/Image"
+      },
+      {
+        "name": "/stewie/camera/rear_left/image",
+        "qos": "sensor",
+        "type": "sensor_msgs/Image"
+      },
+      {
+        "name": "/stewie/camera/rear_right/image",
+        "qos": "sensor",
+        "type": "sensor_msgs/Image"
+      },
+      {
+        "name": "/stewie/camera/left_mono/image",
+        "qos": "sensor",
+        "type": "sensor_msgs/Image"
+      },
+      {
+        "name": "/stewie/camera/right_mono/image",
+        "qos": "sensor",
+        "type": "sensor_msgs/Image"
+      },
+      {
+        "name": "/stewie/camera/drum_front/image",
+        "qos": "sensor",
+        "type": "sensor_msgs/Image"
+      },
+      {
+        "name": "/stewie/camera/drum_back/image",
+        "qos": "sensor",
+        "type": "sensor_msgs/Image"
+      },
+      {
+        "name": "/stewie/camera/front_left/camera_info",
+        "qos": "sensor",
+        "type": "sensor_msgs/CameraInfo"
+      },
+      {
+        "name": "/stewie/camera/front_right/camera_info",
+        "qos": "sensor",
+        "type": "sensor_msgs/CameraInfo"
+      },
+      {
+        "name": "/stewie/camera/rear_left/camera_info",
+        "qos": "sensor",
+        "type": "sensor_msgs/CameraInfo"
+      },
+      {
+        "name": "/stewie/camera/rear_right/camera_info",
+        "qos": "sensor",
+        "type": "sensor_msgs/CameraInfo"
+      },
+      {
+        "name": "/stewie/camera/left_mono/camera_info",
+        "qos": "sensor",
+        "type": "sensor_msgs/CameraInfo"
+      },
+      {
+        "name": "/stewie/camera/right_mono/camera_info",
+        "qos": "sensor",
+        "type": "sensor_msgs/CameraInfo"
+      },
+      {
+        "name": "/stewie/camera/drum_front/camera_info",
+        "qos": "sensor",
+        "type": "sensor_msgs/CameraInfo"
+      },
+      {
+        "name": "/stewie/camera/drum_back/camera_info",
+        "qos": "sensor",
+        "type": "sensor_msgs/CameraInfo"
+      },
+      {
+        "name": "/stewie/perception/features",
+        "qos": "sensor",
+        "type": "stewie_msgs/FeatureTrackArray"
+      },
+      {
+        "name": "/stewie/perception/points",
+        "qos": "sensor",
+        "type": "sensor_msgs/PointCloud2"
+      },
+      {
+        "name": "/stewie/perception/rocks",
+        "qos": "default",
+        "type": "stewie_msgs/RockArray"
+      },
+      {
+        "name": "/stewie/localization/visual_odom",
+        "qos": "default",
+        "type": "nav_msgs/Odometry"
+      },
+      {
+        "name": "/stewie/localization/depth_odom",
+        "qos": "default",
+        "type": "nav_msgs/Odometry"
+      },
+      {
+        "name": "/stewie/localization/loop_closures",
+        "qos": "default",
+        "type": "stewie_msgs/NavFactorArray"
+      },
+      {
+        "name": "/stewie/odom",
+        "qos": "default",
+        "type": "nav_msgs/Odometry"
+      },
+      {
+        "name": "/stewie/nav/factors",
+        "qos": "default",
+        "type": "stewie_msgs/NavFactorArray"
+      },
+      {
+        "name": "/stewie/localization/cov",
+        "qos": "default",
+        "type": "geometry_msgs/PoseWithCovarianceStamped"
+      },
+      {
+        "name": "/stewie/map/dem",
+        "qos": "state",
+        "type": "grid_map_msgs/GridMap"
+      },
+      {
+        "name": "/stewie/map/occupancy",
+        "qos": "state",
+        "type": "nav_msgs/OccupancyGrid"
+      },
+      {
+        "name": "/stewie/map/excavation_state",
+        "qos": "state",
+        "type": "grid_map_msgs/GridMap"
+      },
+      {
+        "name": "/stewie/costmap",
+        "qos": "state",
+        "type": "nav_msgs/OccupancyGrid"
+      },
+      {
+        "name": "/stewie/plan/path",
+        "qos": "default",
+        "type": "nav_msgs/Path"
+      },
+      {
+        "name": "/stewie/plan/local_traj",
+        "qos": "default",
+        "type": "stewie_msgs/Trajectory"
+      },
+      {
+        "name": "/stewie/plan/action_goal",
+        "qos": "command",
+        "type": "stewie_msgs/WorkGoal"
+      },
+      {
+        "name": "/stewie/safe_state",
+        "qos": "state",
+        "type": "stewie_msgs/SafeState"
+      },
+      {
+        "name": "/stewie/exec/decision",
+        "qos": "default",
+        "type": "stewie_msgs/ExecutiveDecision"
+      }
+    ],
+    "clock_present": true,
+    "container_tiers": [
+      "bridge",
+      "gazebo",
+      "perception_slam",
+      "ros2dev",
+      "rviz",
+      "space_ros"
+    ],
+    "gazebo_worlds": [
+      "haworth_heightfield.sdf",
+      "stewie_lunar.sdf"
+    ],
+    "gz_bridged_topics": [
+      "/clock",
+      "/cmd_vel",
+      "/joint_states",
+      "/stewie/camera/drum_back/camera_info",
+      "/stewie/camera/drum_back/image",
+      "/stewie/camera/drum_front/camera_info",
+      "/stewie/camera/drum_front/image",
+      "/stewie/camera/front_left/camera_info",
+      "/stewie/camera/front_left/image",
+      "/stewie/camera/front_right/camera_info",
+      "/stewie/camera/front_right/image",
+      "/stewie/camera/left_mono/camera_info",
+      "/stewie/camera/left_mono/image",
+      "/stewie/camera/rear_left/camera_info",
+      "/stewie/camera/rear_left/image",
+      "/stewie/camera/rear_right/camera_info",
+      "/stewie/camera/rear_right/image",
+      "/stewie/camera/right_mono/camera_info",
+      "/stewie/camera/right_mono/image",
+      "/stewie/contact",
+      "/stewie/imu",
+      "/stewie/perception/points",
+      "/stewie/truth/pose",
+      "/stewie/wheel_odom",
+      "/tf"
+    ],
+    "joint_states_present": true,
+    "lifecycle_nodes": [
+      {
+        "lifecycle": true,
+        "name": "sensing",
+        "role": "sensing"
+      },
+      {
+        "lifecycle": true,
+        "name": "perception",
+        "role": "perception"
+      },
+      {
+        "lifecycle": true,
+        "name": "localization",
+        "role": "localization"
+      },
+      {
+        "lifecycle": true,
+        "name": "mapping",
+        "role": "mapping"
+      },
+      {
+        "lifecycle": true,
+        "name": "planning",
+        "role": "planning"
+      },
+      {
+        "lifecycle": true,
+        "name": "control",
+        "role": "control"
+      },
+      {
+        "lifecycle": true,
+        "name": "vehicle_interface",
+        "role": "vehicle_interface"
+      },
+      {
+        "lifecycle": false,
+        "name": "diagnostics",
+        "role": "diagnostics"
+      },
+      {
+        "lifecycle": true,
+        "name": "mission_executive",
+        "role": "mission_executive"
+      }
+    ],
+    "n_nodes": 9,
+    "n_rviz_displays": 18,
+    "rviz_displays": [
+      {
+        "class": "rviz_default_plugins/Grid",
+        "name": "Grid",
+        "topic": null
+      },
+      {
+        "class": "rviz_default_plugins/RobotModel",
+        "name": "RobotModel",
+        "topic": null
+      },
+      {
+        "class": "rviz_default_plugins/TF",
+        "name": "TF",
+        "topic": null
+      },
+      {
+        "class": "rviz_default_plugins/Odometry",
+        "name": "Odometry",
+        "topic": "/stewie/odom"
+      },
+      {
+        "class": "rviz_default_plugins/Path",
+        "name": "Planned Path",
+        "topic": "/stewie/plan/path"
+      },
+      {
+        "class": "rviz_default_plugins/Path",
+        "name": "Local Trajectory",
+        "topic": "/stewie/plan/local_traj_viz"
+      },
+      {
+        "class": "rviz_default_plugins/Map",
+        "name": "Costmap",
+        "topic": "/stewie/costmap"
+      },
+      {
+        "class": "rviz_default_plugins/Map",
+        "name": "Occupancy",
+        "topic": "/stewie/map/occupancy"
+      },
+      {
+        "class": "grid_map_rviz_plugin/GridMap",
+        "name": "DEM",
+        "topic": "/stewie/map/dem"
+      },
+      {
+        "class": "grid_map_rviz_plugin/GridMap",
+        "name": "Excavation State",
+        "topic": "/stewie/map/excavation_state"
+      },
+      {
+        "class": "rviz_default_plugins/PointCloud2",
+        "name": "Perception Points",
+        "topic": "/stewie/perception/points"
+      },
+      {
+        "class": "rviz_default_plugins/Image",
+        "name": "Front Left Cam",
+        "topic": "/stewie/camera/front_left/image"
+      },
+      {
+        "class": "rviz_default_plugins/Image",
+        "name": "Front Right Cam",
+        "topic": "/stewie/camera/front_right/image"
+      },
+      {
+        "class": "rviz_default_plugins/MarkerArray",
+        "name": "Rock Graph",
+        "topic": "/stewie/perception/rocks_markers"
+      },
+      {
+        "class": "rviz_default_plugins/MarkerArray",
+        "name": "Navigation Factors",
+        "topic": "/stewie/nav/factors_markers"
+      },
+      {
+        "class": "rviz_default_plugins/MarkerArray",
+        "name": "Relocalization Factors",
+        "topic": "/stewie/localization/relocalization_markers"
+      },
+      {
+        "class": "rviz_default_plugins/PoseWithCovariance",
+        "name": "Localization Covariance",
+        "topic": "/stewie/localization/cov"
+      },
+      {
+        "class": "rviz_default_plugins/MarkerArray",
+        "name": "Diagnostics / SAFE / Command Status",
+        "topic": "/stewie/status_markers"
+      }
+    ],
+    "tf_present": true
+  },
+  "runtime_profile": {
+    "active_profile": {
+      "can_execute": false,
+      "can_release": false,
+      "command_capability": "none",
+      "description": "Software-in-the-loop planning/analysis on the conserved numpy authority; no rover, no live command.",
+      "evidence_class": "forecast",
+      "id": "desktop_sil",
+      "kind": "software_in_loop"
+    },
+    "active_profile_id": "desktop_sil",
+    "count": 8,
+    "note": "the persisted SIM/plan runs execute on desktop_sil (conserved numpy authority, evidence_class forecast, can_release/can_execute False); only hil/field_test/live_rover carry live command authority and are not exercised on this SIM path.",
+    "registry": [
+      {
+        "can_execute": false,
+        "can_release": false,
+        "command_capability": "none",
+        "description": "Software-in-the-loop planning/analysis on the conserved numpy authority; no rover, no live command.",
+        "evidence_class": "forecast",
+        "id": "desktop_sil",
+        "kind": "software_in_loop"
+      },
+      {
+        "can_execute": false,
+        "can_release": false,
+        "command_capability": "none",
+        "description": "The observed digital twin: forecasts + belief, read-only, no command egress.",
+        "evidence_class": "forecast",
+        "id": "digital_twin",
+        "kind": "digital_twin"
+      },
+      {
+        "can_execute": false,
+        "can_release": false,
+        "command_capability": "none",
+        "description": "Deterministic bag/MCAP replay through the ROS2 spine; evidence only, no live command.",
+        "evidence_class": "replay",
+        "id": "ros2_replay",
+        "kind": "replay"
+      },
+      {
+        "can_execute": false,
+        "can_release": false,
+        "command_capability": "bounded",
+        "description": "Gazebo robot/sensor simulation (ROS2-native: URDF/SDF, ros2_control, sensor plugins on real ROS topics); drives the SIM rover under truth-isolated sim_truth, never the real rover.",
+        "evidence_class": "sim_truth",
+        "id": "gazebo_sim",
+        "kind": "simulation"
+      },
+      {
+        "can_execute": false,
+        "can_release": false,
+        "command_capability": "bounded",
+        "description": "Godot/viz2 terrain + excavation simulation on the conserved mass-exact authority (real DEM, lunar photometry, driveable over a private loopback seam); drives the SIM rover under truth-isolated sim_truth, never the real rover.",
+        "evidence_class": "sim_truth",
+        "id": "godot_sim",
+        "kind": "simulation"
+      },
+      {
+        "can_execute": true,
+        "can_release": true,
+        "command_capability": "bounded",
+        "description": "Hardware-in-the-loop on a bench rover; bounded live actuation under the SF-01 safing watchdog.",
+        "evidence_class": "hil",
+        "id": "hil",
+        "kind": "hardware_in_loop"
+      },
+      {
+        "can_execute": true,
+        "can_release": true,
+        "command_capability": "bounded",
+        "description": "Bounded field traverse on real hardware; live telemetry + bounded command under release authority.",
+        "evidence_class": "live",
+        "id": "field_test",
+        "kind": "field"
+      },
+      {
+        "can_execute": true,
+        "can_release": true,
+        "command_capability": "full",
+        "description": "Full live rover command in the live namespace; release + execute under the complete authority chain.",
+        "evidence_class": "live",
+        "id": "live_rover",
+        "kind": "live"
+      }
+    ]
+  }
+}

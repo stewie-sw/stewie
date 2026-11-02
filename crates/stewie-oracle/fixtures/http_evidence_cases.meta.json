@@ -1,0 +1,11 @@
+{
+ "fixture": "http_evidence_cases",
+ "generator": "oracle/build_fixtures.py::http_evidence_cases (the FastAPI app's /evidence, /ros/evidence and /evidence/bundle)",
+ "payload_sha256": "2ac6e8378c27d55d445b8746e5b4d2bc618d5287623b4c2b9158c17ffb69c93c",
+ "sources": {
+  "stewie/contracts/audit.py": "bc886063169fb9b0ee62158b2aadc7e9c0547ce3a1063d2c9ce13464e88fec7b",
+  "stewie/server/layer_catalog.json": "c0a4a424f041ed758a55ff48b0b8f401564aa56caab63e2e6070a9fc7cf44317",
+  "stewie/server/ros_evidence.py": "254616df302cdff77c42ac2a5c3ed82ed69dde7c227c062106703eaad035d051",
+  "stewie/server/routers/evidence.py": "f81086c1c76058adf6675bdf70a2a5b21dc7da348759cafaf8547e95e8de675b"
+ }
+}

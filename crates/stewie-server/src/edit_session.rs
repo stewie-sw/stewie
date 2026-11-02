@@ -741,6 +741,30 @@ async fn read(st: &AppState, sid: &str) -> Result<Session, ApiError> {
         .ok_or_else(|| not_found(sid))
 }
 
+/// A session's id, version and audit records (oldest first), or `None` when there is no such session.
+///
+/// # Errors
+/// The store unreadable.
+pub(crate) async fn session_audit(
+    st: &AppState,
+    sid: &str,
+) -> Result<Option<(String, Value, Vec<Value>)>, ApiError> {
+    let mut conn = st
+        .edit_sessions
+        .pool()
+        .await?
+        .acquire()
+        .await
+        .map_err(db_error)?;
+    Ok(Session::load(&mut conn, sid).await?.map(|s| {
+        (
+            s.id.clone(),
+            json!(s.version),
+            s.audit.iter().map(Audit::to_value).collect(),
+        )
+    }))
+}
+
 async fn get_session(State(st): State<Arc<AppState>>, Path(sid): Path<String>) -> Response {
     if sid.contains('/') {
         return no_route_for(&Method::GET, &format!("/edit/session/{sid}"));
