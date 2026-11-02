@@ -10,6 +10,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use serde_json::{Map, Value, json};
 use stewie_traverse::nav;
+use stewie_traverse::nav::py_round;
 
 use crate::app::{AppState, blocking, body_model, log, parse_body, require_auth, split};
 use crate::validate::{Field, Kind, Model};
@@ -83,8 +84,8 @@ const LOCAL_PLAN: Model = Model {
             bounded(None, Some((-7.0, "-7")), (7.0, "7"), None),
         ),
         Field("goal", Kind::FloatPair),
-        Field("keepouts", Kind::FloatTripleList { max: 512 }),
-        Field("rocks", Kind::FloatTripleList { max: 512 }),
+        Field("keepouts", Kind::TupleList { n: 3, max: 512 }),
+        Field("rocks", Kind::TupleList { n: 3, max: 512 }),
         Field(
             "horizon_m",
             bounded(Some((0.0, "0")), None, (1000.0, "1000"), Some(8.0)),
@@ -98,11 +99,6 @@ const LOCAL_PLAN: Model = Model {
     ],
     forbid_extra: true,
 };
-
-/// Python's builtin `round(x, n)` (correctly rounded through the decimal form).
-fn py_round(x: f64, n: usize) -> f64 {
-    format!("{x:.n$}").parse().unwrap_or(x)
-}
 
 fn py_bool(b: bool) -> &'static str {
     if b { "True" } else { "False" }
@@ -252,9 +248,126 @@ async fn local_plan(State(st): State<Arc<AppState>>, req: Request) -> Response {
     .await
 }
 
+const PAIRS: Kind = Kind::TupleList { n: 2, max: 512 };
+
+/// Python `ReactRequest` (`extra="forbid"`).
+const REACT: Model = Model {
+    fields: &[
+        Field("pose", Kind::FloatPair),
+        Field(
+            "heading_rad",
+            bounded(None, Some((-7.0, "-7")), (7.0, "7"), None),
+        ),
+        Field("goal", Kind::FloatPair),
+        Field("planned_path", Kind::TupleList { n: 2, max: 4096 }),
+        Field("rocks", Kind::TupleList { n: 3, max: 512 }),
+        Field("known_hazards", PAIRS),
+        Field("keepouts", Kind::TupleList { n: 3, max: 512 }),
+        Field(
+            "sensor_range_m",
+            bounded(Some((0.0, "0")), None, (1e4, "10000"), Some(18.0)),
+        ),
+        Field(
+            "deviation_max_m",
+            bounded(None, Some((0.0, "0")), (1e4, "10000"), Some(8.0)),
+        ),
+        Field(
+            "clearance_m",
+            bounded(None, Some((0.0, "0")), (100.0, "100"), Some(1.0)),
+        ),
+        Field(
+            "horizon_m",
+            bounded(Some((0.0, "0")), None, (1000.0, "1000"), Some(8.0)),
+        ),
+    ],
+    forbid_extra: true,
+};
+
+fn pairs(v: &Value) -> Vec<(f64, f64)> {
+    v.as_array()
+        .into_iter()
+        .flatten()
+        .map(|p| (p[0].as_f64().unwrap_or(0.0), p[1].as_f64().unwrap_or(0.0)))
+        .collect()
+}
+
+fn arc_wire(arc: &[[f64; 3]]) -> Value {
+    json!(
+        arc.iter()
+            .map(|p| json!([py_round(p[0], 4), py_round(p[1], 4), py_round(p[2], 5)]))
+            .collect::<Vec<_>>()
+    )
+}
+
+/// NV-05: the reactive replan decision, the updated keep-outs, the deviation, and the local arc when one avoids
+/// them.
+async fn react(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (head, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        let who = require_auth(st, &head)?;
+        let v = body_model(body.as_ref(), REACT)?;
+        let pair = |k: &str| (v[k][0].as_f64().unwrap_or(0.0), v[k][1].as_f64().unwrap_or(0.0));
+        let num = |k: &str| v[k].as_f64().unwrap_or(0.0);
+        let out = nav::react(
+            pair("pose"),
+            num("heading_rad"),
+            pair("goal"),
+            &pairs(&v["planned_path"]),
+            &circles(&v["rocks"]),
+            &pairs(&v["known_hazards"]),
+            &circles(&v["keepouts"]),
+            num("sensor_range_m"),
+            num("deviation_max_m"),
+            num("clearance_m"),
+            num("horizon_m"),
+        );
+        log(st, &head, &who, "nav.react", &format!("replan={} scope={}", py_bool(out.replan), out.scope));
+        let keepouts: Vec<Value> =
+            out.keepouts.iter().map(|(x, y, r)| json!([py_round(*x, 3), py_round(*y, 3), py_round(*r, 3)])).collect();
+        Ok(axum::Json(json!({
+            "ok": true, "replan": out.replan, "scope": out.scope, "n_new_hazards": out.n_new_hazards,
+            "deviation_m": py_round(out.deviation_m, 3), "keepouts": keepouts,
+            "local_arc": out.local_plan.as_ref().map(|p| arc_wire(&p.arc)),
+        }))
+        .into_response())
+    })
+    .await
+}
+
+/// FS-05: the navigation contract, each stage naming the function of this server that implements it (all
+/// compiled in, so present), and the live planner binary as the gated external tier (D-R171).
+async fn contract(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let head = crate::app::Head::of(&req);
+    blocking(st, move |st| {
+        require_auth(st, &head)?;
+        let mut stages: Vec<Value> = [
+            ("global_route", "stewie_traverse::route::route_leg"),
+            ("local_trajectory", "stewie_traverse::nav::plan_local"),
+            ("tracker", "stewie_traverse::nav::track_plan"),
+            ("recovery", "stewie_traverse::nav::recommend"),
+            ("keepouts", "stewie_traverse::route::route_leg"),
+            ("negative_obstacles", "stewie_traverse::costmap::negative_obstacle_mask"),
+            ("illumination_risk", "stewie_traverse::layers::incidence_angle_deg"),
+            ("slip_energy_budget", "stewie_plan::sim"),
+            ("ros_action_lowering", "stewie_plan::lowering::lower_plan_ir"),
+        ]
+        .iter()
+        .map(|(stage, seam)| json!({"stage": stage, "seam": seam, "present": true}))
+        .collect();
+        stages.push(json!({"stage": "live_planner_binary", "seam": "Autoware/Nav2 (external ROS host)",
+                           "present": false,
+                           "note": "gated: needs the live planner binary on a ROS / Space ROS host"}));
+        Ok(axum::Json(json!({"ok": true, "version": "1.0", "stages": stages, "on_host_complete": true})).into_response())
+    })
+    .await
+}
+
 /// The navigation routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
+        .route("/nav/react", post(react))
+        .route("/nav/contract", axum::routing::get(contract))
         .route("/nav/faults", post(faults))
         .route("/nav/executive", post(executive))
         .route("/nav/local_plan", post(local_plan))

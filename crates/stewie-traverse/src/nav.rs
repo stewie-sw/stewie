@@ -433,6 +433,128 @@ pub fn track_plan(plan: &LocalPlan, v_max: f64, omega_max: f64) -> Command {
     }
 }
 
+/// Python's builtin `round(x, n)` (correctly rounded through the decimal form).
+#[must_use]
+pub fn py_round(x: f64, n: usize) -> f64 {
+    format!("{x:.n$}").parse().unwrap_or(x)
+}
+
+/// The rock taxonomy's navigation bin (Python `dart.rock_taxonomy.classify(diameter).nav_class`): the governing
+/// obstacle dimension `max(d, h)` with the aspect-default height `0.6 d`, binned A..E at 0.07, 0.15, 0.30, 0.50 m.
+#[must_use]
+pub fn rock_nav_class(diameter_m: f64) -> char {
+    let dim = diameter_m.max(0.6 * diameter_m);
+    [(0.07, 'A'), (0.15, 'B'), (0.30, 'C'), (0.50, 'D')]
+        .iter()
+        .find(|(t, _)| dim < *t)
+        .map_or('E', |(_, c)| *c)
+}
+
+/// The observed obstacles (nav D/E) within sensor range not already known (by position rounded to the
+/// millimetre), as `(x, y, diameter)` (Python `path_track.discover_hazards`).
+#[must_use]
+pub fn discover_hazards(
+    pos: (f64, f64),
+    rocks: &[Circle],
+    sensor_range_m: f64,
+    known: &[(f64, f64)],
+) -> Vec<Circle> {
+    let key = |x: f64, y: f64| (py_round(x, 3).to_bits(), py_round(y, 3).to_bits());
+    let known: Vec<(u64, u64)> = known.iter().map(|(x, y)| key(*x, *y)).collect();
+    rocks
+        .iter()
+        .filter(|(x, y, d)| {
+            matches!(rock_nav_class(*d), 'D' | 'E')
+                && (x - pos.0).hypot(y - pos.1) < sensor_range_m
+                && !known.contains(&key(*x, *y))
+        })
+        .copied()
+        .collect()
+}
+
+/// The point's cross-track distance to the planned polyline: the nearest point on any segment, or the distance
+/// to a single vertex (Python `path_track.cross_track_deviation` of one actual point).
+#[must_use]
+pub fn cross_track(path: &[(f64, f64)], p: (f64, f64)) -> f64 {
+    let norm = |x: f64, y: f64| (x * x + y * y).sqrt();
+    match path {
+        [] => 0.0,
+        [a] => norm(p.0 - a.0, p.1 - a.1),
+        _ => path
+            .windows(2)
+            .map(|w| {
+                let (a, b) = (w[0], w[1]);
+                let ab = (b.0 - a.0, b.1 - a.1);
+                let t = (((p.0 - a.0) * ab.0 + (p.1 - a.1) * ab.1)
+                    / (ab.0 * ab.0 + ab.1 * ab.1 + 1e-12))
+                    .clamp(0.0, 1.0);
+                norm(p.0 - (a.0 + t * ab.0), p.1 - (a.1 + t * ab.1))
+            })
+            .fold(f64::INFINITY, f64::min),
+    }
+}
+
+/// One NV-05 reactive step (Python `reactive_nav.react`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Reaction {
+    pub replan: bool,
+    /// `none`, `local` or `global`.
+    pub scope: &'static str,
+    pub n_new_hazards: usize,
+    pub keepouts: Vec<Circle>,
+    pub deviation_m: f64,
+    pub local_plan: Option<LocalPlan>,
+}
+
+/// NV-05: fold the newly observed D/E hazards in range into the keep-outs (radius plus clearance), replan on a new
+/// hazard or an off-route deviation past `deviation_max_m`, locally first (keep-outs are full circles, so the arc
+/// takes no further clearance) and globally when every local arc is blocked.
+#[must_use]
+#[allow(clippy::too_many_arguments)] // the Python's keyword arguments
+pub fn react(
+    pose: (f64, f64),
+    heading_rad: f64,
+    goal: (f64, f64),
+    planned_path: &[(f64, f64)],
+    rocks: &[Circle],
+    known: &[(f64, f64)],
+    keepouts: &[Circle],
+    sensor_range_m: f64,
+    deviation_max_m: f64,
+    clearance_m: f64,
+    horizon_m: f64,
+) -> Reaction {
+    let new = discover_hazards(pose, rocks, sensor_range_m, known);
+    let dev = if planned_path.is_empty() {
+        0.0
+    } else {
+        cross_track(planned_path, pose)
+    };
+    let replan = !new.is_empty() || dev > deviation_max_m;
+    let mut active = keepouts.to_vec();
+    active.extend(new.iter().map(|(x, y, d)| (*x, *y, d / 2.0 + clearance_m)));
+    if !replan {
+        return Reaction {
+            replan,
+            scope: "none",
+            n_new_hazards: new.len(),
+            keepouts: active,
+            deviation_m: dev,
+            local_plan: None,
+        };
+    }
+    let plan = plan_local(pose, heading_rad, goal, None, &active, &[], 0.0, horizon_m);
+    let scope = if plan.feasible { "local" } else { "global" };
+    Reaction {
+        replan,
+        scope,
+        n_new_hazards: new.len(),
+        keepouts: active,
+        deviation_m: dev,
+        local_plan: plan.feasible.then_some(plan),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{curvature_fan, linspace};

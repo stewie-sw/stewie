@@ -9,6 +9,7 @@ pub mod balance;
 pub mod endurance;
 pub mod fleet;
 pub mod ir;
+pub mod lowering;
 pub mod mission;
 pub mod optimize;
 pub mod provenance;

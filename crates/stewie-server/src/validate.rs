@@ -44,8 +44,8 @@ pub enum Kind {
     FloatPairList { max: usize },
     /// A `list[float]` of at most `max` numbers; required; the length checked first, as above.
     FloatList { max: usize },
-    /// A `list[tuple[float, float, float]]` of at most `max` triples, `[]` when absent; the length checked first.
-    FloatTripleList { max: usize },
+    /// A `list[tuple[float, ...]]` of at most `max` `n`-tuples, `[]` when absent; the length checked first.
+    TupleList { n: usize, max: usize },
     /// A `tuple[float, float]` with a default.
     FloatPairDefault(f64, f64),
     /// A number with `ge <= x < lt`; required.
@@ -217,7 +217,7 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
         Kind::FloatLt { ge, lt } => check_float_lt(v, ge, lt)
             .map(|x| json!(x))
             .map_or_else(fail, Some),
-        Kind::FloatPairList { max } | Kind::FloatList { max } | Kind::FloatTripleList { max } => {
+        Kind::FloatPairList { max } | Kind::FloatList { max } | Kind::TupleList { max, .. } => {
             match v {
                 Value::Array(items) if items.len() > max => fail(format!(
                     "List should have at most {max} item{} after validation, not {}",
@@ -227,8 +227,8 @@ fn check(kind: Kind, v: &Value, path: &str, errors: &mut Vec<String>) -> Option<
                 Value::Array(items) if matches!(kind, Kind::FloatList { .. }) => {
                     check_floats(items, path, errors)
                 }
-                Value::Array(items) if matches!(kind, Kind::FloatTripleList { .. }) => {
-                    check_tuples(items, path, errors, 3)
+                Value::Array(items) if let Kind::TupleList { n, .. } = kind => {
+                    check_tuples(items, path, errors, n)
                 }
                 Value::Array(items) => {
                     let before = errors.len();
@@ -471,7 +471,7 @@ fn fields(
             (None, Kind::Int { default, .. }) => Some(json!(default)),
             (None, Kind::FloatPairDefault(a, b)) => Some(json!([a, b])),
             (None, Kind::Dict) => Some(json!({})),
-            (None, Kind::AnyListDefault | Kind::FloatTripleList { .. }) => Some(json!([])),
+            (None, Kind::AnyListDefault | Kind::TupleList { .. }) => Some(json!([])),
             (None, Kind::Bool { default }) => Some(json!(default)),
             // an optional value (or an optional string) defaults to null
             (

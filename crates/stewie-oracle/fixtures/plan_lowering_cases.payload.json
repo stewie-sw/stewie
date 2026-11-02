@@ -1,0 +1,1618 @@
+{
+ "cases": [
+  {
+   "ir": {
+    "acceptance": {
+     "as_built_tol_m": 0.02,
+     "recharge_is_precondition_driven": true
+    },
+    "actions": [
+     {
+      "expect": {
+       "distance_m": 14.14,
+       "duration_s": 47.1,
+       "energy_J": 206.2
+      },
+      "id": 0,
+      "op": "GoTo",
+      "pre": {
+       "battery_J_min": 479520.0
+      },
+      "reached": true,
+      "to": [
+       10.0,
+       10.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0,
+      "waypoints": [
+       [
+        0.0,
+        0.0
+       ],
+       [
+        10.0,
+        10.0
+       ]
+      ]
+     },
+     {
+      "actions": [
+       "cut high spot",
+       "fill pad"
+      ],
+      "dest": [
+       40.0,
+       10.0
+      ],
+      "expect": {
+       "duration_s": 648514.3,
+       "energy_J": 29347982.3
+      },
+      "haul_m": 14040.0,
+      "id": 1,
+      "loads": 234,
+      "mass_kg": 7020.0,
+      "op": "CutHaulFill",
+      "pre": {
+       "action_energy_J": 29347982.3,
+       "battery_J_min": 29828103.4,
+       "drum_kg_max": 30.0,
+       "map_coverage_min": 0.6,
+       "reserve_J": 479520.0,
+       "route_to_safe_J": 601.1
+      },
+      "site": [
+       10.0,
+       10.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0
+     },
+     {
+      "expect": {
+       "distance_m": 30.0,
+       "duration_s": 100.0,
+       "energy_J": 437.4
+      },
+      "id": 2,
+      "op": "GoTo",
+      "pre": {
+       "battery_J_min": 479520.0
+      },
+      "reached": true,
+      "to": [
+       10.0,
+       10.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0,
+      "waypoints": [
+       [
+        40.0,
+        10.0
+       ],
+       [
+        10.0,
+        10.0
+       ]
+      ]
+     },
+     {
+      "actions": [
+       "cut high spot"
+      ],
+      "dest": [
+       10.0,
+       10.0
+      ],
+      "expect": {
+       "duration_s": 57394.3,
+       "energy_J": 2779770.9
+      },
+      "haul_m": 0.0,
+      "id": 3,
+      "loads": 0,
+      "mass_kg": 669.6,
+      "op": "Excavate",
+      "pre": {
+       "action_energy_J": 2779770.9,
+       "battery_J_min": 3259497.1,
+       "drum_kg_max": 30.0,
+       "map_coverage_min": 0.6,
+       "reserve_J": 479520.0,
+       "route_to_safe_J": 206.2
+      },
+      "site": [
+       10.0,
+       10.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0
+     }
+    ],
+    "algorithm": "nearest",
+    "blocked_legs": 0,
+    "body": "moon",
+    "expect": {
+     "charges": 7,
+     "distance_m": 14266.3,
+     "duration_s": 749821.7,
+     "energy_J": 32131052.3,
+     "makespan_s": 749821.7
+    },
+    "feasible": true,
+    "frame": {
+     "charger": [
+      0.0,
+      0.0
+     ],
+     "crs": "local",
+     "origin_m": [
+      0.0,
+      0.0
+     ]
+    },
+    "mode": "DEM_KNOWN_POSE_MISSION_SIM",
+    "objective": "time",
+    "plan_id": "44550078f6cc870c",
+    "precedence": [],
+    "provenance": {
+     "commit": "d44c998c",
+     "config": {
+      "algorithm": "nearest",
+      "objective": "time",
+      "vehicles": 1
+     },
+     "input_sha256": "bb0cc9ac587e18caa1fdc3775793786c16c8fe84edca114a48ed1d1e1777d666",
+     "mode": "PLAN",
+     "schema_version": "1.0",
+     "seed": null,
+     "version": "0.1.0"
+    },
+    "schema_version": "1.0",
+    "vehicles": 1
+   },
+   "lowered": {
+    "frame_id": "map",
+    "ir_version": "1.0",
+    "motion_goals": [
+     {
+      "action_id": 0,
+      "header": {
+       "frame_id": "map"
+      },
+      "pose": {
+       "orientation": {
+        "w": 1.0,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 10.0,
+        "y": -10.0,
+        "z": 0.0
+       }
+      },
+      "posture": "TRANSIT",
+      "vehicle": 0
+     },
+     {
+      "action_id": 2,
+      "header": {
+       "frame_id": "map"
+      },
+      "pose": {
+       "orientation": {
+        "w": 1.0,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 10.0,
+        "y": -10.0,
+        "z": 0.0
+       }
+      },
+      "posture": "TRANSIT",
+      "vehicle": 0
+     }
+    ],
+    "observation_goals": [],
+    "paths": [
+     {
+      "action_id": 0,
+      "header": {
+       "frame_id": "map"
+      },
+      "poses": [
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       },
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 10.0,
+          "y": -10.0,
+          "z": 0.0
+         }
+        }
+       }
+      ],
+      "vehicle": 0
+     },
+     {
+      "action_id": 2,
+      "header": {
+       "frame_id": "map"
+      },
+      "poses": [
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 40.0,
+          "y": -10.0,
+          "z": 0.0
+         }
+        }
+       },
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 10.0,
+          "y": -10.0,
+          "z": 0.0
+         }
+        }
+       }
+      ],
+      "vehicle": 0
+     }
+    ],
+    "plan_id": "44550078f6cc870c",
+    "posture_plan": [
+     {
+      "action_id": 0,
+      "entered": [
+       "TRANSIT"
+      ],
+      "op": "GoTo",
+      "target_posture": "TRANSIT"
+     },
+     {
+      "action_id": 1,
+      "entered": [
+       "DIG"
+      ],
+      "op": "CutHaulFill",
+      "target_posture": "DIG"
+     },
+     {
+      "action_id": 2,
+      "entered": [
+       "TRANSIT"
+      ],
+      "op": "GoTo",
+      "target_posture": "TRANSIT"
+     },
+     {
+      "action_id": 3,
+      "entered": [
+       "DIG"
+      ],
+      "op": "Excavate",
+      "target_posture": "DIG"
+     }
+    ],
+    "replan_events": [],
+    "work_goals": [
+     {
+      "action_id": 1,
+      "dest": [
+       40.0,
+       10.0
+      ],
+      "expect": {
+       "duration_s": 648514.3,
+       "energy_J": 29347982.3
+      },
+      "haul_m": 14040.0,
+      "mass_kg": 7020.0,
+      "op": "CutHaulFill",
+      "posture": "DIG",
+      "site": [
+       10.0,
+       10.0
+      ],
+      "vehicle": 0
+     },
+     {
+      "action_id": 3,
+      "dest": [
+       10.0,
+       10.0
+      ],
+      "expect": {
+       "duration_s": 57394.3,
+       "energy_J": 2779770.9
+      },
+      "haul_m": 0.0,
+      "mass_kg": 669.6,
+      "op": "Excavate",
+      "posture": "DIG",
+      "site": [
+       10.0,
+       10.0
+      ],
+      "vehicle": 0
+     }
+    ]
+   },
+   "name": "01_flatten_pad"
+  },
+  {
+   "ir": {
+    "acceptance": {
+     "as_built_tol_m": 0.02,
+     "recharge_is_precondition_driven": true
+    },
+    "actions": [
+     {
+      "expect": {
+       "distance_m": 0.0,
+       "duration_s": 0.0,
+       "energy_J": 0.0
+      },
+      "id": 0,
+      "op": "GoTo",
+      "pre": {
+       "battery_J_min": 479520.0
+      },
+      "reached": true,
+      "to": [
+       0.0,
+       0.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0,
+      "waypoints": [
+       [
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0
+       ]
+      ]
+     },
+     {
+      "actions": [
+       "borrow pit",
+       "build berm"
+      ],
+      "dest": [
+       50.0,
+       0.0
+      ],
+      "expect": {
+       "duration_s": 906285.7,
+       "energy_J": 39313063.0
+      },
+      "haul_m": 31200.0,
+      "id": 1,
+      "loads": 312,
+      "mass_kg": 9360.0,
+      "op": "CutHaulFill",
+      "pre": {
+       "action_energy_J": 39313063.0,
+       "battery_J_min": 39793312.0,
+       "drum_kg_max": 30.0,
+       "map_coverage_min": 0.6,
+       "reserve_J": 479520.0,
+       "route_to_safe_J": 729.0
+      },
+      "site": [
+       0.0,
+       0.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0
+     },
+     {
+      "expect": {
+       "distance_m": 50.0,
+       "duration_s": 166.7,
+       "energy_J": 729.0
+      },
+      "id": 2,
+      "op": "GoTo",
+      "pre": {
+       "battery_J_min": 479520.0
+      },
+      "reached": true,
+      "to": [
+       0.0,
+       0.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0,
+      "waypoints": [
+       [
+        50.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0
+       ]
+      ]
+     },
+     {
+      "actions": [
+       "borrow pit"
+      ],
+      "dest": [
+       0.0,
+       0.0
+      ],
+      "expect": {
+       "duration_s": 153051.4,
+       "energy_J": 7412722.5
+      },
+      "haul_m": 0.0,
+      "id": 3,
+      "loads": 0,
+      "mass_kg": 1785.6,
+      "op": "Excavate",
+      "pre": {
+       "action_energy_J": 7412722.5,
+       "battery_J_min": 7892242.5,
+       "drum_kg_max": 30.0,
+       "map_coverage_min": 0.6,
+       "reserve_J": 479520.0,
+       "route_to_safe_J": 0.0
+      },
+      "site": [
+       0.0,
+       0.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0
+     }
+    ],
+    "algorithm": "nearest",
+    "blocked_legs": 0,
+    "body": "moon",
+    "expect": {
+     "charges": 10,
+     "distance_m": 31200.0,
+     "duration_s": 1120989.7,
+     "energy_J": 46725785.6,
+     "makespan_s": 1120989.7
+    },
+    "feasible": true,
+    "frame": {
+     "charger": [
+      0.0,
+      0.0
+     ],
+     "crs": "local",
+     "origin_m": [
+      0.0,
+      0.0
+     ]
+    },
+    "mode": "DEM_KNOWN_POSE_MISSION_SIM",
+    "objective": "time",
+    "plan_id": "310e8a2ee8fc16fc",
+    "precedence": [],
+    "provenance": {
+     "commit": "d44c998c",
+     "config": {
+      "algorithm": "nearest",
+      "objective": "time",
+      "vehicles": 1
+     },
+     "input_sha256": "b19847c31fadcd353e7b9bc22552a0cd3fa5ddee20ca3e1ebc4f05a65d3a4d36",
+     "mode": "PLAN",
+     "schema_version": "1.0",
+     "seed": null,
+     "version": "0.1.0"
+    },
+    "schema_version": "1.0",
+    "vehicles": 1
+   },
+   "lowered": {
+    "frame_id": "map",
+    "ir_version": "1.0",
+    "motion_goals": [
+     {
+      "action_id": 0,
+      "header": {
+       "frame_id": "map"
+      },
+      "pose": {
+       "orientation": {
+        "w": 1.0,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 0.0,
+        "y": -0.0,
+        "z": 0.0
+       }
+      },
+      "posture": "TRANSIT",
+      "vehicle": 0
+     },
+     {
+      "action_id": 2,
+      "header": {
+       "frame_id": "map"
+      },
+      "pose": {
+       "orientation": {
+        "w": 1.0,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 0.0,
+        "y": -0.0,
+        "z": 0.0
+       }
+      },
+      "posture": "TRANSIT",
+      "vehicle": 0
+     }
+    ],
+    "observation_goals": [],
+    "paths": [
+     {
+      "action_id": 0,
+      "header": {
+       "frame_id": "map"
+      },
+      "poses": [
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       },
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       }
+      ],
+      "vehicle": 0
+     },
+     {
+      "action_id": 2,
+      "header": {
+       "frame_id": "map"
+      },
+      "poses": [
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 50.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       },
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       }
+      ],
+      "vehicle": 0
+     }
+    ],
+    "plan_id": "310e8a2ee8fc16fc",
+    "posture_plan": [
+     {
+      "action_id": 0,
+      "entered": [
+       "TRANSIT"
+      ],
+      "op": "GoTo",
+      "target_posture": "TRANSIT"
+     },
+     {
+      "action_id": 1,
+      "entered": [
+       "DIG"
+      ],
+      "op": "CutHaulFill",
+      "target_posture": "DIG"
+     },
+     {
+      "action_id": 2,
+      "entered": [
+       "TRANSIT"
+      ],
+      "op": "GoTo",
+      "target_posture": "TRANSIT"
+     },
+     {
+      "action_id": 3,
+      "entered": [
+       "DIG"
+      ],
+      "op": "Excavate",
+      "target_posture": "DIG"
+     }
+    ],
+    "replan_events": [],
+    "work_goals": [
+     {
+      "action_id": 1,
+      "dest": [
+       50.0,
+       0.0
+      ],
+      "expect": {
+       "duration_s": 906285.7,
+       "energy_J": 39313063.0
+      },
+      "haul_m": 31200.0,
+      "mass_kg": 9360.0,
+      "op": "CutHaulFill",
+      "posture": "DIG",
+      "site": [
+       0.0,
+       0.0
+      ],
+      "vehicle": 0
+     },
+     {
+      "action_id": 3,
+      "dest": [
+       0.0,
+       0.0
+      ],
+      "expect": {
+       "duration_s": 153051.4,
+       "energy_J": 7412722.5
+      },
+      "haul_m": 0.0,
+      "mass_kg": 1785.6,
+      "op": "Excavate",
+      "posture": "DIG",
+      "site": [
+       0.0,
+       0.0
+      ],
+      "vehicle": 0
+     }
+    ]
+   },
+   "name": "02_haul_around_hazard"
+  },
+  {
+   "ir": {
+    "acceptance": {
+     "as_built_tol_m": 0.02,
+     "recharge_is_precondition_driven": true
+    },
+    "actions": [
+     {
+      "expect": {
+       "distance_m": 0.0,
+       "duration_s": 0.0,
+       "energy_J": 0.0
+      },
+      "id": 0,
+      "op": "GoTo",
+      "pre": {
+       "battery_J_min": 479520.0
+      },
+      "reached": true,
+      "to": [
+       0.0,
+       0.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0,
+      "waypoints": [
+       [
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0
+       ]
+      ]
+     },
+     {
+      "actions": [
+       "borrow pit",
+       "stranded fill"
+      ],
+      "dest": [
+       40.0,
+       0.0
+      ],
+      "expect": {
+       "duration_s": 885485.7,
+       "energy_J": 39221853.1
+      },
+      "haul_m": 24960.0,
+      "id": 1,
+      "loads": 312,
+      "mass_kg": 9360.0,
+      "op": "CutHaulFill",
+      "pre": {
+       "action_energy_J": 39221853.1,
+       "battery_J_min": 39701956.3,
+       "drum_kg_max": 30.0,
+       "map_coverage_min": 0.6,
+       "reserve_J": 479520.0,
+       "route_to_safe_J": 583.2
+      },
+      "site": [
+       0.0,
+       0.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0
+     },
+     {
+      "expect": {
+       "distance_m": 40.0,
+       "duration_s": 133.3,
+       "energy_J": 583.2
+      },
+      "id": 2,
+      "op": "GoTo",
+      "pre": {
+       "battery_J_min": 479520.0
+      },
+      "reached": true,
+      "to": [
+       0.0,
+       0.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0,
+      "waypoints": [
+       [
+        40.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0
+       ]
+      ]
+     },
+     {
+      "actions": [
+       "borrow pit"
+      ],
+      "dest": [
+       0.0,
+       0.0
+      ],
+      "expect": {
+       "duration_s": 153051.4,
+       "energy_J": 7412722.5
+      },
+      "haul_m": 0.0,
+      "id": 3,
+      "loads": 0,
+      "mass_kg": 1785.6,
+      "op": "Excavate",
+      "pre": {
+       "action_energy_J": 7412722.5,
+       "battery_J_min": 7892242.5,
+       "drum_kg_max": 30.0,
+       "map_coverage_min": 0.6,
+       "reserve_J": 479520.0,
+       "route_to_safe_J": 0.0
+      },
+      "site": [
+       0.0,
+       0.0
+      ],
+      "tol": {
+       "energy_frac": 0.12
+      },
+      "vehicle": 0
+     }
+    ],
+    "algorithm": "nearest",
+    "blocked_legs": 0,
+    "body": "moon",
+    "expect": {
+     "charges": 10,
+     "distance_m": 24960.0,
+     "duration_s": 1100189.7,
+     "energy_J": 46634575.6,
+     "makespan_s": 1100189.7
+    },
+    "feasible": true,
+    "frame": {
+     "charger": [
+      0.0,
+      0.0
+     ],
+     "crs": "local",
+     "origin_m": [
+      0.0,
+      0.0
+     ]
+    },
+    "mode": "DEM_KNOWN_POSE_MISSION_SIM",
+    "objective": "time",
+    "plan_id": "d799dd70940ce1ec",
+    "precedence": [],
+    "provenance": {
+     "commit": "d44c998c",
+     "config": {
+      "algorithm": "nearest",
+      "objective": "time",
+      "vehicles": 1
+     },
+     "input_sha256": "259eb9612748e051256a1f8081d197521bd5e7509b9b86ccd6f2c7cedd17e046",
+     "mode": "PLAN",
+     "schema_version": "1.0",
+     "seed": null,
+     "version": "0.1.0"
+    },
+    "schema_version": "1.0",
+    "vehicles": 1
+   },
+   "lowered": {
+    "frame_id": "map",
+    "ir_version": "1.0",
+    "motion_goals": [
+     {
+      "action_id": 0,
+      "header": {
+       "frame_id": "map"
+      },
+      "pose": {
+       "orientation": {
+        "w": 1.0,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 0.0,
+        "y": -0.0,
+        "z": 0.0
+       }
+      },
+      "posture": "TRANSIT",
+      "vehicle": 0
+     },
+     {
+      "action_id": 2,
+      "header": {
+       "frame_id": "map"
+      },
+      "pose": {
+       "orientation": {
+        "w": 1.0,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 0.0,
+        "y": -0.0,
+        "z": 0.0
+       }
+      },
+      "posture": "TRANSIT",
+      "vehicle": 0
+     }
+    ],
+    "observation_goals": [],
+    "paths": [
+     {
+      "action_id": 0,
+      "header": {
+       "frame_id": "map"
+      },
+      "poses": [
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       },
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       }
+      ],
+      "vehicle": 0
+     },
+     {
+      "action_id": 2,
+      "header": {
+       "frame_id": "map"
+      },
+      "poses": [
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 40.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       },
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       }
+      ],
+      "vehicle": 0
+     }
+    ],
+    "plan_id": "d799dd70940ce1ec",
+    "posture_plan": [
+     {
+      "action_id": 0,
+      "entered": [
+       "TRANSIT"
+      ],
+      "op": "GoTo",
+      "target_posture": "TRANSIT"
+     },
+     {
+      "action_id": 1,
+      "entered": [
+       "DIG"
+      ],
+      "op": "CutHaulFill",
+      "target_posture": "DIG"
+     },
+     {
+      "action_id": 2,
+      "entered": [
+       "TRANSIT"
+      ],
+      "op": "GoTo",
+      "target_posture": "TRANSIT"
+     },
+     {
+      "action_id": 3,
+      "entered": [
+       "DIG"
+      ],
+      "op": "Excavate",
+      "target_posture": "DIG"
+     }
+    ],
+    "replan_events": [],
+    "work_goals": [
+     {
+      "action_id": 1,
+      "dest": [
+       40.0,
+       0.0
+      ],
+      "expect": {
+       "duration_s": 885485.7,
+       "energy_J": 39221853.1
+      },
+      "haul_m": 24960.0,
+      "mass_kg": 9360.0,
+      "op": "CutHaulFill",
+      "posture": "DIG",
+      "site": [
+       0.0,
+       0.0
+      ],
+      "vehicle": 0
+     },
+     {
+      "action_id": 3,
+      "dest": [
+       0.0,
+       0.0
+      ],
+      "expect": {
+       "duration_s": 153051.4,
+       "energy_J": 7412722.5
+      },
+      "haul_m": 0.0,
+      "mass_kg": 1785.6,
+      "op": "Excavate",
+      "posture": "DIG",
+      "site": [
+       0.0,
+       0.0
+      ],
+      "vehicle": 0
+     }
+    ]
+   },
+   "name": "03_blocked_infeasible"
+  },
+  {
+   "ir": {
+    "actions": [
+     {
+      "id": "a0",
+      "op": "GoTo",
+      "to": [
+       4.0,
+       3.0
+      ],
+      "vehicle": 0,
+      "waypoints": [
+       [
+        0.0,
+        0.0
+       ],
+       [
+        4.0,
+        3.0
+       ]
+      ]
+     },
+     {
+      "id": "a1",
+      "mass_kg": 12.5,
+      "op": "Excavate",
+      "site": [
+       4.0,
+       3.0
+      ],
+      "vehicle": 0
+     },
+     {
+      "dest": [
+       6.0,
+       1.0
+      ],
+      "expect": {
+       "energy_J": 900.0
+      },
+      "haul_m": 2.8,
+      "id": "a2",
+      "mass_kg": 12.5,
+      "op": "Import",
+      "site": [
+       4.0,
+       3.0
+      ],
+      "vehicle": 0
+     },
+     {
+      "id": "a3",
+      "op": "Observe",
+      "site": [
+       6.0,
+       1.0
+      ],
+      "vehicle": 1
+     },
+     {
+      "dest": [
+       2.0,
+       2.0
+      ],
+      "id": "a4",
+      "op": "CutHaulFill",
+      "site": [
+       1.0,
+       1.0
+      ],
+      "vehicle": 1
+     },
+     {
+      "id": "a5",
+      "op": "GoTo",
+      "reached": false,
+      "to": [
+       9.0,
+       -2.0
+      ],
+      "vehicle": 1,
+      "waypoints": [
+       [
+        2.0,
+        2.0
+       ],
+       [
+        9.0,
+        -2.0
+       ]
+      ]
+     },
+     {
+      "id": "a6",
+      "op": "Sinter",
+      "site": [
+       9.0,
+       -2.0
+      ],
+      "vehicle": 1
+     },
+     {
+      "id": "a7",
+      "op": "Recharge",
+      "vehicle": 1
+     }
+    ],
+    "blocked_legs": 1,
+    "feasible": false,
+    "plan_id": "synthetic-coverage",
+    "schema_version": "synthetic"
+   },
+   "lowered": {
+    "frame_id": "map",
+    "ir_version": "synthetic",
+    "motion_goals": [
+     {
+      "action_id": "a0",
+      "header": {
+       "frame_id": "map"
+      },
+      "pose": {
+       "orientation": {
+        "w": 1.0,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 4.0,
+        "y": -3.0,
+        "z": 0.0
+       }
+      },
+      "posture": "TRANSIT",
+      "vehicle": 0
+     },
+     {
+      "action_id": "a5",
+      "header": {
+       "frame_id": "map"
+      },
+      "pose": {
+       "orientation": {
+        "w": 1.0,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 9.0,
+        "y": 2.0,
+        "z": 0.0
+       }
+      },
+      "posture": "TRANSIT",
+      "vehicle": 1
+     }
+    ],
+    "observation_goals": [
+     {
+      "action_id": "a3",
+      "at": [
+       6.0,
+       1.0
+      ],
+      "op": "Observe",
+      "posture": "MEERKAT",
+      "vehicle": 1
+     }
+    ],
+    "paths": [
+     {
+      "action_id": "a0",
+      "header": {
+       "frame_id": "map"
+      },
+      "poses": [
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 0.0
+         }
+        }
+       },
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 4.0,
+          "y": -3.0,
+          "z": 0.0
+         }
+        }
+       }
+      ],
+      "vehicle": 0
+     },
+     {
+      "action_id": "a5",
+      "header": {
+       "frame_id": "map"
+      },
+      "poses": [
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 2.0,
+          "y": -2.0,
+          "z": 0.0
+         }
+        }
+       },
+       {
+        "header": {
+         "frame_id": "map"
+        },
+        "pose": {
+         "orientation": {
+          "w": 1.0,
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 9.0,
+          "y": 2.0,
+          "z": 0.0
+         }
+        }
+       }
+      ],
+      "vehicle": 1
+     }
+    ],
+    "plan_id": "synthetic-coverage",
+    "posture_plan": [
+     {
+      "action_id": "a0",
+      "entered": [
+       "TRANSIT"
+      ],
+      "op": "GoTo",
+      "target_posture": "TRANSIT"
+     },
+     {
+      "action_id": "a1",
+      "entered": [
+       "DIG"
+      ],
+      "op": "Excavate",
+      "target_posture": "DIG"
+     },
+     {
+      "action_id": "a2",
+      "entered": [
+       "DUMP_Z"
+      ],
+      "op": "Import",
+      "target_posture": "DUMP_Z"
+     },
+     {
+      "action_id": "a3",
+      "entered": [
+       "TRANSIT",
+       "MEERKAT"
+      ],
+      "op": "Observe",
+      "target_posture": "MEERKAT"
+     },
+     {
+      "action_id": "a4",
+      "entered": [
+       "TRANSIT",
+       "DIG"
+      ],
+      "op": "CutHaulFill",
+      "target_posture": "DIG"
+     },
+     {
+      "action_id": "a5",
+      "entered": [
+       "TRANSIT"
+      ],
+      "op": "GoTo",
+      "target_posture": "TRANSIT"
+     },
+     {
+      "action_id": "a6",
+      "entered": [
+       "DIG"
+      ],
+      "op": "Sinter",
+      "target_posture": "DIG"
+     }
+    ],
+    "replan_events": [
+     {
+      "action_id": "a5",
+      "reason": "leg_unreachable",
+      "to": [
+       9.0,
+       -2.0
+      ],
+      "vehicle": 1
+     },
+     {
+      "blocked_legs": 1,
+      "reason": "plan_infeasible"
+     }
+    ],
+    "work_goals": [
+     {
+      "action_id": "a1",
+      "dest": null,
+      "expect": null,
+      "haul_m": null,
+      "mass_kg": 12.5,
+      "op": "Excavate",
+      "posture": "DIG",
+      "site": [
+       4.0,
+       3.0
+      ],
+      "vehicle": 0
+     },
+     {
+      "action_id": "a2",
+      "dest": [
+       6.0,
+       1.0
+      ],
+      "expect": {
+       "energy_J": 900.0
+      },
+      "haul_m": 2.8,
+      "mass_kg": 12.5,
+      "op": "Import",
+      "posture": "DUMP_Z",
+      "site": [
+       4.0,
+       3.0
+      ],
+      "vehicle": 0
+     },
+     {
+      "action_id": "a4",
+      "dest": [
+       2.0,
+       2.0
+      ],
+      "expect": null,
+      "haul_m": null,
+      "mass_kg": null,
+      "op": "CutHaulFill",
+      "posture": "DIG",
+      "site": [
+       1.0,
+       1.0
+      ],
+      "vehicle": 1
+     },
+     {
+      "action_id": "a6",
+      "dest": null,
+      "expect": null,
+      "haul_m": null,
+      "mass_kg": null,
+      "op": "Sinter",
+      "posture": "DIG",
+      "site": [
+       9.0,
+       -2.0
+      ],
+      "vehicle": 1
+     }
+    ]
+   },
+   "name": "synthetic coverage"
+  }
+ ]
+}

@@ -2258,7 +2258,24 @@ async fn the_python_nav_session_replays_exactly() {
         |_, step, clock, _| {
             *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
         },
-        |_, _| {},
+        |step, body| {
+            // D-R171: each contract stage names this server's own Rust function, where the Python names its module;
+            // the stage, its presence and the gated tier are compared, the seam's name taken as recorded
+            if step["request"]["path"] != "/nav/contract" {
+                return;
+            }
+            let want = step["body"]["stages"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            if let Some(stages) = body.get_mut("stages").and_then(Value::as_array_mut) {
+                for (got, w) in stages.iter_mut().zip(&want) {
+                    if got["stage"] == w["stage"] {
+                        got["seam"] = w["seam"].clone();
+                    }
+                }
+            }
+        },
     )
     .await;
 }

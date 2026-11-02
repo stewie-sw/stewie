@@ -60,7 +60,7 @@ const GRID_REQUEST: Model = Model {
             "max_slope_deg",
             float(Some((0.0, "0")), None, (89.0, "89"), 20.0),
         ),
-        Field("keepouts", Kind::FloatTripleList { max: 512 }),
+        Field("keepouts", Kind::TupleList { n: 3, max: 512 }),
     ],
     forbid_extra: true,
 };

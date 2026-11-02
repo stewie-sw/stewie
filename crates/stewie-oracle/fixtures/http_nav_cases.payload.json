@@ -120,6 +120,48 @@
    "correlation_id": "cid-019",
    "target": "feasible=False",
    "ts": 1800000000.0
+  },
+  {
+   "action": "nav.react",
+   "actor": "api-key",
+   "correlation_id": "cid-021",
+   "target": "replan=False scope=none",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.react",
+   "actor": "api-key",
+   "correlation_id": "cid-022",
+   "target": "replan=True scope=local",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.react",
+   "actor": "api-key",
+   "correlation_id": "cid-023",
+   "target": "replan=True scope=global",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.react",
+   "actor": "api-key",
+   "correlation_id": "cid-024",
+   "target": "replan=False scope=none",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.react",
+   "actor": "api-key",
+   "correlation_id": "cid-025",
+   "target": "replan=True scope=local",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "nav.react",
+   "actor": "api-key",
+   "correlation_id": "cid-026",
+   "target": "replan=True scope=local",
+   "ts": 1800000000.0
   }
  ],
  "seed_sha256_of": "stewie-http-nav-oracle",
@@ -1113,6 +1155,610 @@
     "raw": null
    },
    "status": 400
+  },
+  {
+   "body": {
+    "deviation_m": 0.0,
+    "keepouts": [],
+    "local_arc": null,
+    "n_new_hazards": 0,
+    "ok": true,
+    "replan": false,
+    "scope": "none"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": {
+     "goal": [
+      30.0,
+      0.0
+     ],
+     "heading_rad": 0.0,
+     "pose": [
+      0.0,
+      0.0
+     ]
+    },
+    "method": "POST",
+    "path": "/nav/react",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "deviation_m": 0.0,
+    "keepouts": [
+     [
+      6.0,
+      0.5,
+      1.3
+     ]
+    ],
+    "local_arc": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.727,
+      -0.0175,
+      -0.048
+     ],
+     [
+      1.4523,
+      -0.0698,
+      -0.096
+     ],
+     [
+      2.1743,
+      -0.1568,
+      -0.144
+     ],
+     [
+      2.8913,
+      -0.2784,
+      -0.192
+     ],
+     [
+      3.6016,
+      -0.4343,
+      -0.24
+     ],
+     [
+      4.3036,
+      -0.624,
+      -0.288
+     ],
+     [
+      4.9957,
+      -0.8473,
+      -0.336
+     ],
+     [
+      5.6762,
+      -1.1034,
+      -0.384
+     ],
+     [
+      6.3438,
+      -1.392,
+      -0.432
+     ],
+     [
+      6.9967,
+      -1.7122,
+      -0.48
+     ],
+     [
+      7.6334,
+      -2.0634,
+      -0.528
+     ]
+    ],
+    "n_new_hazards": 1,
+    "ok": true,
+    "replan": true,
+    "scope": "local"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": {
+     "goal": [
+      30.0,
+      0.0
+     ],
+     "heading_rad": 0.0,
+     "pose": [
+      0.0,
+      0.0
+     ],
+     "rocks": [
+      [
+       6.0,
+       0.5,
+       0.6
+      ],
+      [
+       9.0,
+       -4.0,
+       0.2
+      ],
+      [
+       40.0,
+       0.0,
+       1.2
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/nav/react",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "deviation_m": 0.0,
+    "keepouts": [
+     [
+      4.0,
+      0.0,
+      5.5
+     ]
+    ],
+    "local_arc": null,
+    "n_new_hazards": 1,
+    "ok": true,
+    "replan": true,
+    "scope": "global"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": {
+     "goal": [
+      30.0,
+      0.0
+     ],
+     "heading_rad": 0.0,
+     "pose": [
+      0.0,
+      0.0
+     ],
+     "rocks": [
+      [
+       4.0,
+       0.0,
+       9.0
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/nav/react",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "deviation_m": 0.0,
+    "keepouts": [],
+    "local_arc": null,
+    "n_new_hazards": 0,
+    "ok": true,
+    "replan": false,
+    "scope": "none"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": {
+     "goal": [
+      30.0,
+      0.0
+     ],
+     "heading_rad": 0.0,
+     "known_hazards": [
+      [
+       6.0004,
+       0.4996
+      ]
+     ],
+     "pose": [
+      0.0,
+      0.0
+     ],
+     "rocks": [
+      [
+       6.0,
+       0.5,
+       0.6
+      ]
+     ]
+    },
+    "method": "POST",
+    "path": "/nav/react",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "deviation_m": 9.5,
+    "keepouts": [
+     [
+      12.0,
+      9.0,
+      1.0
+     ]
+    ],
+    "local_arc": [
+     [
+      5.0,
+      9.5,
+      0.0
+     ],
+     [
+      5.727,
+      9.4825,
+      -0.048
+     ],
+     [
+      6.4523,
+      9.4302,
+      -0.096
+     ],
+     [
+      7.1743,
+      9.3432,
+      -0.144
+     ],
+     [
+      7.8913,
+      9.2216,
+      -0.192
+     ],
+     [
+      8.6016,
+      9.0657,
+      -0.24
+     ],
+     [
+      9.3036,
+      8.876,
+      -0.288
+     ],
+     [
+      9.9957,
+      8.6527,
+      -0.336
+     ],
+     [
+      10.6762,
+      8.3966,
+      -0.384
+     ],
+     [
+      11.3438,
+      8.108,
+      -0.432
+     ],
+     [
+      11.9967,
+      7.7878,
+      -0.48
+     ],
+     [
+      12.6334,
+      7.4366,
+      -0.528
+     ]
+    ],
+    "n_new_hazards": 0,
+    "ok": true,
+    "replan": true,
+    "scope": "local"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": {
+     "goal": [
+      30.0,
+      0.0
+     ],
+     "heading_rad": 0.0,
+     "keepouts": [
+      [
+       12.0,
+       9.0,
+       1.0
+      ]
+     ],
+     "planned_path": [
+      [
+       0.0,
+       0.0
+      ],
+      [
+       10.0,
+       0.0
+      ],
+      [
+       20.0,
+       2.0
+      ]
+     ],
+     "pose": [
+      5.0,
+      9.5
+     ]
+    },
+    "method": "POST",
+    "path": "/nav/react",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "deviation_m": 5.0,
+    "keepouts": [],
+    "local_arc": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.7273,
+      0.0,
+      0.0
+     ],
+     [
+      1.4545,
+      0.0,
+      0.0
+     ],
+     [
+      2.1818,
+      0.0,
+      0.0
+     ],
+     [
+      2.9091,
+      0.0,
+      0.0
+     ],
+     [
+      3.6364,
+      0.0,
+      0.0
+     ],
+     [
+      4.3636,
+      0.0,
+      0.0
+     ],
+     [
+      5.0909,
+      0.0,
+      0.0
+     ],
+     [
+      5.8182,
+      0.0,
+      0.0
+     ],
+     [
+      6.5455,
+      0.0,
+      0.0
+     ],
+     [
+      7.2727,
+      0.0,
+      0.0
+     ],
+     [
+      8.0,
+      0.0,
+      0.0
+     ]
+    ],
+    "n_new_hazards": 0,
+    "ok": true,
+    "replan": true,
+    "scope": "local"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": {
+     "deviation_max_m": 4.0,
+     "goal": [
+      30.0,
+      0.0
+     ],
+     "heading_rad": 0.0,
+     "planned_path": [
+      [
+       3.0,
+       4.0
+      ]
+     ],
+     "pose": [
+      0.0,
+      0.0
+     ]
+    },
+    "method": "POST",
+    "path": "/nav/react",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "heading_rad: Field required; planned_path.0.1: Field required; sensor_range_m: Input should be greater than 0",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": {
+     "goal": [
+      1,
+      1
+     ],
+     "planned_path": [
+      [
+       1
+      ]
+     ],
+     "pose": [
+      0,
+      0
+     ],
+     "sensor_range_m": 0
+    },
+    "method": "POST",
+    "path": "/nav/react",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/nav/contract",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "ok": true,
+    "on_host_complete": true,
+    "stages": [
+     {
+      "present": true,
+      "seam": "lode.planner_routing.route_leg",
+      "stage": "global_route"
+     },
+     {
+      "present": true,
+      "seam": "lode.local_planner.plan_local",
+      "stage": "local_trajectory"
+     },
+     {
+      "present": true,
+      "seam": "lode.local_planner.track_plan",
+      "stage": "tracker"
+     },
+     {
+      "present": true,
+      "seam": "lode.recovery.recovery_needed",
+      "stage": "recovery"
+     },
+     {
+      "present": true,
+      "seam": "lode.planner_routing.route_leg",
+      "stage": "keepouts"
+     },
+     {
+      "present": true,
+      "seam": "lode.planner_routing.negative_obstacle_mask",
+      "stage": "negative_obstacles"
+     },
+     {
+      "present": true,
+      "seam": "dart.illumination.incidence_angle_deg",
+      "stage": "illumination_risk"
+     },
+     {
+      "present": true,
+      "seam": "lode.mission_planner._simulate",
+      "stage": "slip_energy_budget"
+     },
+     {
+      "present": true,
+      "seam": "stewie.bridge.plan_lowering.lower_plan_ir",
+      "stage": "ros_action_lowering"
+     },
+     {
+      "note": "gated: needs the live planner binary on a ROS / Space ROS host",
+      "present": false,
+      "seam": "Autoware/Nav2 (external ROS host)",
+      "stage": "live_planner_binary"
+     }
+    ],
+    "version": "1.0"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/nav/contract",
+    "raw": null
+   },
+   "status": 200
   }
  ],
  "store": null

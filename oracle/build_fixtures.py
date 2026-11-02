@@ -6059,12 +6059,69 @@ def http_nav_cases() -> None:
                                                                 "goal": [10.0, 0.0], "keepouts": [[2.0, 0.0, 6.0]]})
         call("POST", "/nav/local_plan", headers=key, json_body={"pose": [0.0], "heading_rad": 9.0, "goal": [1, 2],
                                                                 "rocks": [[1, 2]], "v_max": 0})
+        # NV-05 (RW-55b25a): the reactive replan; rocks are (x, y, diameter), D/E from 0.30 m
+        react = {"pose": [0.0, 0.0], "heading_rad": 0.0, "goal": [30.0, 0.0]}
+        call("POST", "/nav/react", headers=key, json_body=react)                                   # nothing new
+        call("POST", "/nav/react", headers=key, json_body=dict(react, rocks=[[6.0, 0.5, 0.6], [9.0, -4.0, 0.2],
+                                                                          [40.0, 0.0, 1.2]]))      # a local detour
+        call("POST", "/nav/react", headers=key, json_body=dict(react, rocks=[[4.0, 0.0, 9.0]]))   # no arc clears
+        call("POST", "/nav/react", headers=key, json_body=dict(react, rocks=[[6.0, 0.5, 0.6]],
+                                                               known_hazards=[[6.0004, 0.4996]]))  # already known
+        call("POST", "/nav/react", headers=key, json_body=dict(react, pose=[5.0, 9.5], keepouts=[[12.0, 9.0, 1.0]],
+                                                               planned_path=[[0.0, 0.0], [10.0, 0.0], [20.0, 2.0]]))
+        call("POST", "/nav/react", headers=key, json_body=dict(react, planned_path=[[3.0, 4.0]],
+                                                               deviation_max_m=4.0))               # one vertex, 5 m off
+        call("POST", "/nav/react", headers=key, json_body={"pose": [0, 0], "goal": [1, 1], "planned_path": [[1]],
+                                                           "sensor_range_m": 0})
+        call("GET", "/nav/contract")                                                               # no key
+        call("GET", "/nav/contract", headers=key)
 
     payload = _http_session("stewie-http-nav-oracle", {}, script)
     write_fixture(ORACLE_FIXTURES, "http_nav_cases", "oracle/build_fixtures.py::http_nav_cases (the FastAPI app's "
                   "navigation decisions)",
                   ["stewie/server/routers/nav.py", "lode/faults.py", "lode/recovery.py", "lode/executive.py",
-                   "lode/local_planner.py"], payload)
+                   "lode/local_planner.py", "lode/reactive_nav.py", "lode/path_track.py", "dart/rock_taxonomy.py",
+                   "lode/planner_routing.py"], payload)
+
+
+def plan_lowering_cases() -> None:
+    """NV-11 (RW-55b25a): ``stewie.bridge.plan_lowering.lower_plan_ir`` on the plan IR of each repository sample
+    mission (``lode.planner_views.plan_ir``, as ``/rc/plan_ros`` lowers it), with the AM-01 posture machine it
+    drives. The IR is recorded as the input, so the lowering is checked on its own."""
+    from lode import mission_planner as MP
+    from lode import planner_views as PV
+    from stewie.bridge.plan_lowering import lower_plan_ir
+
+    cases = []
+    for n in ("01_flatten_pad", "02_haul_around_hazard", "03_blocked_infeasible"):
+        with open(os.path.join(REPO, "stewie", "server", "sample_missions", n + ".json")) as fh:
+            ir = json.loads(json.dumps(PV.plan_ir(MP.mission_from_dict(json.load(fh)))))
+        cases.append({"name": n, "ir": ir, "lowered": json.loads(json.dumps(lower_plan_ir(ir)))})
+    # SYNTHETIC IR (labelled): every op, a blocked leg, and an infeasible plan, so each posture route (direct, via
+    # the TRANSIT hub) and each replan event is lowered
+    synthetic = {"plan_id": "synthetic-coverage", "schema_version": "synthetic", "feasible": False, "blocked_legs": 1,
+                 "actions": [
+                     {"id": "a0", "op": "GoTo", "vehicle": 0, "waypoints": [[0.0, 0.0], [4.0, 3.0]], "to": [4.0, 3.0]},
+                     {"id": "a1", "op": "Excavate", "vehicle": 0, "site": [4.0, 3.0], "mass_kg": 12.5},
+                     {"id": "a2", "op": "Import", "vehicle": 0, "site": [4.0, 3.0], "dest": [6.0, 1.0],
+                      "mass_kg": 12.5, "haul_m": 2.8, "expect": {"energy_J": 900.0}},
+                     {"id": "a3", "op": "Observe", "vehicle": 1, "site": [6.0, 1.0]},
+                     {"id": "a4", "op": "CutHaulFill", "vehicle": 1, "site": [1.0, 1.0], "dest": [2.0, 2.0]},
+                     {"id": "a5", "op": "GoTo", "vehicle": 1, "waypoints": [[2.0, 2.0], [9.0, -2.0]], "to": [9.0, -2.0],
+                      "reached": False},
+                     {"id": "a6", "op": "Sinter", "vehicle": 1, "site": [9.0, -2.0]},
+                     {"id": "a7", "op": "Recharge", "vehicle": 1},
+                 ]}
+    cases.append({"name": "synthetic coverage", "ir": synthetic,
+                  "lowered": json.loads(json.dumps(lower_plan_ir(synthetic)))})
+    ops = {a["op"] for c in cases for a in c["ir"]["actions"]}
+    assert {"GoTo"} < ops, f"vacuity: work ops are lowered too ({ops})"
+    write_fixture(ORACLE_FIXTURES, "plan_lowering_cases", "oracle/build_fixtures.py::plan_lowering_cases "
+                  "(stewie.bridge.plan_lowering.lower_plan_ir on the sample missions' plan IRs)",
+                  ["stewie/bridge/plan_lowering.py", "stewie/specs/posture_machine.py", "lode/planner_views.py",
+                   "stewie/server/sample_missions/01_flatten_pad.json",
+                   "stewie/server/sample_missions/02_haul_around_hazard.json",
+                   "stewie/server/sample_missions/03_blocked_infeasible.json"], {"cases": cases})
 
 
 def cog_cases() -> None:
@@ -6678,6 +6735,7 @@ def main() -> None:
     http_compare_cases()
     http_ros_cases()
     http_nav_cases()
+    plan_lowering_cases()
 
 
 if __name__ == "__main__":
