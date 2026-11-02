@@ -15,6 +15,7 @@ pub mod edit_session;
 pub mod globe;
 pub mod layer_routes;
 pub mod library_routes;
+pub mod metrics;
 pub mod mission_routes;
 pub mod model_routes;
 pub mod objects;

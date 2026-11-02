@@ -1072,6 +1072,9 @@ async fn dem_workarea_png(
             })?;
         let png = crate::raster::png_rgba(&crate::raster::flipud(&rgba, npx), npx, npx)
             .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        // FS-10: a real map-render tile byte-size sample
+        #[allow(clippy::cast_precision_loss)] // a PNG size
+        st.metrics.resource("tile_cache", png.len() as f64 / 1024.0);
         let mut r = png.into_response();
         r.headers_mut()
             .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/png"));

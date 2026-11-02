@@ -1895,6 +1895,70 @@ async fn the_python_wms_session_replays_exactly() {
 }
 
 #[tokio::test]
+async fn metrics_count_each_response_by_status_and_route_template() {
+    let (app, _dir) = bare_app("metrics", false);
+    // GET /metrics is authenticated; this refusal is itself counted
+    assert_eq!(call(&app, "GET", "/metrics", None).await.0, 401);
+    for path in [
+        "/healthz",
+        "/healthz",
+        "/sample_mission/x",
+        "/no/such/route",
+    ] {
+        call(&app, "GET", path, None).await;
+    }
+    let mut req = Request::builder()
+        .uri("/metrics")
+        .header("x-api-key", "automation-key-0123456789")
+        .body(Body::empty())
+        .unwrap();
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+    let r = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let m: Value =
+        serde_json::from_slice(&r.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    // the snapshot is taken inside the handler, so it counts the five earlier requests, not itself
+    assert_eq!(m["requests_total"], json!(5));
+    assert_eq!(m["by_route"]["/healthz"], json!(2));
+    assert_eq!(m["by_route"]["/sample_mission/{name}"], json!(1));
+    assert_eq!(
+        m["by_route"]["/{path:path}"],
+        json!(1),
+        "an unknown path keys on the catch-all, not its raw path"
+    );
+    assert_eq!(m["by_route"]["/metrics"], json!(1));
+    assert_eq!(m["by_status"]["401"], json!(1));
+    assert_eq!(m["by_status"]["404"], json!(2));
+    let hz = &m["latency"]["/healthz"];
+    assert_eq!(
+        (hz["count"].clone(), hz["budget_ms"].clone()),
+        (json!(2), json!(100.0))
+    );
+    assert!(hz["p95"].as_f64().unwrap() >= hz["p50"].as_f64().unwrap());
+    assert_eq!(
+        m["latency"]["/sample_mission/{name}"]["budget_ms"],
+        json!(1000.0)
+    );
+    // memory and CPU are sampled from the process; bandwidth from the responses; the GPU class has no live source
+    let b = &m["budgets"];
+    assert!(
+        b["memory"]["count"].as_u64().unwrap() >= 1 && b["memory"]["max"].as_f64().unwrap() > 1.0
+    );
+    assert!(b["cpu"]["count"].as_u64().unwrap() >= 1);
+    assert!(b["bandwidth"]["count"].as_u64().unwrap() >= 4);
+    assert_eq!(
+        (
+            b["gpu"]["count"].clone(),
+            b["gpu"]["p95"].clone(),
+            b["gpu"]["budget"].clone()
+        ),
+        (json!(0), Value::Null, json!(33.0))
+    );
+    assert!(m["uptime_s"].as_f64().unwrap() >= 0.0);
+}
+
+#[tokio::test]
 async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts
     let dir = std::env::temp_dir().join(format!("stewie-heavy-{}", std::process::id()));

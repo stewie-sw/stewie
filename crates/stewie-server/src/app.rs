@@ -259,6 +259,8 @@ pub struct AppState {
     pub edit_sessions: crate::edit_session::Store,
     /// The rendered static globe drapes.
     pub globe_cache: crate::globe::Cache,
+    /// The request counters and budgets `/metrics` reports.
+    pub metrics: crate::metrics::Metrics,
     started: Instant,
     /// The process's `STEWIE_*` variables, which `/config` reports as the overlay's overrides
     /// ([`AppState::with_environment`]; empty until given).
@@ -337,6 +339,7 @@ impl AppState {
             heavy_quota: RateLimiter::new(settings.heavy_quota_max, settings.heavy_window_s),
             edit_sessions: crate::edit_session::Store::new(&cfg.data_dir),
             globe_cache: crate::globe::Cache::default(),
+            metrics: crate::metrics::Metrics::default(),
             cfg,
             settings,
             store,
@@ -1054,17 +1057,66 @@ async fn correlate(State(st): State<Arc<AppState>>, req: Request, next: Next) ->
         req = Request::from_parts(parts, Body::from(bytes));
     }
     req.extensions_mut().insert(Cid(cid.clone()));
+    // the metric key is the matched route template, never the client's raw path (bounded); the Python's catch-all
+    // GET/POST routes answer an unknown path
+    let route = req
+        .extensions()
+        .get::<axum::extract::MatchedPath>()
+        .map_or_else(
+            || {
+                if matches!(*req.method(), Method::GET | Method::POST) {
+                    "/{path:path}".to_owned()
+                } else {
+                    "unmatched".to_owned()
+                }
+            },
+            |m| m.as_str().to_owned(),
+        );
+    let t0 = std::time::Instant::now();
     let mut r = next.run(req).await;
+    let ms = t0.elapsed().as_secs_f64() * 1000.0;
+    st.metrics.record(
+        r.status().as_u16(),
+        &route,
+        ms,
+        axum::body::HttpBody::size_hint(r.body()).exact(),
+    );
+    let budget = crate::metrics::budget_for(&route);
+    if ms > budget {
+        eprintln!("perf budget exceeded: {route} {ms:.1}ms > {budget:.0}ms budget");
+    }
     if let Ok(v) = HeaderValue::from_str(&cid) {
         r.headers_mut().insert("x-correlation-id", v);
     }
     r
 }
 
+/// The request counters, per-route latency against its budget, and the resource budgets (any authenticated
+/// caller); the process's memory and CPU time are sampled first.
+async fn metrics(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let h = Head::of(&req);
+    blocking(st, move |st| {
+        require_auth(st, &h)?;
+        st.metrics.sample_process();
+        let mut body = serde_json::Map::new();
+        body.insert(
+            "uptime_s".into(),
+            json!(stewie_twin::numpy::round(
+                st.started.elapsed().as_secs_f64(),
+                1
+            )),
+        );
+        body.extend(st.metrics.snapshot());
+        Ok(axum::Json(Value::Object(body)).into_response())
+    })
+    .await
+}
+
 /// The app over one shared state.
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
+        .route("/metrics", get(metrics))
         .route("/auth/config", get(auth_config))
         .route("/auth/login", post(auth_login))
         .route("/auth/logout", post(auth_logout))
