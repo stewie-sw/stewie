@@ -1882,6 +1882,19 @@ async fn the_python_globe_session_replays_exactly() {
 }
 
 #[tokio::test]
+async fn the_python_wms_session_replays_exactly() {
+    replay(
+        "http_wms_cases",
+        b"stewie-http-wms-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts
     let dir = std::env::temp_dir().join(format!("stewie-heavy-{}", std::process::id()));

@@ -144,10 +144,10 @@ pub fn grid_rgba(color: &str) -> Vec<u8> {
     px
 }
 
-/// A rendered drape: its PNG and its box.
-pub type Rendered = Arc<(Vec<u8>, Map<String, Value>)>;
+/// A rendered drape and its box (with the live drapes' extra fields).
+pub type Rendered = Arc<(Drape, Map<String, Value>)>;
 
-/// A bounded FIFO cache of rendered static drapes (Python `_GLOBE_CACHE`, 256 entries): the PNG and its box.
+/// A bounded FIFO cache of rendered static drapes (Python `_GLOBE_CACHE`, 256 entries).
 #[derive(Debug, Default)]
 pub struct Cache {
     entries: Mutex<VecDeque<(String, Rendered)>>,

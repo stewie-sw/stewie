@@ -401,7 +401,7 @@ async fn contours(
 }
 
 /// The kinds the globe drapes (Python `routers.layers._GLOBE_KINDS`).
-const GLOBE_KINDS: [&str; 20] = [
+pub(crate) const GLOBE_KINDS: [&str; 20] = [
     "dem",
     "slope",
     "hazard",
@@ -425,7 +425,7 @@ const GLOBE_KINDS: [&str; 20] = [
 ];
 
 /// The tile-frame world bounds of a site's bundle `(x0, y0, x1, y1)`.
-fn world_bounds(bundle: &std::path::Path) -> Result<(f64, f64, f64, f64), ApiError> {
+pub(crate) fn world_bounds(bundle: &std::path::Path) -> Result<(f64, f64, f64, f64), ApiError> {
     let meta = crate::dem_routes::metadata(bundle)
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     let b = &meta["world_bounds_m"];
@@ -661,6 +661,55 @@ const GLOBE_Q: Model = Model {
     forbid_extra: false,
 };
 
+/// A drape of the site's tile and its box (with the live drapes' extra fields): the static kinds through the cache
+/// (keyed as the Python's: the sun only for the sun-dependent kinds, the colour only for the grid, the symbology only
+/// for slope), the traffic and changed-terrain drapes rendered fresh.
+pub(crate) fn drape(
+    st: &AppState,
+    kind: &str,
+    site: &str,
+    (az, el): (f64, f64),
+    color: &str,
+    (vmax, classes): (f64, usize),
+    extent: (f64, f64, f64, f64),
+) -> Result<crate::globe::Rendered, ApiError> {
+    if matches!(kind, "traffic" | "changed_terrain") {
+        let (d, extra) = live_drape(st, kind, site, extent)?;
+        let mut bbox = d.3.to_json();
+        bbox.extend(extra);
+        return Ok(Arc::new((d, bbox)));
+    }
+    let sun = if matches!(kind, "illumination" | "incidence" | "cost" | "blocking") {
+        format!("{el}/{az}")
+    } else {
+        String::new()
+    };
+    let sym = if kind == "slope" {
+        format!("{vmax}/{classes}")
+    } else {
+        String::new()
+    };
+    let key = format!(
+        "{kind}|{site}|{sun}|{}|{sym}",
+        if kind == "grid" { color } else { "" }
+    );
+    if let Some(hit) = st.globe_cache.get(&key) {
+        return Ok(hit);
+    }
+    let d = static_drape(st, kind, site, (az, el), color, (vmax, classes), extent)?.ok_or_else(
+        || {
+            err(
+                StatusCode::NOT_FOUND,
+                format!("unknown layer {}", py_repr(kind)),
+            )
+        },
+    )?;
+    let bbox = d.3.to_json();
+    let v = Arc::new((d, bbox));
+    st.globe_cache.put(key, v.clone());
+    Ok(v)
+}
+
 /// One globe drape request: its PNG and box (the static kinds through the cache), or the Python's 404.
 #[allow(clippy::too_many_lines)] // the Python's parameter handling, then the render
 fn globe(
@@ -733,63 +782,28 @@ fn globe(
         Missing::NotImported(e) => err(StatusCode::NOT_FOUND, format!("DEM absent: {e}")),
     })?;
     let extent = world_bounds(&dir)?;
-    let encode = |(rgba, w, h, b): crate::globe::Drape,
-                  extra: Map<String, Value>|
-     -> Result<_, ApiError> {
-        let png = png_rgba(&rgba, w, h).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-        let mut bbox = b.to_json();
-        bbox.extend(extra);
-        Ok(Arc::new((png, bbox)))
+    let boxed = |b: Map<String, Value>| {
+        let mut body = Map::new();
+        body.insert("ok".into(), json!(true));
+        body.extend(b);
+        axum::Json(Value::Object(body)).into_response()
     };
-    let out = if matches!(kind, "traffic" | "changed_terrain") {
-        let (drape, extra) = live_drape(st, kind, &site, extent)?;
-        encode(drape, extra)?
-    } else if !png {
+    if !png && !matches!(kind, "traffic" | "changed_terrain") {
         // every static drape covers the whole tile, so its box needs no render
-        Arc::new((
-            Vec::new(),
+        return Ok(boxed(
             crate::globe::geographic_bbox(&st.terrain.projection(), extent).to_json(),
-        ))
-    } else {
-        let sun = if matches!(kind, "illumination" | "incidence" | "cost" | "blocking") {
-            format!("{el}/{az}")
-        } else {
-            String::new()
-        };
-        let sym = if kind == "slope" {
-            format!("{vmax}/{classes}")
-        } else {
-            String::new()
-        };
-        let key = format!(
-            "{kind}|{site}|{sun}|{}|{sym}",
-            if kind == "grid" { color.as_str() } else { "" }
-        );
-        if let Some(hit) = st.globe_cache.get(&key) {
-            hit
-        } else {
-            let drape = static_drape(st, kind, &site, (az, el), &color, (vmax, classes), extent)?
-                .ok_or_else(|| {
-                err(
-                    StatusCode::NOT_FOUND,
-                    format!("unknown layer {}", py_repr(kind)),
-                )
-            })?;
-            let v = encode(drape, Map::new())?;
-            st.globe_cache.put(key, v.clone());
-            v
-        }
-    };
+        ));
+    }
+    let out = drape(st, kind, &site, (az, el), &color, (vmax, classes), extent)?;
     if png {
-        let mut r = out.0.clone().into_response();
+        let ((rgba, w, h, _), _) = &*out;
+        let png = png_rgba(rgba, *w, *h).map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+        let mut r = png.into_response();
         r.headers_mut()
             .insert(header::CONTENT_TYPE, HeaderValue::from_static("image/png"));
         Ok(r)
     } else {
-        let mut body = Map::new();
-        body.insert("ok".into(), json!(true));
-        body.extend(out.1.clone());
-        Ok(axum::Json(Value::Object(body)).into_response())
+        Ok(boxed(out.1.clone()))
     }
 }
 

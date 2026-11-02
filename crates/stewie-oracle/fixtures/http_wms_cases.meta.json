@@ -1,0 +1,10 @@
+{
+ "fixture": "http_wms_cases",
+ "generator": "oracle/build_fixtures.py::http_wms_cases (the FastAPI app's OGC WMS over the real Haworth globe drapes)",
+ "payload_sha256": "8d5b0b1167939107cb2ffbdd963e64ead67fb711c0dd624315001a7ce08f121f",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/server/gis_layers.py": "a10252b63ce66a11dccf9ac82686f9768b137a1aa90a640d54a035bdc4bbc2d3",
+  "stewie/server/routers/ogc.py": "6b12682dab7ea4aed21a9261593e23d3eb07d378995ff37d27f8ffa840c9bc86"
+ }
+}

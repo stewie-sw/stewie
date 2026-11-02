@@ -5675,6 +5675,60 @@ def http_globe_cases() -> None:
                   ["stewie/server/routers/layers.py", "stewie/server/gis_layers.py",
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
+def http_wms_cases() -> None:
+    """The OGC WMS 1.3.0 service (RW-55b17c): GET /ogc/wms GetCapabilities (direct and behind the forwarded proxy
+    headers) and GetMap crops of the real Haworth globe drapes in CRS:84, EPSG:4326 and IAU_2015:30100, with every
+    refusal the Python's checks give, through one scripted session (_http_session); a PNG is recorded by its decoded
+    pixels. The spine runs at the registry's loose friction (D-R72)."""
+    import math as _m
+
+    from stewie.physics import material as _MAT
+    from stewie.specs import constants as _K
+
+    host = {"host": "testserver"}
+
+    def script(call, key, d, clock):
+        w = "/ogc/wms?SERVICE=WMS&VERSION=1.3.0"
+        call("GET", f"{w}&REQUEST=GetCapabilities", headers=host)
+        call("GET", "/ogc/wms?request=getcapabilities&site=haworth",
+             headers={**host, "X-Forwarded-Proto": "https", "X-Forwarded-Host": "app.stewie.space"})
+        call("GET", f"{w}&REQUEST=GetCapabilities&site=atlantis", headers=host)
+        call("GET", f"{w}&REQUEST=GetCapabilities&site=amundsen_rim", headers=host)
+        bb84 = "-27.5,-86.45,-24.0,-86.2"
+        call("GET", f"{w}&REQUEST=GetMap&LAYERS=slope&CRS=CRS:84&BBOX={bb84}&WIDTH=256&HEIGHT=128&FORMAT=image/png",
+             headers=host)
+        call("GET", f"{w}&REQUEST=GetMap&LAYERS=hazard&CRS=EPSG:4326&BBOX=-86.45,-27.5,-86.2,-24.0&WIDTH=200&HEIGHT=150",
+             headers=host)
+        call("GET", f"{w}&request=GetMap&layers=dem&crs=IAU_2015:30100&bbox=-86.6,-30,-86.0,-21&width=300&height=200",
+             headers=host)
+        call("GET", f"{w}&REQUEST=GetMap&LAYERS=grid&CRS=OGC:CRS84&BBOX=-35,-87,-15,-85&WIDTH=64&HEIGHT=1", headers=host)
+        call("GET", f"{w}&REQUEST=GetMap&LAYERS=traffic&CRS=CRS:84&BBOX={bb84}&WIDTH=32&HEIGHT=32", headers=host)
+        call("GET", f"{w}&REQUEST=GetMap&LAYERS=slope&CRS=CRS:84&BBOX={bb84}&WIDTH=1&HEIGHT=1", headers=host)
+        call("GET", f"{w}&REQUEST=GetMap&LAYERS=slope&CRS=CRS:84&BBOX={bb84}&WIDTH=40&HEIGHT=1", headers=host)
+        for bad in ("SERVICE=WFS&REQUEST=GetMap", "REQUEST=DescribeLayer", "SERVICE=WMS",
+                    "REQUEST=GetMap&VERSION=1.1.1&LAYERS=slope", "REQUEST=GetMap&LAYERS=slope,dem",
+                    "REQUEST=GetMap&LAYERS=nope", "REQUEST=GetMap&LAYERS=slope&FORMAT=image/jpeg",
+                    "REQUEST=GetMap&LAYERS=slope&WIDTH=a&HEIGHT=2", "REQUEST=GetMap&LAYERS=slope&WIDTH=+1_0&HEIGHT=0",
+                    "REQUEST=GetMap&LAYERS=slope&WIDTH=4096&HEIGHT=2048",
+                    "REQUEST=GetMap&LAYERS=slope&WIDTH=8&HEIGHT=8&BBOX=1,2,3",
+                    "REQUEST=GetMap&LAYERS=slope&WIDTH=8&HEIGHT=8&BBOX=1,2,3,4&CRS=EPSG:3857",
+                    "REQUEST=GetMap&LAYERS=slope&WIDTH=8&HEIGHT=8&BBOX=3,2,1,4",
+                    "REQUEST=GetMap&LAYERS=slope&WIDTH=8&HEIGHT=8&BBOX=1,nan,3,4",
+                    "REQUEST=GetMap&LAYERS=slope&WIDTH=8&HEIGHT=8&BBOX=1,2,3,4&site=atlantis",
+                    "REQUEST=GetMap&LAYERS=slope&WIDTH=8&HEIGHT=8&BBOX=1,2,3,4&site=amundsen_rim"):
+            call("GET", f"/ogc/wms?{bad}", headers=host)
+
+    phi, kphi = _MAT.PHI_LOOSE_DEG, _K.PHI
+    _MAT.PHI_LOOSE_DEG, _K.PHI = 35.0, _m.radians(35.0)    # D-R72: the spine at the registry's loose friction
+    try:
+        payload = _http_session("stewie-http-wms-oracle", {}, script)
+    finally:
+        _MAT.PHI_LOOSE_DEG, _K.PHI = phi, kphi
+    write_fixture(ORACLE_FIXTURES, "http_wms_cases", "oracle/build_fixtures.py::http_wms_cases (the FastAPI app's "
+                  "OGC WMS over the real Haworth globe drapes)",
+                  ["stewie/server/routers/ogc.py", "stewie/server/gis_layers.py",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
+
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
     real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
@@ -6004,6 +6058,7 @@ def main() -> None:
     http_layers_cases()
     http_layers_vector_cases()
     http_globe_cases()
+    http_wms_cases()
     contour_lines_cases()
     endurance_cases()
     timeline_cases()
