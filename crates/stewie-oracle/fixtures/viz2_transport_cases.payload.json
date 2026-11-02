@@ -1,0 +1,80 @@
+{
+ "replies": [
+  {
+   "case": "eof",
+   "first_frame": null,
+   "line": "{\"ok\": false, \"error\": \"empty handshake\"}"
+  },
+  {
+   "case": "not_json",
+   "first_frame": null,
+   "line": "{\"ok\": false, \"error\": \"handshake not JSON\"}"
+  },
+  {
+   "case": "wrong_token",
+   "first_frame": null,
+   "line": "{\"ok\": false, \"error\": \"bad or missing token\"}"
+  },
+  {
+   "case": "no_token",
+   "first_frame": null,
+   "line": "{\"ok\": false, \"error\": \"bad or missing token\"}"
+  },
+  {
+   "case": "json_list",
+   "first_frame": null,
+   "line": ""
+  },
+  {
+   "case": "claimed_role",
+   "first_frame": {
+    "keyframe": true,
+    "keys": [
+     "payload",
+     "seq",
+     "t",
+     "v"
+    ],
+    "payload_keys": [
+     "dirty",
+     "generation",
+     "keyframe",
+     "residual_frac",
+     "safe_stop",
+     "telem",
+     "type"
+    ],
+    "seq": 0,
+    "type": "telemetry",
+    "v": "1.0"
+   },
+   "line": "{\"ok\": true, \"role\": \"drive\", \"epoch\": 1, \"protocol_version\": \"1.0\"}"
+  }
+ ],
+ "token_file": {
+  "ends_with_newline": true,
+  "keys": [
+   "port",
+   "token",
+   "start_xy",
+   "world_x0",
+   "world_y0",
+   "base_cell_m",
+   "base_w",
+   "base_h"
+  ],
+  "mode": 384,
+  "token_hex_len": 64,
+  "values": {
+   "base_cell_m": 1.0,
+   "base_h": 2000,
+   "base_w": 2000,
+   "start_xy": [
+    -34746.0,
+    89673.0
+   ],
+   "world_x0": -35290.0,
+   "world_y0": 88290.0
+  }
+ }
+}

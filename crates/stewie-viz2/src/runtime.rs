@@ -17,6 +17,15 @@ use stewie_physics::arm::{ARM_OFFSET_MAX_RAD, ARM_OFFSET_MIN_RAD, dig_engagement
 use stewie_physics::drum_sensor::{DrumSensor, ErrorBands};
 use stewie_physics::worksite::{Setup, WorkSite};
 
+/// `setup` asking for `fine_cell_m` (which must then equal the bundle's native cell).
+#[must_use]
+pub fn with_fine(setup: Setup, fine_cell_m: Option<f64>) -> Setup {
+    Setup {
+        fine_cell_m,
+        ..setup
+    }
+}
+
 /// A bucket drum the IPEx profile carries (the large one belongs to RASSOR).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Drum {

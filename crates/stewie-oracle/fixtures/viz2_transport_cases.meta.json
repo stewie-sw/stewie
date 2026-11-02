@@ -1,0 +1,9 @@
+{
+ "fixture": "viz2_transport_cases",
+ "generator": "oracle/build_fixtures.py::viz2_transport_cases (the viz2 runtime's loopback seam, live; SYNTHETIC handshakes, labelled)",
+ "payload_sha256": "4f4c29fdc66d9cbf6c1ca8c6e40593ca6139f0d945bd279093ff237b34f23730",
+ "sources": {
+  "stewie/bridge/stream.py": "6b6e411a15d59357da34c1b20f0a659668e45f9f1852666fbc0a3aadba6d94fe",
+  "stewie/runtime/viz2_runtime.py": "6d0e455fc775f2b8c241ba1bd29cad1d488798dc4d459878b402bfef6764013c"
+ }
+}

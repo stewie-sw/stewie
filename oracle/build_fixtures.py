@@ -7273,6 +7273,71 @@ def viz2_runtime_cases() -> None:
                    "clasts": clasts, "scenarios": {"prune": prune, "slope": slope}})
 
 
+def viz2_transport_cases() -> None:
+    """The viz2 runtime's authenticated loopback seam (RW-51e2), live: a real ``Viz2Runtime`` started over the 1 m
+    SfS bundle and a socket client. Recorded: the token file (its mode, its keys, and every value but the random
+    port and token), the reply to each SYNTHETIC handshake (labelled: end of stream, not JSON, a wrong token, no
+    token, a JSON list, a client-claimed role with the right token), and the first frame's shape. Nothing timed is
+    recorded."""
+    import socket
+    import stat
+    import tempfile
+
+    from stewie.runtime.viz2_runtime import Viz2Runtime
+
+    def exchange(port, payload, *, close_write=False):
+        c = socket.create_connection(("127.0.0.1", port), timeout=5)
+        try:
+            if payload:
+                c.sendall(payload)
+            if close_write:
+                c.shutdown(socket.SHUT_WR)
+            buf = b""
+            while b"\n" not in buf:
+                chunk = c.recv(4096)
+                if not chunk:
+                    break
+                buf += chunk
+            line = buf.split(b"\n", 1)[0]
+            first = None
+            if line.startswith(b'{"ok": true'):
+                while buf.count(b"\n") < 2:
+                    buf += c.recv(65536)
+                first = json.loads(buf.split(b"\n")[1])
+            return line.decode(), first
+        finally:
+            c.close()
+
+    with tempfile.TemporaryDirectory() as d:
+        rt = Viz2Runtime(os.path.join(REPO, "samples", "lunar_dem", "haworth_sfs_2km_1m"), session_dir=d)
+        with rt:
+            mode = stat.S_IMODE(os.stat(rt.token_path).st_mode)
+            with open(rt.token_path) as fh:
+                text = fh.read()
+            tok = json.loads(text)
+            token = tok["token"]
+            port = tok["port"]
+            replies = []
+            for name, payload, close in (("eof", b"", True), ("not_json", b"not json\n", False),
+                                         ("wrong_token", b'{"token": "wrong"}\n', False),
+                                         ("no_token", b'{"role": "admin"}\n', False), ("json_list", b"[1]\n", False),
+                                         ("claimed_role", json.dumps({"token": token, "role": "admin"}).encode() + b"\n",
+                                          False)):
+                line, first = exchange(port, payload, close_write=close)
+                replies.append({"case": name, "line": line,
+                                "first_frame": None if first is None else {
+                                    "keys": sorted(first), "payload_keys": sorted(first["payload"]),
+                                    "type": first["payload"]["type"], "keyframe": first["payload"]["keyframe"],
+                                    "seq": first["seq"], "v": first["v"]}})
+    write_fixture(ORACLE_FIXTURES, "viz2_transport_cases", "oracle/build_fixtures.py::viz2_transport_cases (the viz2 "
+                  "runtime's loopback seam, live; SYNTHETIC handshakes, labelled)",
+                  ["stewie/runtime/viz2_runtime.py", "stewie/bridge/stream.py"],
+                  {"token_file": {"mode": mode, "keys": list(tok), "ends_with_newline": text.endswith("\n"),
+                                  "values": {k: v for k, v in tok.items() if k not in ("port", "token")},
+                                  "token_hex_len": len(token)},
+                   "replies": replies})
+
+
 def godot_scene_cases() -> None:
     """The Godot renderer plugin's scene (RW-51a): the Python /render pipeline's own BEFORE bundle -- a window of the
     real Haworth DEM bundle cropped at its centre (u = v = 0.5, 10 cells resampled x5) by
@@ -8090,6 +8155,7 @@ def main() -> None:
     stream_protocol_cases()
     viz2_parts_cases()
     viz2_runtime_cases()
+    viz2_transport_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()
