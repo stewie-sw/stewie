@@ -114,6 +114,9 @@ pub struct Settings {
     /// `STEWIE_SITE_VECTORS` and `STEWIE_GIS_DATA_DIR`: where the visible-pin site vectors are found.
     pub site_vectors: Option<String>,
     pub gis_data_dir: Option<String>,
+    /// `STEWIE_DATABASE_URL`, normalised for sqlx: the Postgres store of the edit sessions and the world-transaction
+    /// projection (D-R161). Unset keeps the `SQLite` store in the data directory and mirrors nothing.
+    pub database_url: Option<String>,
 }
 
 /// The constants the Python's N15 overlay can override (`oracle/export_registries.py`).
@@ -132,7 +135,7 @@ fn rpo(raw: &str) -> f64 {
 
 impl Settings {
     /// # Errors
-    /// A malformed number, `STEWIE_DATABASE_URL` set (the world-transaction projection is not ported), or
+    /// A malformed number, a `STEWIE_DATABASE_URL` that is not Postgres, or
     /// `STEWIE_CORS_ORIGINS` set (cross-origin access is not served by this server yet;
     /// refusing beats silently ignoring a configured allowlist), or the N15 overlay configured (`STEWIE_CONFIG` or a
     /// `STEWIE_<constant>` the Python would apply; the Rust compiles those constants in).
@@ -146,11 +149,10 @@ impl Settings {
                 .parse::<f64>()
                 .map_err(|e| format!("{k}={v:?}: {e}"))
         };
-        if !var("STEWIE_DATABASE_URL").trim().is_empty() {
-            return Err("STEWIE_DATABASE_URL is set, but the Rust server does not mirror world transactions to a \
-                        database yet (D-R113); the journal is the authority. Unset it"
-                .to_owned());
-        }
+        let database_url = Some(var("STEWIE_DATABASE_URL"))
+            .filter(|u| !u.trim().is_empty())
+            .map(|u| crate::edit_session::postgres_url(&u))
+            .transpose()?;
         if !var("STEWIE_CORS_ORIGINS").trim().is_empty() {
             return Err("STEWIE_CORS_ORIGINS is set, but the Rust server serves same-origin only (D-R108); unset it"
                 .to_owned());
@@ -203,6 +205,7 @@ impl Settings {
             reports_ttl_s: num("STEWIE_REPORTS_TTL_S", "86400")?,
             snapshot_rpo_s: rpo(&var("STEWIE_SNAPSHOT_RPO_S")),
             replica_rpo_s: rpo(&var("STEWIE_REPLICA_RPO_S")),
+            database_url,
             tiles_dir: get("STEWIE_TILES_DIR")
                 .filter(|v| !v.is_empty())
                 .map_or_else(
@@ -339,6 +342,30 @@ impl AppState {
         );
         let world =
             crate::world::WorldState::open(&cfg.data_dir.join("twin").join("world.journal"))?;
+        let edit_sessions =
+            crate::edit_session::Store::new(&cfg.data_dir, settings.database_url.as_deref());
+        if settings.database_url.is_some() {
+            // PG-01: each committed world transaction is mirrored, in commit order, by one background task
+            let rt = tokio::runtime::Handle::try_current()
+                .map_err(|_| "STEWIE_DATABASE_URL needs the server's async runtime".to_owned())?;
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Value>();
+            world.project_to(tx);
+            let mirror = edit_sessions.clone();
+            rt.spawn(async move {
+                while let Some(txn) = rx.recv().await {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map_or(0.0, |d| d.as_secs_f64());
+                    if let Err(e) = mirror.mirror_world_txn(&txn, now).await {
+                        // the projection is not authority: a failure never breaks the committed transaction
+                        eprintln!(
+                            "PG-01: world-txn projection mirror failed (non-authoritative): {}",
+                            e.1
+                        );
+                    }
+                }
+            });
+        }
         let planning = crate::planning::Planning::from_env(get)?;
         let state = Self {
             terrain,
@@ -353,7 +380,7 @@ impl AppState {
             globe_quota: RateLimiter::new(settings.globe_quota_max, settings.globe_window_s),
             draft_quota: RateLimiter::new(120, 60.0),
             heavy_quota: RateLimiter::new(settings.heavy_quota_max, settings.heavy_window_s),
-            edit_sessions: crate::edit_session::Store::new(&cfg.data_dir),
+            edit_sessions,
             globe_cache: crate::globe::Cache::default(),
             metrics: crate::metrics::Metrics::default(),
             cfg,

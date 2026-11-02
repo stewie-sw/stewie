@@ -115,7 +115,11 @@ impl WorldTransaction {
     }
 
     /// What the chain hash commits to: the record without its chain hash or unlinked identities.
-    fn linked_body(&self) -> Value {
+    ///
+    /// # Panics
+    /// Never: [`WorldTransaction::record`] is always an object.
+    #[must_use]
+    pub fn linked_body(&self) -> Value {
         let mut b = self.record();
         let m = b.as_object_mut().expect("record is an object");
         m.remove("chain_hash");

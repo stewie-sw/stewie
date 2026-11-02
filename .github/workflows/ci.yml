@@ -88,6 +88,18 @@ jobs:
       # CI-OPT: the numeric oracle tests ran 477 s unoptimised; at opt-level 2 they take ~4.6x less (measured
       # 218 s -> 47 s at 4 threads). Rust never contracts or reorders float ops by opt level, so results are unchanged.
       CARGO_PROFILE_TEST_OPT_LEVEL: "2"
+      # PG-01 (D-R161): the Postgres store and world-transaction projection tests make their own databases on this
+      # server; under CI a missing URL fails them rather than skipping
+      STEWIE_TEST_POSTGRES_URL: postgresql://stewie:stewie-ci@localhost:5432/postgres
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4   # the deploy's image (deploy/compose.yml)
+        env:
+          POSTGRES_USER: stewie
+          POSTGRES_PASSWORD: stewie-ci   # a throwaway CI-only credential
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U stewie" --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5
       - name: toolchain (pinned by rust-toolchain.toml; rustup is preinstalled on the runner)

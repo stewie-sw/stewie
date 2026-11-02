@@ -1,9 +1,12 @@
 //! Mission-feature edit sessions (RW-55b12; Python `server.edit_session` over `server.db`, routes `routers.editsession`):
 //! the server-owned, versioned keep-out and place-object marker set an operator authors in the IDE, with an
-//! append-only before/after audit and a linear undo. The `SQLite` file `data_dir/edit_session.db` is the authority,
-//! with the Python's own tables: every mutation is one immediate transaction (load, apply, write the snapshot, append
+//! append-only before/after audit and a linear undo. The durable store is the authority, with the Python's own
+//! tables: Postgres (schema `stewie`) when `STEWIE_DATABASE_URL` is set, else the `SQLite` file
+//! `data_dir/edit_session.db`. Every mutation is one serialized transaction (load, apply, write the snapshot, append
 //! the audit), so concurrent edits serialize and nothing half-applied is ever visible. JSON columns hold the text
-//! `SQLAlchemy` writes (`json.dumps`, insertion order), so the Python and Rust servers read each other's sessions.
+//! `SQLAlchemy` writes (`json.dumps`, insertion order; Postgres `JSONB` keeps its own key order, D-R161), so the
+//! Python and Rust servers read each other's sessions. The same store mirrors each committed world transaction to
+//! the `world_txn` projection when a database URL is configured (PG-01).
 //! The routes are keyless: the unguessable session id is the capability (the Python's posture).
 
 use std::path::PathBuf;
@@ -15,8 +18,8 @@ use axum::http::{Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, patch, post};
 use serde_json::{Value, json};
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
-use sqlx::{Row, SqliteConnection};
+use sqlx::any::{AnyConnectOptions, AnyPoolOptions};
+use sqlx::{AnyConnection, AnyPool, ConnectOptions as _, Row};
 
 use crate::app::{ApiError, AppState, Head, err, log, no_route_for, parse_body, split};
 use crate::operators::py_repr;
@@ -29,9 +32,11 @@ const MAX_MARKERS_PER_SESSION: usize = 200;
 const MARKER_TYPES: [&str; 5] = ["antenna", "beacon", "cache", "instrument", "sample"];
 const MAX_MARKER_LABEL_LEN: usize = 80;
 const AUDIT_TAIL: usize = 50;
+/// The Postgres advisory lock that serializes the Rust writers (the `SQLite` path takes `BEGIN IMMEDIATE`).
+const WRITE_LOCK: i64 = 0x5354_4557_4945; // "STEWIE"
 
 /// The Python's tables, as `SQLAlchemy` creates them on `SQLite`.
-const DDL: [&str; 3] = [
+const SQLITE_DDL: [&str; 4] = [
     "CREATE TABLE IF NOT EXISTS edit_session (\n\topaque_id VARCHAR(64) NOT NULL, \n\tplan_id VARCHAR(64), \n\t\
      version INTEGER NOT NULL, \n\tcreated_at FLOAT NOT NULL, \n\tfid_seq INTEGER NOT NULL, \n\tmarker_seq INTEGER NOT \
      NULL, \n\tfeatures JSON NOT NULL, \n\tmarkers JSON NOT NULL, \n\tPRIMARY KEY (opaque_id)\n)",
@@ -39,13 +44,47 @@ const DDL: [&str; 3] = [
      INTEGER NOT NULL, \n\top VARCHAR(32) NOT NULL, \n\tfid VARCHAR(64), \n\tkind VARCHAR(32), \n\t\"before\" JSON, \n\t\
      \"after\" JSON, \n\tts FLOAT NOT NULL, \n\ttarget INTEGER, \n\treverted_op VARCHAR(32), \n\tPRIMARY KEY (id)\n)",
     "CREATE INDEX IF NOT EXISTS ix_edit_audit_session_version ON edit_audit (session_id, version)",
+    "CREATE TABLE IF NOT EXISTS world_txn (\n\tseq INTEGER NOT NULL, \n\tworld_sha VARCHAR(64) NOT NULL, \n\tchain_hash \
+     VARCHAR(64) NOT NULL, \n\tprev_hash VARCHAR(64) NOT NULL, \n\tauthority_sha VARCHAR(64) NOT NULL, \n\ttwin_version \
+     INTEGER NOT NULL, \n\ttwin_hash VARCHAR(64) NOT NULL, \n\tplan_id VARCHAR(64) NOT NULL, \n\tmission VARCHAR(160) NOT \
+     NULL, \n\tsite VARCHAR(64) NOT NULL, \n\tbody VARCHAR(32) NOT NULL, \n\tmission_t_s FLOAT NOT NULL, \n\tprovenance \
+     VARCHAR(240) NOT NULL, \n\tuncertainty_m FLOAT NOT NULL, \n\tlinked JSON NOT NULL, \n\tcreated_at FLOAT NOT NULL, \n\t\
+     PRIMARY KEY (seq)\n)",
 ];
 
-/// The edit-session store: a pool on `data_dir/edit_session.db`, opened and its schema made on first use.
-#[derive(Debug)]
+/// The Python's tables, as `SQLAlchemy` creates them on Postgres (the release-revision store comes with the
+/// executive port).
+const POSTGRES_DDL: [&str; 5] = [
+    "CREATE SCHEMA IF NOT EXISTS stewie",
+    "CREATE TABLE IF NOT EXISTS stewie.edit_session (\n\topaque_id VARCHAR(64) NOT NULL, \n\tplan_id VARCHAR(64), \n\t\
+     version INTEGER NOT NULL, \n\tcreated_at FLOAT NOT NULL, \n\tfid_seq INTEGER NOT NULL, \n\tmarker_seq INTEGER NOT \
+     NULL, \n\tfeatures JSONB NOT NULL, \n\tmarkers JSONB NOT NULL, \n\tPRIMARY KEY (opaque_id)\n)",
+    "CREATE TABLE IF NOT EXISTS stewie.edit_audit (\n\tid SERIAL NOT NULL, \n\tsession_id VARCHAR(64) NOT NULL, \n\t\
+     version INTEGER NOT NULL, \n\top VARCHAR(32) NOT NULL, \n\tfid VARCHAR(64), \n\tkind VARCHAR(32), \n\tbefore JSONB, \
+     \n\tafter JSONB, \n\tts FLOAT NOT NULL, \n\ttarget INTEGER, \n\treverted_op VARCHAR(32), \n\tPRIMARY KEY (id)\n)",
+    "CREATE INDEX IF NOT EXISTS ix_edit_audit_session_version ON stewie.edit_audit (session_id, version)",
+    "CREATE TABLE IF NOT EXISTS stewie.world_txn (\n\tseq SERIAL NOT NULL, \n\tworld_sha VARCHAR(64) NOT NULL, \n\t\
+     chain_hash VARCHAR(64) NOT NULL, \n\tprev_hash VARCHAR(64) NOT NULL, \n\tauthority_sha VARCHAR(64) NOT NULL, \n\t\
+     twin_version INTEGER NOT NULL, \n\ttwin_hash VARCHAR(64) NOT NULL, \n\tplan_id VARCHAR(64) NOT NULL, \n\tmission \
+     VARCHAR(160) NOT NULL, \n\tsite VARCHAR(64) NOT NULL, \n\tbody VARCHAR(32) NOT NULL, \n\tmission_t_s FLOAT NOT NULL, \
+     \n\tprovenance VARCHAR(240) NOT NULL, \n\tuncertainty_m FLOAT NOT NULL, \n\tlinked JSONB NOT NULL, \n\tcreated_at \
+     FLOAT NOT NULL, \n\tPRIMARY KEY (seq)\n)",
+];
+
+/// Which database the store talks to; the statements differ only by the schema prefix and the `JSONB` casts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Dialect {
+    Sqlite,
+    Postgres,
+}
+
+/// The edit-session store: a pool on `STEWIE_DATABASE_URL` (Postgres) or `data_dir/edit_session.db`, opened and its
+/// schema made on first use, so the server starts before the database is up (as the Python's).
+#[derive(Debug, Clone)]
 pub struct Store {
     path: PathBuf,
-    pool: tokio::sync::OnceCell<SqlitePool>,
+    url: Option<String>,
+    pool: Arc<tokio::sync::OnceCell<(AnyPool, Dialect)>>,
 }
 
 fn db_error(e: impl std::fmt::Display) -> ApiError {
@@ -55,63 +94,185 @@ fn db_error(e: impl std::fmt::Display) -> ApiError {
     )
 }
 
+/// The sqlx form of a `SQLAlchemy` Postgres URL: the `+driver` suffix (`postgresql+asyncpg://`) dropped. Anything
+/// but a Postgres URL is refused (D-R161).
+///
+/// # Errors
+/// A URL that does not name Postgres. The message never repeats the URL (it carries the password).
+pub fn postgres_url(raw: &str) -> Result<String, String> {
+    let raw = raw.trim();
+    let (scheme, rest) = raw.split_once("://").unwrap_or(("", ""));
+    match scheme.split('+').next() {
+        Some("postgresql" | "postgres") if !rest.is_empty() => Ok(format!("postgresql://{rest}")),
+        _ => Err("STEWIE_DATABASE_URL must be a postgresql:// (or postgresql+<driver>://) URL; the Rust server keeps \
+                  the SQLite store in the data directory when it is unset (D-R161)"
+            .to_owned()),
+    }
+}
+
 impl Store {
-    /// The store for a data directory (nothing is opened yet).
+    /// The store for a data directory, or for the Postgres database `url` (already [`postgres_url`]-normalised).
+    /// Nothing is opened yet.
     #[must_use]
-    pub fn new(data_dir: &std::path::Path) -> Self {
+    pub fn new(data_dir: &std::path::Path, url: Option<&str>) -> Self {
         Self {
             path: data_dir.join("edit_session.db"),
-            pool: tokio::sync::OnceCell::new(),
+            url: url.map(str::to_owned),
+            pool: Arc::default(),
         }
     }
 
-    async fn pool(&self) -> Result<&SqlitePool, ApiError> {
+    async fn pool(&self) -> Result<&(AnyPool, Dialect), ApiError> {
         self.pool
             .get_or_try_init(|| async {
-                let opts = SqliteConnectOptions::new()
-                    .filename(&self.path)
-                    .create_if_missing(true)
-                    .busy_timeout(std::time::Duration::from_secs(30));
-                let pool = SqlitePoolOptions::new()
-                    .max_connections(4)
+                sqlx::any::install_default_drivers();
+                let (opts, dialect, ddl): (AnyConnectOptions, _, &[&str]) =
+                    if let Some(u) = &self.url {
+                        (
+                            u.parse()
+                                .map_err(|_| db_error("STEWIE_DATABASE_URL does not parse"))?,
+                            Dialect::Postgres,
+                            &POSTGRES_DDL,
+                        )
+                    } else {
+                        let url = sqlx::sqlite::SqliteConnectOptions::new()
+                            .filename(&self.path)
+                            .create_if_missing(true)
+                            .to_url_lossy();
+                        (
+                            AnyConnectOptions::from_url(&url).map_err(db_error)?,
+                            Dialect::Sqlite,
+                            &SQLITE_DDL,
+                        )
+                    };
+                let mut pool = AnyPoolOptions::new().max_connections(4);
+                if dialect == Dialect::Postgres {
+                    // an unreachable database answers a request in 5 s, not sqlx's default 30 s
+                    pool = pool.acquire_timeout(std::time::Duration::from_secs(5));
+                }
+                let pool = pool
+                    .after_connect(move |c, _| {
+                        Box::pin(async move {
+                            if dialect == Dialect::Sqlite {
+                                sqlx::query("PRAGMA busy_timeout = 30000")
+                                    .execute(c)
+                                    .await?;
+                            }
+                            Ok(())
+                        })
+                    })
                     .connect_with(opts)
                     .await
                     .map_err(db_error)?;
-                for ddl in DDL {
-                    sqlx::query(ddl).execute(&pool).await.map_err(db_error)?;
+                for q in ddl {
+                    sqlx::query(q).execute(&pool).await.map_err(db_error)?;
                 }
-                Ok(pool)
+                Ok((pool, dialect))
             })
             .await
     }
 
-    /// Run `f` inside one immediate transaction (the write lock taken before the first read), committing on `Ok`.
+    /// Run `f` inside one serialized transaction (the write lock taken before the first read), committing on `Ok`.
     async fn immediate<T>(
         &self,
-        f: impl AsyncFnOnce(&mut SqliteConnection) -> Result<T, ApiError>,
+        f: impl AsyncFnOnce(&mut AnyConnection, Dialect) -> Result<T, ApiError>,
     ) -> Result<T, ApiError> {
-        let mut conn = self.pool().await?.acquire().await.map_err(db_error)?;
-        sqlx::query("BEGIN IMMEDIATE")
+        let (pool, dialect) = self.pool().await?;
+        let begin: &[&str] = match dialect {
+            Dialect::Sqlite => &["BEGIN IMMEDIATE"],
+            Dialect::Postgres => &["BEGIN", "SELECT pg_advisory_xact_lock($1)"],
+        };
+        Self::transaction(pool, *dialect, begin, f).await
+    }
+
+    /// Run `f` inside one read-only snapshot, so a session row and its audit trail are read at one version.
+    async fn snapshot<T>(
+        &self,
+        f: impl AsyncFnOnce(&mut AnyConnection, Dialect) -> Result<T, ApiError>,
+    ) -> Result<T, ApiError> {
+        let (pool, dialect) = self.pool().await?;
+        let begin: &[&str] = match dialect {
+            Dialect::Sqlite => &["BEGIN"],
+            Dialect::Postgres => &["BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY"],
+        };
+        Self::transaction(pool, *dialect, begin, f).await
+    }
+
+    async fn transaction<T>(
+        pool: &AnyPool,
+        dialect: Dialect,
+        begin: &[&str],
+        f: impl AsyncFnOnce(&mut AnyConnection, Dialect) -> Result<T, ApiError>,
+    ) -> Result<T, ApiError> {
+        let mut conn = pool.acquire().await.map_err(db_error)?;
+        for q in begin {
+            let q = if q.contains("$1") {
+                sqlx::query(q).bind(WRITE_LOCK)
+            } else {
+                sqlx::query(q)
+            };
+            q.execute(&mut *conn).await.map_err(db_error)?;
+        }
+        let out = f(&mut conn, dialect).await;
+        let end = if out.is_ok() { "COMMIT" } else { "ROLLBACK" };
+        sqlx::query(end)
             .execute(&mut *conn)
             .await
             .map_err(db_error)?;
-        match f(&mut conn).await {
-            Ok(v) => {
-                sqlx::query("COMMIT")
-                    .execute(&mut *conn)
-                    .await
-                    .map_err(db_error)?;
-                Ok(v)
-            }
-            Err(e) => {
-                sqlx::query("ROLLBACK")
-                    .execute(&mut *conn)
-                    .await
-                    .map_err(db_error)?;
-                Err(e)
-            }
-        }
+        out
     }
+
+    /// Upsert one committed world transaction into the `world_txn` projection, keyed by its `seq` (Python
+    /// `db._mirror_world_txn`). Not authority: the journal is; the caller logs and drops a failure.
+    ///
+    /// # Errors
+    /// The database unreachable or refusing the row.
+    pub async fn mirror_world_txn(&self, txn: &Value, now: f64) -> Result<(), ApiError> {
+        let (pool, dialect) = self.pool().await?;
+        let s = |k: &str, d: &str| txn.get(k).and_then(Value::as_str).unwrap_or(d).to_owned();
+        let f = |k: &str| txn.get(k).and_then(Value::as_f64).unwrap_or(0.0);
+        let linked = stewie_twin::pyjson::dumps(txn).map_err(db_error)?;
+        sqlx::query(&sql(
+            *dialect,
+            "INSERT INTO {s}world_txn (seq, world_sha, chain_hash, prev_hash, authority_sha, twin_version, twin_hash, \
+             plan_id, mission, site, body, mission_t_s, provenance, uncertainty_m, linked, created_at) VALUES ($1, $2, \
+             $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15{j}, $16) ON CONFLICT (seq) DO UPDATE SET \
+             world_sha = excluded.world_sha, chain_hash = excluded.chain_hash, prev_hash = excluded.prev_hash, \
+             authority_sha = excluded.authority_sha, twin_version = excluded.twin_version, twin_hash = \
+             excluded.twin_hash, plan_id = excluded.plan_id, mission = excluded.mission, site = excluded.site, \
+             body = excluded.body, mission_t_s = excluded.mission_t_s, provenance = excluded.provenance, \
+             uncertainty_m = excluded.uncertainty_m, linked = excluded.linked, created_at = excluded.created_at",
+        ))
+        .bind(i32::try_from(txn.get("seq").and_then(Value::as_i64).unwrap_or(0)).map_err(db_error)?)
+        .bind(s("world_sha", ""))
+        .bind(s("chain_hash", ""))
+        .bind(s("prev_hash", ""))
+        .bind(s("authority_sha", "genesis"))
+        .bind(i32::try_from(txn.get("twin_version").and_then(Value::as_i64).unwrap_or(0)).map_err(db_error)?)
+        .bind(s("twin_hash", "genesis"))
+        .bind(s("plan_id", "none"))
+        .bind(s("mission", "none"))
+        .bind(s("site", "haworth"))
+        .bind(s("body", "moon"))
+        .bind(f("mission_t_s"))
+        .bind(s("provenance", ""))
+        .bind(f("uncertainty_m"))
+        .bind(linked)
+        .bind(now)
+        .execute(pool)
+        .await
+        .map_err(db_error)?;
+        Ok(())
+    }
+}
+
+/// A statement for `dialect`: `{s}` is the Postgres schema prefix, `{j}` the cast a text bind needs into `JSONB`.
+fn sql(dialect: Dialect, q: &str) -> String {
+    let (schema, jsonb) = match dialect {
+        Dialect::Sqlite => ("", ""),
+        Dialect::Postgres => ("stewie.", "::jsonb"),
+    };
+    q.replace("{s}", schema).replace("{j}", jsonb)
 }
 
 /// One audit record (the Python's dict, an undo adding `target` and `reverted_op`).
@@ -170,6 +331,40 @@ fn dumps(v: &Ordered) -> Result<String, ApiError> {
     v.py_dumps().map_err(db_error)
 }
 
+/// The live keep-out (or marker) ids in the order the Python's dict holds them, replayed from the audit: Postgres
+/// `JSONB` stores keys by length then bytes, so a feature an undo restored would otherwise move back to its mint
+/// position and change the planner's keep-out order (D-R161). A create, or an undone delete or modify, inserts a key
+/// last; a delete, or an undone create, removes it; a modify keeps its place.
+fn insertion_order(audit: &[Audit], markers: bool) -> Vec<String> {
+    let mut keys: Vec<String> = Vec::new();
+    for a in audit {
+        let Some(fid) = &a.fid else { continue };
+        let (op, undone) = match (a.op.as_str(), &a.reverted_op) {
+            ("undo", Some(r)) => (r.as_str(), true),
+            (op, _) => (op, false),
+        };
+        if op.starts_with("marker.") != markers {
+            continue;
+        }
+        let inserts = matches!(
+            (op, undone),
+            ("create" | "marker.create", false) | ("delete" | "modify" | "marker.delete", true)
+        );
+        let removes = matches!(
+            (op, undone),
+            ("delete" | "marker.delete", false) | ("create" | "marker.create", true)
+        );
+        match keys.iter().position(|k| k == fid) {
+            Some(i) if removes => {
+                keys.remove(i);
+            }
+            None if inserts => keys.push(fid.clone()),
+            _ => {}
+        }
+    }
+    keys
+}
+
 /// Insert or replace a key in an insertion-ordered map, as a Python dict assignment does (a new key goes last).
 fn put(map: &mut Vec<(String, Ordered)>, key: &str, value: Ordered) {
     match map.iter_mut().find(|(k, _)| k == key) {
@@ -184,10 +379,16 @@ fn take(map: &mut Vec<(String, Ordered)>, key: &str) -> Option<Ordered> {
 }
 
 impl Session {
-    async fn load(conn: &mut SqliteConnection, sid: &str) -> Result<Option<Self>, ApiError> {
-        let Some(row) = sqlx::query(
-            "SELECT version, fid_seq, marker_seq, features, markers FROM edit_session WHERE opaque_id = ?",
-        )
+    async fn load(
+        conn: &mut AnyConnection,
+        d: Dialect,
+        sid: &str,
+    ) -> Result<Option<Self>, ApiError> {
+        let Some(row) = sqlx::query(&sql(
+            d,
+            "SELECT version, fid_seq, marker_seq, CAST(features AS TEXT) AS features, CAST(markers AS TEXT) AS \
+             markers FROM {s}edit_session WHERE opaque_id = $1",
+        ))
         .bind(sid)
         .fetch_optional(&mut *conn)
         .await
@@ -195,10 +396,11 @@ impl Session {
         else {
             return Ok(None);
         };
-        let audit = sqlx::query(
-            "SELECT version, op, fid, kind, \"before\", \"after\", ts, target, reverted_op FROM edit_audit \
-             WHERE session_id = ? ORDER BY version ASC",
-        )
+        let audit = sqlx::query(&sql(
+            d,
+            "SELECT version, op, fid, kind, CAST(\"before\" AS TEXT) AS \"before\", CAST(\"after\" AS TEXT) AS \
+             \"after\", ts, target, reverted_op FROM {s}edit_audit WHERE session_id = $1 ORDER BY version ASC",
+        ))
         .bind(sid)
         .fetch_all(&mut *conn)
         .await
@@ -219,24 +421,31 @@ impl Session {
         })
         .collect::<Result<Vec<_>, ApiError>>()?;
         let persisted = audit.len();
+        let mut features = ordered_map(&row.get::<String, _>("features"))?;
+        let mut markers = ordered_map(&row.get::<String, _>("markers"))?;
+        for (map, is_marker) in [(&mut features, false), (&mut markers, true)] {
+            let keys = insertion_order(&audit, is_marker);
+            map.sort_by_key(|(k, _)| keys.iter().position(|x| x == k).unwrap_or(usize::MAX));
+        }
         Ok(Some(Self {
             id: sid.to_owned(),
             version: row.get("version"),
             fid_seq: row.get("fid_seq"),
             marker_seq: row.get("marker_seq"),
-            features: ordered_map(&row.get::<String, _>("features"))?,
-            markers: ordered_map(&row.get::<String, _>("markers"))?,
+            features,
+            markers,
             audit,
             persisted,
         }))
     }
 
     /// Write the snapshot and the audit records added since the load.
-    async fn save(&self, conn: &mut SqliteConnection) -> Result<(), ApiError> {
-        sqlx::query(
-            "UPDATE edit_session SET version = ?, fid_seq = ?, marker_seq = ?, features = ?, markers = ? \
-             WHERE opaque_id = ?",
-        )
+    async fn save(&self, conn: &mut AnyConnection, d: Dialect) -> Result<(), ApiError> {
+        sqlx::query(&sql(
+            d,
+            "UPDATE {s}edit_session SET version = $1, fid_seq = $2, marker_seq = $3, features = $4{j}, markers = \
+             $5{j} WHERE opaque_id = $6",
+        ))
         .bind(self.version)
         .bind(self.fid_seq)
         .bind(self.marker_seq)
@@ -247,10 +456,11 @@ impl Session {
         .await
         .map_err(db_error)?;
         for a in &self.audit[self.persisted..] {
-            sqlx::query(
-                "INSERT INTO edit_audit (session_id, version, op, fid, kind, \"before\", \"after\", ts, target, \
-                 reverted_op) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            )
+            sqlx::query(&sql(
+                d,
+                "INSERT INTO {s}edit_audit (session_id, version, op, fid, kind, \"before\", \"after\", ts, target, \
+                 reverted_op) VALUES ($1, $2, $3, $4, $5, $6{j}, $7{j}, $8, $9, $10)",
+            ))
             .bind(&self.id)
             .bind(a.version)
             .bind(&a.op)
@@ -672,16 +882,18 @@ async fn create_session(State(st): State<Arc<AppState>>, req: Request) -> Respon
             });
             let now = st.clock.now();
             st.edit_sessions
-                .immediate(async |c| {
-                    let count: i64 = sqlx::query("SELECT count(*) FROM edit_session")
+                .immediate(async |c, d| {
+                    let count: i64 = sqlx::query(&sql(d, "SELECT count(*) FROM {s}edit_session"))
                         .fetch_one(&mut *c)
                         .await
                         .map_err(db_error)?
                         .get(0);
                     if count >= MAX_SESSIONS {
-                        let rows = sqlx::query(
-                            "SELECT opaque_id, features, markers FROM edit_session ORDER BY created_at ASC",
-                        )
+                        let rows = sqlx::query(&sql(
+                            d,
+                            "SELECT opaque_id, CAST(features AS TEXT) AS features, CAST(markers AS TEXT) AS markers \
+                             FROM {s}edit_session ORDER BY created_at ASC",
+                        ))
                         .fetch_all(&mut *c)
                         .await
                         .map_err(db_error)?;
@@ -702,14 +914,15 @@ async fn create_session(State(st): State<Arc<AppState>>, req: Request) -> Respon
                                 ),
                             ));
                         };
-                        for q in ["DELETE FROM edit_audit WHERE session_id = ?", "DELETE FROM edit_session WHERE opaque_id = ?"] {
-                            sqlx::query(q).bind(&victim).execute(&mut *c).await.map_err(db_error)?;
+                        for q in ["DELETE FROM {s}edit_audit WHERE session_id = $1", "DELETE FROM {s}edit_session WHERE opaque_id = $1"] {
+                            sqlx::query(&sql(d, q)).bind(&victim).execute(&mut *c).await.map_err(db_error)?;
                         }
                     }
-                    sqlx::query(
-                        "INSERT INTO edit_session (opaque_id, plan_id, version, created_at, fid_seq, marker_seq, \
-                         features, markers) VALUES (?, NULL, 0, ?, 0, 0, '{}', '{}')",
-                    )
+                    sqlx::query(&sql(
+                        d,
+                        "INSERT INTO {s}edit_session (opaque_id, plan_id, version, created_at, fid_seq, marker_seq, \
+                         features, markers) VALUES ($1, NULL, 0, $2, 0, 0, '{}', '{}')",
+                    ))
                     .bind(&sid)
                     .bind(now)
                     .execute(&mut *c)
@@ -729,14 +942,8 @@ async fn create_session(State(st): State<Arc<AppState>>, req: Request) -> Respon
 
 /// A session read, or its 404.
 async fn read(st: &AppState, sid: &str) -> Result<Session, ApiError> {
-    let mut conn = st
-        .edit_sessions
-        .pool()
-        .await?
-        .acquire()
-        .await
-        .map_err(db_error)?;
-    Session::load(&mut conn, sid)
+    st.edit_sessions
+        .snapshot(async |c, d| Session::load(c, d, sid).await)
         .await?
         .ok_or_else(|| not_found(sid))
 }
@@ -749,14 +956,11 @@ pub(crate) async fn session_audit(
     st: &AppState,
     sid: &str,
 ) -> Result<Option<(String, Value, Vec<Value>)>, ApiError> {
-    let mut conn = st
+    let s = st
         .edit_sessions
-        .pool()
-        .await?
-        .acquire()
-        .await
-        .map_err(db_error)?;
-    Ok(Session::load(&mut conn, sid).await?.map(|s| {
+        .snapshot(async |c, d| Session::load(c, d, sid).await)
+        .await?;
+    Ok(s.map(|s| {
         (
             s.id.clone(),
             json!(s.version),
@@ -796,10 +1000,12 @@ async fn mutate(
 ) -> Result<(Value, String, Value), ApiError> {
     let now = st.clock.now();
     st.edit_sessions
-        .immediate(async |c| {
-            let mut s = Session::load(c, sid).await?.ok_or_else(|| not_found(sid))?;
+        .immediate(async |c, d| {
+            let mut s = Session::load(c, d, sid)
+                .await?
+                .ok_or_else(|| not_found(sid))?;
             let (extra, target) = edit(&mut s, now)?;
-            s.save(c).await?;
+            s.save(c, d).await?;
             Ok((extra, target, s.state()))
         })
         .await

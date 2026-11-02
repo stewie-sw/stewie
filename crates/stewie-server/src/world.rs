@@ -32,6 +32,8 @@ struct Inner {
     site: String,
     body: String,
     mission_t_s: f64,
+    /// Where each committed transaction is projected (PG-01), when a database is configured.
+    sink: Option<tokio::sync::mpsc::UnboundedSender<Value>>,
 }
 
 /// One linked world-state authority; every transition takes its lock, so read-modify-commit never interleaves.
@@ -56,6 +58,7 @@ impl WorldState {
             site: DEFAULT_TWIN_SITE.to_owned(),
             body: "moon".to_owned(),
             mission_t_s: 0.0,
+            sink: None,
             log,
         };
         if let Some(t) = inner.log.latest().cloned() {
@@ -70,6 +73,12 @@ impl WorldState {
         Ok(Self {
             inner: Mutex::new(inner),
         })
+    }
+
+    /// Project every transaction committed from now on to `sink` (Python's `projection_sink`): its linked body
+    /// with the chain hash, as the Python mirrors it.
+    pub fn project_to(&self, sink: tokio::sync::mpsc::UnboundedSender<Value>) {
+        self.lock().sink = Some(sink);
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
@@ -124,7 +133,14 @@ impl WorldState {
             packet_sha: String::new(),
             vehicle_sha: String::new(),
         };
-        inner.log.commit(snap).cloned().map_err(|e| e.to_string())
+        let txn = inner.log.commit(snap).cloned().map_err(|e| e.to_string())?;
+        if let Some(sink) = &inner.sink {
+            let mut body = txn.linked_body();
+            body["chain_hash"] = json!(txn.chain_hash);
+            // a closed channel only means the projection stopped; the journal already holds the commit
+            let _ = sink.send(body);
+        }
+        Ok(txn)
     }
 
     /// A new plan was accepted.

@@ -197,15 +197,32 @@ fn close(got: &Value, want: &Value, at: &str) -> Result<(), String> {
 
 /// Replay the fixture `name` (seeded from `seed`) through a fresh app; `before(i, step, clock, dir)` reproduces
 /// what the oracle did between requests. Headers and cookies are compared where the fixture recorded them.
-#[allow(clippy::too_many_lines)] // one request loop, then the stores and journals
 async fn replay(
     name: &str,
     seed: &[u8],
     before: impl Fn(usize, &Value, &PinnedClock, &std::path::Path),
     departure: impl Fn(&Value, &mut Value),
 ) {
+    replay_on(name, seed, before, departure, None).await;
+}
+
+/// [`replay`] with the edit-session store on the Postgres database `postgres` (`STEWIE_DATABASE_URL`) when given.
+#[allow(clippy::too_many_lines)] // one request loop, then the stores and journals
+async fn replay_on(
+    name: &str,
+    seed: &[u8],
+    before: impl Fn(usize, &Value, &PinnedClock, &std::path::Path),
+    departure: impl Fn(&Value, &mut Value),
+    postgres: Option<&str>,
+) {
     let fx = stewie_oracle::load(name).unwrap().payload;
-    let dir = std::env::temp_dir().join(format!("stewie-{name}-{}", std::process::id()));
+    // the SQLite name is the one the fixtures' normalised paths were recorded against
+    let tag = if postgres.is_some() {
+        format!("{name}-pg")
+    } else {
+        name.to_owned()
+    };
+    let dir = std::env::temp_dir().join(format!("stewie-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     // files the oracle laid down in its data directory before its first request (SYNTHETIC inputs, labelled there)
@@ -235,6 +252,9 @@ async fn replay(
         })
         .collect();
     env.insert("STEWIE_DATA_DIR".into(), dir.display().to_string());
+    if let Some(url) = postgres {
+        env.insert("STEWIE_DATABASE_URL".into(), url.to_owned());
+    }
     // the committed planner parameters (the Python planner's own values, D-R115)
     env.insert(
         "STEWIE_PLANNER_CONFIG".into(),
@@ -396,8 +416,12 @@ async fn replay(
         }
         assert!(!journals.is_empty(), "vacuity: journals were recorded");
     }
+    // on Postgres, the same rows with each JSON column as JSONB stores the Python's text (D-R161)
+    if let (Some(want), Some(url)) = (fx.get("db_rows"), postgres) {
+        assert_postgres_rows(url, want).await;
+    }
     // the edit-session store's rows, column for column (the JSON columns as their stored text)
-    if let Some(want) = fx.get("db_rows") {
+    if let Some(want) = fx.get("db_rows").filter(|_| postgres.is_none()) {
         use sqlx::Row as _;
         let mut db = sqlx::SqliteConnection::connect(&format!(
             "sqlite://{}",
@@ -558,16 +582,27 @@ fn startup_refuses_a_configured_cross_origin_allowlist() {
 }
 
 #[test]
-fn startup_refuses_a_configured_database_projection() {
-    // SYNTHETIC environment (D-R113: the journal is the authority; the projection is not ported)
-    let env = [("STEWIE_DATABASE_URL", "postgresql://example.invalid/stewie")];
-    let e = stewie_server::app::Settings::from_env(&|k| {
-        env.iter()
-            .find(|(n, _)| *n == k)
-            .map(|(_, v)| (*v).to_owned())
-    })
-    .unwrap_err();
-    assert!(e.contains("D-R113"), "{e}");
+fn the_database_url_is_normalised_and_only_postgres_is_taken() {
+    // SYNTHETIC URLs (D-R161: the SQLAlchemy driver suffix is dropped; anything but Postgres is refused)
+    let settings = |url: &str| {
+        stewie_server::app::Settings::from_env(&|k| {
+            (k == "STEWIE_DATABASE_URL").then(|| url.to_owned())
+        })
+    };
+    assert_eq!(
+        settings("postgresql+asyncpg://stewie:pw@postgres:5432/stewie")
+            .unwrap()
+            .database_url
+            .as_deref(),
+        Some("postgresql://stewie:pw@postgres:5432/stewie")
+    );
+    assert_eq!(
+        settings("postgres://h/db").unwrap().database_url.as_deref(),
+        Some("postgresql://h/db")
+    );
+    assert_eq!(settings("  ").unwrap().database_url, None);
+    let e = settings("mysql://u:secretpw@h/db").unwrap_err();
+    assert!(e.contains("D-R161") && !e.contains("secretpw"), "{e}");
 }
 
 #[test]
@@ -1259,20 +1294,289 @@ async fn the_python_edit_session_replays_with_its_store_rows() {
     .await;
 }
 
-/// SYNTHETIC: an app over an existing data dir, with its own settable clock.
-fn app_on(dir: &std::path::Path, tag: &str) -> (axum::Router, &'static PinnedClock) {
-    let env: HashMap<&str, String> = [
+/// A fresh database on the Postgres server `STEWIE_TEST_POSTGRES_URL` names (D-R161), or `None` when it is unset.
+/// Under CI the variable is required: a Postgres test that silently skipped would prove nothing.
+async fn scratch_postgres(tag: &str) -> Option<String> {
+    use sqlx::ConnectOptions as _;
+    let Some(admin) = std::env::var("STEWIE_TEST_POSTGRES_URL")
+        .ok()
+        .filter(|u| !u.is_empty())
+    else {
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "CI must set STEWIE_TEST_POSTGRES_URL"
+        );
+        return None;
+    };
+    let name = format!("stewie_{tag}_{}", std::process::id());
+    let mut c = sqlx::PgConnection::connect(&admin).await.unwrap();
+    for q in [
+        format!("DROP DATABASE IF EXISTS {name}"),
+        format!("CREATE DATABASE {name}"),
+    ] {
+        sqlx::query(&q).execute(&mut c).await.unwrap();
+    }
+    let opts: sqlx::postgres::PgConnectOptions = admin.parse().unwrap();
+    Some(opts.database(&name).to_url_lossy().to_string())
+}
+
+/// The Postgres store's rows against the oracle's `SQLite` rows: every column equal, each JSON column the oracle's
+/// text as `JSONB` stores it.
+async fn assert_postgres_rows(url: &str, want: &Value) {
+    use sqlx::Row as _;
+    let mut db = sqlx::PgConnection::connect(url).await.unwrap();
+    let mut jsonb = async |t: Option<&str>| -> Value {
+        match t {
+            None => Value::Null,
+            Some(t) => json!(
+                sqlx::query("SELECT $1::jsonb::text")
+                    .bind(t)
+                    .fetch_one(&mut db)
+                    .await
+                    .unwrap()
+                    .get::<String, _>(0)
+            ),
+        }
+    };
+    let mut sessions = Vec::new();
+    for r in want["edit_session"].as_array().unwrap() {
+        let mut r = r.clone();
+        for i in [6, 7] {
+            r[i] = jsonb(r[i].as_str()).await;
+        }
+        sessions.push(r);
+    }
+    let mut audit = Vec::new();
+    for r in want["edit_audit"].as_array().unwrap() {
+        let mut r = r.clone();
+        for i in [6, 7] {
+            r[i] = jsonb(r[i].as_str()).await;
+        }
+        audit.push(r);
+    }
+    let got_sessions: Vec<Value> = sqlx::query(
+        "SELECT opaque_id, plan_id, version, created_at, fid_seq, marker_seq, features::text, markers::text \
+         FROM stewie.edit_session ORDER BY opaque_id",
+    )
+    .fetch_all(&mut db)
+    .await
+    .unwrap()
+    .iter()
+    .map(|r| {
+        json!([r.get::<String, _>(0), r.get::<Option<String>, _>(1), r.get::<i32, _>(2), r.get::<f64, _>(3),
+               r.get::<i32, _>(4), r.get::<i32, _>(5), r.get::<String, _>(6), r.get::<String, _>(7)])
+    })
+    .collect();
+    let got_audit: Vec<Value> = sqlx::query(
+        "SELECT id, session_id, version, op, fid, kind, before::text, after::text, ts, target, reverted_op \
+         FROM stewie.edit_audit ORDER BY session_id, version",
+    )
+    .fetch_all(&mut db)
+    .await
+    .unwrap()
+    .iter()
+    .map(|r| {
+        json!([r.get::<i32, _>(0), r.get::<String, _>(1), r.get::<i32, _>(2), r.get::<String, _>(3),
+               r.get::<Option<String>, _>(4), r.get::<Option<String>, _>(5), r.get::<Option<String>, _>(6),
+               r.get::<Option<String>, _>(7), r.get::<f64, _>(8), r.get::<Option<i32>, _>(9),
+               r.get::<Option<String>, _>(10)])
+    })
+    .collect();
+    assert!(!got_audit.is_empty(), "vacuity: audit rows were written");
+    assert_eq!(
+        json!(got_sessions),
+        json!(sessions),
+        "the edit_session rows"
+    );
+    assert_eq!(json!(got_audit), json!(audit), "the edit_audit rows");
+}
+
+#[tokio::test]
+async fn the_python_edit_session_replays_on_postgres() {
+    let Some(url) = scratch_postgres("es_replay").await else {
+        return;
+    };
+    replay_on(
+        "http_editsession_cases",
+        b"stewie-http-editsession-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, _| {},
+        Some(&url),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn sessions_the_python_stored_in_postgres_read_back_through_the_rust_routes() {
+    // the oracle's rows as the Python's JSONB columns hold them, then read through the routes: the insertion order
+    // JSONB loses is rebuilt from the audit, so the read equals the Python's own last read (D-R161)
+    let Some(url) = scratch_postgres("es_read").await else {
+        return;
+    };
+    let fx = stewie_oracle::load("http_editsession_cases")
+        .unwrap()
+        .payload;
+    let dir = std::env::temp_dir().join(format!("stewie-es-pg-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let app = router(Arc::new(state_on(&dir, "es-pg", Some(&url)).0));
+    assert_eq!(call(&app, "GET", "/edit/session/none", None).await.0, 404); // opens the store, makes the schema
+    let mut db = sqlx::PgConnection::connect(&url).await.unwrap();
+    for r in fx["db_rows"]["edit_session"].as_array().unwrap() {
+        sqlx::query(
+            "INSERT INTO stewie.edit_session VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)",
+        )
+        .bind(r[0].as_str())
+        .bind(r[1].as_str())
+        .bind(r[2].as_i64().map(|v| i32::try_from(v).unwrap()))
+        .bind(r[3].as_f64())
+        .bind(r[4].as_i64().map(|v| i32::try_from(v).unwrap()))
+        .bind(r[5].as_i64().map(|v| i32::try_from(v).unwrap()))
+        .bind(r[6].as_str())
+        .bind(r[7].as_str())
+        .execute(&mut db)
+        .await
+        .unwrap();
+    }
+    for r in fx["db_rows"]["edit_audit"].as_array().unwrap() {
+        let int = |v: &Value| v.as_i64().map(|v| i32::try_from(v).unwrap());
+        sqlx::query(
+            "INSERT INTO stewie.edit_audit VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11)",
+        )
+        .bind(int(&r[0]))
+        .bind(r[1].as_str())
+        .bind(int(&r[2]))
+        .bind(r[3].as_str())
+        .bind(r[4].as_str())
+        .bind(r[5].as_str())
+        .bind(r[6].as_str())
+        .bind(r[7].as_str())
+        .bind(r[8].as_f64())
+        .bind(int(&r[9]))
+        .bind(r[10].as_str())
+        .execute(&mut db)
+        .await
+        .unwrap();
+    }
+    let step = fx["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .rfind(|s| {
+            s["request"]["method"] == "GET"
+                && s["status"] == 200
+                && s["body"]["features"].is_array()
+        })
+        .unwrap();
+    let path = step["request"]["path"].as_str().unwrap();
+    let (status, body) = call(&app, "GET", path, None).await;
+    assert!(
+        body["features"].as_array().unwrap().len() > 10,
+        "vacuity: an authored session"
+    );
+    assert_eq!((status, &body), (200, &step["body"]), "{path}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
+async fn world_transactions_are_mirrored_to_the_postgres_projection() {
+    use sqlx::Row as _;
+    // PG-01: each committed transaction lands in stewie.world_txn, keyed by seq, its linked body kept whole
+    let Some(url) = scratch_postgres("world_txn").await else {
+        return;
+    };
+    let dir = std::env::temp_dir().join(format!("stewie-world-pg-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let (st, _) = state_on(&dir, "world-pg", Some(&url));
+    let stamp = stewie_server::world::Stamp {
+        mission: Some("synthetic-mission"), // SYNTHETIC identities
+        ..Default::default()
+    };
+    let txns = [
+        st.world
+            .record_plan(&st.terrain, "plan-a", "synthetic plan", &stamp)
+            .unwrap(),
+        st.world
+            .record_belief(&st.terrain, Map::new(), "synthetic belief", Some(5.0))
+            .unwrap(),
+    ];
+    let mut db = sqlx::PgConnection::connect(&url).await.unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let rows = loop {
+        let rows = sqlx::query(
+            "SELECT seq, chain_hash, prev_hash, plan_id, mission, mission_t_s, twin_version, linked::text \
+             FROM stewie.world_txn ORDER BY seq",
+        )
+        .fetch_all(&mut db)
+        .await
+        .unwrap_or_default();
+        if rows.len() >= txns.len() || std::time::Instant::now() > deadline {
+            break rows;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+    assert_eq!(rows.len(), txns.len());
+    for (r, t) in rows.iter().zip(&txns) {
+        assert_eq!(
+            (
+                r.get::<i32, _>(0),
+                r.get::<String, _>(1),
+                r.get::<String, _>(2),
+                r.get::<String, _>(3)
+            ),
+            (
+                i32::try_from(t.seq).unwrap(),
+                t.chain_hash.clone(),
+                t.prev_hash.clone(),
+                t.plan_id.clone()
+            )
+        );
+        assert_eq!(
+            (r.get::<String, _>(4), r.get::<f64, _>(5)),
+            (t.mission.clone(), t.mission_t_s)
+        );
+        assert_eq!(i64::from(r.get::<i32, _>(6)), t.twin_version);
+        let mut want = t.linked_body();
+        want["chain_hash"] = json!(t.chain_hash);
+        assert_eq!(
+            serde_json::from_str::<Value>(&r.get::<String, _>(7)).unwrap(),
+            want
+        );
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// SYNTHETIC: a server state over an existing data dir (its store on the Postgres `database_url` when given), with
+/// its own settable clock.
+fn state_on(
+    dir: &std::path::Path,
+    tag: &str,
+    database_url: Option<&str>,
+) -> (AppState, &'static PinnedClock) {
+    let mut env: HashMap<&str, String> = [
         ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
         ("STEWIE_DATA_DIR", dir.display().to_string()),
     ]
     .into_iter()
     .collect();
+    if let Some(u) = database_url {
+        env.insert("STEWIE_DATABASE_URL", u.to_owned());
+    }
     let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
     let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
         seed: Sha256::digest(tag.as_bytes()).into(),
         n: Mutex::new(0),
     }));
     let state = AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap();
+    (state, clock)
+}
+
+/// SYNTHETIC: an app over an existing data dir, with its own settable clock.
+fn app_on(dir: &std::path::Path, tag: &str) -> (axum::Router, &'static PinnedClock) {
+    let (state, clock) = state_on(dir, tag, None);
     (router(Arc::new(state)), clock)
 }
 
