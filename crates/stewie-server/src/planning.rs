@@ -119,6 +119,27 @@ pub struct Inputs {
 }
 
 impl Inputs {
+    /// Wheel slip on a grade, empty, for a rover of `rover_mass_kg` on this mission's body, in `soil` (Python
+    /// `slip_alpha_to_slip(slope, params=soil)`).
+    ///
+    /// # Errors
+    /// The slip equilibrium's refusal.
+    pub fn slip(
+        &self,
+        soil: &SoilParams,
+        slope_deg: f64,
+        rover_mass_kg: f64,
+    ) -> Result<f64, String> {
+        stewie_plan::trips::slip_at(
+            slope_deg,
+            0.0,
+            rover_mass_kg,
+            self.gravity_ms2,
+            soil,
+            &self.slip,
+        )
+    }
+
     /// The planner's build inputs on `dem` under the operator's slope budget.
     #[must_use]
     pub fn build<'a>(&'a self, dem: Dem<'a>, max_traverse_slope_deg: f64) -> BuildInputs<'a> {

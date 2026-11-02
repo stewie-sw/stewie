@@ -2281,6 +2281,77 @@ async fn the_python_nav_session_replays_exactly() {
 }
 
 #[tokio::test]
+async fn a_nav_run_routes_around_its_keepouts() {
+    // D-R172: the Python 500s on any /nav/run keep-out (it hands route_leg tuples where it reads dicts); the Rust
+    // routes the circles. SYNTHETIC keep-out across the straight line from the anchor to the goal.
+    let dir = std::env::temp_dir().join(format!("stewie-nav-keepout-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let cfg = stewie_oracle::repo_root()
+        .join("deploy/planner.json")
+        .display()
+        .to_string();
+    let env: HashMap<&str, String> = [
+        ("STEWIE_API_KEY", "automation-key-0123456789".to_owned()),
+        ("STEWIE_DATA_DIR", dir.display().to_string()),
+        ("STEWIE_PLANNER_CONFIG", cfg),
+    ]
+    .into_iter()
+    .collect();
+    let clock: &'static PinnedClock = Box::leak(Box::new(PinnedClock(Mutex::new(1.8e9))));
+    let bytes: &'static SeededBytes = Box::leak(Box::new(SeededBytes {
+        seed: Sha256::digest(b"nav-keepout").into(),
+        n: Mutex::new(0),
+    }));
+    let app = router(Arc::new(
+        AppState::from_env(&|k| env.get(k).cloned(), clock, bytes).unwrap(),
+    ));
+    let req = |keepouts: Value| {
+        let mut r = Request::builder()
+            .method("POST")
+            .uri("/nav/run")
+            .header("content-type", "application/json")
+            .header("x-api-key", "automation-key-0123456789")
+            .body(Body::from(
+                json!({"start": [0.0, 0.0], "goal": [60.0, 0.0], "keepouts": keepouts}).to_string(),
+            ))
+            .unwrap();
+        r.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 50000))));
+        r
+    };
+    let body = |r: axum::response::Response| async move {
+        serde_json::from_slice::<Value>(&r.into_body().collect().await.unwrap().to_bytes()).unwrap()
+    };
+    let (cx, cy, rad) = (30.0, 0.0, 6.0);
+    let fenced = body(
+        app.clone()
+            .oneshot(req(json!([[cx, cy, rad]])))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let open = body(app.clone().oneshot(req(json!([]))).await.unwrap()).await;
+    assert_eq!(fenced["reached"], true, "{fenced}");
+    let inside = |b: &Value| {
+        b["waypoints"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|w| (w[0].as_f64().unwrap() - cx).hypot(w[1].as_f64().unwrap() - cy) < rad)
+    };
+    assert!(
+        inside(&open),
+        "vacuity: the unfenced corridor crosses the circle"
+    );
+    assert!(
+        !inside(&fenced),
+        "the fenced corridor stays outside the keep-out"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
 async fn the_python_globe_session_replays_exactly() {
     replay(
         "http_globe_cases",

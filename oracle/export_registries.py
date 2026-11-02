@@ -342,6 +342,20 @@ def raster_defs() -> dict:
     return {"raster_defs": [dict(d) for d in RASTER_DEFS]}
 
 
+def terramechanics_constants() -> dict:
+    """The canonical lunar terramechanics set, ``TerramechanicsParams.from_constants()`` over
+    ``stewie/specs/constants.py``: the soil the navigation pipeline's slip ladder reads
+    (``lode.planner_constants._TM_PARAMS`` via ``slip_alpha_to_slip``), where the planner's legs read the body
+    registry's (``params_for_body``)."""
+    from stewie.physics import terramechanics as TM
+    p = TM.TerramechanicsParams.from_constants()
+    fields = ("k_c", "k_phi", "n_sinkage", "cohesion", "phi_rad", "k_shear", "slip_c1", "slip_c2", "rho_surface",
+              "rho_deep")
+    return {"source": "stewie.physics.terramechanics.TerramechanicsParams.from_constants() "
+                      "(stewie/specs/constants.py)",
+            **{f: float(getattr(p, f)) for f in fields}}
+
+
 def _write(name: str, data: dict) -> str:
     path = os.path.normpath(os.path.join(_OUT, name))
     with open(path, "w", encoding="utf-8") as fh:
@@ -352,6 +366,7 @@ def _write(name: str, data: dict) -> str:
 
 def main() -> None:
     print(_write("bodies.json", bodies()))
+    print(_write("terramechanics_constants.json", terramechanics_constants()))
     print(_write("sites.json", sites()))
     print(_write("site_order.json", site_order()))
     print(_write("overlay_constants.json", overlay_constants()))

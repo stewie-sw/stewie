@@ -230,7 +230,7 @@ async fn local_plan(State(st): State<Arc<AppState>>, req: Request) -> Response {
             .into_response());
         }
         let cap = |k: &str, d: f64| v[k].as_f64().unwrap_or(d);
-        let cmd = nav::track_plan(&plan, cap("v_max", configured(st)?.drive_speed_ms), cap("omega_max", nav::DEFAULT_OMEGA_MAX));
+        let cmd = nav::track_plan(&plan, cap("v_max", configured(st)?.drive_speed_ms), cap("omega_max", nav::DEFAULT_OMEGA_MAX), 1.0);
         let end = plan.arc[plan.arc.len() - 1];
         let arc: Vec<Value> =
             plan.arc.iter().map(|p| json!([py_round(p[0], 4), py_round(p[1], 4), py_round(p[2], 5)])).collect();
@@ -363,9 +363,205 @@ async fn contract(State(st): State<Arc<AppState>>, req: Request) -> Response {
     .await
 }
 
+/// Python `NavRunRequest` (`extra="forbid"`).
+const NAV_RUN: Model = Model {
+    fields: &[
+        Field("start", Kind::FloatPair),
+        Field("goal", Kind::FloatPair),
+        Field(
+            "site",
+            Kind::Str {
+                min: 0,
+                max: 64,
+                nullable: false,
+                default: Some("haworth"),
+            },
+        ),
+        Field("keepouts", Kind::TupleList { n: 3, max: 512 }),
+        Field("rocks", Kind::TupleList { n: 3, max: 512 }),
+        Field(
+            "max_slope_deg",
+            bounded(Some((0.0, "0")), None, (89.0, "89"), Some(25.0)),
+        ),
+        Field(
+            "dt",
+            bounded(Some((0.0, "0")), None, (60.0, "60"), Some(2.0)),
+        ),
+        Field(
+            "horizon_m",
+            bounded(Some((0.0, "0")), None, (1000.0, "1000"), Some(8.0)),
+        ),
+        Field(
+            "clearance_m",
+            bounded(None, Some((0.0, "0")), (100.0, "100"), Some(1.0)),
+        ),
+        Field(
+            "goal_tol_m",
+            bounded(Some((0.0, "0")), None, (100.0, "100"), Some(2.0)),
+        ),
+        Field(
+            "max_ticks",
+            Kind::Int {
+                ge: 1,
+                le: 4000,
+                default: 2000,
+            },
+        ),
+    ],
+    forbid_extra: true,
+};
+
+/// The canonical lunar terramechanics set the navigation slip ladder reads (Python `_TM_PARAMS`, exported).
+fn constants_soil() -> Result<stewie_physics::soil::SoilParams, String> {
+    let c: Value = serde_json::from_str(include_str!(
+        "../../stewie-contracts/fixtures/terramechanics_constants.json"
+    ))
+    .map_err(|e| format!("terramechanics_constants: {e}"))?;
+    let f = |k: &str| {
+        c[k].as_f64()
+            .ok_or_else(|| format!("terramechanics_constants has no {k}"))
+    };
+    Ok(stewie_physics::soil::SoilParams {
+        k_c: f("k_c")?,
+        k_phi: f("k_phi")?,
+        n: f("n_sinkage")?,
+        cohesion_pa: f("cohesion")?,
+        phi_rad: f("phi_rad")?,
+        k_shear_m: f("k_shear")?,
+        slip_c1: f("slip_c1")?,
+        slip_c2: f("slip_c2")?,
+        rho_surface: f("rho_surface")?,
+        rho_deep: f("rho_deep")?,
+        analog: false,
+    })
+}
+
+/// The wire's bound on the executed path (the overlay needs its shape).
+const TRAJ_WIRE_MAX: usize = 400;
+
+/// FS-05 end to end: route the global corridor on the real site DEM, then drive it as a closed loop against the
+/// same slope and drop-off hazard, the speed derated by the slip ladder, and score the executed path against the
+/// route (a read-only preview: no state, no rover command).
+#[allow(
+    clippy::too_many_lines,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_wrap
+)] // the route's reply; grid sizes
+async fn run(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (head, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        use stewie_traverse::costmap::{CostmapOptions, Keepout, slope_costmap};
+        let body = parse_body(&bytes?)?;
+        let who = require_auth(st, &head)?;
+        let v = body_model(body.as_ref(), NAV_RUN)?;
+        let bad = |e: String| crate::app::err(axum::http::StatusCode::BAD_REQUEST, e);
+        let site = v["site"].as_str().unwrap_or("haworth").to_owned();
+        let Some((dem, origin)) = st.terrain.moon_dem(&site) else {
+            return Err(bad(format!("no DEM bundle for site {}", crate::operators::py_repr(&site))));
+        };
+        let cfg = configured(st)?;
+        let m = st.planning.mission(&json!({"name": "nav", "body": "moon", "orders": [{"action": "nav", "kind": "goto", "x": 0.0, "y": 0.0}]})).map_err(bad)?;
+        let inputs = st.planning.inputs(&m).map_err(|(_, e)| bad(e))?;
+        let rover_mass = stewie_plan::trips::context(&m, &st.planning.fleet, &inputs.params).map_err(bad)?.rover_mass_kg;
+        let pair = |k: &str| (v[k][0].as_f64().unwrap_or(0.0), v[k][1].as_f64().unwrap_or(0.0));
+        let num = |k: &str| v[k].as_f64().unwrap_or(0.0);
+        let (start, goal, max_slope) = (pair("start"), pair("goal"), num("max_slope_deg"));
+        let keepouts = circles(&v["keepouts"]);
+        let rocks = circles(&v["rocks"]);
+        let opts = CostmapOptions { max_slope_deg: max_slope, slip_alpha: 2.0, max_drop_m: Some(2.0), illumination: None,
+                                    map_uncertainty: None };
+        let grid = stewie_traverse::route::Dem { z: &dem.z, width: dem.cols, height: dem.rows, cell_m: dem.cell_m, origin };
+        let ko: Vec<Keepout> = keepouts.iter().map(|(x, y, r)| Keepout::Circle { x: *x, y: *y, r: *r }).collect();
+        let leg = stewie_traverse::route::route_leg(grid, start, goal, &opts, 20.0, &ko).map_err(bad)?;
+        let terms: Map<String, Value> = leg
+            .breakdown
+            .iter()
+            .map(|(k, vals)| ((*k).to_owned(), json!(vals.iter().map(|x| py_round(*x, 4)).collect::<Vec<_>>())))
+            .collect();
+        let wire = |p: &(f64, f64)| json!([py_round(p.0, 3), py_round(p.1, 3)]);
+        let mut reply = json!({"ok": true, "reached": false, "arrived": false, "reason": "no global corridor",
+            "site": site, "waypoints": leg.waypoints.iter().map(wire).collect::<Vec<_>>(), "trajectory": [],
+            "routed_m": py_round(leg.routed_m, 3), "n_ticks": 0, "n_recoveries": 0, "recovery_events": [],
+            "deviation": {"mean_m": 0.0, "max_m": 0.0}, "route_terms": terms, "stages": ["global_route"]});
+        if leg.reached && leg.waypoints.len() >= 2 {
+            let cm = slope_costmap(&dem.z, dem.cols, dem.rows, dem.cell_m, &opts).map_err(bad)?;
+            let slope = lunar_dem::slope_deg_grid(&dem.z, dem.cols, dem.rows, dem.cell_m);
+            // the navigation slip ladder reads the canonical constants, not the body registry (Python _TM_PARAMS)
+            let soil = constants_soil().map_err(|e| crate::app::err(axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
+            let (cols, rows, cell) = (dem.cols as i64, dem.rows as i64, dem.cell_m);
+            let at = |x: f64, y: f64| {
+                let c = ((origin.0 + x) / cell).round_ties_even() as i64;
+                let r = ((origin.1 + y) / cell).round_ties_even() as i64;
+                (0..rows).contains(&r).then_some(()).and((0..cols).contains(&c).then_some(())).map(|()| (r * cols + c) as usize)
+            };
+            let blocked = |x: f64, y: f64| at(x, y).is_none_or(|i| !cm.passable[i]);
+            let scale = |x: f64, y: f64| {
+                at(x, y).map_or(1.0, |i| (1.0 - inputs.slip(&soil, slope[i], rover_mass).unwrap_or(0.0)).clamp(0.05, 1.0))
+            };
+            let mut route = leg.waypoints.clone();
+            if let Some(last) = route.last()
+                && (last.0 - goal.0).hypot(last.1 - goal.1) > 1e-6
+            {
+                route.push(goal);
+            }
+            let params = nav::DriveParams {
+                v_max: cfg.drive_speed_ms,
+                omega_max: nav::DEFAULT_OMEGA_MAX,
+                dt: num("dt"),
+                horizon_m: num("horizon_m"),
+                lookahead_m: 6.0,
+                clearance_m: num("clearance_m"),
+                goal_tol_m: num("goal_tol_m"),
+                max_ticks: v["max_ticks"].as_u64().unwrap_or(2000) as usize,
+            };
+            let drive = nav::drive_route(&route, &blocked, &scale, &rocks, &keepouts, &params);
+            let (dev_mean, dev_max) = nav::deviation(&route, &drive.trajectory);
+            let mut stages: Vec<&str> = drive.stages.clone();
+            stages.extend(["global_route", "deviation"]);
+            stages.sort_unstable();
+            stages.dedup();
+            let step = (drive.trajectory.len() / TRAJ_WIRE_MAX).max(1);
+            let mut traj: Vec<Value> = drive.trajectory.iter().step_by(step).map(wire).collect();
+            if step > 1
+                && let Some(last) = drive.trajectory.last()
+            {
+                traj.push(wire(last));
+            }
+            let events: Vec<Value> = drive
+                .recovery_events
+                .iter()
+                .map(|e| json!({"tick": e.tick, "reason": e.reason, "scope": e.scope, "xy": [py_round(e.pose.0, 3), py_round(e.pose.1, 3)]}))
+                .collect();
+            for (k, val) in [
+                ("reached", json!(true)),
+                ("arrived", json!(drive.arrived)),
+                ("reason", json!(drive.reason)),
+                ("trajectory", json!(traj)),
+                ("n_ticks", json!(drive.n_ticks)),
+                ("n_recoveries", json!(drive.recovery_events.len())),
+                ("recovery_events", json!(events)),
+                ("deviation", json!({"mean_m": dev_mean, "max_m": dev_max})),
+                ("stages", json!(stages)),
+            ] {
+                reply[k] = val;
+            }
+        }
+        let msg = format!(
+            "{site}: reached={} n_recoveries={}",
+            py_bool(reply["reached"].as_bool().unwrap_or(false)),
+            reply["n_recoveries"]
+        );
+        log(st, &head, &who, "nav.run", &msg);
+        Ok(axum::Json(reply).into_response())
+    })
+    .await
+}
+
 /// The navigation routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
+        .route("/nav/run", post(run))
         .route("/nav/react", post(react))
         .route("/nav/contract", axum::routing::get(contract))
         .route("/nav/faults", post(faults))

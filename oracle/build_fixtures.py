@@ -6075,13 +6075,26 @@ def http_nav_cases() -> None:
                                                            "sensor_range_m": 0})
         call("GET", "/nav/contract")                                                               # no key
         call("GET", "/nav/contract", headers=key)
+        # FS-05 (RW-55b25b): the closed-loop drive on the real Haworth DEM near its flattest anchor
+        call("POST", "/nav/run", headers=key, json_body={"start": [0.0, 0.0], "goal": [40.0, 25.0]})
+        # (no keep-outs: the Python passes them to route_leg as tuples where it reads dicts, a 500; D-R172)
+        call("POST", "/nav/run", headers=key, json_body={"start": [0.0, 0.0], "goal": [60.0, -10.0],
+                                                         "rocks": [[15.0, -2.0, 0.8]], "dt": 3.0,
+                                                         "max_ticks": 12})                           # the tick budget
+        # a rock whose clearance circle covers the start blocks every arc: the drive backs up and reorients
+        call("POST", "/nav/run", headers=key, json_body={"start": [0.0, 0.0], "goal": [40.0, 0.0],
+                                                         "rocks": [[4.0, 0.0, 3.0]], "max_ticks": 60})
+        call("POST", "/nav/run", headers=key, json_body={"start": [0.0, 0.0], "goal": [1.0e6, 0.0]})   # off the map
+        call("POST", "/nav/run", headers=key, json_body={"start": [0.0, 0.0], "goal": [5.0, 5.0], "site": "atlantis"})
+        call("POST", "/nav/run", headers=key, json_body={"start": [0.0], "goal": [5, 5], "max_ticks": 5000,
+                                                         "dt": 0})
 
     payload = _http_session("stewie-http-nav-oracle", {}, script)
     write_fixture(ORACLE_FIXTURES, "http_nav_cases", "oracle/build_fixtures.py::http_nav_cases (the FastAPI app's "
                   "navigation decisions)",
                   ["stewie/server/routers/nav.py", "lode/faults.py", "lode/recovery.py", "lode/executive.py",
                    "lode/local_planner.py", "lode/reactive_nav.py", "lode/path_track.py", "dart/rock_taxonomy.py",
-                   "lode/planner_routing.py"], payload)
+                   "lode/planner_routing.py", "lode/nav_pipeline.py"], payload)
 
 
 def plan_lowering_cases() -> None:
@@ -6096,7 +6109,12 @@ def plan_lowering_cases() -> None:
     for n in ("01_flatten_pad", "02_haul_around_hazard", "03_blocked_infeasible"):
         with open(os.path.join(REPO, "stewie", "server", "sample_missions", n + ".json")) as fh:
             ir = json.loads(json.dumps(PV.plan_ir(MP.mission_from_dict(json.load(fh)))))
-        cases.append({"name": n, "ir": ir, "lowered": json.loads(json.dumps(lower_plan_ir(ir)))})
+        lowered = json.loads(json.dumps(lower_plan_ir(ir)))
+        # the IR's provenance stamps the checkout's commit, which every commit (and CI's short hash) moves; the
+        # lowering never reads it, so it is recorded as <commit>, as timeline_cases does
+        if isinstance(ir.get("provenance"), dict) and "commit" in ir["provenance"]:
+            ir["provenance"]["commit"] = "<commit>"
+        cases.append({"name": n, "ir": ir, "lowered": lowered})
     # SYNTHETIC IR (labelled): every op, a blocked leg, and an infeasible plan, so each posture route (direct, via
     # the TRANSIT hub) and each replan event is lowered
     synthetic = {"plan_id": "synthetic-coverage", "schema_version": "synthetic", "feasible": False, "blocked_legs": 1,

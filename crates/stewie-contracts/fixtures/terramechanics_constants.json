@@ -1,0 +1,13 @@
+{
+  "cohesion": 170.0,
+  "k_c": 1400.0,
+  "k_phi": 820000.0,
+  "k_shear": 0.018,
+  "n_sinkage": 1.0,
+  "phi_rad": 0.6457718232379019,
+  "rho_deep": 1920.0,
+  "rho_surface": 1300.0,
+  "slip_c1": 0.4,
+  "slip_c2": 0.3,
+  "source": "stewie.physics.terramechanics.TerramechanicsParams.from_constants() (stewie/specs/constants.py)"
+}

@@ -1,7 +1,7 @@
 {
  "fixture": "plan_lowering_cases",
  "generator": "oracle/build_fixtures.py::plan_lowering_cases (stewie.bridge.plan_lowering.lower_plan_ir on the sample missions' plan IRs)",
- "payload_sha256": "09df6b5cb30bfac90325b2ad3b678663efe42cefcf0b33b2f27c5c5853efb2d9",
+ "payload_sha256": "69717271f329c6cee8cc05a9561895366c6d20121a1f116d9d11f4c48efe16e4",
  "sources": {
   "lode/planner_views.py": "0e711d6668713f629e555040cefbc8f59863a5a63114f0f377da3c938aed24d4",
   "stewie/bridge/plan_lowering.py": "614941f3a13025bc99feec7b3f29308f590f8eb215357df7bc5d5ddcadad58db",

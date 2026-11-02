@@ -1,12 +1,13 @@
 {
  "fixture": "http_nav_cases",
  "generator": "oracle/build_fixtures.py::http_nav_cases (the FastAPI app's navigation decisions)",
- "payload_sha256": "eab02086f73a586913fbf427f9f79bf9c07a6b45e8e37c3f7cb0c4c028c5de09",
+ "payload_sha256": "9934db44dfe04625de2830578150d2b9e52260a53359d2e4d03d2c9d7c14dd45",
  "sources": {
   "dart/rock_taxonomy.py": "bfc531288b72c74cc4039c085cab865fd39baf92bbdceca07df71dc605c6c59c",
   "lode/executive.py": "f39b4576938bbe38656e9711866751c5811ae06d36d542c4a4b11701af98ac4a",
   "lode/faults.py": "8b38e1eefb352113a95710f839b34b9c3692e86e54dab5ab0c8f7c3690ef85ff",
   "lode/local_planner.py": "483d2e2728ea2b3e6c58a4b47affee6cfdbd4dc75a03aa2f5f063b20eac01360",
+  "lode/nav_pipeline.py": "4a7d526c2a837b05518dd31f0b83e59d0af9baab71f73d81b4759188e45e0c31",
   "lode/path_track.py": "e63d389fb93c0effec88f660f734871a962044d32d0d9773600e76890a7f5b4e",
   "lode/planner_routing.py": "5ce65415b2fe381303555cb909495198a2023119419e544b274847023e7ae0c5",
   "lode/reactive_nav.py": "415d4370aae8ae90f17c03905ce845dbb1dfa40ec054e135d459f918e3928fe0",

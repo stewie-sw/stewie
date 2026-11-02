@@ -172,6 +172,28 @@ pub fn fault_summary(faults: &[Value]) -> Value {
     json!({"n": faults.len(), "classes": classes, "safety_critical": !critical.is_empty(), "critical": critical})
 }
 
+const RECOVERY_THRESH: f64 = 0.25;
+const RECOVERY_MIN_STALL_S: f64 = 2.0;
+
+/// NV-06: whether backup recovery fires: on a planner failure, or on progress below `thresh` sustained for at
+/// least `min_stall_s`; with its reason (Python `recovery.recovery_needed`).
+#[must_use]
+pub fn recovery_needed(
+    progress_ratio: f64,
+    stall_s: f64,
+    planner_failed: bool,
+    thresh: f64,
+    min_stall_s: f64,
+) -> (bool, &'static str) {
+    if planner_failed {
+        (true, "planner_failure")
+    } else if progress_ratio < thresh && stall_s >= min_stall_s {
+        (true, "low_progress")
+    } else {
+        (false, "nominal")
+    }
+}
+
 /// NV-06+07: the recovery action for the progress telemetry, a slope/slip slowdown never mistaken for a
 /// blockage: `replan_global` on a planner failure, else `continue` unless low progress persisted, then
 /// `reverse` for a blockage and `persist` for an expected slowdown.
@@ -182,18 +204,16 @@ pub fn recommend(
     expected_progress_ratio: f64,
     planner_failed: bool,
 ) -> Value {
-    const THRESH: f64 = 0.25;
-    const MIN_STALL_S: f64 = 2.0;
     const SLOWDOWN_TOL: f64 = 0.15;
-    let (recover, reason) = if planner_failed {
-        (true, "planner_failure")
-    } else if progress_ratio < THRESH && stall_s >= MIN_STALL_S {
-        (true, "low_progress")
-    } else {
-        (false, "nominal")
-    };
+    let (recover, reason) = recovery_needed(
+        progress_ratio,
+        stall_s,
+        planner_failed,
+        RECOVERY_THRESH,
+        RECOVERY_MIN_STALL_S,
+    );
     let stall = if progress_ratio >= expected_progress_ratio - SLOWDOWN_TOL {
-        if progress_ratio >= THRESH {
+        if progress_ratio >= RECOVERY_THRESH {
             "nominal"
         } else {
             "slope_slip"
@@ -408,9 +428,9 @@ pub struct Command {
 }
 
 /// NV-04: bound the arc's twist so neither the linear nor the yaw-rate cap is exceeded, over its measured
-/// polyline length (numpy's pairwise sum).
+/// polyline length (numpy's pairwise sum); `speed_scale` in (0, 1] derates the ground speed for slip.
 #[must_use]
-pub fn track_plan(plan: &LocalPlan, v_max: f64, omega_max: f64) -> Command {
+pub fn track_plan(plan: &LocalPlan, v_max: f64, omega_max: f64, speed_scale: f64) -> Command {
     let seg: Vec<f64> = plan
         .arc
         .windows(2)
@@ -423,14 +443,212 @@ pub fn track_plan(plan: &LocalPlan, v_max: f64, omega_max: f64) -> Command {
     } else {
         v_max.min(omega_max / k)
     };
-    let duration = if v > 1e-9 { length / v } else { f64::INFINITY };
+    let v_eff = v * speed_scale;
+    let duration = if v_eff > 1e-9 {
+        length / v_eff
+    } else {
+        f64::INFINITY
+    };
     Command {
         v_cmd: v,
         omega_cmd: plan.curvature * v,
-        expected_speed_ms: v,
+        expected_speed_ms: v_eff,
         duration_s: duration,
         arc_length_m: length,
     }
+}
+
+/// A recovery during a drive: the tick, why, its scope and the pose it backed up to.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecoveryEvent {
+    pub tick: usize,
+    pub reason: &'static str,
+    pub scope: &'static str,
+    pub pose: (f64, f64),
+}
+
+/// An executed drive (Python `nav_pipeline.drive_route`'s result).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Drive {
+    pub arrived: bool,
+    pub reason: &'static str,
+    pub trajectory: Vec<(f64, f64)>,
+    pub n_ticks: usize,
+    pub recovery_events: Vec<RecoveryEvent>,
+    pub stages: Vec<&'static str>,
+}
+
+/// The drive's tuning (Python `drive_route`'s keyword arguments).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DriveParams {
+    pub v_max: f64,
+    pub omega_max: f64,
+    pub dt: f64,
+    pub horizon_m: f64,
+    pub lookahead_m: f64,
+    pub clearance_m: f64,
+    pub goal_tol_m: f64,
+    pub max_ticks: usize,
+}
+
+/// Pure pursuit: advance past every waypoint already within `lookahead_m`, and aim at the next.
+fn carrot(
+    wps: &[(f64, f64)],
+    pose: (f64, f64),
+    mut i: usize,
+    lookahead_m: f64,
+) -> (usize, (f64, f64)) {
+    while i + 1 < wps.len() && (pose.0 - wps[i].0).hypot(pose.1 - wps[i].1) < lookahead_m {
+        i += 1;
+    }
+    (i, wps[i])
+}
+
+/// NV-06 backup: reverse `backup_m` against the heading, then face the carrot.
+fn backup(pose: (f64, f64), heading: f64, target: (f64, f64), backup_m: f64) -> ((f64, f64), f64) {
+    let p = (
+        pose.0 - backup_m * heading.cos(),
+        pose.1 - backup_m * heading.sin(),
+    );
+    (p, (target.1 - p.1).atan2(target.0 - p.0))
+}
+
+/// FS-05: drive a route to its last waypoint as a receding-horizon loop (Python `nav_pipeline.drive_route`): each
+/// tick plan a local arc toward the pure-pursuit carrot and integrate one tick along it at the slip-derated speed;
+/// an all-blocked fan or a sustained stall (goal-ward headway over commanded distance, a five-tick mean below 25 %
+/// for 2 s) backs up and reorients, at most 40 times before the global router must take over.
+#[must_use]
+#[allow(clippy::too_many_lines)] // the Python's loop, step by step
+pub fn drive_route(
+    wps: &[(f64, f64)],
+    blocked: &dyn Fn(f64, f64) -> bool,
+    speed_scale: &dyn Fn(f64, f64) -> f64,
+    rocks: &[Circle],
+    keepouts: &[Circle],
+    p: &DriveParams,
+) -> Drive {
+    const STALL_WINDOW: usize = 5;
+    const BACKUP_M: f64 = 2.0;
+    const MAX_RECOVERIES: usize = 40;
+    let goal = wps[wps.len() - 1];
+    let mut pose = wps[0];
+    let (mut idx, mut aim) = carrot(wps, pose, 0, p.lookahead_m);
+    let mut heading = (aim.1 - pose.1).atan2(aim.0 - pose.0);
+    let mut traj = vec![pose];
+    let mut events = Vec::new();
+    let mut stages: Vec<&'static str> = Vec::new();
+    let stage = |s: &'static str, stages: &mut Vec<&'static str>| {
+        if !stages.contains(&s) {
+            stages.push(s);
+        }
+    };
+    let mut ratios: std::collections::VecDeque<f64> = std::collections::VecDeque::new();
+    let (mut low_s, mut n_ticks, mut n_recover) = (0.0, 0, 0);
+    let (mut arrived, mut reason) = (false, "tick_budget");
+    for tick in 0..p.max_ticks {
+        if (pose.0 - goal.0).hypot(pose.1 - goal.1) <= p.goal_tol_m {
+            (arrived, reason) = (true, "arrived");
+            break;
+        }
+        (idx, aim) = carrot(wps, pose, idx, p.lookahead_m);
+        let plan = plan_local(
+            pose,
+            heading,
+            aim,
+            Some(blocked),
+            keepouts,
+            rocks,
+            p.clearance_m,
+            p.horizon_m,
+        );
+        stage("local_trajectory", &mut stages);
+        if !plan.feasible {
+            low_s += p.dt;
+            let (_, why) = recovery_needed(0.0, low_s, true, RECOVERY_THRESH, RECOVERY_MIN_STALL_S);
+            stage("recovery", &mut stages);
+            n_recover += 1;
+            if n_recover > MAX_RECOVERIES {
+                reason = "stuck_needs_global_reroute";
+                break;
+            }
+            (pose, heading) = backup(pose, heading, aim, BACKUP_M);
+            events.push(RecoveryEvent {
+                tick,
+                reason: why,
+                scope: "global",
+                pose,
+            });
+            traj.push(pose);
+            ratios.clear();
+            continue;
+        }
+        let scale = speed_scale(pose.0, pose.1);
+        let twist = track_plan(&plan, p.v_max, p.omega_max, scale);
+        stage("tracker", &mut stages);
+        n_ticks += 1;
+        let step_d = (twist.expected_speed_ms * p.dt).min(twist.arc_length_m);
+        let seg = constant_curvature_arc(pose.0, pose.1, heading, plan.curvature, step_d, 2);
+        let new_pose = (seg[1][0], seg[1][1]);
+        let commanded = step_d.max(1e-6);
+        let goalward = (pose.0 - goal.0).hypot(pose.1 - goal.1)
+            - (new_pose.0 - goal.0).hypot(new_pose.1 - goal.1);
+        if ratios.len() == STALL_WINDOW {
+            ratios.pop_front();
+        }
+        ratios.push_back(goalward.max(0.0) / commanded);
+        (pose, heading) = (new_pose, seg[1][2]);
+        traj.push(pose);
+        #[allow(clippy::cast_precision_loss)] // a five-tick window
+        let wmean = ratios.iter().fold(0.0, |a, r| a + r) / ratios.len() as f64;
+        if ratios.len() == STALL_WINDOW && wmean < RECOVERY_THRESH {
+            low_s += p.dt;
+        } else {
+            low_s = 0.0;
+        }
+        let (recover, why) =
+            recovery_needed(wmean, low_s, false, RECOVERY_THRESH, RECOVERY_MIN_STALL_S);
+        stage("recovery", &mut stages);
+        if recover {
+            n_recover += 1;
+            if n_recover > MAX_RECOVERIES {
+                reason = "stuck_needs_global_reroute";
+                break;
+            }
+            (pose, heading) = backup(pose, heading, aim, BACKUP_M);
+            events.push(RecoveryEvent {
+                tick,
+                reason: why,
+                scope: "local",
+                pose,
+            });
+            traj.push(pose);
+            ratios.clear();
+            low_s = 0.0;
+        }
+    }
+    stages.sort_unstable();
+    Drive {
+        arrived,
+        reason,
+        trajectory: traj,
+        n_ticks,
+        recovery_events: events,
+        stages,
+    }
+}
+
+/// The executed path's cross-track deviation against the planned route: mean (numpy's pairwise) and max.
+#[must_use]
+#[allow(clippy::cast_precision_loss)] // a point count
+pub fn deviation(route: &[(f64, f64)], traj: &[(f64, f64)]) -> (f64, f64) {
+    if route.is_empty() || traj.is_empty() {
+        return (0.0, 0.0);
+    }
+    let dev: Vec<f64> = traj.iter().map(|p| cross_track(route, *p)).collect();
+    (
+        stewie_twin::numpy::sum(&dev) / dev.len() as f64,
+        dev.iter().copied().fold(f64::NEG_INFINITY, f64::max),
+    )
 }
 
 /// Python's builtin `round(x, n)` (correctly rounded through the decimal form).

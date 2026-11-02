@@ -166,7 +166,7 @@
     "plan_id": "44550078f6cc870c",
     "precedence": [],
     "provenance": {
-     "commit": "d44c998c",
+     "commit": "<commit>",
      "config": {
       "algorithm": "nearest",
       "objective": "time",
@@ -568,7 +568,7 @@
     "plan_id": "310e8a2ee8fc16fc",
     "precedence": [],
     "provenance": {
-     "commit": "d44c998c",
+     "commit": "<commit>",
      "config": {
       "algorithm": "nearest",
       "objective": "time",
@@ -970,7 +970,7 @@
     "plan_id": "d799dd70940ce1ec",
     "precedence": [],
     "provenance": {
-     "commit": "d44c998c",
+     "commit": "<commit>",
      "config": {
       "algorithm": "nearest",
       "objective": "time",
