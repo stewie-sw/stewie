@@ -294,21 +294,21 @@ async fn request(
 }
 
 /// A planned mission with what its views need.
-struct Planned {
-    mission: Mission,
-    inputs: Inputs,
-    ctx: Context,
-    plan: Plan,
+pub(crate) struct Planned {
+    pub(crate) mission: Mission,
+    pub(crate) inputs: Inputs,
+    pub(crate) ctx: Context,
+    pub(crate) plan: Plan,
     /// The composed as-built surface it was planned on, row-major `cols` x `rows`.
-    view: TerrainView,
-    cols: usize,
-    rows: usize,
-    origin: (f64, f64),
-    site: String,
+    pub(crate) view: TerrainView,
+    pub(crate) cols: usize,
+    pub(crate) rows: usize,
+    pub(crate) origin: (f64, f64),
+    pub(crate) site: String,
 }
 
 impl Planned {
-    fn dem(&self) -> Dem<'_> {
+    pub(crate) fn dem(&self) -> Dem<'_> {
         Dem {
             z: &self.view.heights,
             width: self.cols,
@@ -320,22 +320,25 @@ impl Planned {
 }
 
 /// How a plan is asked for (the Python `MP.plan` keywords and the `/plan` site pick).
-struct Opts<'a> {
-    algorithm: &'a str,
-    objective: &'a str,
-    vehicles: usize,
-    max_traverse_slope_deg: f64,
+pub(crate) struct Opts<'a> {
+    pub(crate) algorithm: &'a str,
+    pub(crate) objective: &'a str,
+    pub(crate) vehicles: usize,
+    pub(crate) max_traverse_slope_deg: f64,
     /// A globe site pick (lon, lat) [deg] that replaces the flattest anchor.
-    lonlat: Option<(f64, f64)>,
+    pub(crate) lonlat: Option<(f64, f64)>,
+    /// Plan on the site's raw DEM, not its composed as-built surface (the GIS export's terrain).
+    pub(crate) raw_terrain: bool,
 }
 
 /// The planner's defaults (Python `MP.plan(mission, dem=, dem_origin=)`): nearest, time, one rover, 25 deg.
-const DEFAULTS: Opts<'static> = Opts {
+pub(crate) const DEFAULTS: Opts<'static> = Opts {
     algorithm: "nearest",
     objective: "time",
     vehicles: 1,
     max_traverse_slope_deg: 25.0,
     lonlat: None,
+    raw_terrain: false,
 };
 
 /// Plan `payload` with the planner's defaults on the site's composed as-built surface (#242).
@@ -345,7 +348,7 @@ fn plan(st: &AppState, payload: &Map<String, Value>) -> Result<Planned, ApiError
 
 /// Plan `payload` as `opts` asks on the site's composed as-built surface (#242). The planner needs real terrain
 /// (D-R85): a body or site without a DEM is refused rather than planned flat.
-fn plan_with(
+pub(crate) fn plan_with(
     st: &AppState,
     payload: &Map<String, Value>,
     opts: &Opts<'_>,
@@ -385,7 +388,18 @@ fn plan_with(
             .latlon_to_order(&dem, (0.0, 0.0), lon, lat)
             .map_err(bad)?;
     }
-    let view = st.terrain.current_terrain_view(&site, &dem, origin);
+    let view = if opts.raw_terrain {
+        TerrainView {
+            heights: dem.z.clone(),
+            cell_m: dem.cell_m,
+            source: Vec::new(),
+            as_built_version: 0,
+            twin_version: 0,
+            observed_fraction: 0.0,
+        }
+    } else {
+        st.terrain.current_terrain_view(&site, &dem, origin)
+    };
     let (cols, rows) = (dem.cols, dem.rows);
     let d = Dem {
         z: &view.heights,
@@ -784,6 +798,7 @@ fn compose(
         vehicles,
         max_traverse_slope_deg: num("max_traverse_slope_deg").unwrap_or(25.0),
         lonlat: num("lon").zip(num("lat")),
+        raw_terrain: false,
     };
     let p = plan_with(st, payload, &opts)?;
     let dem = p.dem();

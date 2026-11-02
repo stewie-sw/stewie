@@ -1,0 +1,10 @@
+{
+ "fixture": "http_gis_cases",
+ "generator": "oracle/build_fixtures.py::http_gis_cases (the FastAPI app's GIS export, import and query over the real Haworth DEM)",
+ "payload_sha256": "96a6a947745ac6cf2a23e7657db067712fee76343a9d3d713b73778a99a66e52",
+ "sources": {
+  "lode/gis_export.py": "5997f4120b248258347064281b8e0146bd66ba3557e5232c420faa8e634ac81e",
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "stewie/server/routers/gis_export.py": "7c3ccc82ef5491b3b6a7edb8cd7f026b007d91fbfdcb6df46648509028425758"
+ }
+}

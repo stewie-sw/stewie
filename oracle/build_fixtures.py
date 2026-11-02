@@ -5780,6 +5780,82 @@ def http_evidence_cases() -> None:
                   ["stewie/server/routers/evidence.py", "stewie/server/ros_evidence.py", "stewie/contracts/audit.py",
                    "stewie/server/layer_catalog.json"], payload)
 
+def http_gis_cases() -> None:
+    """GIS interchange (RW-55b20a): GET /export/geojson and /gis/mission-package of a plan over the real Haworth
+    DEM, POST /gis/import of the exported collection back to the order frame, POST /gis/query, and the COG
+    availability, through one scripted session (_http_session). The mission is SYNTHETIC (labelled): small enough
+    that no action needs D-R96's per-charge split, with every footprint shape, keep-out form and a marker. The
+    Rust server has no GeoTIFF writer until RW-55b20b, so the session reports the COG export unavailable in its
+    words (``cog_available`` patched; D-R158)."""
+    import json as _json
+    from urllib.parse import quote
+
+    from lode import gis_export as _GE
+
+    mission = {                                                 # SYNTHETIC mission (labelled)
+        "name": "SYNTHETIC gis export", "body": "moon", "charger": [0, 0],
+        "orders": [
+            {"action": "cut pad", "kind": "cut", "x": 10, "y": 10, "footprint_m2": 2.0, "depth_m": 0.05,
+             "shape": {"kind": "rectangle", "w": 2.0, "h": 1.0, "theta_deg": 30}},
+            {"action": "fill berm", "kind": "fill", "x": 20, "y": 5, "footprint_m2": 2.0, "depth_m": 0.05,
+             "shape": {"kind": "circle", "r": 0.8}},
+            {"action": "trench", "kind": "cut", "x": 14, "y": 22, "footprint_m2": 2.0, "depth_m": 0.04,
+             "shape": {"kind": "polygon", "vertices": [[-1, -1], [1, -1], [0, 1]], "theta_deg": 10}},
+            {"action": "survey", "kind": "goto", "x": 5, "y": 25}],
+        "keepouts": [{"x": 15, "y": 15, "r": 2}, {"x0": 0, "y0": -5, "x1": 3, "y1": -2},
+                     {"points": [[30, 30], [33, 30], [31, 34]]}],
+        "markers": [{"x": 3, "y": 4, "otype": "beacon", "label": "B1"}, {"x": None, "y": 1}, {"x": 6, "y": 7}]}
+    reason = ("COG export is not yet ported to the Rust server (RW-55b20b: no GeoTIFF writer in this build); "
+              "the Python server serves it through rasterio.")
+
+    def script(call, key, d, clock):
+        q = quote(_json.dumps(mission))
+        r = call("GET", f"/export/geojson?mission={q}", headers=key)
+        fc = r.json()
+        call("GET", f"/export/geojson?mission={q}&lat=-86.37652685731457&lon=-26.3182865963215", headers=key)
+        call("GET", f"/export/geojson?mission={q}&algorithm=held_karp&objective=energy&max_traverse_slope_deg=20",
+             headers=key)
+        call("GET", f"/export/geojson?mission={q}")                               # no key
+        call("GET", "/export/geojson", headers=key)                               # no mission
+        call("GET", f"/export/geojson?mission={quote('[1]')}", headers=key)
+        call("GET", f"/export/geojson?mission={quote(_json.dumps(dict(mission, body='mars')))}", headers=key)
+        call("GET", f"/export/geojson?mission={quote(_json.dumps(dict(mission, vehicle='nope')))}", headers=key)
+        call("GET", f"/export/geojson?mission={q}&site=atlantis", headers=key)
+        call("GET", f"/export/geojson?mission={q}&site=amundsen_rim", headers=key)
+        call("GET", f"/export/geojson?mission={q}&max_traverse_slope_deg=50", headers=key)
+        call("GET", f"/export/geojson?mission={q}&lat=0&lon=0", headers=key)
+        call("GET", f"/gis/mission-package?mission={q}", headers=key)
+        call("POST", "/gis/import", headers=key, json_body={"featurecollection": fc})
+        call("POST", "/gis/import", headers=key, json_body={"featurecollection": fc, "lat": -86.37652685731457,
+                                                            "lon": -26.3182865963215})
+        call("POST", "/gis/import", headers=key, json_body={"featurecollection": {"type": "Feature"}})
+        call("POST", "/gis/import", headers=key, json_body={})
+        call("POST", "/gis/import", headers=key, json_body={"featurecollection": {"type": "FeatureCollection", "features": [
+            {"type": "Feature", "geometry": {"type": "Point", "coordinates": [0, 0]},
+             "properties": {"feature": "charger"}}]}})
+        call("POST", "/gis/import", json_body={"featurecollection": fc})            # no key
+        call("POST", "/gis/query", headers=key, json_body={"featurecollection": fc, "feature": "order"})
+        call("POST", "/gis/query", headers=key, json_body={"featurecollection": fc, "attrs": {"kind": "cut"}})
+        call("POST", "/gis/query", headers=key, json_body={"featurecollection": fc, "feature": "order",
+                                                           "attrs": {"footprint_m2": 2, "depth_m": 0.05}})
+        call("POST", "/gis/query", headers=key, json_body={"featurecollection": fc, "attrs": {"feature": "x"}})
+        call("POST", "/gis/query", headers=key, json_body={"featurecollection": [], "feature": "order"})
+        call("GET", "/export/cog/available")
+        call("GET", "/export/cog/slope.tif", headers=key)
+        call("GET", "/export/cog/aspect.tif", headers=key)
+        call("GET", "/export/cog/slope.tif")                                       # no key
+
+    stock = _GE.cog_available
+    _GE.cog_available = lambda: (False, reason)
+    try:
+        payload = _http_session("stewie-http-gis-oracle", {}, script)
+    finally:
+        _GE.cog_available = stock
+    write_fixture(ORACLE_FIXTURES, "http_gis_cases", "oracle/build_fixtures.py::http_gis_cases (the FastAPI app's "
+                  "GIS export, import and query over the real Haworth DEM)",
+                  ["stewie/server/routers/gis_export.py", "lode/gis_export.py",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
+
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
     real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
@@ -6111,6 +6187,7 @@ def main() -> None:
     http_globe_cases()
     http_wms_cases()
     http_evidence_cases()
+    http_gis_cases()
     contour_lines_cases()
     endurance_cases()
     timeline_cases()
