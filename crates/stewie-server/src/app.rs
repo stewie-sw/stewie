@@ -318,6 +318,8 @@ pub struct AppState {
     heavy_quota: RateLimiter,
     /// The mission-feature edit sessions (`data_dir/edit_session.db`, opened on first use).
     pub edit_sessions: crate::edit_session::Store,
+    /// The live operator/director training sessions.
+    pub training: crate::session_routes::Sessions,
     /// The rendered static globe drapes.
     pub globe_cache: crate::globe::Cache,
     /// The request counters and budgets `/metrics` reports.
@@ -423,6 +425,7 @@ impl AppState {
             draft_quota: RateLimiter::new(120, 60.0),
             heavy_quota: RateLimiter::new(settings.heavy_quota_max, settings.heavy_window_s),
             edit_sessions,
+            training: crate::session_routes::Sessions::default(),
             globe_cache: crate::globe::Cache::default(),
             metrics: crate::metrics::Metrics::default(),
             cfg,
@@ -1230,6 +1233,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::perception_routes::routes())
         .merge(crate::ros_routes::routes())
         .merge(crate::nav_routes::routes())
+        .merge(crate::session_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

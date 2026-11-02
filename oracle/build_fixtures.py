@@ -6097,6 +6097,142 @@ def http_nav_cases() -> None:
                    "lode/planner_routing.py", "lode/nav_pipeline.py"], payload)
 
 
+def http_session_cases() -> None:
+    """The operator/director training sessions (RW-55b26): POST /session/start runs the closed loop over each
+    repository sample mission on the raw Haworth DEM under each packaged link profile, then the operator view (the
+    link-delivered, truth-denied legs), the scorecard (persisted; an operator's public board, a director's with the
+    truth), the director debrief and pose divergence, the Markdown summary and the trainer history, with the refusals
+    (no key, an operator on a director view, an unknown session, a bad profile, mission or body). The persisted
+    history also holds a SYNTHETIC earlier record (labelled), an unparseable record and one without an id.
+
+    Two choices the Rust makes are applied to the Python here, both labelled: the scorecard's alternatives
+    (``lode.resync.forward_compare``) plan on the session's raw site DEM, where the Python plans them flat (D-R85
+    refuses flat planning; D-R174); and each persisted scorecard's modification time is the session clock, as the Rust
+    stamps it from its own clock (the history's ``recorded_at``)."""
+    import base64
+    import lode.mission_planner as MP
+    import lode.resync as RES
+    import stewie.server.session as SES
+    import stewie.server.state as ST
+    from stewie.specs import solar as _S
+
+    samples = {}
+    for n in ("01_flatten_pad", "02_haul_around_hazard"):
+        with open(os.path.join(REPO, "stewie", "server", "sample_missions", n + ".json")) as fh:
+            samples[n] = json.load(fh)
+    seeded_t = 1_800_000_000.0 - 100.0
+    seeded = {"session_id": "0000feedc0de0000", "profile": "comm_dropout", "objective": "time",
+              "public": {"completed": True, "objectives_total": 2, "legs_total": 4, "legs_delivered": 3,
+                         "makespan_s": 1200.0, "optimal_s": 1100.0, "makespan_ratio": 1.0909},
+              "truth": {"energy_divergence_J": 512.5, "pose_divergence_mean_m": 0.4},
+              "makespan": {"makespan_s": 1200.0, "optimal_s": 1100.0, "makespan_ratio": 1.0909},
+              "note": "SYNTHETIC earlier session record (labelled), laid down before the session"}
+    seed_files = {"sessions/scorecard_0000feedc0de0000.json": json.dumps(seeded, indent=2).encode(),
+                  "sessions/scorecard_broken.json": b"{not json",
+                  "sessions/scorecard_noid.json": json.dumps({"profile": "ideal"}).encode()}
+
+    class _OnSiteDem:
+        """lode.mission_planner with ``plan`` on the raw Haworth DEM (the Rust's alternatives, D-R174)."""
+        def __getattr__(self, k):
+            return getattr(MP, k)
+
+        @staticmethod
+        def plan(mission, **kw):
+            dem, origin = ST.moon_dem("haworth")
+            return MP.plan(mission, dem=dem, dem_origin=origin, **kw)
+
+    def script(call, key, d, clock):
+        for rel, b in seed_files.items():
+            path = os.path.join(d, rel)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "wb") as fh:
+                fh.write(b)
+            os.utime(path, (seeded_t, seeded_t))
+
+        def scorecard(sid, headers):
+            r = call("GET", f"/session/{sid}/scorecard", headers=headers)
+            path = os.path.join(d, "sessions", f"scorecard_{sid}.json")
+            if r.status_code == 200 and os.path.exists(path) and sid != seeded["session_id"]:
+                os.utime(path, (clock["t"], clock["t"]))
+            clock["t"] += 2.0
+            return r
+
+        m1, m2 = samples["01_flatten_pad"], samples["02_haul_around_hazard"]
+        call("POST", "/session/start", json_body=m1)                                       # no key
+        a = call("POST", "/session/start", headers=key, json_body=m1).json()["session_id"]
+        clock["t"] += 2.0
+        b = call("POST", "/session/start", headers=key,
+                 json_body=dict(m2, profile="comm_dropout", mission_t0_s=86400.0)).json()["session_id"]
+        clock["t"] += 2.0
+        c = call("POST", "/session/start", headers=key,
+                 json_body=dict(m1, profile="mission_default", name="drill", mission_t0_s="3600")).json()["session_id"]
+        call("POST", "/session/start", headers=key, json_body=dict(m1, profile="nope"))
+        call("POST", "/session/start", headers=key, json_body=dict(m1, orders=[{"action": "a", "kind": "goto",
+                                                                                 "y": 1.0}]))
+        call("POST", "/session/start", headers=key, json_body=dict(m1, profile=7))
+        call("POST", "/session/start", headers=key, json_body=[1])
+        call("POST", "/session/start", headers=key, raw="{not json")
+        bob = {"Authorization": "Bearer " + call("POST", "/auth/login", headers=key,
+                                                  json_body={"email": "bob@example.org"}).json()["token"]}
+        for sid in (a, b, c):
+            call("GET", f"/session/{sid}/operator", headers=bob)
+        call("GET", f"/session/{a}/operator")                                              # no key
+        call("GET", "/session/ffffffffffffffff/operator", headers=key)
+        scorecard(a, bob)                                                                  # the public board
+        scorecard(b, key)                                                                  # with the truth
+        scorecard(c, key)
+        scorecard(seeded["session_id"], bob)                                               # the persisted record
+        scorecard(seeded["session_id"], key)
+        call("GET", "/session/ffffffffffffffff/scorecard", headers=key)
+        call("GET", f"/session/{a}/debrief", headers=key)
+        call("GET", f"/session/{b}/debrief?fast_forward=4", headers=key)
+        call("GET", f"/session/{b}/debrief?fast_forward=fast", headers=key)
+        call("GET", f"/session/{a}/debrief", headers=bob)                                  # operator: 403
+        call("GET", "/session/ffffffffffffffff/debrief", headers=key)
+        call("GET", f"/session/{b}/divergence", headers=key)
+        call("GET", f"/session/{b}/divergence", headers=bob)
+        call("GET", "/session/ffffffffffffffff/divergence", headers=key)
+        for sid in (a, b, c):
+            call("GET", f"/session/{sid}/summary", headers=key)
+        call("GET", "/session/ffffffffffffffff/summary", headers=key)
+        call("GET", "/trainer/history", headers=bob)
+        call("GET", "/trainer/history", headers=key)
+        call("GET", "/trainer/history")                                                    # no key
+
+    # the session sun prefers SPICE when its kernels are present: pinned to the pipeline's copies (.cache/spice), so
+    # every host, CI included, answers from SPICE, not the mean-motion fallback
+    saved_mp, saved_kernels = RES.MP, _S._KERNEL_DIR
+    _S._KERNEL_DIR = os.path.join(REPO, ".cache", "spice")
+    assert _S.spice_available(), "the pinned NAIF kernels (pipeline/fetch.py) are needed"
+    try:
+        RES.MP = _OnSiteDem()
+        SES._SESSIONS.clear()
+        payload = _http_session("stewie-http-session-oracle", {}, script)
+    finally:
+        RES.MP, _S._KERNEL_DIR = saved_mp, saved_kernels
+        SES._SESSIONS.clear()
+    profiles = SES._PROFILES
+
+    def norm(v):
+        if isinstance(v, str):
+            return v.replace(profiles, "{profiles}")
+        if isinstance(v, list):
+            return [norm(x) for x in v]
+        if isinstance(v, dict):
+            return {k: norm(x) for k, x in v.items()}
+        return v
+
+    for step in payload["steps"]:
+        step["body"] = norm(step["body"])
+    payload["seed_files"] = {rel: base64.b64encode(b).decode() for rel, b in seed_files.items()}
+    payload["seeded_mtime"] = seeded_t
+    write_fixture(ORACLE_FIXTURES, "http_session_cases", "oracle/build_fixtures.py::http_session_cases (the FastAPI "
+                  "app's operator/director training sessions)",
+                  ["stewie/server/routers/session.py", "stewie/server/session.py", "stewie/bridge/telemetry.py",
+                   "lode/autonomy.py", "lode/resync.py", "dart/map_channel.py", "lode/faults.py",
+                   "stewie/specs/solar.py"], payload)
+
+
 def plan_lowering_cases() -> None:
     """NV-11 (RW-55b25a): ``stewie.bridge.plan_lowering.lower_plan_ir`` on the plan IR of each repository sample
     mission (``lode.planner_views.plan_ir``, as ``/rc/plan_ros`` lowers it), with the AM-01 posture machine it
@@ -6788,6 +6924,7 @@ def main() -> None:
     http_compare_cases()
     http_ros_cases()
     http_nav_cases()
+    http_session_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()

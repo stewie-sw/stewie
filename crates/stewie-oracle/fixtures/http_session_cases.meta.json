@@ -1,0 +1,15 @@
+{
+ "fixture": "http_session_cases",
+ "generator": "oracle/build_fixtures.py::http_session_cases (the FastAPI app's operator/director training sessions)",
+ "payload_sha256": "5e3badeff2f784df6e74da932b3f0182688f43b73d6f02a5e2711b28a8f6569e",
+ "sources": {
+  "dart/map_channel.py": "88f864eaa145e775f6a0498b70327460c78f817fd3c35e362ce810b1290f9837",
+  "lode/autonomy.py": "e4f42dff1611c4ad24231bd2d1e7ffe7b8a670eafe05eb81c6160d0f53079f9e",
+  "lode/faults.py": "8b38e1eefb352113a95710f839b34b9c3692e86e54dab5ab0c8f7c3690ef85ff",
+  "lode/resync.py": "b02fb893aad28992f93fca7d3a6f1a69ce2ce843e3e8eab6d608095069460ed3",
+  "stewie/bridge/telemetry.py": "76704d188697c27e86d7adcb942d5727e246acb6c97c707581ae2feec321eb93",
+  "stewie/server/routers/session.py": "1ea6558c05153d10a3a37727aa6e50f95d3084880d501aacc8b7b94252857899",
+  "stewie/server/session.py": "03a3dcc6fb531a1b13b037ab3907106130b926c9180a5d27dc7c26fdecbb8c27",
+  "stewie/specs/solar.py": "b497e7be4032501e6c28f620e1008377734a30c134308f2023f7bd4ecca194f9"
+ }
+}

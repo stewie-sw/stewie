@@ -330,9 +330,32 @@ fn local_coverage(stations: &[(f64, f64)], site: (f64, f64), r: f64) -> f64 {
     }
 }
 
-/// The executed route's worksite coverage and residual map uncertainty (Python `map_channel_score`).
+/// The executed route's map-channel reward (Python `map_channel_score`): the worksite's observed fraction and
+/// residual mean uncertainty, with its counts and the constants it used.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MapScore {
+    pub coverage: f64,
+    pub observed_cells: usize,
+    pub total_cells: usize,
+    pub mean_uncertainty_m: f64,
+    pub onboard_sigma_m: f64,
+    pub sensor_radius_m: f64,
+    pub n_stations: usize,
+}
+
+impl MapScore {
+    /// The Python's dict (its cell is 1 m; the dense render tier is not available here).
+    #[must_use]
+    pub fn to_value(&self) -> Value {
+        json!({"coverage": self.coverage, "observed_cells": self.observed_cells, "total_cells": self.total_cells,
+               "mean_uncertainty_m": self.mean_uncertainty_m, "observed_uncertainty_m": self.onboard_sigma_m,
+               "sensor_radius_m": self.sensor_radius_m, "cell_m": 1.0, "n_stations": self.n_stations,
+               "dense_rmse_available": false})
+    }
+}
+
 #[allow(clippy::cast_precision_loss)] // cell counts
-fn map_channel(m: &Mission, stations: &[(f64, f64)], mc: &MapChannel) -> (f64, f64) {
+fn map_channel(m: &Mission, stations: &[(f64, f64)], mc: &MapChannel) -> MapScore {
     let (cx, cy) = grid_centres(worksite_bbox(m, mc.worksite_margin_m), 1.0);
     let mut sigma = Vec::with_capacity(cx.len() * cy.len());
     let mut seen = 0_usize;
@@ -348,34 +371,87 @@ fn map_channel(m: &Mission, stations: &[(f64, f64)], mc: &MapChannel) -> (f64, f
         }
     }
     let n = sigma.len() as f64;
-    (seen as f64 / n, stewie_twin::numpy::sum(&sigma) / n)
+    MapScore {
+        coverage: seen as f64 / n,
+        observed_cells: seen,
+        total_cells: sigma.len(),
+        mean_uncertainty_m: stewie_twin::numpy::sum(&sigma) / n,
+        onboard_sigma_m: mc.onboard_stereo_sigma_m,
+        sensor_radius_m: mc.sensor_radius_m,
+        n_stations: stations.len(),
+    }
 }
 
 /// One executed leg.
-struct Leg {
-    nominal_j: f64,
-    true_j: f64,
-    dig_e: f64,
-    slope_deg: f64,
-    slip: f64,
-    energy_sigma_j: f64,
-    believed: (f64, f64),
-    truth: (f64, f64),
-    pos_sigma_m: f64,
-    fix: &'static str,
+#[derive(Debug, Clone, PartialEq)]
+pub struct Leg {
+    pub label: String,
+    pub nominal_j: f64,
+    pub true_j: f64,
+    pub dig_e: f64,
+    pub slope_deg: f64,
+    pub slip: f64,
+    pub energy_sigma_j: f64,
+    pub believed: (f64, f64),
+    pub truth: (f64, f64),
+    pub pos_sigma_m: f64,
+    pub fix: &'static str,
 }
 
-/// The `/plan` response's `autonomy` and `perception` blocks for `plan` on `dem` (Python `_autonomy_perception`).
+/// The closed loop over one canonical plan (Python `lode.autonomy.run_closed_loop`): the executed legs and the
+/// loop's counters.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClosedLoop {
+    pub legs: Vec<Leg>,
+    pub perception_fixes: u64,
+    pub observe_more: u64,
+    pub map_observe_more: u64,
+    pub survey_time_s: f64,
+    pub map_channel: MapScore,
+    /// The final believed pose sigma [m].
+    pub pos_sigma_m: f64,
+}
+
+impl ClosedLoop {
+    /// The executed legs as the Python's leg records: the energies, the drive's slope and slip, the believed and
+    /// true poses (builtin-rounded), the fix kind, and the leg's faults against the pack `reserve_frac`. The belief
+    /// spends no energy (the plant owns it), so the state of charge stays 1.0; no dense perception runs, so no dig
+    /// is deferred.
+    #[must_use]
+    pub fn leg_records(&self, reserve_frac: f64) -> Vec<Value> {
+        use stewie_traverse::nav::{Telemetry, classify_faults, py_round};
+        self.legs
+            .iter()
+            .map(|l| {
+                let t = Telemetry { slip: Some(l.slip), battery_frac: Some(1.0), loc_sigma_m: Some(l.pos_sigma_m),
+                                    ..Telemetry::default() };
+                json!({"leg": l.label, "nominal_J": l.nominal_j, "true_J": l.true_j, "dig_e": l.dig_e, "soc": 1.0,
+                       "slope_deg": l.slope_deg, "slip": l.slip, "energy_sigma_J": l.energy_sigma_j,
+                       "bx": py_round(l.believed.0, 2), "by": py_round(l.believed.1, 2),
+                       "tx": py_round(l.truth.0, 2), "ty": py_round(l.truth.1, 2),
+                       "pos_sigma_m": py_round(l.pos_sigma_m, 3), "fix": l.fix,
+                       "faults": classify_faults(&t, reserve_frac), "dense_deferred": false})
+            })
+            .collect()
+    }
+}
+
+/// Walk `plan`'s trips on `dem` (Python `run_closed_loop`): gate digs on the worksite's map coverage, execute
+/// each leg (slope from the elevation gain, weight-coupled slip, the gravity climb), and dead-reckon with odometry
+/// drift. With `perception` (a fix precision [m]) the loop also dwells until the pose is confident enough to dig,
+/// fuses a DEM scan-match or the lander beacon per leg, and docks at the charger as a final fix; without it the
+/// belief only drifts (a training session's run).
 ///
 /// # Errors
 /// The slip ladder refusing a leg's inputs.
 #[allow(clippy::too_many_lines)] // the Python's loop, step by step
-pub fn autonomy_perception(
+pub fn run_closed_loop(
     m: &Mission,
     plan: &Plan,
     dem: &Dem<'_>,
     inp: &Inputs<'_>,
-) -> Result<(Value, Value), String> {
+    perception: Option<f64>,
+) -> Result<ClosedLoop, String> {
     let ctx = inp.ctx;
     let mut b = Belief {
         x: m.charger.0,
@@ -389,18 +465,21 @@ pub fn autonomy_perception(
     let mut legs: Vec<Leg> = Vec::new();
     for tr in &plan.trips {
         let is_dig = tr.dig_e > 0.0;
-        if is_dig {
+        if let Some(sigma) = perception
+            && is_dig
+        {
             while b.pos_sigma_m > DIG_SIGMA_GATE_M {
                 let here = (b.x, b.y);
-                update_pose(&mut b, here, PERCEPTION_SIGMA_M);
+                update_pose(&mut b, here, sigma);
                 observe_more += 1;
             }
-            if local_coverage(&stations, tr.site, inp.map.sensor_radius_m)
+        }
+        if is_dig
+            && local_coverage(&stations, tr.site, inp.map.sensor_radius_m)
                 < inp.map.coverage_dig_gate
-            {
-                survey_s += inp.map.observe_dwell_s;
-                map_observe_more += 1;
-            }
+        {
+            survey_s += inp.map.observe_dwell_s;
+            map_observe_more += 1;
         }
         stations.push(tr.site);
         let pose = (b.x, b.y);
@@ -432,20 +511,25 @@ pub fn autonomy_perception(
             drive_m,
         );
         let mut kind = "none";
-        let fix = match dem_fix(dem, truth, (b.x, b.y), PERCEPTION_SIGMA_M) {
-            Some(f) => {
-                kind = "dem";
-                Some(f)
+        if let Some(sigma) = perception {
+            let fix = match dem_fix(dem, truth, (b.x, b.y), sigma) {
+                Some(f) => {
+                    kind = "dem";
+                    Some(f)
+                }
+                None => {
+                    beacon_fix(m.lander.unwrap_or(m.charger), truth).inspect(|_| kind = "beacon")
+                }
+            };
+            if let Some((xy, sig)) = fix {
+                update_pose(&mut b, xy, sig);
+                fixes += 1;
             }
-            None => beacon_fix(m.lander.unwrap_or(m.charger), truth).inspect(|_| kind = "beacon"),
-        };
-        if let Some((xy, sigma)) = fix {
-            update_pose(&mut b, xy, sigma);
-            fixes += 1;
         }
         b.energy_sigma_j =
             (b.energy_sigma_j.powi(2) + (ENERGY_MODEL_SIGMA_FRAC * nominal_j).powi(2)).sqrt();
         legs.push(Leg {
+            label: tr.label.clone(),
             nominal_j,
             true_j,
             dig_e: tr.dig_e,
@@ -465,10 +549,40 @@ pub fn autonomy_perception(
         (m.charger.0 + ODOM_DRIFT_FRAC * home_m, m.charger.1),
         home_m,
     );
-    update_pose(&mut b, m.charger, PERCEPTION_SIGMA_M);
-    fixes += 1;
-    let (coverage, mean_uncertainty) = map_channel(m, &stations, inp.map);
+    if let Some(sigma) = perception {
+        update_pose(&mut b, m.charger, sigma);
+        fixes += 1;
+    }
+    Ok(ClosedLoop {
+        map_channel: map_channel(m, &stations, inp.map),
+        legs,
+        perception_fixes: fixes,
+        observe_more,
+        map_observe_more,
+        survey_time_s: survey_s,
+        pos_sigma_m: b.pos_sigma_m,
+    })
+}
 
+/// The `/plan` response's `autonomy` and `perception` blocks for `plan` on `dem` (Python `_autonomy_perception`:
+/// the closed loop with a 0.10 m fix).
+///
+/// # Errors
+/// The slip ladder refusing a leg's inputs.
+pub fn autonomy_perception(
+    m: &Mission,
+    plan: &Plan,
+    dem: &Dem<'_>,
+    inp: &Inputs<'_>,
+) -> Result<(Value, Value), String> {
+    let cl = run_closed_loop(m, plan, dem, inp, Some(PERCEPTION_SIGMA_M))?;
+    let (legs, fixes, observe_more, map_observe_more) = (
+        &cl.legs,
+        cl.perception_fixes,
+        cl.observe_more,
+        cl.map_observe_more,
+    );
+    let (coverage, mean_uncertainty) = (cl.map_channel.coverage, cl.map_channel.mean_uncertainty_m);
     // the Python's builtin `sum`, from +0.0
     let nominal = legs.iter().fold(0.0, |a, l| a + l.nominal_j);
     let truth_j = legs.iter().fold(0.0, |a, l| a + l.true_j);
@@ -489,11 +603,11 @@ pub fn autonomy_perception(
     let leg_e_sig = legs.iter().map(|l| l.energy_sigma_j).fold(0.0, f64::max);
     let count = |k: &str| legs.iter().filter(|l| l.fix == k).count();
     let perception = json!({
-        "pose_sigma_m": round(b.pos_sigma_m, 2), "map_fixes": fixes, "observe_more_before_dig": observe_more,
+        "pose_sigma_m": round(cl.pos_sigma_m, 2), "map_fixes": fixes, "observe_more_before_dig": observe_more,
         "fix_sigma_m": PERCEPTION_SIGMA_M, "energy_model_sigma_J": round(leg_e_sig, 1),
         "drum_fill_uncertainty_pct": DRUM_FILL_UNCERTAINTY_PCT,
         "map_coverage": round(coverage, 3), "map_uncertainty_m": round(mean_uncertainty, 2),
-        "map_observe_more_before_dig": map_observe_more, "map_survey_time_s": round(survey_s, 1),
+        "map_observe_more_before_dig": map_observe_more, "map_survey_time_s": round(cl.survey_time_s, 1),
         "localization": {
             "trajectory": legs.iter().map(|l| json!({
                 "est": [round(l.believed.0, 2), round(l.believed.1, 2)],

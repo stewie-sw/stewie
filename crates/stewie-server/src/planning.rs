@@ -352,6 +352,31 @@ impl Planning {
         stewie_plan::autonomy::autonomy_perception(m, plan, dem, &inp)
     }
 
+    /// The closed loop over `plan` on `dem` (Python `lode.autonomy.run_closed_loop`), with a `perception` fix
+    /// precision [m] or none (a training session's dead-reckoned run).
+    ///
+    /// # Errors
+    /// The slip ladder refusing a leg's inputs.
+    pub fn closed_loop(
+        &self,
+        m: &Mission,
+        inputs: &Inputs,
+        plan: &stewie_plan::assemble::Plan,
+        dem: &Dem<'_>,
+        perception: Option<f64>,
+    ) -> Result<stewie_plan::autonomy::ClosedLoop, String> {
+        let ctx = context(m, &self.fleet, &inputs.params)?;
+        let inp = stewie_plan::autonomy::Inputs {
+            ctx: &ctx,
+            gravity_ms2: inputs.params.gravity_ms2,
+            soil: &inputs.soil,
+            slip: &inputs.slip,
+            map: &self.autonomy.map_channel,
+            model: &self.autonomy.learned_model,
+        };
+        stewie_plan::autonomy::run_closed_loop(m, plan, dem, &inp, perception)
+    }
+
     /// The Markdown report of `plan` (Python `planner_views.report`, its Markdown half), with its `totals` and
     /// endurance report `endu`.
     ///

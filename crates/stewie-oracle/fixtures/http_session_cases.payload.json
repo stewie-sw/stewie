@@ -1,0 +1,1568 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "session.start",
+   "actor": "api-key",
+   "correlation_id": "cid-002",
+   "target": "23d42570d191047b",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "session.start",
+   "actor": "api-key",
+   "correlation_id": "cid-003",
+   "target": "f15ba35457f7ff4f",
+   "ts": 1800000002.0
+  },
+  {
+   "action": "session.start",
+   "actor": "api-key",
+   "correlation_id": "cid-004",
+   "target": "7231c84c8cfab1fa",
+   "ts": 1800000004.0
+  },
+  {
+   "action": "auth.login",
+   "actor": "bob@example.org",
+   "correlation_id": "cid-010",
+   "target": "bootstrap",
+   "ts": 1800000004.0
+  }
+ ],
+ "seed_files": {
+  "sessions/scorecard_0000feedc0de0000.json": "ewogICJzZXNzaW9uX2lkIjogIjAwMDBmZWVkYzBkZTAwMDAiLAogICJwcm9maWxlIjogImNvbW1fZHJvcG91dCIsCiAgIm9iamVjdGl2ZSI6ICJ0aW1lIiwKICAicHVibGljIjogewogICAgImNvbXBsZXRlZCI6IHRydWUsCiAgICAib2JqZWN0aXZlc190b3RhbCI6IDIsCiAgICAibGVnc190b3RhbCI6IDQsCiAgICAibGVnc19kZWxpdmVyZWQiOiAzLAogICAgIm1ha2VzcGFuX3MiOiAxMjAwLjAsCiAgICAib3B0aW1hbF9zIjogMTEwMC4wLAogICAgIm1ha2VzcGFuX3JhdGlvIjogMS4wOTA5CiAgfSwKICAidHJ1dGgiOiB7CiAgICAiZW5lcmd5X2RpdmVyZ2VuY2VfSiI6IDUxMi41LAogICAgInBvc2VfZGl2ZXJnZW5jZV9tZWFuX20iOiAwLjQKICB9LAogICJtYWtlc3BhbiI6IHsKICAgICJtYWtlc3Bhbl9zIjogMTIwMC4wLAogICAgIm9wdGltYWxfcyI6IDExMDAuMCwKICAgICJtYWtlc3Bhbl9yYXRpbyI6IDEuMDkwOQogIH0sCiAgIm5vdGUiOiAiU1lOVEhFVElDIGVhcmxpZXIgc2Vzc2lvbiByZWNvcmQgKGxhYmVsbGVkKSwgbGFpZCBkb3duIGJlZm9yZSB0aGUgc2Vzc2lvbiIKfQ==",
+  "sessions/scorecard_broken.json": "e25vdCBqc29u",
+  "sessions/scorecard_noid.json": "eyJwcm9maWxlIjogImlkZWFsIn0="
+ },
+ "seed_sha256_of": "stewie-http-session-oracle",
+ "seeded_mtime": 1799999900.0,
+ "steps": [
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/session/start",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "debrief_url": "/session/23d42570d191047b/debrief",
+    "n_legs": 2,
+    "ok": true,
+    "operator_url": "/session/23d42570d191047b/operator",
+    "session_id": "23d42570d191047b"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/session/start",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "debrief_url": "/session/f15ba35457f7ff4f/debrief",
+    "n_legs": 2,
+    "ok": true,
+    "operator_url": "/session/f15ba35457f7ff4f/operator",
+    "session_id": "f15ba35457f7ff4f"
+   },
+   "cache_control": null,
+   "clock": 1800000002.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [
+      {
+       "r": 10,
+       "x": 25,
+       "y": 0
+      }
+     ],
+     "mission_t0_s": 86400.0,
+     "name": "Tutorial 2 — haul around a crater keep-out",
+     "orders": [
+      {
+       "action": "borrow pit",
+       "depth_m": 0.2,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "action": "build berm",
+       "depth_m": 0.2,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 50,
+       "y": 0
+      }
+     ],
+     "profile": "comm_dropout"
+    },
+    "method": "POST",
+    "path": "/session/start",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "debrief_url": "/session/7231c84c8cfab1fa/debrief",
+    "n_legs": 2,
+    "ok": true,
+    "operator_url": "/session/7231c84c8cfab1fa/operator",
+    "session_id": "7231c84c8cfab1fa"
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "mission_t0_s": "3600",
+     "name": "drill",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ],
+     "profile": "mission_default"
+    },
+    "method": "POST",
+    "path": "/session/start",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "[Errno 2] No such file or directory: '{profiles}/nope.json'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ],
+     "profile": "nope"
+    },
+    "method": "POST",
+    "path": "/session/start",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "order 0 missing field(s): ['x']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "a",
+       "kind": "goto",
+       "y": 1.0
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/session/start",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "profile: Input should be a valid string",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ],
+     "profile": 7
+    },
+    "method": "POST",
+    "path": "/session/start",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "body: Input should be a valid dictionary or object to extract fields from",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": [
+     1
+    ],
+    "method": "POST",
+    "path": "/session/start",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "bad JSON: JSON decode error",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Content-Type": "application/json",
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/session/start",
+    "raw": "{not json"
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "must_set_password": true,
+    "ok": true,
+    "operator": "bob@example.org",
+    "role": "operator",
+    "token": "eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwNC4wLCJpYXQiOjE4MDAwMDAwMDQuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjJkOTM0OWRhMmJjMzQ1YWY5ZDg4NGQ5ZTM5NGU5ZGQ5In0.tDbAPXo9SsPX4BpNPOG5S03TiA0h46Qkdog6c2wpE1o",
+    "ttl_s": 43200
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": {
+     "email": "bob@example.org"
+    },
+    "method": "POST",
+    "path": "/auth/login",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "completed": true,
+    "legs": [
+     {
+      "bx": 10.71,
+      "by": 10.0,
+      "dense_deferred": false,
+      "dig_e": 29142759.851550456,
+      "energy_sigma_J": 3522847.544908027,
+      "faults": [],
+      "fix": "none",
+      "leg": "cut high spot → fill pad",
+      "nominal_J": 29357062.874233562,
+      "pos_sigma_m": 0.866,
+      "sent_at_s": 0.0,
+      "soc": 1.0,
+      "tx": 10.0,
+      "ty": 10.0,
+      "visible_at_s": 0.0
+     },
+     {
+      "bx": 10.04,
+      "by": 10.0,
+      "dense_deferred": false,
+      "dig_e": 2779770.9396863533,
+      "energy_sigma_J": 3538605.1307397657,
+      "faults": [],
+      "fix": "none",
+      "leg": "Excavate spoil: cut high spot",
+      "nominal_J": 2779781.249303223,
+      "pos_sigma_m": 0.867,
+      "sent_at_s": 1.0,
+      "soc": 1.0,
+      "tx": 10.0,
+      "ty": 10.0,
+      "visible_at_s": 1.0
+     }
+    ],
+    "link": {
+     "profile": "ideal",
+     "stats": {
+      "bytes_delivered": 512,
+      "dropped": 0,
+      "rate_limited": 0,
+      "sent": 2,
+      "stranded": 0
+     }
+    },
+    "n_legs_total": 2,
+    "recharges": 7,
+    "session_id": "23d42570d191047b",
+    "sun": {
+     "authority": "stewie.specs.solar @ Haworth -87.45",
+     "az_deg": 114.47301482335298,
+     "el_deg": 0.5006791255322209,
+     "mission_t0_s": 0.0
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwNC4wLCJpYXQiOjE4MDAwMDAwMDQuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjJkOTM0OWRhMmJjMzQ1YWY5ZDg4NGQ5ZTM5NGU5ZGQ5In0.tDbAPXo9SsPX4BpNPOG5S03TiA0h46Qkdog6c2wpE1o",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/23d42570d191047b/operator",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "completed": true,
+    "legs": [
+     {
+      "bx": 0.0,
+      "by": 0.0,
+      "dense_deferred": false,
+      "dig_e": 38857013.135400616,
+      "energy_sigma_J": 4733146.298128935,
+      "faults": [],
+      "fix": "none",
+      "leg": "borrow pit → build berm",
+      "nominal_J": 39442885.817741126,
+      "pos_sigma_m": 0.5,
+      "sent_at_s": 0.0,
+      "soc": 1.0,
+      "tx": 0.0,
+      "ty": 0.0,
+      "visible_at_s": 2.6
+     }
+    ],
+    "link": {
+     "profile": "comm_dropout",
+     "stats": {
+      "bytes_delivered": 256,
+      "dropped": 1,
+      "rate_limited": 0,
+      "sent": 1,
+      "stranded": 0
+     }
+    },
+    "n_legs_total": 2,
+    "recharges": 10,
+    "session_id": "f15ba35457f7ff4f",
+    "sun": {
+     "authority": "stewie.specs.solar @ Haworth -87.45",
+     "az_deg": 102.30693788976586,
+     "el_deg": 1.0127812449524773,
+     "mission_t0_s": 86400.0
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwNC4wLCJpYXQiOjE4MDAwMDAwMDQuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjJkOTM0OWRhMmJjMzQ1YWY5ZDg4NGQ5ZTM5NGU5ZGQ5In0.tDbAPXo9SsPX4BpNPOG5S03TiA0h46Qkdog6c2wpE1o",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/f15ba35457f7ff4f/operator",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "completed": true,
+    "legs": [
+     {
+      "bx": 10.71,
+      "by": 10.0,
+      "dense_deferred": false,
+      "dig_e": 29142759.851550456,
+      "energy_sigma_J": 3522847.544908027,
+      "faults": [],
+      "fix": "none",
+      "leg": "cut high spot → fill pad",
+      "nominal_J": 29357062.874233562,
+      "pos_sigma_m": 0.866,
+      "sent_at_s": 0.0,
+      "soc": 1.0,
+      "tx": 10.0,
+      "ty": 10.0,
+      "visible_at_s": 2.6
+     },
+     {
+      "bx": 10.04,
+      "by": 10.0,
+      "dense_deferred": false,
+      "dig_e": 2779770.9396863533,
+      "energy_sigma_J": 3538605.1307397657,
+      "faults": [],
+      "fix": "none",
+      "leg": "Excavate spoil: cut high spot",
+      "nominal_J": 2779781.249303223,
+      "pos_sigma_m": 0.867,
+      "sent_at_s": 1.0,
+      "soc": 1.0,
+      "tx": 10.0,
+      "ty": 10.0,
+      "visible_at_s": 3.6
+     }
+    ],
+    "link": {
+     "profile": "mission_default",
+     "stats": {
+      "bytes_delivered": 512,
+      "dropped": 0,
+      "rate_limited": 0,
+      "sent": 2,
+      "stranded": 0
+     }
+    },
+    "n_legs_total": 2,
+    "recharges": 7,
+    "session_id": "7231c84c8cfab1fa",
+    "sun": {
+     "authority": "stewie.specs.solar @ Haworth -87.45",
+     "az_deg": 113.96596627305651,
+     "el_deg": 0.5212442807119234,
+     "mission_t0_s": 3600.0
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwNC4wLCJpYXQiOjE4MDAwMDAwMDQuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjJkOTM0OWRhMmJjMzQ1YWY5ZDg4NGQ5ZTM5NGU5ZGQ5In0.tDbAPXo9SsPX4BpNPOG5S03TiA0h46Qkdog6c2wpE1o",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/7231c84c8cfab1fa/operator",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/23d42570d191047b/operator",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "unknown session",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/ffffffffffffffff/operator",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "ok": true,
+    "scorecard": {
+     "comm_delivered_frac": 1.0,
+     "completed": true,
+     "dropped_packets": 0,
+     "energy_MJ": 32.137,
+     "legs_delivered": 2,
+     "legs_missed": 0,
+     "legs_total": 2,
+     "link_profile": "ideal",
+     "makespan_ratio": 1.0,
+     "makespan_s": 749821.681,
+     "objectives_total": 2,
+     "optimal_s": 749821.681,
+     "recharges": 7,
+     "replans": 0,
+     "stranded_packets": 0
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000004.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwNC4wLCJpYXQiOjE4MDAwMDAwMDQuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjJkOTM0OWRhMmJjMzQ1YWY5ZDg4NGQ5ZTM5NGU5ZGQ5In0.tDbAPXo9SsPX4BpNPOG5S03TiA0h46Qkdog6c2wpE1o",
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/23d42570d191047b/scorecard",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "scorecard": {
+     "comm_delivered_frac": 0.5,
+     "completed": true,
+     "dropped_packets": 1,
+     "energy_MJ": 46.856,
+     "energy_divergence_J": 0.0,
+     "legs_delivered": 1,
+     "legs_missed": 1,
+     "legs_total": 2,
+     "link_profile": "comm_dropout",
+     "makespan_ratio": 1.0,
+     "makespan_s": 1146836.641,
+     "objectives_total": 2,
+     "operator_missed_legs": [
+      "Excavate spoil: borrow pit"
+     ],
+     "optimal_s": 1146836.641,
+     "pose_divergence_max_m": 0.0,
+     "pose_divergence_mean_m": 0.0,
+     "recharges": 10,
+     "replans": 0,
+     "stranded_packets": 0,
+     "true_energy_MJ": 46.856
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000006.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/f15ba35457f7ff4f/scorecard",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "scorecard": {
+     "comm_delivered_frac": 1.0,
+     "completed": true,
+     "dropped_packets": 0,
+     "energy_MJ": 32.137,
+     "energy_divergence_J": 19.3,
+     "legs_delivered": 2,
+     "legs_missed": 0,
+     "legs_total": 2,
+     "link_profile": "mission_default",
+     "makespan_ratio": 1.0,
+     "makespan_s": 749821.681,
+     "objectives_total": 2,
+     "operator_missed_legs": [],
+     "optimal_s": 749821.681,
+     "pose_divergence_max_m": 0.71,
+     "pose_divergence_mean_m": 0.375,
+     "recharges": 7,
+     "replans": 0,
+     "stranded_packets": 0,
+     "true_energy_MJ": 32.137
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000008.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/7231c84c8cfab1fa/scorecard",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "scorecard": {
+     "completed": true,
+     "legs_delivered": 3,
+     "legs_total": 4,
+     "makespan_ratio": 1.0909,
+     "makespan_s": 1200.0,
+     "objectives_total": 2,
+     "optimal_s": 1100.0
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000010.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwNC4wLCJpYXQiOjE4MDAwMDAwMDQuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjJkOTM0OWRhMmJjMzQ1YWY5ZDg4NGQ5ZTM5NGU5ZGQ5In0.tDbAPXo9SsPX4BpNPOG5S03TiA0h46Qkdog6c2wpE1o",
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/0000feedc0de0000/scorecard",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "scorecard": {
+     "completed": true,
+     "energy_divergence_J": 512.5,
+     "legs_delivered": 3,
+     "legs_total": 4,
+     "makespan_ratio": 1.0909,
+     "makespan_s": 1200.0,
+     "objectives_total": 2,
+     "optimal_s": 1100.0,
+     "pose_divergence_mean_m": 0.4
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000012.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/0000feedc0de0000/scorecard",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "no such session",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/ffffffffffffffff/scorecard",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "completed": true,
+    "energy_divergence_J": 19.293804108630866,
+    "fast_forward": 1.0,
+    "legs": [
+     {
+      "bx": 10.71,
+      "by": 10.0,
+      "dense_deferred": false,
+      "dig_e": 29142759.851550456,
+      "energy_sigma_J": 3522847.544908027,
+      "faults": [],
+      "fix": "none",
+      "leg": "cut high spot → fill pad",
+      "nominal_J": 29357062.874233562,
+      "pos_sigma_m": 0.866,
+      "slip": 0.009179477275015276,
+      "slope_deg": 0.7230061826073313,
+      "soc": 1.0,
+      "true_J": 29357082.131479405,
+      "tx": 10.0,
+      "ty": 10.0
+     },
+     {
+      "bx": 10.04,
+      "by": 10.0,
+      "dense_deferred": false,
+      "dig_e": 2779770.9396863533,
+      "energy_sigma_J": 3538605.1307397657,
+      "faults": [],
+      "fix": "none",
+      "leg": "Excavate spoil: cut high spot",
+      "nominal_J": 2779781.249303223,
+      "pos_sigma_m": 0.867,
+      "slip": 0.0035335054492239572,
+      "slope_deg": 0.0,
+      "soc": 1.0,
+      "true_J": 2779781.2858614894,
+      "tx": 10.0,
+      "ty": 10.0
+     }
+    ],
+    "map_channel": {
+     "cell_m": 1.0,
+     "coverage": 0.20947802197802198,
+     "dense_rmse_available": false,
+     "mean_uncertainty_m": 4.019642857142857,
+     "n_stations": 3,
+     "observed_cells": 305,
+     "observed_uncertainty_m": 0.32,
+     "sensor_radius_m": 8.0,
+     "total_cells": 1456
+    },
+    "n_legs_total": 2,
+    "operator_missed_legs": [],
+    "operator_received": 2,
+    "session_id": "23d42570d191047b",
+    "sun": {
+     "authority": "stewie.specs.solar @ Haworth -87.45",
+     "az_deg": 114.47301482335298,
+     "el_deg": 0.5006791255322209,
+     "mission_t0_s": 0.0
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/23d42570d191047b/debrief",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "completed": true,
+    "energy_divergence_J": 0.0,
+    "fast_forward": 4.0,
+    "legs": [
+     {
+      "bx": 0.0,
+      "by": 0.0,
+      "dense_deferred": false,
+      "dig_e": 38857013.135400616,
+      "energy_sigma_J": 4733146.298128935,
+      "faults": [],
+      "fix": "none",
+      "leg": "borrow pit → build berm",
+      "nominal_J": 39442885.817741126,
+      "pos_sigma_m": 0.5,
+      "slip": 0.0035335054492239572,
+      "slope_deg": 0.0,
+      "soc": 1.0,
+      "true_J": 39442885.817741126,
+      "tx": 0.0,
+      "ty": 0.0
+     },
+     {
+      "bx": 0.0,
+      "by": 0.0,
+      "dense_deferred": false,
+      "dig_e": 7412722.505830273,
+      "energy_sigma_J": 4816007.852023209,
+      "faults": [],
+      "fix": "none",
+      "leg": "Excavate spoil: borrow pit",
+      "nominal_J": 7412722.505830273,
+      "pos_sigma_m": 0.5,
+      "slip": 0.0035335054492239572,
+      "slope_deg": 0.0,
+      "soc": 1.0,
+      "true_J": 7412722.505830273,
+      "tx": 0.0,
+      "ty": 0.0
+     }
+    ],
+    "map_channel": {
+     "cell_m": 1.0,
+     "coverage": 0.10526315789473684,
+     "dense_rmse_available": false,
+     "mean_uncertainty_m": 4.507368421052632,
+     "n_stations": 3,
+     "observed_cells": 208,
+     "observed_uncertainty_m": 0.32,
+     "sensor_radius_m": 8.0,
+     "total_cells": 1976
+    },
+    "n_legs_total": 2,
+    "operator_missed_legs": [
+     "Excavate spoil: borrow pit"
+    ],
+    "operator_received": 1,
+    "session_id": "f15ba35457f7ff4f",
+    "sun": {
+     "authority": "stewie.specs.solar @ Haworth -87.45",
+     "az_deg": 102.30693788976586,
+     "el_deg": 1.0127812449524773,
+     "mission_t0_s": 86400.0
+    }
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/f15ba35457f7ff4f/debrief?fast_forward=4",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "fast_forward: Input should be a valid number, unable to parse string as a number",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/f15ba35457f7ff4f/debrief?fast_forward=fast",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'bob@example.org')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwNC4wLCJpYXQiOjE4MDAwMDAwMDQuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjJkOTM0OWRhMmJjMzQ1YWY5ZDg4NGQ5ZTM5NGU5ZGQ5In0.tDbAPXo9SsPX4BpNPOG5S03TiA0h46Qkdog6c2wpE1o",
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/23d42570d191047b/debrief",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "unknown session",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/ffffffffffffffff/debrief",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "divergence": {
+     "max_m": 0.0,
+     "mean_m": 0.0,
+     "per_leg": [
+      {
+       "bx": 0.0,
+       "by": 0.0,
+       "err_m": 0.0,
+       "leg": "borrow pit → build berm",
+       "tx": 0.0,
+       "ty": 0.0
+      },
+      {
+       "bx": 0.0,
+       "by": 0.0,
+       "err_m": 0.0,
+       "leg": "Excavate spoil: borrow pit",
+       "tx": 0.0,
+       "ty": 0.0
+      }
+     ]
+    },
+    "ok": true,
+    "session_id": "f15ba35457f7ff4f"
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/f15ba35457f7ff4f/divergence",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'bob@example.org')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwNC4wLCJpYXQiOjE4MDAwMDAwMDQuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjJkOTM0OWRhMmJjMzQ1YWY5ZDg4NGQ5ZTM5NGU5ZGQ5In0.tDbAPXo9SsPX4BpNPOG5S03TiA0h46Qkdog6c2wpE1o",
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/f15ba35457f7ff4f/divergence",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "error": "unknown session",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/ffffffffffffffff/divergence",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": "# Mission summary — session 23d42570d191047b\n\n- completed: True · legs: 2 (operator received 2)\n- recharges: 7 · replans: 0\n\n## Route\n- routed drive distance: 44.1 m (executed path incl. any detour)\n\n| leg | believed → true pose | SoC |\n|---|---|---|\n| cut high spot → fill pad | (10.7, 10.0) → (10.0, 10.0) | 1.00 |\n| Excavate spoil: cut high spot | (10.0, 10.0) → (10.0, 10.0) | 1.00 |\n\n## Energy\n- nominal (planned): 32.137 MJ · true (slip/grade physics): 32.137 MJ\n\n| leg | nominal J | true J |\n|---|---|---|\n| cut high spot → fill pad | 29357063 | 29357082 |\n| Excavate spoil: cut high spot | 2779781 | 2779781 |\n\n## Link (comm drops)\n- link profile: ideal · stats: {'sent': 2, 'dropped': 0, 'rate_limited': 0, 'bytes_delivered': 512, 'stranded': 0}\n- operator received 2 / 2 legs · missed: none\n\n## Slip events\n- 2 drive leg(s) slipped on the real DEM grade\n\n| leg | slip | slope° |\n|---|---|---|\n| cut high spot → fill pad | 0.009 | 0.72 |\n| Excavate spoil: cut high spot | 0.004 | 0.00 |\n\n## Divergence (seen vs actual)\n- energy divergence (true vs nominal): 19.3 J\n- map channel: coverage 0.21, mean uncertainty 4.02 m",
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "text/markdown; charset=utf-8",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-030"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/23d42570d191047b/summary",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": "# Mission summary — session f15ba35457f7ff4f\n\n- completed: True · legs: 2 (operator received 1)\n- recharges: 10 · replans: 0\n\n## Route\n- routed drive distance: 62.4 m (executed path incl. any detour)\n\n| leg | believed → true pose | SoC |\n|---|---|---|\n| borrow pit → build berm | (0.0, 0.0) → (0.0, 0.0) | 1.00 |\n| Excavate spoil: borrow pit | (0.0, 0.0) → (0.0, 0.0) | 1.00 |\n\n## Energy\n- nominal (planned): 46.856 MJ · true (slip/grade physics): 46.856 MJ\n\n| leg | nominal J | true J |\n|---|---|---|\n| borrow pit → build berm | 39442886 | 39442886 |\n| Excavate spoil: borrow pit | 7412723 | 7412723 |\n\n## Link (comm drops)\n- link profile: comm_dropout · stats: {'sent': 1, 'dropped': 1, 'rate_limited': 0, 'bytes_delivered': 256, 'stranded': 0}\n- operator received 1 / 2 legs · missed: ['Excavate spoil: borrow pit']\n\n## Slip events\n- 2 drive leg(s) slipped on the real DEM grade\n\n| leg | slip | slope° |\n|---|---|---|\n| borrow pit → build berm | 0.004 | 0.00 |\n| Excavate spoil: borrow pit | 0.004 | 0.00 |\n\n## Divergence (seen vs actual)\n- energy divergence (true vs nominal): 0.0 J\n- map channel: coverage 0.11, mean uncertainty 4.51 m",
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "text/markdown; charset=utf-8",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/f15ba35457f7ff4f/summary",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": "# Mission summary — session 7231c84c8cfab1fa\n\n- completed: True · legs: 2 (operator received 2)\n- recharges: 7 · replans: 0\n\n## Route\n- routed drive distance: 44.1 m (executed path incl. any detour)\n\n| leg | believed → true pose | SoC |\n|---|---|---|\n| cut high spot → fill pad | (10.7, 10.0) → (10.0, 10.0) | 1.00 |\n| Excavate spoil: cut high spot | (10.0, 10.0) → (10.0, 10.0) | 1.00 |\n\n## Energy\n- nominal (planned): 32.137 MJ · true (slip/grade physics): 32.137 MJ\n\n| leg | nominal J | true J |\n|---|---|---|\n| cut high spot → fill pad | 29357063 | 29357082 |\n| Excavate spoil: cut high spot | 2779781 | 2779781 |\n\n## Link (comm drops)\n- link profile: mission_default · stats: {'sent': 2, 'dropped': 0, 'rate_limited': 0, 'bytes_delivered': 512, 'stranded': 0}\n- operator received 2 / 2 legs · missed: none\n\n## Slip events\n- 2 drive leg(s) slipped on the real DEM grade\n\n| leg | slip | slope° |\n|---|---|---|\n| cut high spot → fill pad | 0.009 | 0.72 |\n| Excavate spoil: cut high spot | 0.004 | 0.00 |\n\n## Divergence (seen vs actual)\n- energy divergence (true vs nominal): 19.3 J\n- map channel: coverage 0.21, mean uncertainty 4.02 m",
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "text/markdown; charset=utf-8",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/7231c84c8cfab1fa/summary",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown session",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/session/ffffffffffffffff/summary",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "count": 4,
+    "is_director": false,
+    "ok": true,
+    "sessions": [
+     {
+      "makespan": {
+       "makespan_ratio": 1.0,
+       "makespan_s": 749821.681,
+       "optimal_s": 749821.681
+      },
+      "objective": "time",
+      "profile": "mission_default",
+      "public": {
+       "comm_delivered_frac": 1.0,
+       "completed": true,
+       "dropped_packets": 0,
+       "energy_MJ": 32.137,
+       "legs_delivered": 2,
+       "legs_missed": 0,
+       "legs_total": 2,
+       "link_profile": "mission_default",
+       "makespan_ratio": 1.0,
+       "makespan_s": 749821.681,
+       "objectives_total": 2,
+       "optimal_s": 749821.681,
+       "recharges": 7,
+       "replans": 0,
+       "stranded_packets": 0
+      },
+      "recorded_at": 1800000008.0,
+      "session_id": "7231c84c8cfab1fa"
+     },
+     {
+      "makespan": {
+       "makespan_ratio": 1.0,
+       "makespan_s": 1146836.641,
+       "optimal_s": 1146836.641
+      },
+      "objective": "time",
+      "profile": "comm_dropout",
+      "public": {
+       "comm_delivered_frac": 0.5,
+       "completed": true,
+       "dropped_packets": 1,
+       "energy_MJ": 46.856,
+       "legs_delivered": 1,
+       "legs_missed": 1,
+       "legs_total": 2,
+       "link_profile": "comm_dropout",
+       "makespan_ratio": 1.0,
+       "makespan_s": 1146836.641,
+       "objectives_total": 2,
+       "optimal_s": 1146836.641,
+       "recharges": 10,
+       "replans": 0,
+       "stranded_packets": 0
+      },
+      "recorded_at": 1800000006.0,
+      "session_id": "f15ba35457f7ff4f"
+     },
+     {
+      "makespan": {
+       "makespan_ratio": 1.0,
+       "makespan_s": 749821.681,
+       "optimal_s": 749821.681
+      },
+      "objective": "time",
+      "profile": "ideal",
+      "public": {
+       "comm_delivered_frac": 1.0,
+       "completed": true,
+       "dropped_packets": 0,
+       "energy_MJ": 32.137,
+       "legs_delivered": 2,
+       "legs_missed": 0,
+       "legs_total": 2,
+       "link_profile": "ideal",
+       "makespan_ratio": 1.0,
+       "makespan_s": 749821.681,
+       "objectives_total": 2,
+       "optimal_s": 749821.681,
+       "recharges": 7,
+       "replans": 0,
+       "stranded_packets": 0
+      },
+      "recorded_at": 1800000004.0,
+      "session_id": "23d42570d191047b"
+     },
+     {
+      "makespan": {
+       "makespan_ratio": 1.0909,
+       "makespan_s": 1200.0,
+       "optimal_s": 1100.0
+      },
+      "objective": "time",
+      "profile": "comm_dropout",
+      "public": {
+       "completed": true,
+       "legs_delivered": 3,
+       "legs_total": 4,
+       "makespan_ratio": 1.0909,
+       "makespan_s": 1200.0,
+       "objectives_total": 2,
+       "optimal_s": 1100.0
+      },
+      "recorded_at": 1799999900.0,
+      "session_id": "0000feedc0de0000"
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "Authorization": "Bearer eyJvcCI6ImJvYkBleGFtcGxlLm9yZyIsImV4cCI6MTgwMDA0MzIwNC4wLCJpYXQiOjE4MDAwMDAwMDQuMCwiaXNzIjoic3Rld2llLWF1dGgiLCJhdWQiOiJzdGV3aWUtY29ja3BpdCIsImp0aSI6IjJkOTM0OWRhMmJjMzQ1YWY5ZDg4NGQ5ZTM5NGU5ZGQ5In0.tDbAPXo9SsPX4BpNPOG5S03TiA0h46Qkdog6c2wpE1o",
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/trainer/history",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "count": 4,
+    "is_director": true,
+    "ok": true,
+    "sessions": [
+     {
+      "makespan": {
+       "makespan_ratio": 1.0,
+       "makespan_s": 749821.681,
+       "optimal_s": 749821.681
+      },
+      "objective": "time",
+      "profile": "mission_default",
+      "public": {
+       "comm_delivered_frac": 1.0,
+       "completed": true,
+       "dropped_packets": 0,
+       "energy_MJ": 32.137,
+       "legs_delivered": 2,
+       "legs_missed": 0,
+       "legs_total": 2,
+       "link_profile": "mission_default",
+       "makespan_ratio": 1.0,
+       "makespan_s": 749821.681,
+       "objectives_total": 2,
+       "optimal_s": 749821.681,
+       "recharges": 7,
+       "replans": 0,
+       "stranded_packets": 0
+      },
+      "recorded_at": 1800000008.0,
+      "session_id": "7231c84c8cfab1fa",
+      "truth": {
+       "energy_divergence_J": 19.3,
+       "operator_missed_legs": [],
+       "pose_divergence_max_m": 0.71,
+       "pose_divergence_mean_m": 0.375,
+       "true_energy_MJ": 32.137
+      }
+     },
+     {
+      "makespan": {
+       "makespan_ratio": 1.0,
+       "makespan_s": 1146836.641,
+       "optimal_s": 1146836.641
+      },
+      "objective": "time",
+      "profile": "comm_dropout",
+      "public": {
+       "comm_delivered_frac": 0.5,
+       "completed": true,
+       "dropped_packets": 1,
+       "energy_MJ": 46.856,
+       "legs_delivered": 1,
+       "legs_missed": 1,
+       "legs_total": 2,
+       "link_profile": "comm_dropout",
+       "makespan_ratio": 1.0,
+       "makespan_s": 1146836.641,
+       "objectives_total": 2,
+       "optimal_s": 1146836.641,
+       "recharges": 10,
+       "replans": 0,
+       "stranded_packets": 0
+      },
+      "recorded_at": 1800000006.0,
+      "session_id": "f15ba35457f7ff4f",
+      "truth": {
+       "energy_divergence_J": 0.0,
+       "operator_missed_legs": [
+        "Excavate spoil: borrow pit"
+       ],
+       "pose_divergence_max_m": 0.0,
+       "pose_divergence_mean_m": 0.0,
+       "true_energy_MJ": 46.856
+      }
+     },
+     {
+      "makespan": {
+       "makespan_ratio": 1.0,
+       "makespan_s": 749821.681,
+       "optimal_s": 749821.681
+      },
+      "objective": "time",
+      "profile": "ideal",
+      "public": {
+       "comm_delivered_frac": 1.0,
+       "completed": true,
+       "dropped_packets": 0,
+       "energy_MJ": 32.137,
+       "legs_delivered": 2,
+       "legs_missed": 0,
+       "legs_total": 2,
+       "link_profile": "ideal",
+       "makespan_ratio": 1.0,
+       "makespan_s": 749821.681,
+       "objectives_total": 2,
+       "optimal_s": 749821.681,
+       "recharges": 7,
+       "replans": 0,
+       "stranded_packets": 0
+      },
+      "recorded_at": 1800000004.0,
+      "session_id": "23d42570d191047b",
+      "truth": {
+       "energy_divergence_J": 19.3,
+       "operator_missed_legs": [],
+       "pose_divergence_max_m": 0.71,
+       "pose_divergence_mean_m": 0.375,
+       "true_energy_MJ": 32.137
+      }
+     },
+     {
+      "makespan": {
+       "makespan_ratio": 1.0909,
+       "makespan_s": 1200.0,
+       "optimal_s": 1100.0
+      },
+      "objective": "time",
+      "profile": "comm_dropout",
+      "public": {
+       "completed": true,
+       "legs_delivered": 3,
+       "legs_total": 4,
+       "makespan_ratio": 1.0909,
+       "makespan_s": 1200.0,
+       "objectives_total": 2,
+       "optimal_s": 1100.0
+      },
+      "recorded_at": 1799999900.0,
+      "session_id": "0000feedc0de0000",
+      "truth": {
+       "energy_divergence_J": 512.5,
+       "pose_divergence_mean_m": 0.4
+      }
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/trainer/history",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000014.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-036"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/trainer/history",
+    "raw": null
+   },
+   "status": 401
+  }
+ ],
+ "store": null
+}

@@ -2281,6 +2281,52 @@ async fn the_python_nav_session_replays_exactly() {
 }
 
 #[tokio::test]
+async fn the_python_training_session_replays_exactly() {
+    let fx = stewie_oracle::load("http_session_cases").unwrap().payload;
+    let seeded = std::time::UNIX_EPOCH
+        + std::time::Duration::from_secs_f64(fx["seeded_mtime"].as_f64().unwrap());
+    replay(
+        "http_session_cases",
+        b"stewie-http-session-oracle",
+        |i, step, clock, dir| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+            if i == 0 {
+                // the oracle's earlier records carry the time it gave them, not the time the replay laid them down
+                for rel in fx["seed_files"].as_object().unwrap().keys() {
+                    std::fs::File::options()
+                        .write(true)
+                        .open(dir.join(rel))
+                        .and_then(|f| f.set_modified(seeded))
+                        .unwrap();
+                }
+            }
+        },
+        |step, body| {
+            // D-R131: the sun is the bundled DE440 pack, the Python's SPICE; they agree to 1e-6 deg (RW-15)
+            if let (Some(got), Some(want)) = (body.get_mut("sun"), step["body"].get("sun")) {
+                for k in ["az_deg", "el_deg"] {
+                    let d = (got[k].as_f64().unwrap() - want[k].as_f64().unwrap()).abs();
+                    let d = if k == "az_deg" { d.min(360.0 - d) } else { d };
+                    assert!(d < 1e-6, "sun {k}: off by {d} deg");
+                    got[k] = want[k].clone();
+                }
+            }
+            // D-R174: this server serves only its packaged link profiles, so an unknown one is refused by name where
+            // the Python reports the missing file it tried to open
+            let want = step["body"]["error"].as_str().unwrap_or("");
+            if want.starts_with("[Errno 2]")
+                && body["error"]
+                    .as_str()
+                    .is_some_and(|e| e.starts_with("unknown link profile \"nope\""))
+            {
+                body["error"] = json!(want);
+            }
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn a_nav_run_routes_around_its_keepouts() {
     // D-R172: the Python 500s on any /nav/run keep-out (it hands route_leg tuples where it reads dicts); the Rust
     // routes the circles. SYNTHETIC keep-out across the straight line from the anchor to the goal.
