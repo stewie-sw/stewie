@@ -230,6 +230,46 @@ pub fn upscale(rgba: &[u8], w: usize, h: usize, k: usize) -> Vec<u8> {
     out
 }
 
+/// The LY-07 signed terrain change (Python `gis_layers._changed_terrain_rgba`): as-built minus base [m], cut red,
+/// fill blue, scaled by the 98th percentile of the changed cells' magnitude; an unchanged cell (|d| <= 1e-6 m) is
+/// transparent, a change at least faintly opaque.
+#[must_use]
+#[allow(clippy::many_single_char_names, clippy::manual_midpoint)] // the Python's d, t, r, g, b; its (t + 1) / 2
+pub fn changed_terrain_rgba(d: &[f64]) -> Vec<u8> {
+    const STOPS: [(f64, [f64; 3]); 3] = [
+        (0.0, [178.0, 24.0, 43.0]),
+        (0.5, [247.0, 247.0, 247.0]),
+        (1.0, [33.0, 102.0, 172.0]),
+    ];
+    let moved = |v: f64| v.abs() > 1e-6;
+    let vals: Vec<f64> = d.iter().filter(|v| moved(**v)).map(|v| v.abs()).collect();
+    let mut scale = if vals.is_empty() {
+        1.0
+    } else {
+        percentile(&vals, 98.0, 1.0)
+    };
+    if scale <= 0.0 {
+        scale = 1e-9;
+    }
+    d.iter()
+        .flat_map(|&v| {
+            let t = (v / scale).clamp(-1.0, 1.0);
+            let [r, g, b] = ramp((t + 1.0) / 2.0, &STOPS);
+            [
+                r,
+                g,
+                b,
+                if moved(v) {
+                    90.0 + 165.0 * t.abs()
+                } else {
+                    0.0
+                },
+            ]
+            .map(u8_of)
+        })
+        .collect()
+}
+
 /// One layer's RGBA bytes (row-major, `w * h * 4`) for a DEM patch, or `None` for a kind this renderer does not
 /// draw. `grid_north_bearing` re-expresses a true sun azimuth in the grid frame for the sun-parameterised layers.
 #[must_use]

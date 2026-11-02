@@ -1,0 +1,814 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [],
+ "seed_sha256_of": "stewie-http-globe-oracle",
+ "steps": [
+  {
+   "body": {
+    "png": {
+     "height": 2000,
+     "rgba_sha256": "50b30fb8788c2eb91c7ccf3be4f56b67012af00af31a842985ef3feeffa6cd37",
+     "width": 1999
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/dem.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "6c6d3d5e5c06830bd2a168c6b0475d5576860b226ea15cc1c28aa8033e5df9c3",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/slope.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "17801cb38a82b2d70edd32c46b7965e56175026884af9a1024f1be770e55b5d2",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/hazard.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "a73c3a85fe1cfc0dccb8429047e2d868215d605c45330dd501d34cfd077e9dba",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/illumination.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "f14aa4d9b6f6d140315feafa122f87ddf277f5d4af5f796ba1100858f0d15575",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/incidence.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "dd5e9bc49917e30de01432b9ab7811e2e1403984cb6b684a13cacd0612f5cbf1",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/psr.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "5567451b8dbcf05c3788d729e0e5040e996b5f088b476f924e9b099aefff3b17",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/grid.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "f031d723df1743062c4041747b885b5ddd685427199a30d793752bc4ea534c60",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/cost.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "443f44a377a2b1e5ee395545d597e674ae808ca3d2d05d0c33400b8745835e8c",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/blocking.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "3372abea8a9bd52ea3e1c1a994718ad4df33e63a34721fd7b5cf2dc35fba82f7",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/aspect.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "82e884b90b2730fbf063e0b26e25e366a62b63a8be7734a524aaa14e8aa3da94",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/curvature.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "d834e210d51e81b243496fdc1d89405dc6b989a5c699e4714e7159d60a39ca1d",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/roughness.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "713b8ed4b7f622dc068396c65b63d90938f5758c4c5ca563d8a78b9bc4f64733",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/bearing.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "ba7ab4805937737bb265f765912782f0f819ff5c4c9f372a7fb73851eb022c67",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-014"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/sinkage.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "a0bda7719d88438c60a87b888b27704c5054234f04b88b808a9a00f389efa9db",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-015"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/slip_risk.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "b0deb23f8804e79afb50e21a7241feb3027ef702d96a6192ccb2035102d66ea8",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-016"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/traction_margin.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "4f8d635f6688fdfa26c7d398a5723b46cb75d7a1d66bd56695224721e7e8dfe4",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-017"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/energy_cost.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "2c7ac78bfc26c2b447ca3e11f68957b83b27daf3b565158ca1998435655a4bc4",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-018"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/excavation_resistance.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "8ba0a992480e1070cfebd2c1d766a26e8343d8fe119195fca960fa5cef8c84a4",
+     "width": 511
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-019"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/traffic.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "8fc3d29e478e45b117db6df86a8174c6d7faf49104bb149d6da9ba5edc17775d",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-020"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/changed_terrain.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "d133a5eeefc3bbeb05581c3a36965a829eee504557097f16ced17e330b07c923",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-021"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/grid.png?color=ff00aa",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "5567451b8dbcf05c3788d729e0e5040e996b5f088b476f924e9b099aefff3b17",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-022"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/grid.png?color=zz00aa",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "5567451b8dbcf05c3788d729e0e5040e996b5f088b476f924e9b099aefff3b17",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-023"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/grid.png?color=%23ff00aa",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "f73aa36ab2572d1b20aa318458a317b5f07b17ca6414c2547487422a34626923",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-024"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/slope.png?vmax=10&classes=4",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "1d165ce748803546ae06029d878247cb836bf5bf9e24f66c7266a23bca661efa",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-025"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/illumination.png?mission_t_s=86400",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "png": {
+     "height": 1024,
+     "rgba_sha256": "890328fd24dd9f9fa907782b17943ec71e8781febdec37a4a8e684f300215e45",
+     "width": 1023
+    }
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-026"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/incidence.png?sun_az=-30.4&sun_el=12.6",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "east": -22.14734912100793,
+    "north": -86.11239815157248,
+    "ok": true,
+    "south": -86.55148988937655,
+    "west": -29.008689941367475
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-027"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/slope/bbox",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "east": -26.130544801399346,
+    "north": -86.36274464402895,
+    "ok": true,
+    "south": -86.39079085053262,
+    "west": -26.574346936415036
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-028"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/traffic/bbox",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "as_built_version": 0,
+    "east": -22.14734912100793,
+    "north": -86.11239815157248,
+    "ok": true,
+    "south": -86.55148988937655,
+    "twin_version": 0,
+    "west": -29.008689941367475
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-029"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/changed_terrain/bbox",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown layer 'nope'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-030"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/nope.png",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "unknown layer 'nope'",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-031"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/nope/bbox",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "\"unknown site 'atlantis' (known: ['amundsen_rim', 'connecting_ridge', 'de_gerlache_kocher', 'de_gerlache_rim', 'faustini_psr', 'haworth', 'haworth_sfs', 'leibnitz_beta', 'malapert_massif', 'nobile_rim', 'nobile_rim2', 'peak_near_shackleton', 'shackleton_rim', 'shoemaker'])\"",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-032"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/slope.png?site=atlantis",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "DEM absent: site 'amundsen_rim' is not imported (no DEM bundle); fetch it first",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-033"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/slope.png?site=amundsen_rim",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "error": "sun_el: Input should be a valid number, unable to parse string as a number",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-034"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/slope.png?sun_el=abc",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "no route /layers/globe/slope",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-035"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/slope",
+    "raw": null
+   },
+   "status": 404
+  },
+  {
+   "body": {
+    "png": {
+     "height": 512,
+     "rgba_sha256": "bbcbb32e7ce0a91b4e372acdbeec614b86f58a67ae4f63a66b3f6e2c0b4e7d13",
+     "width": 567
+    }
+   },
+   "cache_control": "no-store",
+   "clock": 1800000000.0,
+   "content_type": "image/png",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-036"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/traffic.png",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "east": -25.275458404052838,
+    "north": -86.30309224198395,
+    "ok": true,
+    "south": -86.30382081327048,
+    "west": -25.28797863515326
+   },
+   "cache_control": "public, max-age=300",
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-037"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/layers/globe/traffic/bbox",
+    "raw": null
+   },
+   "status": 200
+  }
+ ],
+ "store": null
+}

@@ -5625,6 +5625,56 @@ def http_layers_vector_cases() -> None:
                   ["stewie/server/routers/layers.py", "stewie/server/gis_layers.py",
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
+def http_globe_cases() -> None:
+    """The globe drapes (RW-55b17b): GET /layers/globe/{kind}.png for every kind the globe drapes, over the real
+    Haworth tile reprojected to selenographic lon/lat, and /layers/globe/{kind}/bbox, with the grid colour, slope
+    symbology and mission-time sun parameters and the refusals, through one scripted session (_http_session); a PNG
+    is recorded by its decoded pixels. The planted traffic memory is SYNTHETIC (labelled); the physics drapes and the
+    traffic density run at the registry's loose friction (D-R72)."""
+    import numpy as np
+
+    from stewie.physics import material as _MAT
+    from stewie.server.routers.layers import _GLOBE_KINDS
+    from stewie.twin import traffic_memory as TW
+
+    def script(call, key, d, clock):
+        for kind in _GLOBE_KINDS:
+            call("GET", f"/layers/globe/{kind}.png")
+        call("GET", "/layers/globe/grid.png?color=ff00aa")
+        call("GET", "/layers/globe/grid.png?color=zz00aa")                     # not hex: the default
+        call("GET", "/layers/globe/grid.png?color=%23ff00aa")                  # '#ff00a': the default
+        call("GET", "/layers/globe/slope.png?vmax=10&classes=4")
+        call("GET", "/layers/globe/illumination.png?mission_t_s=86400")
+        call("GET", "/layers/globe/incidence.png?sun_az=-30.4&sun_el=12.6")
+        for kind in ("slope", "traffic", "changed_terrain"):
+            call("GET", f"/layers/globe/{kind}/bbox")
+        call("GET", "/layers/globe/nope.png")
+        call("GET", "/layers/globe/nope/bbox")
+        call("GET", "/layers/globe/slope.png?site=atlantis")
+        call("GET", "/layers/globe/slope.png?site=amundsen_rim")
+        call("GET", "/layers/globe/slope.png?sun_el=abc")
+        call("GET", "/layers/globe/slope")
+        tm = TW.TrafficMemory(site="haworth", rows=4, cols=5, cell_m=5.0, origin=(5000.0, 4000.0))
+        load = np.zeros((4, 5))                                                       # SYNTHETIC wheel load field
+        load[1, 1:4] = 2400.0
+        load[2, 2] = 900.0
+        tm.apply(load, mission="haul-1", event_id="ev-1")
+        TW.save_site(d, tm)
+        call("GET", "/layers/globe/traffic.png")
+        call("GET", "/layers/globe/traffic/bbox")
+
+    from stewie.specs import constants as _K
+    phi, kphi = _MAT.PHI_LOOSE_DEG, _K.PHI
+    _MAT.PHI_LOOSE_DEG, _K.PHI = 35.0, math.radians(35.0)   # D-R72: the spine at the registry's loose friction
+    try:
+        payload = _http_session("stewie-http-globe-oracle", {}, script)
+    finally:
+        _MAT.PHI_LOOSE_DEG, _K.PHI = phi, kphi
+    write_fixture(ORACLE_FIXTURES, "http_globe_cases", "oracle/build_fixtures.py::http_globe_cases (the FastAPI "
+                  "app's /layers/globe drapes of the real Haworth tile)",
+                  ["stewie/server/routers/layers.py", "stewie/server/gis_layers.py",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
+
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
     real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
@@ -5953,6 +6003,7 @@ def main() -> None:
     http_resync_cases()
     http_layers_cases()
     http_layers_vector_cases()
+    http_globe_cases()
     contour_lines_cases()
     endurance_cases()
     timeline_cases()

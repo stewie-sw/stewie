@@ -1846,6 +1846,42 @@ async fn the_globe_quota_limits_each_client_ip() {
 }
 
 #[tokio::test]
+async fn the_python_globe_session_replays_exactly() {
+    replay(
+        "http_globe_cases",
+        b"stewie-http-globe-oracle",
+        |i, step, clock, dir| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+            // the oracle planted this traffic memory before its second traffic drape (SYNTHETIC, labelled)
+            if step["request"]["path"] == "/layers/globe/traffic.png" && i > 20 {
+                let mut tm = stewie_twin::traffic_memory::TrafficMemory::new(
+                    "haworth",
+                    4,
+                    5,
+                    5.0,
+                    (5000.0, 4000.0),
+                    stewie_twin::traffic_memory::TrafficParams {
+                        mass_areal: 130.0,
+                        sigma_c_n: 60.0,
+                        contact_width_m: 0.18,
+                    },
+                )
+                .unwrap();
+                let mut load = vec![0.0; 20];
+                for c in 1..4 {
+                    load[5 + c] = 2400.0;
+                }
+                load[12] = 900.0;
+                tm.apply(&load, "haul-1", "ev-1").unwrap();
+                stewie_twin::traffic_memory::save_site(dir, &tm).unwrap();
+            }
+        },
+        |_, _| {},
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts
     let dir = std::env::temp_dir().join(format!("stewie-heavy-{}", std::process::id()));

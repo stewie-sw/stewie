@@ -257,6 +257,8 @@ pub struct AppState {
     heavy_quota: RateLimiter,
     /// The mission-feature edit sessions (`data_dir/edit_session.db`, opened on first use).
     pub edit_sessions: crate::edit_session::Store,
+    /// The rendered static globe drapes.
+    pub globe_cache: crate::globe::Cache,
     started: Instant,
     /// The process's `STEWIE_*` variables, which `/config` reports as the overlay's overrides
     /// ([`AppState::with_environment`]; empty until given).
@@ -334,6 +336,7 @@ impl AppState {
             draft_quota: RateLimiter::new(120, 60.0),
             heavy_quota: RateLimiter::new(settings.heavy_quota_max, settings.heavy_window_s),
             edit_sessions: crate::edit_session::Store::new(&cfg.data_dir),
+            globe_cache: crate::globe::Cache::default(),
             cfg,
             settings,
             store,
