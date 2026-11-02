@@ -5498,6 +5498,65 @@ def http_plan_cases() -> None:
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
 
+def http_resync_cases() -> None:
+    """The director's forward comparison (RW-55b14e): POST /resync/compare on the bundled sample missions, through
+    one scripted session (_http_session). The Python plans each candidate flat; the Rust plans on the site's real
+    as-built surface (D-R85, D-R150), so the session plans the Python's candidates on the Haworth as-built DEM too,
+    on the bank-density acceptance column (D-R98). Each future's measured wall time is recorded as a placeholder."""
+    from lode import mission_planner as _MP
+    from lode import planner_acceptance as _PA
+    from stewie.server import state as _ST
+
+    samples = {}
+    for n in ("01_flatten_pad", "02_haul_around_hazard", "03_blocked_infeasible"):
+        with open(os.path.join(REPO, "stewie", "server", "sample_missions", n + ".json")) as fh:
+            samples[n] = json.load(fh)
+
+    def script(call, key, d, clock):
+        m = samples["01_flatten_pad"]
+        call("POST", "/resync/compare", headers=key, json_body=m)
+        call("POST", "/resync/compare", headers=key, json_body={"mission": samples["03_blocked_infeasible"],
+                                                                "candidates": ["nearest", "auto"]})
+        call("POST", "/resync/compare", headers=key, json_body={"mission": samples["02_haul_around_hazard"],
+                                                                "candidates": ["auto", "nearest", "two_opt", "lk"],
+                                                                "objective": "energy"})
+        call("POST", "/resync/compare", headers=key, json_body={"mission": dict(m, accept_flatness_tol_m=0.05),
+                                                                "candidates": ["nearest"]})
+        call("POST", "/resync/compare", headers=key, json_body={"mission": m, "candidates": []})
+        call("POST", "/resync/compare", headers=key, json_body={"mission": {"name": "x"}})
+        call("POST", "/resync/compare", headers=key, json_body={"mission": {"name": "x"}, "candidates": []})
+        call("POST", "/resync/compare", headers=key, json_body={"mission": m, "candidates": ["nearest"] * 6})
+        call("POST", "/resync/compare", headers=key, json_body={"mission": "x"})
+        call("POST", "/resync/compare", headers=key, json_body=[1, 2])
+        call("POST", "/resync/compare", json_body=m)                                      # no key
+        call("POST", "/resync/compare", headers={"X-API-Key": "wrong-key"}, json_body=m)
+
+    stock_plan, stock_column = _MP.plan, _PA.ColumnState
+
+    def plan_on_site(mission, **kw):
+        dem, origin = _ST.moon_dem("haworth")
+        return stock_plan(mission, dem=_ST.as_built_dem("haworth", dem, origin), dem_origin=origin, **kw)
+
+    def _bank_density_column(**kw):
+        kw.setdefault("density", kw["mass_areal"] / 10.0)
+        return stock_column(**kw)
+    _MP.plan, _PA.ColumnState = plan_on_site, _bank_density_column
+    try:
+        payload = _http_session("stewie-http-resync-oracle", {}, script)
+    finally:
+        _MP.plan, _PA.ColumnState = stock_plan, stock_column
+    for step in payload["steps"]:
+        for f in step["body"].get("futures", []) if isinstance(step["body"], dict) else []:
+            f["wall_s"] = "<wall_s>"
+    write_fixture(ORACLE_FIXTURES, "http_resync_cases", "oracle/build_fixtures.py::http_resync_cases (the FastAPI "
+                  "app's POST /resync/compare on the bundled sample missions, planned on the Haworth as-built DEM)",
+                  ["stewie/server/routers/plan.py", "lode/resync.py", "lode/mission_planner.py",
+                   "stewie/server/sample_missions/01_flatten_pad.json",
+                   "stewie/server/sample_missions/02_haul_around_hazard.json",
+                   "stewie/server/sample_missions/03_blocked_infeasible.json",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
+
+
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
     real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
@@ -5778,6 +5837,7 @@ def main() -> None:
     http_models_cases()
     http_planmath_cases()
     http_plan_cases()
+    http_resync_cases()
     endurance_cases()
     timeline_cases()
     autonomy_cases()

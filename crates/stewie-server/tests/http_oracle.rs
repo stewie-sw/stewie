@@ -1637,6 +1637,30 @@ async fn the_python_plan_session_replays_exactly() {
 }
 
 #[tokio::test]
+async fn the_python_resync_session_replays_exactly() {
+    replay(
+        "http_resync_cases",
+        b"stewie-http-resync-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, body| {
+            // each future's wall time is measured (the fixture records a placeholder)
+            let futures = body.get_mut("futures").and_then(Value::as_array_mut);
+            for f in futures.into_iter().flatten() {
+                assert!(
+                    f["wall_s"].as_f64().is_some_and(|w| w >= 0.0),
+                    "wall_s {}",
+                    f["wall_s"]
+                );
+                f["wall_s"] = json!("<wall_s>");
+            }
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn the_heavy_quota_refuses_after_auth_and_before_validation() {
     // SYNTHETIC: a quota of one; the Python checks it after auth and before the model, so a bad body counts
     let dir = std::env::temp_dir().join(format!("stewie-heavy-{}", std::process::id()));

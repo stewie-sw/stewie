@@ -1,0 +1,997 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef"
+ },
+ "ledger": [
+  {
+   "action": "resync.compare",
+   "actor": "api-key",
+   "correlation_id": "cid-001",
+   "target": "2 futures",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "resync.compare",
+   "actor": "api-key",
+   "correlation_id": "cid-002",
+   "target": "2 futures",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "resync.compare",
+   "actor": "api-key",
+   "correlation_id": "cid-003",
+   "target": "4 futures",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "resync.compare",
+   "actor": "api-key",
+   "correlation_id": "cid-004",
+   "target": "1 futures",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "resync.compare",
+   "actor": "api-key",
+   "correlation_id": "cid-005",
+   "target": "0 futures",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "resync.compare",
+   "actor": "api-key",
+   "correlation_id": "cid-008",
+   "target": "5 futures",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-resync-oracle",
+ "steps": [
+  {
+   "body": {
+    "futures": [
+     {
+      "algorithm": "auto",
+      "blocked_legs": 0,
+      "charges": 7,
+      "energy_MJ": 32.14,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": true,
+      "objectives_total": 2,
+      "optimality": "exact",
+      "recharges": null,
+      "resolved": "brute",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314958.6,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 721.4,
+       "return_distance_m": 41.23,
+       "return_energy_J": 601.1
+      },
+      "time_s": 749821.680585211,
+      "wall_s": "<wall_s>"
+     },
+     {
+      "algorithm": "nearest",
+      "blocked_legs": 0,
+      "charges": 7,
+      "energy_MJ": 32.14,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "nearest",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314958.6,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 721.4,
+       "return_distance_m": 41.23,
+       "return_energy_J": 601.1
+      },
+      "time_s": 749821.680585211,
+      "wall_s": "<wall_s>"
+     }
+    ],
+    "objective": "duration",
+    "ok": true,
+    "recommended": "auto"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "futures": [
+     {
+      "algorithm": "nearest",
+      "blocked_legs": 1,
+      "charges": 10,
+      "energy_MJ": 46.27,
+      "feasible": false,
+      "hazard_flags": 0,
+      "infeasible_reasons": [
+       "1 route leg(s) have no safe corridor",
+       "leg to (40,0) needs inf kJ; a full charge reaches only 4316 kJ above reserve"
+      ],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "nearest",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314980.2,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 699.8,
+       "return_distance_m": 40.0,
+       "return_energy_J": 583.2
+      },
+      "time_s": 1016989.7142857144,
+      "wall_s": "<wall_s>"
+     },
+     {
+      "algorithm": "auto",
+      "blocked_legs": 1,
+      "charges": 10,
+      "energy_MJ": 46.27,
+      "feasible": false,
+      "hazard_flags": 0,
+      "infeasible_reasons": [
+       "1 route leg(s) have no safe corridor",
+       "leg to (40,0) needs inf kJ; a full charge reaches only 4316 kJ above reserve"
+      ],
+      "objective_exact": true,
+      "objectives_total": 2,
+      "optimality": "exact",
+      "recharges": null,
+      "resolved": "brute",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314980.2,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 699.8,
+       "return_distance_m": 40.0,
+       "return_energy_J": 583.2
+      },
+      "time_s": 1016989.7142857144,
+      "wall_s": "<wall_s>"
+     }
+    ],
+    "objective": "duration",
+    "ok": true,
+    "recommended": null
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": {
+     "candidates": [
+      "nearest",
+      "auto"
+     ],
+     "mission": {
+      "body": "moon",
+      "charger": [
+       0,
+       0
+      ],
+      "keepouts": [
+       {
+        "r": 18,
+        "x": 40,
+        "y": 0
+       }
+      ],
+      "name": "Tutorial 3 — INFEASIBLE: fill site has no safe corridor",
+      "orders": [
+       {
+        "action": "borrow pit",
+        "depth_m": 0.2,
+        "footprint_m2": 36,
+        "kind": "cut",
+        "x": 0,
+        "y": 0
+       },
+       {
+        "action": "stranded fill",
+        "depth_m": 0.2,
+        "footprint_m2": 36,
+        "kind": "fill",
+        "x": 40,
+        "y": 0
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "futures": [
+     {
+      "algorithm": "auto",
+      "blocked_legs": 0,
+      "charges": 10,
+      "energy_MJ": 46.856,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": true,
+      "objectives_total": 2,
+      "optimality": "exact",
+      "recharges": null,
+      "resolved": "brute",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314805.2,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 874.8,
+       "return_distance_m": 50.0,
+       "return_energy_J": 729.0
+      },
+      "time_s": 1146836.6405777954,
+      "wall_s": "<wall_s>"
+     },
+     {
+      "algorithm": "nearest",
+      "blocked_legs": 0,
+      "charges": 10,
+      "energy_MJ": 46.856,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "nearest",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314805.2,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 874.8,
+       "return_distance_m": 50.0,
+       "return_energy_J": 729.0
+      },
+      "time_s": 1146836.6405777954,
+      "wall_s": "<wall_s>"
+     },
+     {
+      "algorithm": "two_opt",
+      "blocked_legs": 0,
+      "charges": 10,
+      "energy_MJ": 46.856,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "two_opt",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314805.2,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 874.8,
+       "return_distance_m": 50.0,
+       "return_energy_J": 729.0
+      },
+      "time_s": 1146836.6405777954,
+      "wall_s": "<wall_s>"
+     },
+     {
+      "algorithm": "lk",
+      "blocked_legs": 0,
+      "charges": 10,
+      "energy_MJ": 46.856,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "lk",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314805.2,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 874.8,
+       "return_distance_m": 50.0,
+       "return_energy_J": 729.0
+      },
+      "time_s": 1146836.6405777954,
+      "wall_s": "<wall_s>"
+     }
+    ],
+    "objective": "energy",
+    "ok": true,
+    "recommended": "auto"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": {
+     "candidates": [
+      "auto",
+      "nearest",
+      "two_opt",
+      "lk"
+     ],
+     "mission": {
+      "body": "moon",
+      "charger": [
+       0,
+       0
+      ],
+      "keepouts": [
+       {
+        "r": 10,
+        "x": 25,
+        "y": 0
+       }
+      ],
+      "name": "Tutorial 2 — haul around a crater keep-out",
+      "orders": [
+       {
+        "action": "borrow pit",
+        "depth_m": 0.2,
+        "footprint_m2": 36,
+        "kind": "cut",
+        "x": 0,
+        "y": 0
+       },
+       {
+        "action": "build berm",
+        "depth_m": 0.2,
+        "footprint_m2": 36,
+        "kind": "fill",
+        "x": 50,
+        "y": 0
+       }
+      ]
+     },
+     "objective": "energy"
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "futures": [
+     {
+      "algorithm": "nearest",
+      "as_built_pass": false,
+      "as_built_tol_m": 0.05,
+      "blocked_legs": 0,
+      "charges": 7,
+      "energy_MJ": 32.14,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "nearest",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314958.6,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 721.4,
+       "return_distance_m": 41.23,
+       "return_energy_J": 601.1
+      },
+      "time_s": 749821.680585211,
+      "wall_s": "<wall_s>"
+     }
+    ],
+    "objective": "duration",
+    "ok": true,
+    "recommended": "nearest"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-004"
+    },
+    "json": {
+     "candidates": [
+      "nearest"
+     ],
+     "mission": {
+      "accept_flatness_tol_m": 0.05,
+      "body": "moon",
+      "charger": [
+       0,
+       0
+      ],
+      "keepouts": [],
+      "name": "Tutorial 1 — flatten a landing pad",
+      "orders": [
+       {
+        "action": "cut high spot",
+        "depth_m": 0.15,
+        "footprint_m2": 36,
+        "kind": "cut",
+        "x": 10,
+        "y": 10
+       },
+       {
+        "action": "fill pad",
+        "depth_m": 0.15,
+        "footprint_m2": 36,
+        "kind": "fill",
+        "x": 40,
+        "y": 10
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "futures": [],
+    "objective": "duration",
+    "ok": true,
+    "recommended": null
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "candidates": [],
+     "mission": {
+      "body": "moon",
+      "charger": [
+       0,
+       0
+      ],
+      "keepouts": [],
+      "name": "Tutorial 1 — flatten a landing pad",
+      "orders": [
+       {
+        "action": "cut high spot",
+        "depth_m": 0.15,
+        "footprint_m2": 36,
+        "kind": "cut",
+        "x": 10,
+        "y": 10
+       },
+       {
+        "action": "fill pad",
+        "depth_m": 0.15,
+        "footprint_m2": 36,
+        "kind": "fill",
+        "x": 40,
+        "y": 10
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "unknown body None; known: ['bennu', 'bp1_testbed', 'ceres', 'earth', 'mars', 'moon', 'phobos']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": {
+     "mission": {
+      "name": "x"
+     }
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "unknown body None; known: ['bennu', 'bp1_testbed', 'ceres', 'earth', 'mars', 'moon', 'phobos']",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": {
+     "candidates": [],
+     "mission": {
+      "name": "x"
+     }
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "futures": [
+     {
+      "algorithm": "nearest",
+      "blocked_legs": 0,
+      "charges": 7,
+      "energy_MJ": 32.14,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "nearest",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314958.6,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 721.4,
+       "return_distance_m": 41.23,
+       "return_energy_J": 601.1
+      },
+      "time_s": 749821.680585211,
+      "wall_s": "<wall_s>"
+     },
+     {
+      "algorithm": "nearest",
+      "blocked_legs": 0,
+      "charges": 7,
+      "energy_MJ": 32.14,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "nearest",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314958.6,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 721.4,
+       "return_distance_m": 41.23,
+       "return_energy_J": 601.1
+      },
+      "time_s": 749821.680585211,
+      "wall_s": "<wall_s>"
+     },
+     {
+      "algorithm": "nearest",
+      "blocked_legs": 0,
+      "charges": 7,
+      "energy_MJ": 32.14,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "nearest",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314958.6,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 721.4,
+       "return_distance_m": 41.23,
+       "return_energy_J": 601.1
+      },
+      "time_s": 749821.680585211,
+      "wall_s": "<wall_s>"
+     },
+     {
+      "algorithm": "nearest",
+      "blocked_legs": 0,
+      "charges": 7,
+      "energy_MJ": 32.14,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "nearest",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314958.6,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 721.4,
+       "return_distance_m": 41.23,
+       "return_energy_J": 601.1
+      },
+      "time_s": 749821.680585211,
+      "wall_s": "<wall_s>"
+     },
+     {
+      "algorithm": "nearest",
+      "blocked_legs": 0,
+      "charges": 7,
+      "energy_MJ": 32.14,
+      "feasible": true,
+      "hazard_flags": 0,
+      "infeasible_reasons": [],
+      "objective_exact": false,
+      "objectives_total": 2,
+      "optimality": "heuristic",
+      "recharges": null,
+      "resolved": "nearest",
+      "return_to_lander": {
+       "buffer_frac": 0.2,
+       "feasible": true,
+       "lander_xy": [
+        0.0,
+        0.0
+       ],
+       "margin_J": 4314958.6,
+       "remaining_J": 4315680.0,
+       "reserve_with_buffer_J": 721.4,
+       "return_distance_m": 41.23,
+       "return_energy_J": 601.1
+      },
+      "time_s": 749821.680585211,
+      "wall_s": "<wall_s>"
+     }
+    ],
+    "objective": "duration",
+    "ok": true,
+    "recommended": "nearest"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": {
+     "candidates": [
+      "nearest",
+      "nearest",
+      "nearest",
+      "nearest",
+      "nearest",
+      "nearest"
+     ],
+     "mission": {
+      "body": "moon",
+      "charger": [
+       0,
+       0
+      ],
+      "keepouts": [],
+      "name": "Tutorial 1 — flatten a landing pad",
+      "orders": [
+       {
+        "action": "cut high spot",
+        "depth_m": 0.15,
+        "footprint_m2": 36,
+        "kind": "cut",
+        "x": 10,
+        "y": 10
+       },
+       {
+        "action": "fill pad",
+        "depth_m": 0.15,
+        "footprint_m2": 36,
+        "kind": "fill",
+        "x": 40,
+        "y": 10
+       }
+      ]
+     }
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "mission payload must be a JSON object",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": {
+     "mission": "x"
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "body: Input should be a valid dictionary",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": [
+     1,
+     2
+    ],
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "wrong-key",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": {
+     "body": "moon",
+     "charger": [
+      0,
+      0
+     ],
+     "keepouts": [],
+     "name": "Tutorial 1 — flatten a landing pad",
+     "orders": [
+      {
+       "action": "cut high spot",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "cut",
+       "x": 10,
+       "y": 10
+      },
+      {
+       "action": "fill pad",
+       "depth_m": 0.15,
+       "footprint_m2": 36,
+       "kind": "fill",
+       "x": 40,
+       "y": 10
+      }
+     ]
+    },
+    "method": "POST",
+    "path": "/resync/compare",
+    "raw": null
+   },
+   "status": 401
+  }
+ ],
+ "store": null
+}

@@ -21,6 +21,7 @@ use stewie_plan::trips::{Context, context};
 use stewie_traverse::route::Dem;
 use stewie_twin::terrain_view::TerrainView;
 
+use crate::admin::require_director;
 use crate::app::{ApiError, AppState, Head, blocking, err, log, parse_body, split};
 use crate::planning::Inputs;
 use crate::validate::{self, Field, Kind, Model};
@@ -926,10 +927,165 @@ async fn post_plan(State(st): State<Arc<AppState>>, req: Request) -> Response {
     }
 }
 
+/// One candidate's future (Python `lode.resync.forward_compare`): the conserved planner's totals for the mission
+/// under that solver input, with the measured wall time.
+fn future(
+    st: &AppState,
+    mission: &Map<String, Value>,
+    algorithm: &str,
+    objective: &str,
+) -> Result<Value, ApiError> {
+    let t0 = std::time::Instant::now();
+    let opts = Opts {
+        algorithm,
+        objective,
+        ..DEFAULTS
+    };
+    let p = plan_with(st, mission, &opts)?;
+    let t = totals(&p);
+    let mut fut = json!({
+        "algorithm": algorithm,
+        "resolved": t.get("resolved_algorithm").cloned().unwrap_or_else(|| json!(algorithm)),
+        "optimality": t["optimality"], "objective_exact": t["objective_exact"].as_bool().unwrap_or(false),
+        "time_s": t["time_s"].as_f64().unwrap_or(0.0),
+        "energy_MJ": stewie_twin::numpy::round(t["energy_J"].as_f64().unwrap_or(0.0) / 1e6, 3),
+        "recharges": t["recharges"], "charges": t["charges"], "feasible": t["feasible"].as_bool().unwrap_or(true),
+        "infeasible_reasons": t["infeasible_reasons"],
+        "return_to_lander": if t["return_to_lander"].is_null() { json!({}) } else { t["return_to_lander"].clone() },
+        "objectives_total": p.mission.orders.len(), "blocked_legs": t["blocked_legs"],
+        // the planner reports no hazard violations (only the closed-loop executor does)
+        "hazard_flags": 0,
+    });
+    if let Some(tol) = p.mission.accept_flatness_tol_m {
+        // CP-04: the compiled as-built tolerance, exercised on this rehearsal path
+        let params = AcceptanceParams {
+            accept_flatness_tol_m: tol,
+            ..AcceptanceParams::default()
+        };
+        let v = validate_plan(&p.mission, Some(p.dem()), &p.inputs.acceptance(), &params)
+            .map_err(|e| err(StatusCode::BAD_REQUEST, e))?;
+        fut["as_built_pass"] = json!(v["as_built_pass"].as_bool().unwrap_or(false));
+        fut["as_built_tol_m"] = v["as_built_tol_m"].clone();
+    }
+    fut["wall_s"] = json!(stewie_twin::numpy::round(t0.elapsed().as_secs_f64(), 3));
+    Ok(fut)
+}
+
+/// Rank futures feasible first, then best first on the objective (time for `duration`/`time`, else energy), stably
+/// as the Python's `rank_feasible_first`; the recommendation is the head when it is feasible.
+fn rank(mut futures: Vec<Value>, objective: &str) -> (Vec<Value>, Value) {
+    let key = if objective == "duration" || objective == "time" {
+        "time_s"
+    } else {
+        "energy_MJ"
+    };
+    let score = |f: &Value| {
+        (
+            !f["feasible"].as_bool().unwrap_or(true),
+            f[key].as_f64().unwrap_or(f64::INFINITY),
+        )
+    };
+    futures.sort_by(|a, b| {
+        let (x, y) = (score(a), score(b));
+        x.0.cmp(&y.0).then(x.1.total_cmp(&y.1))
+    });
+    let recommended = futures
+        .first()
+        .filter(|f| f["feasible"].as_bool().unwrap_or(true))
+        .map_or(Value::Null, |f| f["algorithm"].clone());
+    (futures, recommended)
+}
+
+/// The director's forward comparison (Python `routers.plan.resync_compare`, #70): the mission re-planned under up
+/// to five candidate solver inputs, ranked feasible first, then best first on the objective. The Python plans each
+/// candidate flat; this plans on the mission site's real as-built surface, as `/plan` does (D-R85, D-R150).
+async fn resync_compare(State(st): State<Arc<AppState>>, req: Request) -> Response {
+    let (h, bytes) = split(req, st.settings.max_body).await;
+    blocking(st, move |st| {
+        let body = parse_body(&bytes?)?;
+        let identity = require_director(st, &h)?;
+        let bad = |e: String| err(StatusCode::BAD_REQUEST, e);
+        let Some(Value::Object(b)) = body else {
+            return Err(bad("body: Input should be a valid dictionary".to_owned()));
+        };
+        let mission = match b.get("mission") {
+            Some(Value::Object(m)) => m.clone(),
+            Some(_) => return Err(bad("mission payload must be a JSON object".to_owned())),
+            None => b.clone(),
+        };
+        st.planning.mission(&Value::Object(mission.clone())).map_err(bad)?;
+        // the Python's `tuple(...)[:5]`: a list's items, or a string's characters
+        let cands: Vec<String> = match b.get("candidates") {
+            None => vec!["auto".to_owned(), "nearest".to_owned()],
+            Some(Value::Array(a)) => a
+                .iter()
+                .map(|c| c.as_str().map(str::to_owned).ok_or_else(|| bad(format!("candidate {c} is not an algorithm name"))))
+                .collect::<Result<_, _>>()?,
+            Some(Value::String(s)) => s.chars().map(String::from).collect(),
+            Some(v) => return Err(bad(format!("candidates must be a list of algorithm names, not {v}"))),
+        };
+        let cands: Vec<String> = cands.into_iter().take(5).collect();
+        let objective = match b.get("objective") {
+            None => "duration".to_owned(),
+            Some(Value::String(s)) => s.clone(),
+            Some(v) => stewie_twin::pyjson::repr(v),
+        };
+        let futures = cands.iter().map(|a| future(st, &mission, a, &objective)).collect::<Result<Vec<_>, _>>()?;
+        let (futures, recommended) = rank(futures, &objective);
+        log(st, &h, &identity, "resync.compare", &format!("{} futures", cands.len()));
+        Ok(axum::Json(json!({"ok": true, "objective": objective, "futures": futures, "recommended": recommended}))
+            .into_response())
+    })
+    .await
+}
+
 /// The planning routes.
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/plan", post(post_plan))
         .route("/plan/math", post(plan_math))
+        .route("/resync/compare", post(resync_compare))
         .route("/plan/commands", post(plan_commands))
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::rank;
+
+    #[test]
+    fn futures_rank_feasible_first_then_by_the_objective() {
+        // SYNTHETIC futures: an infeasible candidate that scores best never outranks a feasible one
+        let f = |a: &str, ok: bool, t: f64, e: f64| json!({"algorithm": a, "feasible": ok, "time_s": t, "energy_MJ": e});
+        let futures = vec![
+            f("a", false, 1.0, 1.0),
+            f("b", true, 3.0, 2.0),
+            f("c", true, 2.0, 5.0),
+            f("d", true, 2.0, 4.0),
+        ];
+        let names = |v: &[serde_json::Value]| {
+            v.iter()
+                .map(|x| x["algorithm"].as_str().unwrap().to_owned())
+                .collect::<Vec<_>>()
+        };
+        let (by_time, rec) = rank(futures.clone(), "duration");
+        assert_eq!(
+            (names(&by_time), rec),
+            (
+                vec!["c".into(), "d".into(), "b".into(), "a".into()],
+                json!("c")
+            )
+        );
+        let (by_energy, rec) = rank(futures, "energy");
+        assert_eq!(
+            (names(&by_energy), rec),
+            (
+                vec!["b".into(), "d".into(), "c".into(), "a".into()],
+                json!("b")
+            )
+        );
+        let (_, rec) = rank(vec![f("a", false, 1.0, 1.0)], "time");
+        assert_eq!(rec, json!(null));
+    }
 }
