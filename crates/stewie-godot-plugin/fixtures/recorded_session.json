@@ -1,0 +1,22 @@
+{
+  "color_type": "Rgb",
+  "height": 480,
+  "pixels_sha256": "6795b45f6ac7e5c1bc9fd1ee7c2f1b6e9b3ba59343fcb805c9c36ee3b2e3ea27",
+  "renderer": "Godot 4.6.3, Vulkan Forward+, NVIDIA GeForce RTX 3090 under xvfb (render.sh)",
+  "request": {
+    "layers": "terrain",
+    "pose": [
+      25.0,
+      42.5,
+      55.0,
+      25.0,
+      0.0,
+      25.0
+    ],
+    "size": "640x480",
+    "sun_azim": 215.0,
+    "sun_elev": 25.0
+  },
+  "scene": "godot_scene_cases",
+  "width": 640
+}

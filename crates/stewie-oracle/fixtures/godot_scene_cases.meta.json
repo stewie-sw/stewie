@@ -1,0 +1,11 @@
+{
+ "fixture": "godot_scene_cases",
+ "generator": "oracle/build_fixtures.py::godot_scene_cases (the /render pipeline's BEFORE bundle of a real Haworth window)",
+ "payload_sha256": "103c9a26681bcb9c5ed8ef1a87eaf252b46d954316beb57c75cf428c07b08c38",
+ "sources": {
+  "samples/lunar_dem/haworth_10km_5m/metadata.json": "af7fd6fd67deae38934ac753740f6cdb23a393ed19a13a87bdcfd4511209aacc",
+  "scripts/plan_render_pipeline.py": "4302466c9a65aeedac75465b5ce60e0973c6f703564167f0689caba5978feb64",
+  "stewie/physics/worksite.py": "edb4197977c5ad5cf237bbfc3488f11edd85c3c7c9cd437354922a795ec7b58f",
+  "stewie/twin/io_fields.py": "07b87afe1932d0f7c0c978600d5772dfa15ab2644ebda6ac2f9de8bd7d2670bd"
+ }
+}

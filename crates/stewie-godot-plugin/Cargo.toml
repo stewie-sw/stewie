@@ -1,0 +1,19 @@
+[package]
+name = "stewie-godot-plugin"
+description = "The Godot renderer plugin (RW-51, D-R01): a stewie-plugin-v1 process that renders a scene bundle through the headless stewie/godot sidecar and reports the PNG it wrote. The core never links Godot."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[dev-dependencies]
+png = "0.18"
+sha2 = "0.10"
+stewie-plugins = { path = "../stewie-plugins" }
+
+[lints]
+workspace = true

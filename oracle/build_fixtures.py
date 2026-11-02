@@ -6822,6 +6822,39 @@ def http_sense_structure_cases() -> None:
                    "stewie/server/constructability.py", "leap/structures.py", "stewie/physics/slip.py"], payload)
 
 
+def godot_scene_cases() -> None:
+    """The Godot renderer plugin's scene (RW-51a): the Python /render pipeline's own BEFORE bundle -- a window of the
+    real Haworth DEM bundle cropped at its centre (u = v = 0.5, 10 cells resampled x5) by
+    ``plan_render_pipeline.crop_window_columnstate`` and written by its ``write_bundle`` (INTERFACE.md) -- recorded as
+    its five rasters (float32 values, row-major) and its metadata, so the plugin's contract test can lay the same scene
+    down and render it. No Godot runs here; the rendered image is recorded by the plugin's test (D-R181)."""
+    import importlib
+    import sys
+    import tempfile
+
+    from stewie.twin.io_fields import load_scene
+    sys.path.insert(0, os.path.join(REPO, "scripts"))
+    PRP = importlib.import_module("plan_render_pipeline")
+    bundle = os.path.join(REPO, "samples", "lunar_dem", "haworth_10km_5m")
+    cs_full, meta = PRP.coarse_base_from_bundle(bundle)
+    cs = PRP.crop_window_columnstate(cs_full, 0.5, 0.5, 10, 5)
+    h, w = cs.mass_areal.shape
+    win_meta = dict(meta)
+    win_meta["scene_name"] = "map_window"
+    win_meta["grid"] = {"width": w, "height": h, "cell_m": cs.cell_m, "order": "row-major-C"}
+    win_meta["world_bounds_m"] = {"x0": 0.0, "y0": 0.0, "x1": w * cs.cell_m, "y1": h * cs.cell_m}
+    with tempfile.TemporaryDirectory() as d:
+        PRP.write_bundle(cs, win_meta, d)
+        fields, saved_meta = load_scene(d)
+    payload = {"metadata": saved_meta,
+               "fields": {k: [float(x) if k != "state_label" else int(x) for x in v.ravel()]
+                          for k, v in sorted(fields.items())}}
+    write_fixture(ORACLE_FIXTURES, "godot_scene_cases", "oracle/build_fixtures.py::godot_scene_cases (the /render "
+                  "pipeline's BEFORE bundle of a real Haworth window)",
+                  ["scripts/plan_render_pipeline.py", "stewie/twin/io_fields.py", "stewie/physics/worksite.py",
+                   "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
+
+
 def plan_lowering_cases() -> None:
     """NV-11 (RW-55b25a): ``stewie.bridge.plan_lowering.lower_plan_ir`` on the plan IR of each repository sample
     mission (``lode.planner_views.plan_ir``, as ``/rc/plan_ros`` lowers it), with the AM-01 posture machine it
@@ -7520,6 +7553,7 @@ def main() -> None:
     http_executive_run_cases()
     http_plan_ros_cases()
     http_sense_structure_cases()
+    godot_scene_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()

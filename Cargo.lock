@@ -2391,6 +2391,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "stewie-godot-plugin"
+version = "0.1.0"
+dependencies = [
+ "png",
+ "serde_json",
+ "sha2",
+ "stewie-plugins",
+]
+
+[[package]]
 name = "stewie-oracle"
 version = "0.1.0"
 dependencies = [

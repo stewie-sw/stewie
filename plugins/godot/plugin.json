@@ -1,0 +1,1 @@
+{"name": "godot", "kind": "renderer", "version": "0.1.0", "protocol": "stewie-plugin-v1", "command": ["run"], "capabilities": ["render"]}

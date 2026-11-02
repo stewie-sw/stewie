@@ -1,0 +1,14 @@
+#!/bin/sh
+# The Godot renderer plugin's launcher (RW-51): run the stewie-godot-plugin binary named by
+# STEWIE_GODOT_PLUGIN_BIN, else the most recently built of the workspace's release and debug builds.
+here=$(dirname "$0")
+if [ -n "${STEWIE_GODOT_PLUGIN_BIN:-}" ]; then
+    exec "$STEWIE_GODOT_PLUGIN_BIN" "$@"
+fi
+newest=$(ls -t "$here/../../target/release/stewie-godot-plugin" "$here/../../target/debug/stewie-godot-plugin" \
+         2>/dev/null | head -n 1)
+if [ -n "$newest" ] && [ -x "$newest" ]; then
+    exec "$newest" "$@"
+fi
+echo "stewie-godot-plugin is not built (cargo build -p stewie-godot-plugin)" >&2
+exit 127
