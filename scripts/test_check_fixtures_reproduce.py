@@ -73,3 +73,15 @@ def test_fit_coefficients_compare_against_their_array_scale():
     b[1] = 28.5                                                           # a real change
     d.file("e.bin", a.astype("<f8").tobytes(), b.astype("<f8").tobytes())
     assert len(d.errors) == 1
+
+
+def test_the_viz2_runtime_telemetry_takes_its_measured_absolute_floor_and_nothing_else_does():
+    # the runner's measured pitch drift on the flat 1 m SfS spawn (SYNTHETIC wrapper, the two values measured)
+    old = {"ticks": [{"frames": [{"payload": {"telem": {"slope_rad": 0.0006535562768731342}}}]}]}
+    new = {"ticks": [{"frames": [{"payload": {"telem": {"slope_rad": 0.000653556275146782}}}]}]}
+    assert _check(C.VIZ2_RUNTIME, old, new).errors == []
+    assert _check("crates/stewie-oracle/fixtures/other.payload.json", old, new).errors, "the floor is scoped"
+    moved = {"ticks": [{"frames": [{"payload": {"telem": {"slope_rad": 0.00066}}}]}]}
+    assert _check(C.VIZ2_RUNTIME, old, moved).errors, "a real change still fails"
+    off_telem = ({"spawn": [0.0006535562768731342]}, {"spawn": [0.000653556275146782]})
+    assert _check(C.VIZ2_RUNTIME, *off_telem).errors, "only the telemetry takes the floor"

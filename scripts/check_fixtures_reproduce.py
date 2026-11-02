@@ -50,9 +50,17 @@ def _digest_may_drift(path: str, ptr: str) -> bool:
 ILL_CONDITIONED = "crates/stewie-oracle/fixtures/pose_graph_se2_s3li.payload.json"
 
 
+# The viz2 runtime stepped over the real 1 m SfS tile (RW-51e1b) spawns on its flattest spot, where the drive's pitch
+# is a ~6.5e-4 rad difference of nearby heights: the runner's libm moved it by 1.9e-12 absolute (measured 2026-11-02,
+# 2.9e-9 relative), past the default's 1e-12. Its telemetry is held to 1e-11 absolute; everything else to the default.
+VIZ2_RUNTIME = "crates/stewie-oracle/fixtures/viz2_runtime_cases.payload.json"
+
+
 def _tolerance(path: str, ptr: str, a: float, b: float) -> float:
     """The allowed |a - b| for a float at ``ptr`` of ``path``."""
     tol = ATOL + RTOL * max(abs(a), abs(b))
+    if path == VIZ2_RUNTIME and "/telem/" in ptr:
+        return max(tol, 1e-11)
     if path == ILL_CONDITIONED:
         if ptr.startswith("/pose/"):
             return max(tol, 1e-5)
