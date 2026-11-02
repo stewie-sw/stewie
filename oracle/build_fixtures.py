@@ -6144,6 +6144,187 @@ def dem_fix_cases() -> None:
                   {"origin": list(origin), "cases": cases})
 
 
+
+def _se2_jsonable(x):
+    """A pose-graph output for the fixture: non-finite floats as the strings "inf"/"-inf"/"nan" (strict JSON)."""
+    if isinstance(x, dict):
+        return {str(k): _se2_jsonable(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_se2_jsonable(v) for v in x]
+    if isinstance(x, float) and not math.isfinite(x):
+        return "nan" if math.isnan(x) else ("inf" if x > 0 else "-inf")
+    return x
+
+
+def _se2_replay(calls: list, opts: dict):
+    """Build a ``dart.pose_graph_se2.PoseGraphSE2`` from the recorded add calls, in order (factor order is behaviour:
+    the residual stacking, the Huber blocks and the chained initial guess all follow it)."""
+    from dart.pose_graph_se2 import PoseGraphSE2
+
+    g = PoseGraphSE2(robust=opts.get("robust", True), huber_delta=opts.get("huber_delta", 1.345),
+                     estimate_vo_scale=opts.get("estimate_vo_scale", False))
+    for kind, *a in calls:
+        if kind == "prior":
+            g.add_prior(a[0], a[1], a[2], a[3])
+        elif kind == "between":
+            g.add_between(a[0], a[1], a[2], a[3], a[4])
+        elif kind == "vo_between":
+            g.add_vo_between(a[0], a[1], a[2], a[3], a[4])
+        elif kind == "vo_scale_prior":
+            g.set_vo_scale_prior(a[0], a[1])
+        elif kind == "imu_yaw":
+            g.add_imu_yaw(a[0], a[1], a[2], a[3])
+        elif kind == "shadow_yaw":
+            g.add_shadow_yaw(a[0], a[1], a[2])
+        elif kind == "absolute":
+            g.add_absolute(a[0], a[1], a[2])
+        elif kind == "absolute_cov":
+            g.add_absolute_cov(a[0], a[1], a[2], sigma_floor_m=a[3])
+        else:
+            raise ValueError(kind)
+    return g
+
+
+def _se2_status(st: dict) -> dict:
+    """A solve status for the fixture: the gradient norm at convergence is BLAS-summation noise (a forced OpenBLAS
+    kernel moves it by up to 4e-2 relative), so only its side of the 1e-4 convergence test is recorded."""
+    out = {k: v for k, v in st.items() if k != "final_gradient_norm"}
+    out["gradient_below_tol"] = bool(st["final_gradient_norm"] < 1e-4)
+    return out
+
+
+def pose_graph_se2_cases() -> None:
+    """The SE(2) pose graph (RW-40a, ``dart.pose_graph_se2``): SYNTHETIC graphs (labelled) that exercise every factor
+    kind, the Huber/IRLS kernel against a gross outlier and its plain-squared twin, the latent VO-scale state with and
+    without an absolute scale reference, the H-15 gauge-free and empty graphs, and the M-04 input refusals; plus
+    ``yaw_from_shadow`` across the wrap. Each case is its add calls in order and the Python's outputs."""
+    from dart import pose_graph_se2 as PG
+
+    turn = [["prior", 0, [1.0, -2.0, 0.3], 0.05, 0.01]]
+    for k in range(6):                                        # SYNTHETIC: a turning odometry chain
+        turn.append(["between", k, k + 1, [1.0, 0.1 * (k % 3), 0.2], 0.05, 0.02])
+    clean = turn + [
+        ["imu_yaw", 1, 3, 0.43, 0.01],
+        ["shadow_yaw", 4, 1.18, 0.2],
+        ["absolute", 6, [5.1, 2.6], 0.3],
+        ["absolute_cov", 5, [4.4, 1.7], [[0.09, 0.05], [0.05, 0.16]], 1e-3],
+        ["vo_between", 2, 5, [2.9, 0.4, 0.62], 0.1, 0.05],
+    ]
+    mixed = clean[:-1] + [["absolute", 3, [40.0, -30.0], 0.2], clean[-1]]   # with a gross outlier fix
+    vo = [["prior", 0, [0.0, 0.0, 0.0], 0.01, 0.005], ["vo_scale_prior", 1.0, 0.2]]
+    for k in range(8):                                        # SYNTHETIC: VO under-reads forward motion by 10 %
+        vo.append(["vo_between", k, k + 1, [0.9, 0.0, 0.05], 0.05, 0.01])
+    vo_ref = vo + [["absolute", 4, [3.99, 0.4], 0.05], ["absolute", 8, [7.85, 1.6], 0.05]]
+    graphs = [
+        ("mixed robust", mixed, {}),
+        ("clean robust", clean, {}),
+        ("clean plain squared", clean, {"robust": False}),
+        ("mixed huber 0.5", mixed, {"huber_delta": 0.5}),
+        ("vo scale unobservable", vo, {"estimate_vo_scale": True}),
+        ("vo scale with absolute fixes", vo_ref, {"estimate_vo_scale": True}),
+        ("gauge free", [["between", 0, 1, [1.0, 0.0, 0.1], 0.05, 0.02],
+                        ["between", 1, 2, [1.0, 0.2, -0.3], 0.05, 0.02]], {}),
+        ("empty", [], {}),
+        ("heading wrap", [["prior", 7, [0.0, 0.0, 3.1], 0.05, 0.01],
+                          ["between", 7, 9, [1.0, 0.0, 0.2], 0.05, 0.01],
+                          ["shadow_yaw", 9, -2.95, 0.1]], {}),
+    ]
+    cases = []
+    for name, calls, opts in graphs:
+        g = _se2_replay(calls, opts)
+        out = {"status": _se2_status(g.solve_status()), "pose": g.optimize(), "cov": g.optimize_with_cov(),
+               "scale": g.optimize_with_scale()}
+        out["scale"]["status"] = _se2_status(out["scale"]["status"])
+        cases.append({"name": name, "opts": opts, "calls": calls, "out": _se2_jsonable(out)})
+    assert all(c["out"]["status"]["converged"] for c in cases), "every case stops on the convergence test"
+    assert cases[1]["out"]["pose"] != cases[2]["out"]["pose"], "vacuity: the Huber kernel moves the solution"
+    refusals = []
+    for calls in ([["prior", 0, [0, 0, 0], 0.0, 0.1]], [["between", 0, 1, [1, 0, 0], 0.1, -1.0]],
+                  [["absolute", 0, [0, 0], float("nan")]], [["shadow_yaw", 0, 0.0, float("inf")]],
+                  [["vo_scale_prior", 1.0, 0.0]],
+                  [["absolute_cov", 0, [0, 0], [[1.0, float("nan")], [0.0, 1.0]], 1e-3]],
+                  [["absolute_cov", 0, [0, 0], [[1.0, 0.5], [0.4, 1.0]], 1e-3]],
+                  [["absolute_cov", 0, [0, 0], [[1.0, 2.0], [2.0, 1.0]], 1e-3]]):
+        try:
+            _se2_replay(calls, {})
+            raise AssertionError(f"vacuity: {calls} must be refused")
+        except ValueError as e:
+            refusals.append({"calls": _se2_jsonable(calls), "error": str(e)})
+    yaws = [[az, b, PG.yaw_from_shadow(az, b)] for az, b in
+            ((0.5, 0.2), (-3.0, 0.5), (3.0, -0.5), (math.pi, 0.0), (-math.pi, 0.0), (0.0, math.pi), (10.0, -7.0))]
+    write_fixture(ORACLE_FIXTURES, "pose_graph_se2_cases", "oracle/build_fixtures.py::pose_graph_se2_cases "
+                  "(dart.pose_graph_se2.PoseGraphSE2 on SYNTHETIC graphs)", ["dart/pose_graph_se2.py"],
+                  {"cases": cases, "refusals": refusals, "yaw_from_shadow": yaws})
+
+
+def pose_graph_se2_s3li() -> None:
+    """The SE(2) pose graph on real data (RW-40a): the S3LI ``s3li_crater`` loop-closure recipe's keyframe graph
+    (``dart.loop_pose_graph_se2.solve_se2_keyframes``: the stride-3 stereo VO odometry between 538 keyframes, the five
+    accepted visual loop closures, the start prior), rebuilt from the frozen VO poses and the committed recipe meta,
+    recorded as its add calls in order with the Python's solve. The frozen VO (``vo_cam_stride3.npz``, from the S3LI
+    imagery) is not in the repository or CI, so where it is absent the committed fixture stands (as D-R162's)."""
+    import json as _json
+
+    import dart.loop_pose_graph_se2 as L
+    from dart.loop_closure_visual import LoopClosure, registration_rotation
+    from dart.s3li_capstone import register_cam_to_enu
+
+    bench = os.path.join(REPO, "benchmarks", "s3li_crater")
+    npz = os.path.join(bench, "vo_cam_stride3.npz")
+    if not os.path.isfile(npz):
+        print("pose_graph_se2_s3li: the frozen S3LI VO is not here; the committed fixture is kept, not regenerated")
+        return
+    meta = _json.load(open(os.path.join(bench, "se2_recipe_stride3_meta.json")))
+    d = np.load(npz)
+    yaw = float(np.linspace(0.0, 2.0 * np.pi, 360, endpoint=False)[91])   # the recipe's yaw_search grid point
+    assert float(np.degrees(yaw)) == meta["yaw_deg"], "the recipe's registration yaw"
+    enu = register_cam_to_enu(d["xyz_cam"].astype(float), yaw, meta["z0_m"])
+    acc = [LoopClosure(a_node=c["a_node"], b_node=c["b_node"], d_enu=np.array(c["d_enu_m"]),
+                       c_in_a=np.array(c["c_in_a_m"]), n_inliers=c["n_inliers"], n_matches=c["n_matches"],
+                       similarity=c["similarity"], trans_m=c["trans_m"], accepted=c["accepted"],
+                       reject_reason=c["reject_reason"], r_ab=np.array(c["r_ab"])) for c in meta["loop_closures"]]
+    calls: list = []
+
+    class Recorded(L.PoseGraphSE2):
+        def add_prior(self, i, pose, sigma_xy, sigma_yaw):
+            calls.append(["prior", int(i), [float(v) for v in pose], float(sigma_xy), float(sigma_yaw)])
+            super().add_prior(i, pose, sigma_xy, sigma_yaw)
+
+        def add_between(self, i, j, meas, sigma_xy, sigma_yaw):
+            calls.append(["between", int(i), int(j), [float(v) for v in meas], float(sigma_xy), float(sigma_yaw)])
+            super().add_between(i, j, meas, sigma_xy, sigma_yaw)
+
+        def add_shadow_yaw(self, i, measured_yaw, sigma):
+            calls.append(["shadow_yaw", int(i), float(measured_yaw), float(sigma)])
+            super().add_shadow_yaw(i, measured_yaw, sigma)
+
+    solved: dict = {}
+    solve = L.solve_se2_keyframes
+
+    def recorded_solve(*a, **k):
+        pose, st = solve(*a, **k)
+        solved.update(pose=pose, status=st, iters=k.get("iters", 50))
+        return pose, st
+
+    real_cls, L.PoseGraphSE2, L.solve_se2_keyframes = L.PoseGraphSE2, Recorded, recorded_solve
+    try:
+        r = L.estimate_se2_loopclosure(enu, d["quat_wxyz_cam"].astype(float), registration_rotation(yaw), acc,
+                                       step=meta["se2"]["step"])
+    finally:
+        L.PoseGraphSE2, L.solve_se2_keyframes = real_cls, solve
+    # vacuity: the rebuilt graph is the recipe's (its recorded keyframes, loops and final cost)
+    assert (r.n_keyframes, r.n_loops, r.converged, r.final_cost) == (
+        meta["se2"]["n_keyframes"], meta["se2"]["n_loops"], meta["se2"]["converged"], meta["se2"]["final_cost"])
+    keys = ("converged", "iterations", "condition_number", "well_conditioned", "final_gradient_norm", "final_cost")
+    status = _se2_status({k: solved["status"][k] for k in keys})
+    pose = {str(nid): [float(v) for v in p] for nid, p in solved["pose"].items()}
+    write_fixture(ORACLE_FIXTURES, "pose_graph_se2_s3li", "oracle/build_fixtures.py::pose_graph_se2_s3li "
+                  "(dart.loop_pose_graph_se2.solve_se2_keyframes on the S3LI s3li_crater stride-3 recipe)",
+                  ["dart/pose_graph_se2.py", "dart/loop_pose_graph_se2.py",
+                   "benchmarks/s3li_crater/se2_recipe_stride3_meta.json"],
+                  {"iters": solved["iters"], "calls": calls, "pose": pose, "status": _se2_jsonable(status)})
+
+
 def contour_cases() -> None:
     """The contourpy port (RW-55b5c-3): contourpy's serial ``filled(lower, upper)`` with ``fill_type="OuterOffset"``
     on (1) the real Haworth and Shackleton-rim work-area terrain-hazard masks at three slope caps, with the tile-frame
@@ -6324,6 +6505,8 @@ def main() -> None:
     timeline_cases()
     autonomy_cases()
     dem_fix_cases()
+    pose_graph_se2_cases()
+    pose_graph_se2_s3li()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,19 @@
+[package]
+name = "stewie-perceive"
+description = "Rover state estimation: the SE(2) pose graph over typed odometry, IMU, shadow-yaw and absolute-fix factors."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+nalgebra = { version = "0.34", default-features = false, features = ["std"] }
+stewie-twin = { path = "../stewie-twin" }
+
+[dev-dependencies]
+stewie-oracle = { path = "../stewie-oracle" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[lints]
+workspace = true

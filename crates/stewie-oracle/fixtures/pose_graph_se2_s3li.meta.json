@@ -1,0 +1,10 @@
+{
+ "fixture": "pose_graph_se2_s3li",
+ "generator": "oracle/build_fixtures.py::pose_graph_se2_s3li (dart.loop_pose_graph_se2.solve_se2_keyframes on the S3LI s3li_crater stride-3 recipe)",
+ "payload_sha256": "16170b60aa2a62f4c3f0d918f38046621fc1c7a1fbb7a244e99a9fecf34fa67e",
+ "sources": {
+  "benchmarks/s3li_crater/se2_recipe_stride3_meta.json": "008eb837fee6756b4cb19ed366cc4960321eb1a10f0248ce120bfad9a37f4e5e",
+  "dart/loop_pose_graph_se2.py": "3905de331e0631ea80eaeed4dcb9dabe0549acea9cd06cd181a82f2417727ea6",
+  "dart/pose_graph_se2.py": "b29899d684730e1dce25fc50b0bb12bee187599db38a87e86e091540d9e88ade"
+ }
+}

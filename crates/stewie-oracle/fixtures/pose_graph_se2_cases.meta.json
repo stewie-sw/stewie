@@ -1,0 +1,8 @@
+{
+ "fixture": "pose_graph_se2_cases",
+ "generator": "oracle/build_fixtures.py::pose_graph_se2_cases (dart.pose_graph_se2.PoseGraphSE2 on SYNTHETIC graphs)",
+ "payload_sha256": "1a942afe69c6a0ed0cc042411469629c06ba1f3c669cccffcdc7ae4aaf23e728",
+ "sources": {
+  "dart/pose_graph_se2.py": "b29899d684730e1dce25fc50b0bb12bee187599db38a87e86e091540d9e88ade"
+ }
+}
