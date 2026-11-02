@@ -5856,6 +5856,57 @@ def http_gis_cases() -> None:
                   ["stewie/server/routers/gis_export.py", "lode/gis_export.py",
                    "samples/lunar_dem/haworth_10km_5m/metadata.json"], payload)
 
+def http_ops_cases() -> None:
+    """The director's maintenance operations (RW-55b21): POST /admin/twin/snapshot, /admin/twin/retention,
+    /admin/backup/replicate and GET /admin/ops/governance, through one scripted session (_http_session), with the
+    RPOs from the environment (one malformed, so it falls back to a sol). The resync patch is SYNTHETIC (labelled).
+    The backup artifacts' mtimes are the real file times, so the governance view's last-success times and ages are
+    recorded as placeholders; the clock jumps far past every RPO first so the within-RPO verdicts are fixed. The
+    recorded bodies name the session's data directory as ``{data_dir}``."""
+    dirs = {}
+
+    def script(call, key, d, clock):
+        dirs["d"] = d
+        guest = {"X-Stewie-Anon-Key": "anon-key-xyz"}
+        call("POST", "/admin/backup/replicate", headers=key)                    # nothing to replicate yet
+        call("GET", "/admin/ops/governance", headers=key)
+        call("POST", "/admin/twin/snapshot")                                     # no key
+        call("POST", "/admin/twin/snapshot", headers=guest)
+        patch = [[1100.25, 1100.5, 1100.75], [1101.0, 1101.25, 1101.5]]
+        call("POST", "/twin/resync", headers=key,
+             json_body={"heights_m": patch, "origin_rc": [1382, 823], "provenance": "SYNTHETIC observation"})
+        call("POST", "/admin/twin/snapshot", headers=key)
+        call("POST", "/admin/twin/snapshot", headers=key)
+        call("POST", "/admin/twin/retention", headers=key)
+        call("POST", "/admin/backup/replicate", headers=key)
+        clock["t"] = 4_000_000_000.0
+        call("GET", "/admin/ops/governance?n=2", headers=key)
+        call("GET", "/admin/ops/governance?n=10", headers=key)                 # the whole maintenance trail
+        call("GET", "/admin/ops/governance?n=0", headers=key)
+        call("GET", "/admin/ops/governance?n=abc", headers=key)
+        call("GET", "/admin/ops/governance", headers=guest)
+
+    payload = _http_session("stewie-http-ops-oracle",
+                            {"STEWIE_SNAPSHOT_RPO_S": "120", "STEWIE_REPLICA_RPO_S": "soon"}, script)
+
+    def norm(v):
+        if isinstance(v, dict):
+            out = {k: norm(x) for k, x in v.items()}
+            for k in ("last_success_ts", "age_s"):                  # the real file times (see the docstring)
+                if isinstance(out.get(k), float):
+                    out[k] = f"<{k}>"
+            return out
+        if isinstance(v, list):
+            return [norm(x) for x in v]
+        return v.replace(dirs["d"], "{data_dir}") if isinstance(v, str) else v
+    for step in payload["steps"]:
+        step["body"] = norm(step["body"])
+    payload["ledger"] = norm(payload["ledger"])
+    write_fixture(ORACLE_FIXTURES, "http_ops_cases", "oracle/build_fixtures.py::http_ops_cases (the FastAPI app's "
+                  "director maintenance operations)",
+                  ["stewie/server/routers/admin_ops.py", "stewie/server/ops_governance.py", "stewie/twin/backup.py"],
+                  payload)
+
 def endurance_cases() -> None:
     """The endurance report (RW-55b14b): lode.planner_endurance.endurance on the bundled sample mission over the
     real Haworth DEM and its flattest anchor (state.moon_dem), for both power kinds, warm, cold and very cold
@@ -6188,6 +6239,7 @@ def main() -> None:
     http_wms_cases()
     http_evidence_cases()
     http_gis_cases()
+    http_ops_cases()
     contour_lines_cases()
     endurance_cases()
     timeline_cases()

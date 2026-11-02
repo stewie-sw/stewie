@@ -97,6 +97,10 @@ pub struct Settings {
     pub plan_deadline_s: f64,
     /// `STEWIE_REPORTS_TTL_S` (86400): plan reports older than this are pruned (0 or less keeps them).
     pub reports_ttl_s: f64,
+    /// `STEWIE_SNAPSHOT_RPO_S` / `STEWIE_REPLICA_RPO_S` (one sol, the snapshot scheduler's trigger, when unset, not
+    /// a number or not positive): the recovery-point objectives the governance view checks the backups against.
+    pub snapshot_rpo_s: f64,
+    pub replica_rpo_s: f64,
     /// `STEWIE_TILES_DIR`: the Cesium 3D Tiles tilesets (default the checkout's `out/colmap`).
     pub tiles_dir: std::path::PathBuf,
     /// `STEWIE_VALIDATION_DIR`: the validation figures `/figures` lists (default the checkout's `validation/`; the
@@ -115,6 +119,16 @@ pub struct Settings {
 /// The constants the Python's N15 overlay can override (`oracle/export_registries.py`).
 const OVERLAY_CONSTANTS: &str =
     include_str!("../../stewie-contracts/fixtures/overlay_constants.json");
+
+/// A recovery-point objective [s] (Python `ops_governance._env_float`): a positive number, else one sol, the
+/// snapshot scheduler's trigger.
+fn rpo(raw: &str) -> f64 {
+    raw.trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|v| *v > 0.0)
+        .unwrap_or(86400.0 * 29.53)
+}
 
 impl Settings {
     /// # Errors
@@ -187,6 +201,8 @@ impl Settings {
             max_keepouts: num("STEWIE_MAX_KEEPOUTS", "200")? as usize,
             plan_deadline_s: num("STEWIE_PLAN_DEADLINE_S", "120")?,
             reports_ttl_s: num("STEWIE_REPORTS_TTL_S", "86400")?,
+            snapshot_rpo_s: rpo(&var("STEWIE_SNAPSHOT_RPO_S")),
+            replica_rpo_s: rpo(&var("STEWIE_REPLICA_RPO_S")),
             tiles_dir: get("STEWIE_TILES_DIR")
                 .filter(|v| !v.is_empty())
                 .map_or_else(
@@ -1141,6 +1157,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .merge(crate::ogc_routes::routes())
         .merge(crate::evidence_routes::routes())
         .merge(crate::gis_routes::routes())
+        .merge(crate::ops_routes::routes())
         .fallback(no_route)
         .method_not_allowed_fallback(no_route)
         .layer(DefaultBodyLimit::disable())

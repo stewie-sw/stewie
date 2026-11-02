@@ -1,0 +1,10 @@
+{
+ "fixture": "http_ops_cases",
+ "generator": "oracle/build_fixtures.py::http_ops_cases (the FastAPI app's director maintenance operations)",
+ "payload_sha256": "81c7fafc4baea4a3b970b21c71072a46d31431a1d415acb359703d72ae569591",
+ "sources": {
+  "stewie/server/ops_governance.py": "b2f05ccb1ced5999132a67d3c96c6145ab0894448eabec535bc3a186836cfccd",
+  "stewie/server/routers/admin_ops.py": "aa8d199d5e560ca99da69d43df982c6240a286d8fa79d8f1a3d6b035b13e3141",
+  "stewie/twin/backup.py": "7695018a5c786fbdba017a82020b590683119115aac828e7ff7d2bfbfeb4db31"
+ }
+}

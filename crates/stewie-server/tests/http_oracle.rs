@@ -377,6 +377,10 @@ async fn replay(
         if line["action"] == "revocation.read_failed" {
             line["target"] = json!("<the read error>");
         }
+        // a target naming the session's data directory is recorded as `{data_dir}`
+        if let Some(t) = line["target"].as_str() {
+            line["target"] = json!(t.replace(&dir.display().to_string(), "{data_dir}"));
+        }
     }
     assert_eq!(Value::Array(ledger), fx["ledger"], "the audit ledger");
     // the durable journals, byte for byte, where the fixture recorded them
@@ -1982,6 +1986,59 @@ async fn the_python_gis_session_replays_exactly() {
         |_, _| {},
     )
     .await;
+}
+
+#[tokio::test]
+async fn the_python_ops_session_replays_exactly() {
+    fn norm(v: &mut Value, dir: &str) {
+        match v {
+            Value::String(s) => *s = s.replace(dir, "{data_dir}"),
+            Value::Array(a) => a.iter_mut().for_each(|x| norm(x, dir)),
+            Value::Object(m) => {
+                // the backup artifacts' real file times (the fixture records placeholders)
+                for k in ["last_success_ts", "age_s"] {
+                    if m.get(k).is_some_and(Value::is_f64) {
+                        m.insert(k.to_owned(), json!(format!("<{k}>")));
+                    }
+                }
+                m.values_mut().for_each(|x| norm(x, dir));
+            }
+            _ => {}
+        }
+    }
+    let dir = std::env::temp_dir()
+        .join(format!("stewie-http_ops_cases-{}", std::process::id()))
+        .display()
+        .to_string();
+    replay(
+        "http_ops_cases",
+        b"stewie-http-ops-oracle",
+        |_, step, clock, _| {
+            *clock.0.lock().unwrap() = step["clock"].as_f64().unwrap();
+        },
+        |_, body| norm(body, &dir),
+    )
+    .await;
+}
+
+#[test]
+fn a_recovery_point_objective_must_be_a_positive_number_else_one_sol() {
+    let sol = 86400.0 * 29.53;
+    for (raw, want) in [
+        ("120", 120.0),
+        (" 7.5 ", 7.5),
+        ("-5", sol),
+        ("0", sol),
+        ("soon", sol),
+        ("", sol),
+        ("nan", sol),
+    ] {
+        let s = stewie_server::app::Settings::from_env(&|k| {
+            (k == "STEWIE_SNAPSHOT_RPO_S").then(|| raw.to_owned())
+        })
+        .unwrap();
+        assert_eq!((s.snapshot_rpo_s, s.replica_rpo_s), (want, sol), "{raw:?}");
+    }
 }
 
 #[tokio::test]

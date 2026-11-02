@@ -1,0 +1,527 @@
+{
+ "client": "127.0.0.1",
+ "clock0": 1800000000.0,
+ "env": {
+  "STEWIE_ALLOWED_OPERATORS": "alice@example.org,bob@example.org",
+  "STEWIE_API_KEY": "automation-key-0123456789",
+  "STEWIE_DIRECTORS": "alice@example.org",
+  "STEWIE_GIS_ANON_KEY": "anon-key-xyz",
+  "STEWIE_REPLICA_RPO_S": "soon",
+  "STEWIE_SESSION_SECRET": "session-secret-abcdef",
+  "STEWIE_SNAPSHOT_RPO_S": "120"
+ },
+ "ledger": [
+  {
+   "action": "admin.backup.replicate",
+   "actor": "api-key",
+   "correlation_id": "cid-001",
+   "target": "{data_dir}/replica",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "twin.resync",
+   "actor": "api-key",
+   "correlation_id": "cid-005",
+   "target": "SYNTHETIC observation",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "admin.twin.snapshot",
+   "actor": "api-key",
+   "correlation_id": "cid-006",
+   "target": "twin_v000001.npz",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "admin.twin.snapshot",
+   "actor": "api-key",
+   "correlation_id": "cid-007",
+   "target": "twin_v000001.npz",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "admin.twin.retention",
+   "actor": "api-key",
+   "correlation_id": "cid-008",
+   "target": "1 removed",
+   "ts": 1800000000.0
+  },
+  {
+   "action": "admin.backup.replicate",
+   "actor": "api-key",
+   "correlation_id": "cid-009",
+   "target": "{data_dir}/replica",
+   "ts": 1800000000.0
+  }
+ ],
+ "seed_sha256_of": "stewie-http-ops-oracle",
+ "steps": [
+  {
+   "body": {
+    "error": "nothing to replicate in {data_dir}",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-001"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/backup/replicate",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "checked_at": 1800000000.0,
+    "degraded": true,
+    "jobs": {
+     "replica": {
+      "age_s": null,
+      "last_success_ts": null,
+      "present": false,
+      "rpo_s": 2551392.0,
+      "within_rpo": false
+     },
+     "snapshot": {
+      "age_s": null,
+      "last_success_ts": null,
+      "present": false,
+      "rpo_s": 120.0,
+      "within_rpo": false
+     }
+    },
+    "ok": true,
+    "policy": {
+     "keep_recent": 5,
+     "ladder": 10,
+     "replica_rpo_s": 2551392.0,
+     "snapshot_rpo_s": 120.0
+    },
+    "recent_ops": [
+     {
+      "action": "admin.backup.replicate",
+      "actor": "api-key",
+      "correlation_id": "cid-001",
+      "target": "{data_dir}/replica",
+      "ts": 1800000000.0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-002"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/ops/governance",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "invalid or missing API key",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-003"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/twin/snapshot",
+    "raw": null
+   },
+   "status": 401
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'gis-anon')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-004",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/twin/snapshot",
+    "raw": null
+   },
+   "status": 403
+  },
+  {
+   "body": {
+    "ok": true,
+    "twin_version": 1
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-005"
+    },
+    "json": {
+     "heights_m": [
+      [
+       1100.25,
+       1100.5,
+       1100.75
+      ],
+      [
+       1101.0,
+       1101.25,
+       1101.5
+      ]
+     ],
+     "origin_rc": [
+      1382,
+      823
+     ],
+     "provenance": "SYNTHETIC observation"
+    },
+    "method": "POST",
+    "path": "/twin/resync",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "snapshot": "{data_dir}/snapshots/twin_v000001.npz"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-006"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/twin/snapshot",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "snapshot": "{data_dir}/snapshots/twin_v000001.npz"
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-007"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/twin/snapshot",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "ok": true,
+    "removed": [
+     "twin_v000001.npz"
+    ]
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-008"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/twin/retention",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "",
+    "items": [
+     "snapshots",
+     "twin"
+    ],
+    "ok": true
+   },
+   "cache_control": null,
+   "clock": 1800000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-009"
+    },
+    "json": null,
+    "method": "POST",
+    "path": "/admin/backup/replicate",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "checked_at": 4000000000.0,
+    "degraded": true,
+    "jobs": {
+     "replica": {
+      "age_s": "<age_s>",
+      "last_success_ts": "<last_success_ts>",
+      "present": true,
+      "rpo_s": 2551392.0,
+      "within_rpo": false
+     },
+     "snapshot": {
+      "age_s": "<age_s>",
+      "last_success_ts": "<last_success_ts>",
+      "present": true,
+      "rpo_s": 120.0,
+      "within_rpo": false
+     }
+    },
+    "ok": true,
+    "policy": {
+     "keep_recent": 5,
+     "ladder": 10,
+     "replica_rpo_s": 2551392.0,
+     "snapshot_rpo_s": 120.0
+    },
+    "recent_ops": [
+     {
+      "action": "admin.backup.replicate",
+      "actor": "api-key",
+      "correlation_id": "cid-009",
+      "target": "{data_dir}/replica",
+      "ts": 1800000000.0
+     },
+     {
+      "action": "admin.twin.retention",
+      "actor": "api-key",
+      "correlation_id": "cid-008",
+      "target": "1 removed",
+      "ts": 1800000000.0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 4000000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-010"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/ops/governance?n=2",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "checked_at": 4000000000.0,
+    "degraded": true,
+    "jobs": {
+     "replica": {
+      "age_s": "<age_s>",
+      "last_success_ts": "<last_success_ts>",
+      "present": true,
+      "rpo_s": 2551392.0,
+      "within_rpo": false
+     },
+     "snapshot": {
+      "age_s": "<age_s>",
+      "last_success_ts": "<last_success_ts>",
+      "present": true,
+      "rpo_s": 120.0,
+      "within_rpo": false
+     }
+    },
+    "ok": true,
+    "policy": {
+     "keep_recent": 5,
+     "ladder": 10,
+     "replica_rpo_s": 2551392.0,
+     "snapshot_rpo_s": 120.0
+    },
+    "recent_ops": [
+     {
+      "action": "admin.backup.replicate",
+      "actor": "api-key",
+      "correlation_id": "cid-009",
+      "target": "{data_dir}/replica",
+      "ts": 1800000000.0
+     },
+     {
+      "action": "admin.twin.retention",
+      "actor": "api-key",
+      "correlation_id": "cid-008",
+      "target": "1 removed",
+      "ts": 1800000000.0
+     },
+     {
+      "action": "admin.twin.snapshot",
+      "actor": "api-key",
+      "correlation_id": "cid-007",
+      "target": "twin_v000001.npz",
+      "ts": 1800000000.0
+     },
+     {
+      "action": "admin.twin.snapshot",
+      "actor": "api-key",
+      "correlation_id": "cid-006",
+      "target": "twin_v000001.npz",
+      "ts": 1800000000.0
+     },
+     {
+      "action": "admin.backup.replicate",
+      "actor": "api-key",
+      "correlation_id": "cid-001",
+      "target": "{data_dir}/replica",
+      "ts": 1800000000.0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 4000000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-011"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/ops/governance?n=10",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "checked_at": 4000000000.0,
+    "degraded": true,
+    "jobs": {
+     "replica": {
+      "age_s": "<age_s>",
+      "last_success_ts": "<last_success_ts>",
+      "present": true,
+      "rpo_s": 2551392.0,
+      "within_rpo": false
+     },
+     "snapshot": {
+      "age_s": "<age_s>",
+      "last_success_ts": "<last_success_ts>",
+      "present": true,
+      "rpo_s": 120.0,
+      "within_rpo": false
+     }
+    },
+    "ok": true,
+    "policy": {
+     "keep_recent": 5,
+     "ladder": 10,
+     "replica_rpo_s": 2551392.0,
+     "snapshot_rpo_s": 120.0
+    },
+    "recent_ops": [
+     {
+      "action": "admin.backup.replicate",
+      "actor": "api-key",
+      "correlation_id": "cid-009",
+      "target": "{data_dir}/replica",
+      "ts": 1800000000.0
+     }
+    ]
+   },
+   "cache_control": null,
+   "clock": 4000000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-012"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/ops/governance?n=0",
+    "raw": null
+   },
+   "status": 200
+  },
+  {
+   "body": {
+    "error": "n: Input should be a valid integer, unable to parse string as an integer",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 4000000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-API-Key": "automation-key-0123456789",
+     "X-Correlation-Id": "cid-013"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/ops/governance?n=abc",
+    "raw": null
+   },
+   "status": 400
+  },
+  {
+   "body": {
+    "error": "director role required (signed in as operator 'gis-anon')",
+    "ok": false
+   },
+   "cache_control": null,
+   "clock": 4000000000.0,
+   "content_type": "application/json",
+   "request": {
+    "headers": {
+     "X-Correlation-Id": "cid-014",
+     "X-Stewie-Anon-Key": "anon-key-xyz"
+    },
+    "json": null,
+    "method": "GET",
+    "path": "/admin/ops/governance",
+    "raw": null
+   },
+   "status": 403
+  }
+ ],
+ "store": null
+}
