@@ -1,0 +1,24 @@
+[package]
+name = "stewie-stream"
+description = "The viz2 pixel-stream service (RW-51d; Python stewie.stream): the setup and stream pages, the real-site previews, the token, rate and session guards, and the browser and Godot seam contracts. A separate binary from stewie-server that links no rover-command, plan-lowering or plugin-host crate (RT-06)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "json", "query"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+stewie-twin = { path = "../stewie-twin" }
+subtle = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+
+[dev-dependencies]
+http-body-util = "0.1"
+sha2 = "0.10"
+stewie-oracle = { path = "../stewie-oracle" }
+tower = { version = "0.5", features = ["util"] }
+
+[lints]
+workspace = true

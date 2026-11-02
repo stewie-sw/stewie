@@ -1,0 +1,13 @@
+{
+ "fixture": "stream_http_cases",
+ "generator": "oracle/build_fixtures.py::stream_http_cases (the viz2 stream service's HTTP surface; SYNTHETIC saved bags and routes, labelled)",
+ "payload_sha256": "61532fcd6f16fc1636edc7e59c26abb935f7596a419a0c0dcb24cab3aaa01b29",
+ "sources": {
+  "dart/dem_site_compare.py": "9b2796bb7ccef4cb45a7dd1ce94851fa12611b8f7606985828d12091a43463f4",
+  "stewie/stream/app.py": "e8087350086c53d7467163d6b0149f966e885a41672b34adeb4bcd4ed8173559",
+  "stewie/stream/previews.py": "e32ae53b5ddf95dc41b120d1358cf92f890e1aa8c6efa46010e3b454db7a057b",
+  "stewie/stream/security.py": "da63d967a2be33aec6b49d6cf9ce66798a1ca41a7617919e7f7500057cf9ae07",
+  "stewie/stream/static/index.html": "9e38dd13b9875df0e8f135cb5408e7a2c41321826a4f0532f6b05772e0176a76",
+  "stewie/stream/static/stream.html": "78819542b0f7abfd51625330c2b5eedc5224e91ddae50d39b3ecc74748a5a566"
+ }
+}

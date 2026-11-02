@@ -1,0 +1,9 @@
+{
+ "fixture": "stream_protocol_cases",
+ "generator": "oracle/build_fixtures.py::stream_protocol_cases (the viz2 stream's session config, control frames and seam framing; SYNTHETIC inputs, labelled)",
+ "payload_sha256": "01622d7e1c2b128180c39c029a224470f78d58881a0bc5e453f3efccdb66ae0a",
+ "sources": {
+  "stewie/stream/framing.py": "83fa33cc28fd5daad67e9cdea7558a4ade06a242bd18dcb07bff817eb03ee95c",
+  "stewie/stream/protocol.py": "c4a2095fa3d935b7edf103cb1ce906468fb8ed533f03125e7f3b315761e72f2d"
+ }
+}

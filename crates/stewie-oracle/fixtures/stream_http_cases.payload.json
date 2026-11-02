@@ -1,0 +1,921 @@
+{
+ "seed_files": {
+  "viz2_bags/bare.json": "{}",
+  "viz2_bags/broken.json": "{not json",
+  "viz2_bags/haworth_loop.json": "{\"config\": {\"site\": \"haworth_sfs_2km_1m\", \"mode\": \"real\"}, \"duration_s\": 12.345, \"n_commands\": 7}",
+  "viz2_bags/texty.json": "{\"duration_s\": \"3.25\", \"n_commands\": \"4\", \"config\": null}",
+  "viz2_routes/broken.json": "[1,",
+  "viz2_routes/no_props.json": "{\"type\": \"FeatureCollection\"}",
+  "viz2_routes/pad_run.json": "{\"type\": \"FeatureCollection\", \"features\": [], \"properties\": {\"site\": \"haworth_10km_5m\", \"mode\": \"real\", \"n_goals\": 3, \"route_m\": 41.5}}"
+ },
+ "steps": [
+  {
+   "body_sha256": "9e38dd13b9875df0e8f135cb5408e7a2c41321826a4f0532f6b05772e0176a76",
+   "content_type": "text/html; charset=utf-8",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/"
+  },
+  {
+   "body_sha256": "78819542b0f7abfd51625330c2b5eedc5224e91ddae50d39b3ecc74748a5a566",
+   "content_type": "text/html; charset=utf-8",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/stream"
+  },
+  {
+   "body": {
+    "ok": true,
+    "service": "viz2-stream"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/healthz"
+  },
+  {
+   "body_sha256": "08fd7545d13d2c7fb65ab691530a802dafefd638596501854f267d0fb13c39e7",
+   "content_type": "text/javascript; charset=utf-8",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/vendor/three.module.min.js"
+  },
+  {
+   "body": {
+    "detail": "Not Found"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 404,
+   "url": "/vendor/../app.py"
+  },
+  {
+   "body": {
+    "detail": "Not Found"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 404,
+   "url": "/vendor/nope.js"
+  },
+  {
+   "body": {
+    "bundles": [
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "connecting_ridge_10km_5m",
+      "region": "Connecting Ridge",
+      "source": "PGDA LOLA_5mpp Site01_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": false,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "de_gerlache_kocher_10km_5m",
+      "region": "De Gerlache Kocher",
+      "source": "PGDA LOLA_5mpp Site42_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "de_gerlache_rim_10km_5m",
+      "region": "De Gerlache Rim",
+      "source": "PGDA LOLA_5mpp Site11_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "haworth_10km_5m",
+      "region": "Haworth",
+      "source": "PGDA LOLA_5mpp Haworth_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 1.0,
+      "citation": "USGS Astrogeology LRO NAC photoclinometry (Shape-from-Shading) DEM 1 m; method Alexandrov & Beyer 2018 (Earth & Space Sci. 5:652)",
+      "default": true,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "public domain (US Gov); U.S. Government work (USGS Astrogeology / NASA LRO) -- no formal license string published; treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "haworth_sfs_2km_1m",
+      "region": "Haworth",
+      "source": "LRO NAC Photoclinometry (SfS) DEM 1 m — Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "leibnitz_beta_10km_5m",
+      "region": "Leibnitz Beta",
+      "source": "PGDA LOLA_5mpp Site20_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "malapert_massif_10km_5m",
+      "region": "Malapert Massif",
+      "source": "PGDA LOLA_5mpp Site23_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "nobile_rim1_10km_5m",
+      "region": "Nobile Rim1",
+      "source": "PGDA LOLA_5mpp Site06_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "nobile_rim2_10km_5m",
+      "region": "Nobile Rim2",
+      "source": "PGDA LOLA_5mpp DM2_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "peak_near_shackleton_10km_5m",
+      "region": "Peak Near Shackleton",
+      "source": "PGDA LOLA_5mpp Site07_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "shackleton_rim_10km_5m",
+      "region": "Shackleton Rim",
+      "source": "PGDA LOLA_5mpp Site04_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     }
+    ],
+    "default": "haworth_sfs_2km_1m"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/bundles"
+  },
+  {
+   "body": {
+    "bags": [
+     {
+      "duration_s": 0.0,
+      "mode": null,
+      "n_commands": 0,
+      "name": "bare",
+      "site": null
+     },
+     {
+      "duration_s": 12.3,
+      "mode": "real",
+      "n_commands": 7,
+      "name": "haworth_loop",
+      "site": "haworth_sfs_2km_1m"
+     },
+     {
+      "duration_s": 3.2,
+      "mode": null,
+      "n_commands": 4,
+      "name": "texty",
+      "site": null
+     }
+    ]
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/bags"
+  },
+  {
+   "body": {
+    "routes": [
+     {
+      "mode": null,
+      "n_goals": 0,
+      "name": "no_props",
+      "route_m": 0.0,
+      "site": null
+     },
+     {
+      "mode": "real",
+      "n_goals": 3,
+      "name": "pad_run",
+      "route_m": 41.5,
+      "site": "haworth_10km_5m"
+     }
+    ]
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/routes"
+  },
+  {
+   "body_sha256": "5a65cb686f2fa4fb068529d2212d03e490133474fb4207d89a853a29f1b59417",
+   "content_type": "application/geo+json",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/routes/pad_run"
+  },
+  {
+   "body": {
+    "detail": "route not found"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 404,
+   "url": "/routes/pad..run"
+  },
+  {
+   "body": {
+    "detail": "route not found"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 404,
+   "url": "/routes/missing"
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "citation": "USGS Astrogeology LRO NAC photoclinometry (Shape-from-Shading) DEM 1 m; method Alexandrov & Beyer 2018 (Earth & Space Sci. 5:652)",
+    "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+    "full_max_m": 1822.49169921875,
+    "full_min_m": 1666.564697265625,
+    "full_shape": [
+     2000,
+     2000
+    ],
+    "has_heightmap": true,
+    "license_basis": "public domain (US Gov); U.S. Government work (USGS Astrogeology / NASA LRO) -- no formal license string published; treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+    "n": 128,
+    "ncols": 128,
+    "region": "Haworth",
+    "relief_m": 155.927001953125,
+    "site": "haworth_sfs_2km_1m",
+    "source": "LRO NAC Photoclinometry (SfS) DEM 1 m — Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif",
+    "synthetic": false,
+    "z_len": 16384,
+    "z_max": 1822.49169921875,
+    "z_min": 1666.564697265625,
+    "z_sha256": "513f7aa79ca194007ca4a3970fb54f1efe43731ce724889ce95014dd45b2e991"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/preview/heightmap"
+  },
+  {
+   "body": {
+    "cell_m": 5.0,
+    "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+    "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+    "full_max_m": 2842.2138671875,
+    "full_min_m": -96.61453247070312,
+    "full_shape": [
+     2000,
+     2000
+    ],
+    "has_heightmap": true,
+    "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+    "n": 128,
+    "ncols": 128,
+    "region": "Haworth",
+    "relief_m": 2938.828399658203,
+    "site": "haworth_10km_5m",
+    "source": "PGDA LOLA_5mpp Haworth_final_adj_5mpp_surf.tif (Product 78)",
+    "synthetic": false,
+    "z_len": 16384,
+    "z_max": 2841.5302734375,
+    "z_min": -96.20819854736328,
+    "z_sha256": "780cc5baec938dae2ff59c3923382842d16b8c98c0f65641a82491fa18acb124"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/preview/heightmap?site=haworth_10km_5m"
+  },
+  {
+   "body": {
+    "cell_m": 5.0,
+    "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+    "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+    "has_heightmap": false,
+    "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+    "n": 0,
+    "note": "metadata-only bundle (no heightmap.rf32) — no mesh preview for this tile",
+    "region": "De Gerlache Kocher",
+    "site": "de_gerlache_kocher_10km_5m",
+    "source": "PGDA LOLA_5mpp Site42_surf.tif (Product 78)",
+    "synthetic": false,
+    "z": []
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/preview/heightmap?site=de_gerlache_kocher_10km_5m"
+  },
+  {
+   "body": {
+    "detail": "site must be a bare bundle name, got '../etc'"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 400,
+   "url": "/preview/heightmap?site=../etc"
+  },
+  {
+   "body": {
+    "detail": "site must be a bare bundle name, got ' .hidden'"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 400,
+   "url": "/preview/heightmap?site=%20.hidden"
+  },
+  {
+   "body": {
+    "detail": "real site 'no_such_site' not found under {repo}/samples/lunar_dem"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 404,
+   "url": "/preview/heightmap?site=no_such_site"
+  },
+  {
+   "body": {
+    "cell_m": 1.0,
+    "citation": "USGS Astrogeology LRO NAC photoclinometry (Shape-from-Shading) DEM 1 m; method Alexandrov & Beyer 2018 (Earth & Space Sci. 5:652)",
+    "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+    "full_max_m": 1822.49169921875,
+    "full_min_m": 1666.564697265625,
+    "full_shape": [
+     2000,
+     2000
+    ],
+    "has_heightmap": true,
+    "license_basis": "public domain (US Gov); U.S. Government work (USGS Astrogeology / NASA LRO) -- no formal license string published; treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+    "n": 128,
+    "ncols": 128,
+    "region": "Haworth",
+    "relief_m": 155.927001953125,
+    "site": "haworth_sfs_2km_1m",
+    "source": "LRO NAC Photoclinometry (SfS) DEM 1 m — Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif",
+    "synthetic": false,
+    "z_len": 16384,
+    "z_max": 1822.49169921875,
+    "z_min": 1666.564697265625,
+    "z_sha256": "513f7aa79ca194007ca4a3970fb54f1efe43731ce724889ce95014dd45b2e991"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 200,
+   "url": "/preview/heightmap?site=a&site=haworth_sfs_2km_1m"
+  },
+  {
+   "body": {
+    "detail": "Not Found"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "open",
+   "status": 404,
+   "url": "/nowhere"
+  },
+  {
+   "body": {
+    "detail": "Method Not Allowed"
+   },
+   "content_type": "application/json",
+   "method": "POST",
+   "phase": "open",
+   "status": 405,
+   "url": "/bundles"
+  },
+  {
+   "body": {
+    "detail": "unauthorized: missing or invalid stream token"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "token",
+   "status": 401,
+   "url": "/"
+  },
+  {
+   "body": {
+    "detail": "unauthorized: missing or invalid stream token"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "token",
+   "status": 401,
+   "url": "/?token=wrong"
+  },
+  {
+   "body_sha256": "9e38dd13b9875df0e8f135cb5408e7a2c41321826a4f0532f6b05772e0176a76",
+   "content_type": "text/html; charset=utf-8",
+   "method": "GET",
+   "phase": "token",
+   "status": 200,
+   "url": "/?token=SYNTHETIC-stream-token-0123"
+  },
+  {
+   "body": {
+    "ok": true,
+    "service": "viz2-stream"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "token",
+   "status": 200,
+   "url": "/healthz"
+  },
+  {
+   "body_sha256": "08fd7545d13d2c7fb65ab691530a802dafefd638596501854f267d0fb13c39e7",
+   "content_type": "text/javascript; charset=utf-8",
+   "method": "GET",
+   "phase": "token",
+   "status": 200,
+   "url": "/vendor/three.module.min.js"
+  },
+  {
+   "body": {
+    "detail": "unauthorized: missing or invalid stream token"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "token",
+   "status": 401,
+   "url": "/bundles"
+  },
+  {
+   "body": {
+    "bundles": [
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "connecting_ridge_10km_5m",
+      "region": "Connecting Ridge",
+      "source": "PGDA LOLA_5mpp Site01_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": false,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "de_gerlache_kocher_10km_5m",
+      "region": "De Gerlache Kocher",
+      "source": "PGDA LOLA_5mpp Site42_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "de_gerlache_rim_10km_5m",
+      "region": "De Gerlache Rim",
+      "source": "PGDA LOLA_5mpp Site11_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "haworth_10km_5m",
+      "region": "Haworth",
+      "source": "PGDA LOLA_5mpp Haworth_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 1.0,
+      "citation": "USGS Astrogeology LRO NAC photoclinometry (Shape-from-Shading) DEM 1 m; method Alexandrov & Beyer 2018 (Earth & Space Sci. 5:652)",
+      "default": true,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "public domain (US Gov); U.S. Government work (USGS Astrogeology / NASA LRO) -- no formal license string published; treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "haworth_sfs_2km_1m",
+      "region": "Haworth",
+      "source": "LRO NAC Photoclinometry (SfS) DEM 1 m — Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "leibnitz_beta_10km_5m",
+      "region": "Leibnitz Beta",
+      "source": "PGDA LOLA_5mpp Site20_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "malapert_massif_10km_5m",
+      "region": "Malapert Massif",
+      "source": "PGDA LOLA_5mpp Site23_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "nobile_rim1_10km_5m",
+      "region": "Nobile Rim1",
+      "source": "PGDA LOLA_5mpp Site06_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "nobile_rim2_10km_5m",
+      "region": "Nobile Rim2",
+      "source": "PGDA LOLA_5mpp DM2_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "peak_near_shackleton_10km_5m",
+      "region": "Peak Near Shackleton",
+      "source": "PGDA LOLA_5mpp Site07_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "shackleton_rim_10km_5m",
+      "region": "Shackleton Rim",
+      "source": "PGDA LOLA_5mpp Site04_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     }
+    ],
+    "default": "haworth_sfs_2km_1m"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "token",
+   "status": 200,
+   "url": "/bundles?token=SYNTHETIC-stream-token-0123"
+  },
+  {
+   "body": {
+    "detail": "unauthorized: missing or invalid stream token"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "token",
+   "status": 401,
+   "url": "/nowhere"
+  },
+  {
+   "body": {
+    "detail": "Not Found"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "token",
+   "status": 404,
+   "url": "/nowhere?token=SYNTHETIC-stream-token-0123"
+  },
+  {
+   "body_sha256": "5a65cb686f2fa4fb068529d2212d03e490133474fb4207d89a853a29f1b59417",
+   "content_type": "application/geo+json",
+   "method": "GET",
+   "phase": "token",
+   "status": 200,
+   "url": "/routes/pad_run?token=x&token=SYNTHETIC-stream-token-0123"
+  },
+  {
+   "body_sha256": "9e38dd13b9875df0e8f135cb5408e7a2c41321826a4f0532f6b05772e0176a76",
+   "content_type": "text/html; charset=utf-8",
+   "method": "GET",
+   "phase": "rate",
+   "status": 200,
+   "url": "/"
+  },
+  {
+   "body_sha256": "78819542b0f7abfd51625330c2b5eedc5224e91ddae50d39b3ecc74748a5a566",
+   "content_type": "text/html; charset=utf-8",
+   "method": "GET",
+   "phase": "rate",
+   "status": 200,
+   "url": "/stream"
+  },
+  {
+   "body": {
+    "bundles": [
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "connecting_ridge_10km_5m",
+      "region": "Connecting Ridge",
+      "source": "PGDA LOLA_5mpp Site01_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": false,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "de_gerlache_kocher_10km_5m",
+      "region": "De Gerlache Kocher",
+      "source": "PGDA LOLA_5mpp Site42_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "de_gerlache_rim_10km_5m",
+      "region": "De Gerlache Rim",
+      "source": "PGDA LOLA_5mpp Site11_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "haworth_10km_5m",
+      "region": "Haworth",
+      "source": "PGDA LOLA_5mpp Haworth_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 1.0,
+      "citation": "USGS Astrogeology LRO NAC photoclinometry (Shape-from-Shading) DEM 1 m; method Alexandrov & Beyer 2018 (Earth & Space Sci. 5:652)",
+      "default": true,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "public domain (US Gov); U.S. Government work (USGS Astrogeology / NASA LRO) -- no formal license string published; treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "haworth_sfs_2km_1m",
+      "region": "Haworth",
+      "source": "LRO NAC Photoclinometry (SfS) DEM 1 m — Lunar_LROnac_Haworth_sfs-dem_1m_v3.tif",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "leibnitz_beta_10km_5m",
+      "region": "Leibnitz Beta",
+      "source": "PGDA LOLA_5mpp Site20_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "malapert_massif_10km_5m",
+      "region": "Malapert Massif",
+      "source": "PGDA LOLA_5mpp Site23_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "nobile_rim1_10km_5m",
+      "region": "Nobile Rim1",
+      "source": "PGDA LOLA_5mpp Site06_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "nobile_rim2_10km_5m",
+      "region": "Nobile Rim2",
+      "source": "PGDA LOLA_5mpp DM2_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "peak_near_shackleton_10km_5m",
+      "region": "Peak Near Shackleton",
+      "source": "PGDA LOLA_5mpp Site07_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     },
+     {
+      "cell_m": 5.0,
+      "citation": "Barker et al. 2021 (Planet. Space Sci. 203:105119); Mazarico et al. 2011 (Icarus 211:1066)",
+      "default": false,
+      "frame": "south polar stereographic, R=1737400 m sphere (IAU_2015:30135)",
+      "has_heightmap": true,
+      "license_basis": "U.S. Government work (NASA GSFC PGDA); no formal license string published — treated as public-domain / CC0-compatible under the US-Gov-works principle (see THIRD_PARTY.md).",
+      "name": "shackleton_rim_10km_5m",
+      "region": "Shackleton Rim",
+      "source": "PGDA LOLA_5mpp Site04_final_adj_5mpp_surf.tif (Product 78)",
+      "synthetic": false
+     }
+    ],
+    "default": "haworth_sfs_2km_1m"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "rate",
+   "status": 200,
+   "url": "/bundles"
+  },
+  {
+   "body_sha256": "9e38dd13b9875df0e8f135cb5408e7a2c41321826a4f0532f6b05772e0176a76",
+   "content_type": "text/html; charset=utf-8",
+   "method": "GET",
+   "phase": "rate",
+   "status": 200,
+   "url": "/"
+  },
+  {
+   "body": {
+    "detail": "rate limited: too many connections, try again shortly"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "rate",
+   "status": 429,
+   "url": "/"
+  },
+  {
+   "body": {
+    "detail": "rate limited: too many connections, try again shortly"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "rate",
+   "status": 429,
+   "url": "/stream"
+  },
+  {
+   "body": {
+    "ok": true,
+    "service": "viz2-stream"
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "rate",
+   "status": 200,
+   "url": "/healthz"
+  },
+  {
+   "body": {
+    "bags": [
+     {
+      "duration_s": 0.0,
+      "mode": null,
+      "n_commands": 0,
+      "name": "bare",
+      "site": null
+     },
+     {
+      "duration_s": 12.3,
+      "mode": "real",
+      "n_commands": 7,
+      "name": "haworth_loop",
+      "site": "haworth_sfs_2km_1m"
+     },
+     {
+      "duration_s": 3.2,
+      "mode": null,
+      "n_commands": 4,
+      "name": "texty",
+      "site": null
+     }
+    ]
+   },
+   "content_type": "application/json",
+   "method": "GET",
+   "phase": "rate",
+   "status": 200,
+   "url": "/bags"
+  }
+ ]
+}

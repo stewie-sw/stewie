@@ -2507,6 +2507,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "stewie-stream"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "http-body-util",
+ "serde_json",
+ "sha2",
+ "stewie-oracle",
+ "stewie-twin",
+ "subtle",
+ "tokio",
+ "tower",
+]
+
+[[package]]
 name = "stewie-traverse"
 version = "0.1.0"
 dependencies = [

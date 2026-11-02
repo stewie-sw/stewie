@@ -6866,6 +6866,174 @@ def http_render_pair_cases() -> None:
                    "stewie/physics/postures.py", "stewie/godot/out/parallax/A_sensors.json"], payload)
 
 
+def stream_http_cases() -> None:
+    """The viz2 stream service's HTTP surface (RW-51d): ``stewie.stream.app`` through Starlette's TestClient in three
+    phases -- open (the tailnet posture), token-gated and rate-limited -- over the real ``samples/lunar_dem``
+    bundles and SYNTHETIC saved bags and routes (labelled: a temporary directory stands in for ``out/``). Each step
+    records the status, the media type and the body: JSON as parsed, with a preview's ``z`` grid as the sha256 of
+    its float64 little-endian bytes plus its length; a file as its sha256. Paths are recorded as ``{repo}``."""
+    import hashlib
+    import tempfile
+
+    from fastapi.testclient import TestClient
+
+    from stewie.stream import app as SA
+    from stewie.stream import security as SEC
+
+    saved_dirs = (SA.BAGS_DIR, SA.ROUTES_DIR)
+    env_keys = (SEC.ENV_TOKEN, SEC.ENV_MAX_SESSIONS, SEC.ENV_MAX_CONN_PER_MIN)
+    saved_env = {k: os.environ.pop(k, None) for k in env_keys}
+    steps = []
+    with tempfile.TemporaryDirectory() as tmp:
+        bags, routes = os.path.join(tmp, "viz2_bags"), os.path.join(tmp, "viz2_routes")
+        os.makedirs(bags)
+        os.makedirs(routes)
+        # SYNTHETIC saved bags and routes (labelled): the shapes the stream writes, and malformed files it skips
+        files = {
+            "viz2_bags/haworth_loop.json": {"config": {"site": "haworth_sfs_2km_1m", "mode": "real"},
+                                             "duration_s": 12.345, "n_commands": 7},
+            "viz2_bags/bare.json": {},
+            "viz2_bags/texty.json": {"duration_s": "3.25", "n_commands": "4", "config": None},
+            "viz2_routes/pad_run.json": {"type": "FeatureCollection", "features": [],
+                                          "properties": {"site": "haworth_10km_5m", "mode": "real", "n_goals": 3,
+                                                         "route_m": 41.5}},
+            "viz2_routes/no_props.json": {"type": "FeatureCollection"},
+        }
+        for rel, doc in files.items():
+            with open(os.path.join(tmp, rel), "w") as fh:
+                json.dump(doc, fh)
+        for rel, text in (("viz2_bags/broken.json", "{not json"), ("viz2_routes/broken.json", "[1,")):
+            with open(os.path.join(tmp, rel), "w") as fh:
+                fh.write(text)
+        SA.BAGS_DIR, SA.ROUTES_DIR = __import__("pathlib").Path(bags), __import__("pathlib").Path(routes)
+
+        def norm(v):
+            if isinstance(v, dict):
+                return {k: norm(x) for k, x in v.items()}
+            if isinstance(v, list):
+                return [norm(x) for x in v]
+            return v.replace(REPO, "{repo}") if isinstance(v, str) else v
+
+        def call(phase, method, url):
+            r = client.request(method, url)
+            ctype = r.headers.get("content-type", "")
+            step = {"phase": phase, "method": method, "url": url, "status": r.status_code, "content_type": ctype}
+            if ctype.startswith("application/json"):
+                body = r.json()
+                if isinstance(body, dict) and isinstance(body.get("z"), list) and body["z"]:
+                    import numpy as np
+                    z = np.asarray(body.pop("z"), dtype="<f8")
+                    body["z_len"] = int(z.size)
+                    body["z_sha256"] = hashlib.sha256(z.tobytes()).hexdigest()
+                step["body"] = norm(body)
+            else:
+                step["body_sha256"] = hashlib.sha256(r.content).hexdigest()
+            steps.append(step)
+
+        try:
+            with TestClient(SA.app) as client:
+                SEC.reset_state()
+                for url in ("/", "/stream", "/healthz", "/vendor/three.module.min.js", "/vendor/../app.py",
+                            "/vendor/nope.js", "/bundles", "/bags", "/routes", "/routes/pad_run", "/routes/pad..run",
+                            "/routes/missing", "/preview/heightmap", "/preview/heightmap?site=haworth_10km_5m",
+                            "/preview/heightmap?site=de_gerlache_kocher_10km_5m", "/preview/heightmap?site=../etc",
+                            "/preview/heightmap?site=%20.hidden", "/preview/heightmap?site=no_such_site",
+                            "/preview/heightmap?site=a&site=haworth_sfs_2km_1m", "/nowhere"):
+                    call("open", "GET", url)
+                call("open", "POST", "/bundles")
+                os.environ[SEC.ENV_TOKEN] = "SYNTHETIC-stream-token-0123"
+                SEC.reset_state()
+                for url in ("/", "/?token=wrong", "/?token=SYNTHETIC-stream-token-0123", "/healthz",
+                            "/vendor/three.module.min.js", "/bundles", "/bundles?token=SYNTHETIC-stream-token-0123",
+                            "/nowhere", "/nowhere?token=SYNTHETIC-stream-token-0123",
+                            "/routes/pad_run?token=x&token=SYNTHETIC-stream-token-0123"):
+                    call("token", "GET", url)
+                os.environ.pop(SEC.ENV_TOKEN)
+                os.environ[SEC.ENV_MAX_CONN_PER_MIN] = "3"
+                SEC.reset_state()
+                for url in ("/", "/stream", "/bundles", "/", "/", "/stream", "/healthz", "/bags"):
+                    call("rate", "GET", url)
+        finally:
+            SA.BAGS_DIR, SA.ROUTES_DIR = saved_dirs
+            for k in env_keys:
+                os.environ.pop(k, None)
+                if saved_env[k] is not None:
+                    os.environ[k] = saved_env[k]
+            SEC.reset_state()
+        seed = {rel: json.dumps(doc) for rel, doc in files.items()}
+        seed.update({"viz2_bags/broken.json": "{not json", "viz2_routes/broken.json": "[1,"})
+    write_fixture(ORACLE_FIXTURES, "stream_http_cases", "oracle/build_fixtures.py::stream_http_cases (the viz2 stream "
+                  "service's HTTP surface; SYNTHETIC saved bags and routes, labelled)",
+                  ["stewie/stream/app.py", "stewie/stream/security.py", "stewie/stream/previews.py",
+                   "dart/dem_site_compare.py", "stewie/stream/static/index.html", "stewie/stream/static/stream.html"],
+                  {"seed_files": seed, "steps": steps})
+
+
+def stream_protocol_cases() -> None:
+    """The stream's browser contract (RW-51d): ``stewie.stream.protocol.parse_config`` and ``normalize_input`` over
+    SYNTHETIC session configs and control frames (labelled: they exercise every clamp, default and refusal), and
+    ``framing.pack_frame``/``FrameDecoder`` over SYNTHETIC payloads split at every byte. Inputs are recorded as the
+    JSON text the browser sends; a refusal as its message."""
+    from stewie.stream import framing as FR
+    from stewie.stream import protocol as PR
+
+    configs = [
+        {}, {"mode": "REAL"}, {"mode": "procedural"}, {"mode": None}, {"mode": 1}, [], "real", 5,
+        {"site": "haworth_10km_5m", "sun": {"az": 200, "el": "7.5"}, "fine": 2},
+        {"site": "  shackleton_rim_10km_5m  ", "fine": "native", "mission_size": 1000},
+        {"site": "", "region_size": 10}, {"site": 0}, {"site": 42}, {"site": ["a"]},
+        {"site": "../etc"}, {"site": ".hidden"}, {"site": "a\\b"},
+        {"sun": "bright"}, {"sun": {"az": "inf", "el": None}}, {"sun": {"az": [1], "el": True}},
+        {"fine": 0}, {"fine": -1}, {"fine": True}, {"fine": "x"}, {"fine": "1_0"}, {"fine": " 0.5 "},
+        {"mission_size": None, "region_size": 300}, {"mission_size": "250"}, {"mission_size": "nan"},
+        {"start_xy": [10.5, -20]}, {"start_xy": ["1", "2.5"]}, {"start_xy": [True, 0]}, {"start_xy": None},
+        {"start_xy": "1,2"}, {"start_xy": {"x": 1}}, {"start_xy": 7}, {"start_xy": [1]}, {"start_xy": [1, 2, 3]},
+        {"start_xy": [1, "a"]}, {"start_xy": [1, None]}, {"start_xy": ["nan", 1]}, {"start_xy": [1, "-inf"]},
+    ]
+    config_cases = []
+    for c in configs:
+        text = json.dumps(c)
+        try:
+            config_cases.append({"text": text, "out": PR.parse_config(text)})
+        except PR.ConfigError as e:
+            config_cases.append({"text": text, "error": str(e)})
+    for text in ("{not json", ""):
+        try:
+            PR.parse_config(text)
+            raise AssertionError("parsed")
+        except PR.ConfigError as e:
+            config_cases.append({"text": text, "error_prefix": str(e).split(":")[0] + ":"})
+    inputs = [
+        {}, {"v": 0.5}, {"omega": -3}, {"v": "0.25", "omega": True}, {"v": None, "omega": [1]}, {"v": "inf"},
+        {"dig": True, "dump": 0}, {"dig": "yes", "dump": [1]}, {"dig": "", "dump": {}},
+        {"sun_az": -30}, {"sun_az": 725.5}, {"sun_az": -0.0}, {"sun_az": "x"}, {"sun_az": -1e-20}, {"sun_el": 120},
+        {"sun_el": -10}, {"sun_el": None}, {"cam_next": 1}, {"cam_mode": 5}, {"cam_mode": -1}, {"cam_mode": 2.9},
+        {"cam_mode": -2.5}, {"cam_mode": 1e300}, {"cam_mode": "3"}, {"orbit_dyaw": 100, "orbit_dpitch": -100,
+                                                                     "orbit_dzoom": "2"},
+        {"drum": -2}, {"drum": 0.3}, {"arm_front_d": 0.7, "arm_back_d": -0.2}, {"click_px": [10, "20"]},
+        {"click_px": [1, 2, 3]}, {"click_px": "1,2"}, {"click_px": [None, "inf"]}, {"traverse": 0},
+        {"traverse": "on"}, {"clear_wp": True}, {"overlay": "slope"}, {"overlay": 3}, {"plan": True},
+        {"plan": 1}, {"plan": {"route": [[1, 2], [3, "4", 9], [5], "x", [None, 6]]}}, {"plan": {"route": []}},
+        {"plan": {"route": [[1]]}}, {"plan": {"route": "x"}}, {"plan": False}, [1, 2], "dig", 3,
+    ]
+    input_cases = [{"text": json.dumps(m), "out": PR.normalize_input(json.dumps(m))} for m in inputs]
+    input_cases += [{"text": t, "out": PR.normalize_input(t)} for t in ("{not json", "", "null")]
+    payloads = [b"", b"\xff\xd8\xff\xe0JFIF", bytes(range(256)), json.dumps({"v": 0.5}).encode()]
+    stream = b"".join(FR.pack_frame(p) for p in payloads)
+    splits = []
+    for cut in range(len(stream) + 1):
+        d = FR.FrameDecoder()
+        got = d.feed(stream[:cut])
+        splits.append({"cut": cut, "frames": len(got), "pending": d.pending,
+                       "rest": len(d.feed(stream[cut:]))})
+    write_fixture(ORACLE_FIXTURES, "stream_protocol_cases", "oracle/build_fixtures.py::stream_protocol_cases (the "
+                  "viz2 stream's session config, control frames and seam framing; SYNTHETIC inputs, labelled)",
+                  ["stewie/stream/protocol.py", "stewie/stream/framing.py"],
+                  {"configs": config_cases, "inputs": input_cases,
+                   "framing": {"payloads_hex": [p.hex() for p in payloads], "stream_hex": stream.hex(),
+                               "splits": splits}})
+
+
 def godot_scene_cases() -> None:
     """The Godot renderer plugin's scene (RW-51a): the Python /render pipeline's own BEFORE bundle -- a window of the
     real Haworth DEM bundle cropped at its centre (u = v = 0.5, 10 cells resampled x5) by
@@ -7679,6 +7847,8 @@ def main() -> None:
     choice_cases()
     render_pair_cases()
     http_render_pair_cases()
+    stream_http_cases()
+    stream_protocol_cases()
     plan_lowering_cases()
     numpy_rng_cases()
     telemetry_link_cases()
